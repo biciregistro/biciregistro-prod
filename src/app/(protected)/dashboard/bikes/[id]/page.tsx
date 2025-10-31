@@ -11,7 +11,7 @@ import { BikeRegistrationForm, TheftReportForm } from '@/components/bike-compone
 import { cn } from '@/lib/utils';
 import type { Bike, User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft, Pencil, FileDown } from 'lucide-react';
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -135,6 +135,24 @@ export default function BikeDetailsPage({ params: paramsPromise }: { params: Pro
                       <DetailItem label="Modalidad" value={bike.modality} />
                   </CardContent>
               </Card>
+
+              {bike.ownershipDocs && bike.ownershipDocs.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Documentos de Propiedad</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {bike.ownershipDocs.map((doc, index) => (
+                      <Button asChild variant="outline" key={index} className="w-full justify-start">
+                        <a href={doc} target="_blank" rel="noopener noreferrer">
+                          <FileDown className="mr-2 h-4 w-4" />
+                          Descargar Documento {index + 1}
+                        </a>
+                      </Button>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
 
               {bike.status === 'stolen' && bike.theftReport && (
                    <Card className="border-destructive">

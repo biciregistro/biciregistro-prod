@@ -34,7 +34,7 @@ let bikes: Bike[] = [
     modality: 'Urbana',
     status: 'safe',
     photos: [getImage('bike-1'), getImage('bike-2')],
-    ownershipDocs: [],
+    ownershipDocs: ['https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'],
   },
   {
     id: 'bike-2',
