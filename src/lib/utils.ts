@@ -15,6 +15,7 @@ export function calculateBikeProfileCompleteness(bike: Bike): number {
     { value: bike.modelYear, weight: 1 },
     { value: bike.modality, weight: 1 },
     { value: bike.photos && bike.photos.length > 0, weight: 1 },
+    { value: bike.ownershipDocs && bike.ownershipDocs.length > 0, weight: 1 },
   ];
 
   const totalWeight = fields.reduce((sum, field) => sum + field.weight, 0);
