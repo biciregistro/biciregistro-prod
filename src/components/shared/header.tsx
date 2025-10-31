@@ -45,28 +45,27 @@ export function Header({ user }: { user: UserType | null }) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
-        <div className="flex-1 md:flex-none md:flex-initial">
-          <Link href="/" className="md:mr-6">
+        <div className="mr-6 flex items-center">
+          <Link href="/" className="mr-6">
             <Logo />
           </Link>
+          <nav className="hidden items-center space-x-6 text-sm font-medium md:flex">
+            {filteredNavLinks.map(link => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  'transition-colors hover:text-foreground/80',
+                  pathname === link.href ? 'text-foreground' : 'text-foreground/60'
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
         </div>
         
-        <nav className="hidden items-center space-x-6 text-sm font-medium md:flex">
-          {filteredNavLinks.map(link => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={cn(
-                'transition-colors hover:text-foreground/80',
-                pathname === link.href ? 'text-foreground' : 'text-foreground/60'
-              )}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-        
-        <div className="flex flex-1 items-center justify-center md:hidden">
+        <div className="flex flex-1 items-center justify-end md:hidden">
            <Sheet>
               <SheetTrigger asChild>
                   <Button variant="ghost" size="icon" className="md:hidden">
@@ -97,7 +96,7 @@ export function Header({ user }: { user: UserType | null }) {
         </div>
 
 
-        <div className="flex items-center justify-end space-x-2 md:flex-initial">
+        <div className="flex flex-1 items-center justify-end space-x-2">
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
