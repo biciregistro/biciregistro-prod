@@ -40,7 +40,7 @@ export default async function BikeDetailsPage({ params }: { params: { id: string
 
   return (
     <div className="container py-6 md:py-8">
-      <div className="mb-6">
+      <div className="mb-6 px-4 sm:px-0">
         <Button asChild variant="outline">
           <Link href="/dashboard">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -48,7 +48,7 @@ export default async function BikeDetailsPage({ params }: { params: { id: string
           </Link>
         </Button>
       </div>
-      <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+      <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto px-4 sm:px-0">
         <div>
           <Carousel className="w-full">
             <CarouselContent>
