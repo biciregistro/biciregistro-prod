@@ -138,9 +138,13 @@ export default function BikeDetailsPage({ params: paramsPromise }: { params: Pro
                       <CardHeader>
                           <CardTitle className="text-destructive">Detalles del Reporte de Robo</CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-2">
-                          <DetailItem label="Fecha del Reporte" value={new Date(bike.theftReport.date).toLocaleDateString()} />
-                          <DetailItem label="Última Ubicación Conocida" value={bike.theftReport.location} />
+                      <CardContent className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <DetailItem label="Fecha del Reporte" value={new Date(bike.theftReport.date).toLocaleDateString()} />
+                             <DetailItem label="País" value={bike.theftReport.country} />
+                             <DetailItem label="Estado/Provincia" value={bike.theftReport.state} />
+                            <DetailItem label="Ubicación" value={bike.theftReport.location} />
+                          </div>
                           <DetailItem label="Detalles" value={bike.theftReport.details} />
                       </CardContent>
                   </Card>

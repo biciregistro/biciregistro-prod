@@ -22,6 +22,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, ArrowLeft, Camera } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { countries, type Country } from '@/lib/countries';
 
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
@@ -208,6 +210,8 @@ function MarkRecoveredButton() {
 
 const theftReportSchema = z.object({
     date: z.string().min(1, "La fecha es obligatoria."),
+    country: z.string().min(1, "El país es obligatorio."),
+    state: z.string().min(1, "El estado/provincia es obligatorio."),
     location: z.string().min(1, "La ubicación es obligatoria."),
     details: z.string().min(1, "Los detalles son obligatorios."),
 });
@@ -217,11 +221,15 @@ export function TheftReportForm({ bike }: { bike: Bike }) {
     const [showForm, setShowForm] = useState(false);
     const [state, formAction] = useActionState(reportTheft, null);
     const { toast } = useToast();
+    const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === 'México'));
+    const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
 
     const form = useForm<TheftReportValues>({
         resolver: zodResolver(theftReportSchema),
         defaultValues: {
             date: new Date().toISOString().split('T')[0],
+            country: 'México',
+            state: '',
             location: "",
             details: ""
         },
@@ -239,6 +247,15 @@ export function TheftReportForm({ bike }: { bike: Bike }) {
             }
         }
     }, [state, toast]);
+
+    const handleCountryChange = (countryName: string) => {
+        const country = countries.find(c => c.name === countryName);
+        setSelectedCountry(country);
+        setStates(country ? country.states : []);
+        form.setValue('country', countryName);
+        form.setValue('state', ''); // Reset state/province
+    };
+
 
     if (bike.status === 'stolen') {
         return (
@@ -285,12 +302,58 @@ export function TheftReportForm({ bike }: { bike: Bike }) {
                 />
                 <FormField
                     control={form.control}
+                    name="country"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>País</FormLabel>
+                             <Select onValueChange={handleCountryChange} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecciona un país" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {countries.map(country => (
+                                        <SelectItem key={country.code} value={country.name}>{country.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Estado / Provincia</FormLabel>
+                             <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedCountry}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecciona un estado/provincia" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {states.map(state => (
+                                        <SelectItem key={state} value={state}>{state}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
                     name="location"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Ubicación (aproximada)</FormLabel>
+                            <FormLabel>Ubicación (Ciudad y/o dirección)</FormLabel>
                             <FormControl>
-                                <Input placeholder="ej., Parque Central, cerca de la fuente" {...field} />
+                                <Input placeholder="ej., Ciudad de México, cerca de la fuente del parque" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>

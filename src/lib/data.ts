@@ -35,6 +35,8 @@ let bikes: Bike[] = [
       date: new Date().toISOString(),
       location: 'Parque Central',
       details: 'Robada del portabicicletas entre las 2 PM y las 4 PM.',
+      country: 'México',
+      state: 'Ciudad de México'
     },
   },
   {
@@ -130,8 +132,8 @@ export const updateBikeStatus = (bikeId: string, status: 'stolen' | 'safe', thef
     const bike = bikes.find(b => b.id === bikeId);
     if (bike) {
         bike.status = status;
-        if(status === 'stolen') {
-            bike.theftReport = theftDetails ? { ...theftDetails, date: new Date(theftDetails.date).toISOString() } : { date: new Date().toISOString(), location: 'Unknown', details: 'Reportada como robada por el propietario.'}
+        if(status === 'stolen' && theftDetails) {
+            bike.theftReport = { ...theftDetails, date: new Date(theftDetails.date).toISOString() }
         } else if (status === 'safe') {
             bike.theftReport = undefined;
         }

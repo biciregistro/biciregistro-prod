@@ -14,6 +14,8 @@ export type Bike = {
     date: string;
     location: string;
     details: string;
+    country?: string;
+    state?: string;
   };
 };
 
