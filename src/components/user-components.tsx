@@ -19,7 +19,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Eye, EyeOff } from 'lucide-react';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -76,6 +76,7 @@ export function ProfileForm({ user }: { user?: User }) {
     const { toast } = useToast();
     const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === (user?.country || 'México')));
     const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
+    const [showPassword, setShowPassword] = useState(false);
 
     const form = useForm<ProfileFormValues>({
         resolver: zodResolver(profileFormSchema),
@@ -378,14 +379,25 @@ export function ProfileForm({ user }: { user?: User }) {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {isEditing && (
-                            <FormField
+                             <FormField
                                 control={form.control}
                                 name="currentPassword"
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Contraseña Actual</FormLabel>
                                         <FormControl>
-                                            <Input type="password" {...field} />
+                                            <div className="relative">
+                                                <Input type={showPassword ? 'text' : 'password'} {...field} />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                                                    onClick={() => setShowPassword(prev => !prev)}
+                                                >
+                                                    {showPassword ? <EyeOff /> : <Eye />}
+                                                </Button>
+                                            </div>
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -400,7 +412,18 @@ export function ProfileForm({ user }: { user?: User }) {
                                     <FormItem>
                                         <FormLabel>{isEditing ? 'Nueva Contraseña' : 'Contraseña'}</FormLabel>
                                         <FormControl>
-                                            <Input type="password" {...field} />
+                                            <div className="relative">
+                                                <Input type={showPassword ? 'text' : 'password'} {...field} />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                                                    onClick={() => setShowPassword(prev => !prev)}
+                                                >
+                                                    {showPassword ? <EyeOff /> : <Eye />}
+                                                </Button>
+                                            </div>
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -413,7 +436,18 @@ export function ProfileForm({ user }: { user?: User }) {
                                     <FormItem>
                                         <FormLabel>{isEditing ? 'Repetir Nueva Contraseña': 'Repetir Contraseña'}</FormLabel>
                                         <FormControl>
-                                            <Input type="password" {...field} />
+                                            <div className="relative">
+                                                <Input type={showPassword ? 'text' : 'password'} {...field} />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                                                    onClick={() => setShowPassword(prev => !prev)}
+                                                >
+                                                    {showPassword ? <EyeOff /> : <Eye />}
+                                                </Button>
+                                            </div>
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
