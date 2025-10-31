@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, Camera } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Camera } from 'lucide-react';
 
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
@@ -155,7 +155,10 @@ export function BikeRegistrationForm({ userId }: { userId: string }) {
                         <input type="hidden" name="userId" value={userId} />
 
                     </CardContent>
-                    <CardFooter>
+                    <CardFooter className="flex flex-col-reverse sm:flex-row gap-2">
+                        <Button asChild variant="outline" className="w-full">
+                            <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Garaje</Link>
+                        </Button>
                         <SubmitButton />
                     </CardFooter>
                 </Card>
