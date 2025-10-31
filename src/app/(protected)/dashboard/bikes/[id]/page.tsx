@@ -87,11 +87,11 @@ export default function BikeDetailsPage({ params: paramsPromise }: { params: Pro
       </div>
 
       {isEditing ? (
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto px-4 sm:px-0">
             <BikeRegistrationForm userId={user.id} bike={bike} onSuccess={handleUpdateSuccess} />
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto px-4 sm:px-0">
           <div>
             <Carousel className="w-full">
               <CarouselContent>
