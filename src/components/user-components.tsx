@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 
@@ -182,7 +182,7 @@ export function ProfileForm({ user }: { user: User }) {
                                             )}
                                             >
                                             {field.value ? (
-                                                format(new Date(field.value), "PPP")
+                                                format(parseISO(field.value), "PPP")
                                             ) : (
                                                 <span>Elige una fecha</span>
                                             )}
@@ -193,7 +193,7 @@ export function ProfileForm({ user }: { user: User }) {
                                         <PopoverContent className="w-auto p-0" align="start">
                                             <Calendar
                                                 mode="single"
-                                                selected={field.value ? new Date(field.value) : undefined}
+                                                selected={field.value ? parseISO(field.value) : undefined}
                                                 onSelect={(date) => field.onChange(date?.toISOString().split('T')[0])}
                                                 disabled={(date) =>
                                                     date > new Date() || date < new Date("1900-01-01")
