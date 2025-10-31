@@ -17,7 +17,7 @@ export default async function DashboardPage() {
     <div className="container py-6 md:py-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 px-4 sm:px-0 gap-4">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">Tu Garaje</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Hola {user.name}, bienvenido a tu garaje</h1>
             <p className="text-muted-foreground">Gestiona tus bicicletas registradas.</p>
         </div>
       </div>
