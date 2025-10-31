@@ -6,7 +6,7 @@ const getImage = (id: string) => PlaceHolderImages.find(img => img.id === id)?.i
 const users: User[] = [
   { id: 'user-1', name: 'Alex Ryder', email: 'alex@example.com', role: 'ciclista', avatarUrl: 'https://picsum.photos/seed/avatar1/100/100' },
   { id: 'user-2', name: 'Maria Garcia', email: 'maria@example.com', role: 'ciclista', avatarUrl: 'https://picsum.photos/seed/avatar2/100/100' },
-  { id: 'admin-1', name: 'Admin Vera', email: 'admin@bicisecure.com', role: 'admin', avatarUrl: 'https://picsum.photos/seed/avatar3/100/100' },
+  { id: 'admin-1', name: 'Admin Vera', email: 'admin@biciregistro.com', role: 'admin', avatarUrl: 'https://picsum.photos/seed/avatar3/100/100' },
 ];
 
 const bikes: Bike[] = [
@@ -55,7 +55,7 @@ let homepageContent: HomepageSection[] = [
     id: 'hero',
     title: 'Tu Bici, Asegurada.',
     subtitle: 'La plataforma definitiva para el registro de bicicletas y la recuperación en caso de robo.',
-    content: 'Únete a miles de ciclistas que confían en BiciSecure para proteger su preciada posesión. Regístrate en minutos, reporta robos al instante y aumenta tus posibilidades de recuperación.',
+    content: 'Únete a miles de ciclistas que confían en Biciregistro para proteger su preciada posesión. Regístrate en minutos, reporta robos al instante y aumenta tus posibilidades de recuperación.',
     imageUrl: getImage('hero-background'),
   },
   {
@@ -67,7 +67,7 @@ let homepageContent: HomepageSection[] = [
   {
     id: 'cta',
     title: '¿Listo para Proteger tu Bici?',
-    subtitle: 'Únete a BiciSecure hoy y pedalea con confianza.',
+    subtitle: 'Únete a Biciregistro hoy y pedalea con confianza.',
     content: '',
     imageUrl: getImage('cta-background'),
   }
