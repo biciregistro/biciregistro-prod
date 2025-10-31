@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import { getAuthenticatedUser, getBikeById } from '@/lib/data';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +8,8 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { TheftReportForm } from '@/components/bike-components';
 import { cn } from '@/lib/utils';
 import type { Bike } from '@/lib/types';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -37,6 +40,14 @@ export default async function BikeDetailsPage({ params }: { params: { id: string
 
   return (
     <div className="container py-6 md:py-8">
+      <div className="mb-6">
+        <Button asChild variant="outline">
+          <Link href="/dashboard">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Volver al Garaje
+          </Link>
+        </Button>
+      </div>
       <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
         <div>
           <Carousel className="w-full">
