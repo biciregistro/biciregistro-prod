@@ -18,7 +18,7 @@ const getImageData = (id: string) => {
 
 export function HeroSection({ section }: { section: HomepageSection }) {
   return (
-    <section className="relative w-full min-h-[60vh] md:min-h-[70vh] flex items-center py-20">
+    <section className="relative w-full min-h-[60vh] md:min-h-[70vh] flex items-center pt-5 pb-20">
       <Image
         src={getImageData('hero-background').imageUrl}
         alt={getImageData('hero-background').description}
