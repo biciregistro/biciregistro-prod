@@ -13,7 +13,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="container py-6 md:py-8">
-       <div className="max-w-2xl mx-auto">
+       <div className="max-w-2xl mx-auto px-4 sm:px-0">
          <div className="mb-6">
             <Button asChild variant="outline">
             <Link href="/dashboard">
