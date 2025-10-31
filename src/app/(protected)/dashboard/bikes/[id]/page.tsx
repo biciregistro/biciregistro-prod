@@ -9,7 +9,7 @@ import { TheftReportForm } from '@/components/bike-components';
 import { cn } from '@/lib/utils';
 import type { Bike } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Pencil } from 'lucide-react';
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -40,11 +40,18 @@ export default async function BikeDetailsPage({ params }: { params: { id: string
 
   return (
     <div className="container py-6 md:py-8">
-      <div className="mb-6 px-4 sm:px-0">
+      <div className="mb-6 px-4 sm:px-0 flex items-center justify-between">
         <Button asChild variant="outline" className="hover:bg-accent/80">
           <Link href="/dashboard">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver al Garaje
+          </Link>
+        </Button>
+        <Button asChild variant="secondary">
+          {/* This would link to an edit page, which doesn't exist yet. */}
+          <Link href="#">
+            <Pencil className="mr-2 h-4 w-4" />
+            Editar Detalles
           </Link>
         </Button>
       </div>
