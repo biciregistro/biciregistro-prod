@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useFormStatus } from 'react';
 import { updateHomepageSection } from '@/lib/actions';
 import type { HomepageSection } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ function SubmitButton() {
 }
 
 function SectionEditForm({ section }: { section: HomepageSection }) {
-    const [state, formAction] = useFormState(updateHomepageSection, null);
+    const [state, formAction] = useActionState(updateHomepageSection, null);
     const { toast } = useToast();
     
     useEffect(() => {

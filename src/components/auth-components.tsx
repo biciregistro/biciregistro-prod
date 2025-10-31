@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useFormStatus } from 'react';
 import Link from 'next/link';
 import { login, signup } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ function SubmitButton({ children }: { children: React.ReactNode }) {
 }
 
 export function LoginForm() {
-  const [state, formAction] = useFormState(login, null);
+  const [state, formAction] = useActionState(login, null);
 
   return (
     <Card className="w-full max-w-sm">
@@ -64,7 +64,7 @@ export function LoginForm() {
 
 
 export function SignupForm() {
-    const [state, formAction] = useFormState(signup, null);
+    const [state, formAction] = useActionState(signup, null);
   
     return (
       <Card className="w-full max-w-sm">

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useFormStatus } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -77,7 +77,7 @@ function SubmitButton() {
 }
 
 export function BikeRegistrationForm({ userId }: { userId: string }) {
-    const [state, formAction] = useFormState(registerBike, null);
+    const [state, formAction] = useActionState(registerBike, null);
     
     const form = useForm<BikeRegistrationFormValues>({
         resolver: zodResolver(bikeRegistrationFormSchema),
