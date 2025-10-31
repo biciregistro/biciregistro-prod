@@ -47,112 +47,114 @@ export function Header({ user }: { user: UserType | null }) {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center">
-            <Link href="/" className="mr-6">
-                <Logo />
-            </Link>
-            <nav className="hidden items-center space-x-6 text-sm font-medium md:flex">
-                {filteredNavLinks.map(link => (
-                <Link
-                    key={link.href}
-                    href={link.href}
-                    className={cn(
-                    'transition-colors hover:text-foreground/80',
-                    pathname === link.href ? 'text-foreground' : 'text-foreground/60'
-                    )}
-                >
-                    {link.label}
+      <div className="container flex h-16 items-center">
+        <div className="flex w-full items-center justify-between">
+            <div className="flex items-center gap-6">
+                <Link href="/" className="flex items-center space-x-2">
+                    <Logo />
                 </Link>
-                ))}
-            </nav>
-        </div>
-        
-        <div className="flex items-center justify-end gap-2">
-           <Sheet>
-              <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="md:hidden">
-                      <Menu className="h-5 w-5" />
-                      <span className="sr-only">Abrir Menú</span>
-                  </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="pr-0">
-                  <SheetTitle className="sr-only">Menú de Navegación</SheetTitle>
-                  <Link href="/" className="mr-6">
-                      <Logo />
-                  </Link>
-                  <div className="flex flex-col space-y-3 pt-6">
-                      {mobileNavLinks.map(link => (
-                      <Link
-                          key={link.href}
-                          href={link.href}
-                          className={cn(
-                          'transition-colors hover:text-foreground/80 text-lg',
-                          pathname === link.href ? 'text-foreground' : 'text-foreground/60'
-                          )}
-                      >
-                          {link.label}
+                <nav className="hidden items-center space-x-6 text-sm font-medium md:flex">
+                    {filteredNavLinks.map(link => (
+                    <Link
+                        key={link.href}
+                        href={link.href}
+                        className={cn(
+                        'transition-colors hover:text-foreground/80',
+                        pathname === link.href ? 'text-foreground' : 'text-foreground/60'
+                        )}
+                    >
+                        {link.label}
+                    </Link>
+                    ))}
+                </nav>
+            </div>
+            
+            <div className="flex items-center justify-end gap-2">
+              <Sheet>
+                  <SheetTrigger asChild>
+                      <Button variant="ghost" size="icon" className="md:hidden">
+                          <Menu className="h-5 w-5" />
+                          <span className="sr-only">Abrir Menú</span>
+                      </Button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="pr-0">
+                      <SheetTitle className="sr-only">Menú de Navegación</SheetTitle>
+                      <Link href="/" className="mr-6">
+                          <Logo />
                       </Link>
-                      ))}
-                  </div>
+                      <div className="flex flex-col space-y-3 pt-6">
+                          {mobileNavLinks.map(link => (
+                          <Link
+                              key={link.href}
+                              href={link.href}
+                              className={cn(
+                              'transition-colors hover:text-foreground/80 text-lg',
+                              pathname === link.href ? 'text-foreground' : 'text-foreground/60'
+                              )}
+                          >
+                              {link.label}
+                          </Link>
+                          ))}
+                      </div>
 
-                  {!user && (
-                    <div className="mt-6 flex flex-col gap-2">
-                        <Button asChild variant="outline">
-                            <Link href="/login">Iniciar Sesión</Link>
-                        </Button>
-                        <Button asChild>
-                            <Link href="/signup">Crear Cuenta</Link>
-                        </Button>
-                    </div>
-                  )}
+                      {!user && (
+                        <div className="mt-6 flex flex-col gap-2">
+                            <Button asChild variant="outline">
+                                <Link href="/login">Iniciar Sesión</Link>
+                            </Button>
+                            <Button asChild>
+                                <Link href="/signup">Crear Cuenta</Link>
+                            </Button>
+                        </div>
+                      )}
 
-              </SheetContent>
-          </Sheet>
+                  </SheetContent>
+              </Sheet>
 
-          {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.avatarUrl} alt={user.name} />
-                    <AvatarFallback>
-                      {user.name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard">Panel</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/dashboard/profile">Perfil</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  {/* In a real app, this would be a form post to a logout action */}
-                  Cerrar Sesión
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <nav className="hidden items-center space-x-2 md:flex">
-              <Button asChild variant="ghost">
-                <Link href="/login">Iniciar Sesión</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/signup">Registra Tu Bici</Link>
-              </Button>
-            </nav>
-          )}
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.avatarUrl} alt={user.name} />
+                        <AvatarFallback>
+                          {user.name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{user.name}</p>
+                        <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard">Panel</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard/profile">Perfil</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>
+                      {/* In a real app, this would be a form post to a logout action */}
+                      Cerrar Sesión
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <nav className="hidden items-center space-x-2 md:flex">
+                  <Button asChild variant="ghost">
+                    <Link href="/login">Iniciar Sesión</Link>
+                  </Button>
+                  <Button asChild>
+                    <Link href="/signup">Registra Tu Bici</Link>
+                  </Button>
+                </nav>
+              )}
+            </div>
         </div>
       </div>
     </header>
