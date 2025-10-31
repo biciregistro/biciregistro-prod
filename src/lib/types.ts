@@ -7,6 +7,8 @@ export type Bike = {
   make: string;
   model: string;
   color: string;
+  modelYear?: string;
+  modality?: string;
   status: BikeStatus;
   photos: string[]; // URLs to images
   ownershipDocs: string[]; // URLs to documents

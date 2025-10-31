@@ -20,6 +20,7 @@ const bikeStatusStyles: { [key in Bike['status']]: string } = {
 };
 
 function DetailItem({ label, value }: { label: string; value: React.ReactNode }) {
+    if (!value) return null;
     return (
         <div>
             <p className="text-sm font-medium text-muted-foreground">{label}</p>
@@ -127,9 +128,11 @@ export default function BikeDetailsPage({ params: paramsPromise }: { params: Pro
                   </CardHeader>
                   <CardContent className="grid grid-cols-2 gap-4">
                       <DetailItem label="Número de Serie" value={<span className="font-mono">{bike.serialNumber}</span>} />
-                      <DetailItem label="Color" value={bike.color} />
                       <DetailItem label="Marca" value={bike.make} />
                       <DetailItem label="Modelo" value={bike.model} />
+                       <DetailItem label="Año Modelo" value={bike.modelYear} />
+                      <DetailItem label="Color" value={bike.color} />
+                      <DetailItem label="Modalidad" value={bike.modality} />
                   </CardContent>
               </Card>
 

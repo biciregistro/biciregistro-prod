@@ -73,9 +73,14 @@ const bikeFormSchema = z.object({
     make: z.string().min(2, "La marca es obligatoria."),
     model: z.string().min(1, "El modelo es obligatorio."),
     color: z.string().min(2, "El color es obligatorio."),
+    modelYear: z.string().optional(),
+    modality: z.string().optional(),
 });
 
 type BikeFormValues = z.infer<typeof bikeFormSchema>;
+
+const modalityOptions = ["Urbana", "Gravel", "Pista", "XC", "Enduro", "Downhill", "Trail", "E-Bike", "Dirt Jump", "MTB"];
+
 
 function SubmitButton({ isEditing }: { isEditing?: boolean }) {
     const { pending } = useFormStatus();
@@ -112,7 +117,9 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
             serialNumber: bike?.serialNumber || "",
             make: bike?.make || "",
             model: bike?.model || "",
-            color: bike?.color || ""
+            color: bike?.color || "",
+            modelYear: bike?.modelYear || "",
+            modality: bike?.modality || "",
         },
     });
 
@@ -168,20 +175,48 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                                 <FormItem><FormLabel>Modelo</FormLabel><FormControl><Input placeholder="ej., Marlin 5" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="modelYear" render={({ field }) => (
+                                <FormItem><FormLabel>Año Modelo</FormLabel><FormControl><Input placeholder="ej., 2023" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                             <FormField control={form.control} name="color" render={({ field }) => (
+                                <FormItem><FormLabel>Color Principal</FormLabel><FormControl><Input placeholder="ej., Azul" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                        </div>
                         
-                        <FormField control={form.control} name="color" render={({ field }) => (
-                            <FormItem><FormLabel>Color Principal</FormLabel><FormControl><Input placeholder="ej., Azul" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
+                         <FormField
+                            control={form.control}
+                            name="modality"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Modalidad</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Selecciona una modalidad" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {modalityOptions.map(option => (
+                                                <SelectItem key={option} value={option}>{option}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
-                        <div className="space-y-6">
-                            <h4 className="font-medium text-base">Fotografías</h4>
+
+                        <div className="space-y-6 pt-4">
+                            <h4 className="font-medium text-base border-b pb-2">Fotografías</h4>
                             <PhotoUploadSlot label="Foto Lateral" description="Toma una foto completa del costado de tu bicicleta." />
                             <PhotoUploadSlot label="Foto de Número de Serie" description="Toma una foto clara y legible del número de serie." />
                             <PhotoUploadSlot label="Foto Adicional 1 (Componentes)" description="Foto de alguna modificación o componente específico." />
                             <PhotoUploadSlot label="Foto Adicional 2 (Componentes)" description="Foto de otra seña particular o componente." />
                         </div>
                         
-                        <div className="space-y-2">
+                        <div className="space-y-2 pt-4">
                             <Label>Prueba de Propiedad</Label>
                             <div>
                                 <Button type="button" variant="outline">Subir Documento</Button>
@@ -285,18 +320,14 @@ export function TheftReportForm({ bike }: { bike: Bike }) {
     }
 
     return (
-         <Card>
+        <Card>
             <CardHeader>
-                <CardTitle>Gestionar Estado de la Bicicleta</CardTitle>
+                <CardTitle>Reportar Robo</CardTitle>
+                <CardDescription>Completa los detalles sobre el robo.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Form {...form}>
                     <form action={formAction} className="space-y-4">
-                        <CardHeader className="p-0 mb-4">
-                            <CardTitle>Reportar Robo</CardTitle>
-                            <CardDescription>Completa los detalles sobre el robo.</CardDescription>
-                        </CardHeader>
-                        
                         {state?.message && (
                             <Alert variant={state.errors ? "destructive" : "default"}>
                                 <AlertCircle className="h-4 w-4" />

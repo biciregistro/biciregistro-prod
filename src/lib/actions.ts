@@ -23,6 +23,8 @@ const bikeFormSchema = z.object({
     make: z.string().min(2, "La marca es obligatoria."),
     model: z.string().min(1, "El modelo es obligatorio."),
     color: z.string().min(2, "El color es obligatorio."),
+    modelYear: z.string().optional(),
+    modality: z.string().optional(),
     userId: z.string(), // This will be hidden and pre-filled
 });
 
