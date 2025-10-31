@@ -14,7 +14,7 @@ const signupSchema = z.object({
     name: z.string().min(2),
     lastName: z.string().min(2),
     email: z.string().email(),
-    password: z.string().min(6),
+    newPassword: z.string().min(6),
 });
 
 const bikeFormSchema = z.object({
@@ -44,9 +44,10 @@ const theftReportSchema = z.object({
 });
 
 const profileFormSchema = z.object({
-    id: z.string(),
+    id: z.string().optional(),
     name: z.string().min(2, "El nombre es obligatorio."),
     lastName: z.string().min(2, "Los apellidos son obligatorios."),
+    email: z.string().email("El correo electrónico no es válido."),
     birthDate: z.string().optional(),
     country: z.string().optional(),
     state: z.string().optional(),
@@ -65,12 +66,17 @@ const profileFormSchema = z.object({
     message: "Las nuevas contraseñas no coinciden.",
     path: ["confirmPassword"],
 }).refine(data => {
+    // For signup, newPassword is required
+    if (!data.id) { // This is how we detect signup
+        return data.newPassword && data.newPassword.length >= 6;
+    }
+    // For profile update, it's optional but must be >= 6 if present
     if (data.newPassword) {
         return data.newPassword.length >= 6;
     }
     return true;
 }, {
-    message: "La nueva contraseña debe tener al menos 6 caracteres.",
+    message: "La contraseña debe tener al menos 6 caracteres.",
     path: ["newPassword"],
 });
 
@@ -101,13 +107,13 @@ export async function login(prevState: any, formData: FormData) {
 }
 
 export async function signup(prevState: any, formData: FormData) {
-  const validatedFields = signupSchema.safeParse(Object.fromEntries(formData.entries()));
+    const validatedFields = profileFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
-  if (!validatedFields.success) {
-    return {
-      error: 'Datos proporcionados no válidos.',
-    };
-  }
+    if (!validatedFields.success) {
+      return {
+        error: 'Datos proporcionados no válidos. Asegúrate de que las contraseñas coincidan y tengan al menos 6 caracteres.',
+      };
+    }
 
   // In a real app, you'd create the user in the database.
   console.log('New user signed up:', validatedFields.data.email);
@@ -126,6 +132,13 @@ export async function updateProfile(prevState: any, formData: FormData) {
     }
 
     const { id, currentPassword, newPassword, ...userData } = validatedFields.data;
+    
+    if (!id) {
+        return {
+            errors: { form: ['ID de usuario no encontrado.'] },
+            message: 'Error: No se pudo identificar al usuario.',
+        }
+    }
 
     // Handle password change
     if (newPassword && currentPassword) {

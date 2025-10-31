@@ -5,9 +5,10 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useFormStatus } from 'react-dom';
+import Link from 'next/link';
 
 import type { User } from '@/lib/types';
-import { updateProfile } from '@/lib/actions';
+import { updateProfile, signup } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { countries, type Country } from '@/lib/countries';
 
@@ -23,12 +24,14 @@ import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { Logo } from './icons/logo';
 
 
 const profileFormSchema = z.object({
-    id: z.string(),
+    id: z.string().optional(),
     name: z.string().min(2, "El nombre es obligatorio."),
     lastName: z.string().min(2, "Los apellidos son obligatorios."),
+    email: z.string().email("El correo electrónico no es válido."),
     birthDate: z.string().optional(),
     country: z.string().optional(),
     state: z.string().optional(),
@@ -59,29 +62,34 @@ const profileFormSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
-function SubmitButton() {
+function SubmitButton({ isEditing }: { isEditing?: boolean }) {
     const { pending } = useFormStatus();
-    return <Button type="submit" disabled={pending} className="w-full">{pending ? 'Guardando...' : 'Guardar Cambios'}</Button>;
+    const text = isEditing ? 'Guardar Cambios' : 'Crear cuenta';
+    const pendingText = isEditing ? 'Guardando...' : 'Creando...';
+    return <Button type="submit" disabled={pending} className="w-full">{pending ? pendingText : text}</Button>;
 }
 
-export function ProfileForm({ user }: { user: User }) {
-    const [state, formAction] = useActionState(updateProfile, null);
+export function ProfileForm({ user }: { user?: User }) {
+    const isEditing = !!user;
+    const action = isEditing ? updateProfile : signup;
+    const [state, formAction] = useActionState(action, null);
     const { toast } = useToast();
-    const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === (user.country || 'México')));
+    const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === (user?.country || 'México')));
     const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
 
     const form = useForm<ProfileFormValues>({
         resolver: zodResolver(profileFormSchema),
         defaultValues: {
-            id: user.id,
-            name: user.name || "",
-            lastName: user.lastName || "",
-            birthDate: user.birthDate || "",
-            country: user.country || "",
-            state: user.state || "",
-            gender: user.gender || undefined,
-            postalCode: user.postalCode || "",
-            whatsapp: user.whatsapp || "",
+            id: user?.id,
+            name: user?.name || "",
+            lastName: user?.lastName || "",
+            email: user?.email || "",
+            birthDate: user?.birthDate || "",
+            country: user?.country || "",
+            state: user?.state || "",
+            gender: user?.gender || undefined,
+            postalCode: user?.postalCode || "",
+            whatsapp: user?.whatsapp || "",
             currentPassword: "",
             newPassword: "",
             confirmPassword: "",
@@ -89,7 +97,10 @@ export function ProfileForm({ user }: { user: User }) {
     });
 
     useEffect(() => {
-        if (state?.message) {
+        if (state?.message && !isEditing) { // Show alert only on signup
+             form.reset();
+        }
+        if (state?.message && isEditing) { // Show toast only on profile edit
             toast({
                 title: state.errors ? "Error" : "Éxito",
                 description: state.message,
@@ -104,7 +115,14 @@ export function ProfileForm({ user }: { user: User }) {
                 });
             }
         }
-    }, [state, toast, form]);
+         if (state?.error && !isEditing) { // Specific for signup error
+            toast({
+                variant: 'destructive',
+                title: "Registro Fallido",
+                description: state.error,
+            })
+        }
+    }, [state, toast, form, isEditing]);
 
     const handleCountryChange = (countryName: string) => {
         const country = countries.find(c => c.name === countryName);
@@ -116,20 +134,31 @@ export function ProfileForm({ user }: { user: User }) {
 
     return (
         <Form {...form}>
-            <form action={formAction} className="space-y-8">
+            <form action={formAction} className="space-y-8 max-w-2xl mx-auto">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Editar Perfil</CardTitle>
-                        <CardDescription>Actualiza tu información personal.</CardDescription>
+                        {!isEditing && (
+                             <div className="text-center mb-4">
+                                <Link href="/" className="flex justify-center mb-4"><Logo /></Link>
+                                <CardTitle>Crear una cuenta</CardTitle>
+                                <CardDescription>Ingresa tu información para crear una cuenta</CardDescription>
+                            </div>
+                        )}
+                        {isEditing && (
+                            <>
+                                <CardTitle>Editar Perfil</CardTitle>
+                                <CardDescription>Actualiza tu información personal.</CardDescription>
+                            </>
+                        )}
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {state?.message && !state.errors && (
+                        {state?.message && !isEditing && !state.errors && (
                              <Alert variant={"default"}>
                                 <AlertTitle>Éxito</AlertTitle>
                                 <AlertDescription>{state.message}</AlertDescription>
                             </Alert>
                         )}
-                         {state?.errors && (
+                         {state?.errors && isEditing && (
                              <Alert variant={"destructive"}>
                                 <AlertTitle>Error</AlertTitle>
                                 <AlertDescription>{Object.values(state.errors).flat().join(', ')}</AlertDescription>
@@ -164,6 +193,20 @@ export function ProfileForm({ user }: { user: User }) {
                                 )}
                             />
                         </div>
+
+                        <FormField
+                            control={form.control}
+                            name="email"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Correo Electrónico</FormLabel>
+                                    <FormControl>
+                                        <Input type="email" placeholder="m@example.com" {...field} disabled={isEditing} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
                         <FormField
                             control={form.control}
@@ -319,36 +362,43 @@ export function ProfileForm({ user }: { user: User }) {
                             )}
                         />
                        
-                        <input type="hidden" name="id" value={user.id} />
+                        {user && <input type="hidden" name="id" value={user.id} />}
                     </CardContent>
                 </Card>
 
-                <Card>
+                 <Card>
                     <CardHeader>
-                        <CardTitle>Cambiar Contraseña</CardTitle>
-                        <CardDescription>Si no deseas cambiar tu contraseña, deja estos campos en blanco.</CardDescription>
+                        <CardTitle>{isEditing ? 'Cambiar Contraseña' : 'Define tu Contraseña'}</CardTitle>
+                        <CardDescription>
+                            {isEditing 
+                                ? 'Si no deseas cambiar tu contraseña, deja estos campos en blanco.'
+                                : 'Tu contraseña debe tener al menos 6 caracteres.'
+                            }
+                        </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                         <FormField
-                            control={form.control}
-                            name="currentPassword"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Contraseña Actual</FormLabel>
-                                    <FormControl>
-                                        <Input type="password" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {isEditing && (
+                            <FormField
+                                control={form.control}
+                                name="currentPassword"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Contraseña Actual</FormLabel>
+                                        <FormControl>
+                                            <Input type="password" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        )}
+                        <div className={cn("grid grid-cols-1 gap-4", isEditing && "md:grid-cols-2")}>
                              <FormField
                                 control={form.control}
                                 name="newPassword"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Nueva Contraseña</FormLabel>
+                                        <FormLabel>{isEditing ? 'Nueva Contraseña' : 'Contraseña'}</FormLabel>
                                         <FormControl>
                                             <Input type="password" {...field} />
                                         </FormControl>
@@ -361,7 +411,7 @@ export function ProfileForm({ user }: { user: User }) {
                                 name="confirmPassword"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Repetir Nueva Contraseña</FormLabel>
+                                        <FormLabel>{isEditing ? 'Repetir Nueva Contraseña': 'Repetir Contraseña'}</FormLabel>
                                         <FormControl>
                                             <Input type="password" {...field} />
                                         </FormControl>
@@ -372,7 +422,17 @@ export function ProfileForm({ user }: { user: User }) {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <SubmitButton />
+                         <div className="flex flex-col gap-4 w-full">
+                            <SubmitButton isEditing={isEditing} />
+                            {!isEditing && (
+                                 <div className="text-sm text-center text-muted-foreground">
+                                    ¿Ya tienes una cuenta?{' '}
+                                    <Link href="/login" className="underline hover:text-primary">
+                                        Inicia Sesión
+                                    </Link>
+                                </div>
+                            )}
+                        </div>
                     </CardFooter>
                 </Card>
             </form>
