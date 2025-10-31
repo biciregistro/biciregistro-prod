@@ -15,7 +15,7 @@ function SubmitButton({ children }: { children: React.ReactNode }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? 'Submitting...' : children}
+      {pending ? 'Enviando...' : children}
     </Button>
   );
 }
@@ -27,33 +27,33 @@ export function LoginForm() {
     <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
         <Link href="/" className="flex justify-center mb-4"><Logo /></Link>
-        <CardTitle>Welcome Back</CardTitle>
-        <CardDescription>Enter your email below to login to your account</CardDescription>
+        <CardTitle>Bienvenido de Nuevo</CardTitle>
+        <CardDescription>Ingresa tu correo electrónico para iniciar sesión en tu cuenta</CardDescription>
       </CardHeader>
       <form action={formAction}>
         <CardContent className="grid gap-4">
           {state?.error && (
             <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Login Failed</AlertTitle>
+                <AlertTitle>Inicio de Sesión Fallido</AlertTitle>
                 <AlertDescription>{state.error}</AlertDescription>
             </Alert>
           )}
           <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Correo Electrónico</Label>
             <Input id="email" name="email" type="email" placeholder="m@example.com" required />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Contraseña</Label>
             <Input id="password" name="password" type="password" required />
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-          <SubmitButton>Log in</SubmitButton>
+          <SubmitButton>Iniciar Sesión</SubmitButton>
           <div className="text-sm text-center text-muted-foreground">
-            Don&apos;t have an account?{' '}
+            ¿No tienes una cuenta?{' '}
             <Link href="/signup" className="underline hover:text-primary">
-              Sign up
+              Regístrate
             </Link>
           </div>
         </CardFooter>
@@ -70,37 +70,37 @@ export function SignupForm() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <Link href="/" className="flex justify-center mb-4"><Logo /></Link>
-          <CardTitle>Create an account</CardTitle>
-          <CardDescription>Enter your information to create an account</CardDescription>
+          <CardTitle>Crear una cuenta</CardTitle>
+          <CardDescription>Ingresa tu información para crear una cuenta</CardDescription>
         </CardHeader>
         <form action={formAction}>
           <CardContent className="grid gap-4">
             {state?.error && (
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Signup Failed</AlertTitle>
+                    <AlertTitle>Registro Fallido</AlertTitle>
                     <AlertDescription>{state.error}</AlertDescription>
                 </Alert>
             )}
             <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" placeholder="Your Name" required />
+              <Label htmlFor="name">Nombre</Label>
+              <Input id="name" name="name" placeholder="Tu Nombre" required />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Correo Electrónico</Label>
               <Input id="email" name="email" type="email" placeholder="m@example.com" required />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Contraseña</Label>
               <Input id="password" name="password" type="password" required />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <SubmitButton>Create account</SubmitButton>
+            <SubmitButton>Crear cuenta</SubmitButton>
             <div className="text-sm text-center text-muted-foreground">
-              Already have an account?{' '}
+              ¿Ya tienes una cuenta?{' '}
               <Link href="/login" className="underline hover:text-primary">
-                Log in
+                Inicia Sesión
               </Link>
             </div>
           </CardFooter>

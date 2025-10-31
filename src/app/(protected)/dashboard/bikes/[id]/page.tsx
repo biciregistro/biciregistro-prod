@@ -44,13 +44,13 @@ export default async function BikeDetailsPage({ params }: { params: { id: string
               {bike.photos.length > 0 ? bike.photos.map((photo, index) => (
                 <CarouselItem key={index}>
                   <div className="aspect-video relative rounded-lg overflow-hidden border">
-                    <Image src={photo} alt={`Bike photo ${index + 1}`} fill className="object-cover" />
+                    <Image src={photo} alt={`Foto de la bicicleta ${index + 1}`} fill className="object-cover" />
                   </div>
                 </CarouselItem>
               )) : (
                 <CarouselItem>
                     <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                        <p className="text-muted-foreground">No photos available</p>
+                        <p className="text-muted-foreground">No hay fotos disponibles</p>
                     </div>
                 </CarouselItem>
               )}
@@ -67,34 +67,34 @@ export default async function BikeDetailsPage({ params }: { params: { id: string
                     <CardTitle className="text-3xl">{bike.make} {bike.model}</CardTitle>
                     <CardDescription>
                         <Badge className={cn(bikeStatusStyles[bike.status], "text-base mt-2")}>
-                            Status: {bike.status}
+                            Estado: {bike.status === 'safe' ? 'A salvo' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}
                         </Badge>
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-4">
-                    <DetailItem label="Serial Number" value={<span className="font-mono">{bike.serialNumber}</span>} />
+                    <DetailItem label="Número de Serie" value={<span className="font-mono">{bike.serialNumber}</span>} />
                     <DetailItem label="Color" value={bike.color} />
-                    <DetailItem label="Make" value={bike.make} />
-                    <DetailItem label="Model" value={bike.model} />
+                    <DetailItem label="Marca" value={bike.make} />
+                    <DetailItem label="Modelo" value={bike.model} />
                 </CardContent>
             </Card>
 
             {bike.status === 'stolen' && bike.theftReport && (
                  <Card className="border-destructive">
                     <CardHeader>
-                        <CardTitle className="text-destructive">Theft Report Details</CardTitle>
+                        <CardTitle className="text-destructive">Detalles del Reporte de Robo</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                        <DetailItem label="Date Reported" value={new Date(bike.theftReport.date).toLocaleDateString()} />
-                        <DetailItem label="Last Known Location" value={bike.theftReport.location} />
-                        <DetailItem label="Details" value={bike.theftReport.details} />
+                        <DetailItem label="Fecha del Reporte" value={new Date(bike.theftReport.date).toLocaleDateString()} />
+                        <DetailItem label="Última Ubicación Conocida" value={bike.theftReport.location} />
+                        <DetailItem label="Detalles" value={bike.theftReport.details} />
                     </CardContent>
                 </Card>
             )}
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Manage Bike Status</CardTitle>
+                    <CardTitle>Gestionar Estado de la Bicicleta</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <TheftReportForm bike={bike} />

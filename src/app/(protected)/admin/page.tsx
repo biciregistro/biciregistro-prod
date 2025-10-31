@@ -17,8 +17,8 @@ export default async function AdminPage() {
     <div className="container py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">Admin Panel</h1>
-            <p className="text-muted-foreground">Manage your application settings.</p>
+            <h1 className="text-3xl font-bold tracking-tight">Panel de Administración</h1>
+            <p className="text-muted-foreground">Gestiona la configuración de tu aplicación.</p>
         </div>
       </div>
       <div className="max-w-3xl mx-auto">

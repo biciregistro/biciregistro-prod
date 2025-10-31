@@ -17,10 +17,10 @@ const signupSchema = z.object({
 });
 
 const bikeRegistrationSchema = z.object({
-    serialNumber: z.string().min(3, "Serial number is required."),
-    make: z.string().min(2, "Make is required."),
-    model: z.string().min(1, "Model is required."),
-    color: z.string().min(2, "Color is required."),
+    serialNumber: z.string().min(3, "El número de serie es obligatorio."),
+    make: z.string().min(2, "La marca es obligatoria."),
+    model: z.string().min(1, "El modelo es obligatorio."),
+    color: z.string().min(2, "El color es obligatorio."),
     userId: z.string(), // This will be hidden and pre-filled
 });
 
@@ -38,7 +38,7 @@ export async function login(prevState: any, formData: FormData) {
 
   if (!validatedFields.success) {
     return {
-      error: 'Invalid email or password.',
+      error: 'Correo electrónico o contraseña no válidos.',
     };
   }
 
@@ -47,7 +47,7 @@ export async function login(prevState: any, formData: FormData) {
 
   if(!user) {
     return {
-        error: 'No user found with this email.',
+        error: 'No se encontró ningún usuario con este correo electrónico.',
     };
   }
 
@@ -63,7 +63,7 @@ export async function signup(prevState: any, formData: FormData) {
 
   if (!validatedFields.success) {
     return {
-      error: 'Invalid data provided.',
+      error: 'Datos proporcionados no válidos.',
     };
   }
 
@@ -79,7 +79,7 @@ export async function registerBike(prevState: any, formData: FormData) {
     if (!validatedFields.success) {
         return {
             errors: validatedFields.error.flatten().fieldErrors,
-            message: 'Error: Please check the form fields.',
+            message: 'Error: Por favor, revisa los campos del formulario.',
         };
     }
 
@@ -96,14 +96,14 @@ export async function registerBike(prevState: any, formData: FormData) {
 
 export async function reportTheft(bikeId: string) {
     updateBikeStatus(bikeId, 'stolen');
-    console.log(`Bike ${bikeId} reported as stolen.`);
+    console.log(`Bicicleta ${bikeId} reportada como robada.`);
     revalidatePath(`/dashboard/bikes/${bikeId}`);
     revalidatePath('/dashboard');
 }
 
 export async function markAsRecovered(bikeId: string) {
     updateBikeStatus(bikeId, 'safe');
-    console.log(`Bike ${bikeId} marked as recovered.`);
+    console.log(`Bicicleta ${bikeId} marcada como recuperada.`);
     revalidatePath(`/dashboard/bikes/${bikeId}`);
     revalidatePath('/dashboard');
 }
@@ -113,7 +113,7 @@ export async function updateHomepageSection(prevState: any, formData: FormData) 
 
     if (!validatedFields.success) {
         return {
-            error: 'Invalid data provided.',
+            error: 'Datos proporcionados no válidos.',
         };
     }
     
@@ -122,6 +122,6 @@ export async function updateHomepageSection(prevState: any, formData: FormData) 
 
     revalidatePath('/');
     return {
-        message: `Section '${validatedFields.data.id}' updated successfully.`,
+        message: `La sección '${validatedFields.data.id}' se actualizó correctamente.`,
     };
 }

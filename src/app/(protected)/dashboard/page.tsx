@@ -17,13 +17,13 @@ export default async function DashboardPage() {
     <div className="container py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">Your Garage</h1>
-            <p className="text-muted-foreground">Manage your registered bicycles.</p>
+            <h1 className="text-3xl font-bold tracking-tight">Tu Garaje</h1>
+            <p className="text-muted-foreground">Gestiona tus bicicletas registradas.</p>
         </div>
         <Button asChild>
           <Link href="/dashboard/register">
             <PlusCircle className="mr-2 h-4 w-4" />
-            Register New Bike
+            Registrar Nueva Bicicleta
           </Link>
         </Button>
       </div>
@@ -36,12 +36,12 @@ export default async function DashboardPage() {
         </div>
       ) : (
         <div className="text-center py-20 border-2 border-dashed rounded-lg">
-          <h2 className="text-xl font-semibold">No bikes registered yet.</h2>
+          <h2 className="text-xl font-semibold">Aún no hay bicicletas registradas.</h2>
           <p className="mt-2 text-muted-foreground">
-            Get started by registering your first bike.
+            Comienza registrando tu primera bicicleta.
           </p>
           <Button asChild className="mt-4">
-            <Link href="/dashboard/register">Register Your Bike</Link>
+            <Link href="/dashboard/register">Registra Tu Bicicleta</Link>
           </Button>
         </div>
       )}

@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 
 function SubmitButton() {
     const { pending } = useFormStatus();
-    return <Button type="submit" disabled={pending}>{pending ? 'Saving...' : 'Save Changes'}</Button>;
+    return <Button type="submit" disabled={pending}>{pending ? 'Guardando...' : 'Guardar Cambios'}</Button>;
 }
 
 function SectionEditForm({ section }: { section: HomepageSection }) {
@@ -26,7 +26,7 @@ function SectionEditForm({ section }: { section: HomepageSection }) {
     useEffect(() => {
         if(state?.message) {
             toast({
-                title: "Success",
+                title: "Éxito",
                 description: state.message,
             })
         }
@@ -44,16 +44,16 @@ function SectionEditForm({ section }: { section: HomepageSection }) {
         <form action={formAction} className="space-y-4">
             <input type="hidden" name="id" value={section.id} />
             <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
+                <Label htmlFor="title">Título</Label>
                 <Input id="title" name="title" defaultValue={section.title} />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="subtitle">Subtitle</Label>
+                <Label htmlFor="subtitle">Subtítulo</Label>
                 <Input id="subtitle" name="subtitle" defaultValue={section.subtitle} />
             </div>
             {section.id === 'hero' && (
                  <div className="space-y-2">
-                    <Label htmlFor="content">Content</Label>
+                    <Label htmlFor="content">Contenido</Label>
                     <Textarea id="content" name="content" defaultValue={section.content} />
                 </div>
             )}
@@ -71,17 +71,17 @@ export function HomepageEditor({ sections }: { sections: HomepageSection[] }) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Homepage Content Editor</CardTitle>
+                <CardTitle>Editor de Contenido de la Página Principal</CardTitle>
                 <CardDescription>
-                    Update the text content for the main sections of the public homepage.
+                    Actualiza el contenido de texto para las secciones principales de la página de inicio pública.
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <Tabs defaultValue="hero">
                     <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="hero">Hero Section</TabsTrigger>
-                        <TabsTrigger value="features">Features Section</TabsTrigger>
-                        <TabsTrigger value="cta">CTA Section</TabsTrigger>
+                        <TabsTrigger value="hero">Sección Principal</TabsTrigger>
+                        <TabsTrigger value="features">Características</TabsTrigger>
+                        <TabsTrigger value="cta">Llamada a la acción</TabsTrigger>
                     </TabsList>
                     <TabsContent value="hero" className="pt-4">
                         <SectionEditForm section={heroSection} />

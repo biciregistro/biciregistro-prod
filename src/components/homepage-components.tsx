@@ -42,10 +42,10 @@ export function HeroSection({ section }: { section: HomepageSection }) {
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg">
-                <Link href="/signup">Register Your Bike</Link>
+                <Link href="/signup">Registra Tu Bici</Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <Link href="/search">Search a Bike</Link>
+                <Link href="/search">Buscar una Bici</Link>
               </Button>
             </div>
             <div className="mt-8 max-w-lg mx-auto">
@@ -73,11 +73,11 @@ export function BikeSearchForm() {
             <Input
                 type="text"
                 name="serial"
-                placeholder="Enter bike serial number..."
+                placeholder="Introduce el número de serie..."
                 className="flex-1"
-                aria-label="Bike serial number"
+                aria-label="Número de serie de la bicicleta"
             />
-            <Button type="submit">Search</Button>
+            <Button type="submit">Buscar</Button>
         </form>
     )
 }
@@ -85,20 +85,20 @@ export function BikeSearchForm() {
 const features = [
     {
         icon: ShieldCheck,
-        title: "Secure Registration",
-        description: "Quickly register your bike's serial number and details in our secure database.",
+        title: "Registro Seguro",
+        description: "Registra rápidamente el número de serie y los detalles de tu bicicleta en nuestra base de datos segura.",
         imageId: "feature-registration"
     },
     {
         icon: Bike,
-        title: "Instant Theft Reporting",
-        description: "Mark your bike as stolen with one click to alert the community and authorities.",
+        title: "Reporte de Robo Instantáneo",
+        description: "Marca tu bicicleta como robada con un solo clic para alertar a la comunidad y a las autoridades.",
         imageId: "feature-theft-report"
     },
     {
         icon: QrCode,
-        title: "Ownership Verification",
-        description: "Easily verify a bike's status using its serial number before buying or selling.",
+        title: "Verificación de Propiedad",
+        description: "Verifica fácilmente el estado de una bicicleta usando su número de serie antes de comprar o vender.",
         imageId: "feature-community"
     }
 ]
@@ -157,7 +157,7 @@ export function CtaSection({ section }: { section: HomepageSection }) {
                         <p className="mt-2 text-lg text-muted-foreground">{section.subtitle}</p>
                         <div className="mt-8">
                             <Button asChild size="lg">
-                                <Link href="/signup">Get Started for Free</Link>
+                                <Link href="/signup">Comienza Gratis</Link>
                             </Button>
                         </div>
                     </div>

@@ -34,7 +34,7 @@ export default async function PublicBikePage({ params }: { params: { serial: str
   return (
     <div className="container py-8">
         <div className="max-w-4xl mx-auto space-y-8">
-            <h1 className="text-3xl font-bold tracking-tight">Public Bike Record</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Registro Público de Bicicleta</h1>
             <Card>
                 <CardContent className="grid md:grid-cols-2 gap-8 p-6">
                     <div className="relative aspect-video rounded-lg overflow-hidden border">
@@ -52,13 +52,13 @@ export default async function PublicBikePage({ params }: { params: { serial: str
                         </div>
                         
                         <div className="space-y-1">
-                            <p className="text-sm font-medium">Serial Number</p>
+                            <p className="text-sm font-medium">Número de Serie</p>
                             <p className="font-mono text-lg">{bike.serialNumber}</p>
                         </div>
 
                         <div className="space-y-1">
-                            <p className="text-sm font-medium">Status</p>
-                            <Badge className={cn("text-base", bikeStatusStyles[bike.status])}>{bike.status}</Badge>
+                            <p className="text-sm font-medium">Estado</p>
+                            <Badge className={cn("text-base", bikeStatusStyles[bike.status])}>{bike.status === 'safe' ? 'A salvo' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}</Badge>
                         </div>
                     </div>
                 </CardContent>
@@ -67,9 +67,9 @@ export default async function PublicBikePage({ params }: { params: { serial: str
             {bike.status === 'stolen' && (
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>This bike is reported as stolen!</AlertTitle>
+                    <AlertTitle>¡Esta bicicleta está reportada como robada!</AlertTitle>
                     <AlertDescription>
-                        Do not attempt to buy this bicycle. If you have information about its whereabouts, please contact your local law enforcement agency.
+                        No intentes comprar esta bicicleta. Si tienes información sobre su paradero, por favor contacta a tu agencia de policía local.
                     </AlertDescription>
                 </Alert>
             )}
@@ -77,9 +77,9 @@ export default async function PublicBikePage({ params }: { params: { serial: str
             {bike.status === 'safe' && (
                 <Alert variant="default" className="bg-green-50 border-green-200">
                     <AlertCircle className="h-4 w-4 text-green-700" />
-                    <AlertTitle className="text-green-800">This bike is marked as safe.</AlertTitle>
+                    <AlertTitle className="text-green-800">Esta bicicleta está marcada como segura.</AlertTitle>
                     <AlertDescription className="text-green-700">
-                        This bicycle is not currently reported as stolen in the BiciSecure database.
+                        Actualmente, esta bicicleta no está reportada como robada en la base de datos de BiciSecure.
                     </AlertDescription>
                 </Alert>
             )}

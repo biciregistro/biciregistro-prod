@@ -24,9 +24,9 @@ export default async function SearchPage({ searchParams }: { searchParams?: { se
   return (
     <div className="container py-8">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold tracking-tight text-center mb-4">Public Bike Search</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-center mb-4">Búsqueda Pública de Bicicletas</h1>
         <p className="text-muted-foreground text-center mb-8">
-            Verify a bike&apos;s status before you buy. Enter a serial number to check our public database.
+            Verifica el estado de una bicicleta antes de comprar. Ingresa un número de serie para consultar nuestra base de datos pública.
         </p>
         <BikeSearchForm />
 
@@ -34,14 +34,14 @@ export default async function SearchPage({ searchParams }: { searchParams?: { se
             {serial && !bike && (
                  <Card>
                     <CardContent className="p-8 text-center">
-                        <p>No bike found with serial number: <strong>{serial}</strong></p>
+                        <p>No se encontró ninguna bicicleta con el número de serie: <strong>{serial}</strong></p>
                     </CardContent>
                 </Card>
             )}
             {bike && (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Search Result</CardTitle>
+                        <CardTitle>Resultado de la Búsqueda</CardTitle>
                     </CardHeader>
                     <CardContent className="flex flex-col md:flex-row gap-6">
                         <div className="w-full md:w-1/3">
@@ -57,16 +57,16 @@ export default async function SearchPage({ searchParams }: { searchParams?: { se
                         <div className="flex-1 space-y-3">
                             <h2 className="text-2xl font-bold">{bike.make} {bike.model}</h2>
                              <div>
-                                <p className="text-sm font-medium text-muted-foreground">Status</p>
+                                <p className="text-sm font-medium text-muted-foreground">Estado</p>
                                 <Badge className={cn(bikeStatusStyles[bike.status], "text-base")}>
-                                    {bike.status}
+                                    {bike.status === 'safe' ? 'A salvo' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}
                                 </Badge>
                              </div>
                              {bike.status === 'stolen' && (
-                                <p className="text-sm text-destructive">This bike has been reported as stolen. Do not purchase. If you have information, please contact local authorities.</p>
+                                <p className="text-sm text-destructive">Esta bicicleta ha sido reportada como robada. No la compres. Si tienes información, por favor contacta a las autoridades locales.</p>
                              )}
                             <div>
-                                <p className="text-sm font-medium text-muted-foreground">Serial Number</p>
+                                <p className="text-sm font-medium text-muted-foreground">Número de Serie</p>
                                 <p className="font-mono">{bike.serialNumber}</p>
                             </div>
                             <div>

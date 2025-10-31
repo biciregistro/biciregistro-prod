@@ -26,9 +26,9 @@ type NavLink = {
 };
 
 const navLinks: NavLink[] = [
-  { href: '/', label: 'Home', auth: false },
-  { href: '/search', label: 'Search Bikes', auth: false },
-  { href: '/dashboard', label: 'Dashboard', auth: true },
+  { href: '/', label: 'Inicio', auth: false },
+  { href: '/search', label: 'Buscar Bicis', auth: false },
+  { href: '/dashboard', label: 'Panel', auth: true },
   { href: '/admin', label: 'Admin', auth: true, admin: true },
 ];
 
@@ -69,7 +69,7 @@ export function Header({ user }: { user: UserType | null }) {
             <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="md:hidden">
                     <Menu className="h-5 w-5" />
-                    <span className="sr-only">Toggle Menu</span>
+                    <span className="sr-only">Abrir Menú</span>
                 </Button>
             </SheetTrigger>
             <SheetContent side="left" className="pr-0">
@@ -116,25 +116,25 @@ export function Header({ user }: { user: UserType | null }) {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard">Dashboard</Link>
+                  <Link href="/dashboard">Panel</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="#">Profile</Link>
+                  <Link href="#">Perfil</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   {/* In a real app, this would be a form post to a logout action */}
-                  Log out
+                  Cerrar Sesión
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
             <nav className="flex items-center space-x-2">
               <Button asChild variant="ghost">
-                <Link href="/login">Login</Link>
+                <Link href="/login">Iniciar Sesión</Link>
               </Button>
               <Button asChild>
-                <Link href="/signup">Sign Up</Link>
+                <Link href="/signup">Registrarse</Link>
               </Button>
             </nav>
           )}

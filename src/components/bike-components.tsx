@@ -43,7 +43,7 @@ export function BikeCard({ bike }: { bike: Bike }) {
                         className="object-cover"
                     />
                      <Badge className={cn("absolute top-2 right-2", bikeStatusStyles[bike.status])}>
-                        {bike.status}
+                        {bike.status === 'safe' ? 'A salvo' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}
                     </Badge>
                 </div>
             </Link>
@@ -55,7 +55,7 @@ export function BikeCard({ bike }: { bike: Bike }) {
         </CardContent>
         <CardFooter className="p-4 pt-0">
             <Button asChild className="w-full">
-                <Link href={`/dashboard/bikes/${bike.id}`}>View Details</Link>
+                <Link href={`/dashboard/bikes/${bike.id}`}>Ver Detalles</Link>
             </Button>
         </CardFooter>
     </Card>
@@ -63,17 +63,17 @@ export function BikeCard({ bike }: { bike: Bike }) {
 }
 
 const bikeRegistrationFormSchema = z.object({
-    serialNumber: z.string().min(3, "Serial number is required."),
-    make: z.string().min(2, "Make is required."),
-    model: z.string().min(1, "Model is required."),
-    color: z.string().min(2, "Color is required."),
+    serialNumber: z.string().min(3, "El número de serie es obligatorio."),
+    make: z.string().min(2, "La marca es obligatoria."),
+    model: z.string().min(1, "El modelo es obligatorio."),
+    color: z.string().min(2, "El color es obligatorio."),
 });
 
 type BikeRegistrationFormValues = z.infer<typeof bikeRegistrationFormSchema>;
 
 function SubmitButton() {
     const { pending } = useFormStatus();
-    return <Button type="submit" disabled={pending} className="w-full">{pending ? 'Registering...' : 'Register Bike'}</Button>;
+    return <Button type="submit" disabled={pending} className="w-full">{pending ? 'Registrando...' : 'Registrar Bicicleta'}</Button>;
 }
 
 export function BikeRegistrationForm({ userId }: { userId: string }) {
@@ -94,13 +94,13 @@ export function BikeRegistrationForm({ userId }: { userId: string }) {
             <form action={formAction} className="space-y-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Register a New Bike</CardTitle>
+                        <CardTitle>Registrar una Nueva Bicicleta</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {state?.message && (
                             <Alert variant={state.errors ? "destructive" : "default"}>
                                 <AlertCircle className="h-4 w-4" />
-                                <AlertTitle>{state.errors ? 'Error' : 'Success'}</AlertTitle>
+                                <AlertTitle>{state.errors ? 'Error' : 'Éxito'}</AlertTitle>
                                 <AlertDescription>{state.message}</AlertDescription>
                             </Alert>
                         )}
@@ -110,9 +110,9 @@ export function BikeRegistrationForm({ userId }: { userId: string }) {
                             name="serialNumber"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Serial Number</FormLabel>
+                                    <FormLabel>Número de Serie</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="Located on the bottom of your bike frame" {...field} />
+                                        <Input placeholder="Ubicado en la parte inferior del cuadro de tu bicicleta" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -121,34 +121,34 @@ export function BikeRegistrationForm({ userId }: { userId: string }) {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField control={form.control} name="make" render={({ field }) => (
-                                <FormItem><FormLabel>Make</FormLabel><FormControl><Input placeholder="e.g., Trek" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Marca</FormLabel><FormControl><Input placeholder="ej., Trek" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                             <FormField control={form.control} name="model" render={({ field }) => (
-                                <FormItem><FormLabel>Model</FormLabel><FormControl><Input placeholder="e.g., Marlin 5" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Modelo</FormLabel><FormControl><Input placeholder="ej., Marlin 5" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
                         
                         <FormField control={form.control} name="color" render={({ field }) => (
-                            <FormItem><FormLabel>Primary Color</FormLabel><FormControl><Input placeholder="e.g., Blue" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Color Principal</FormLabel><FormControl><Input placeholder="ej., Azul" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
 
                         <div className="space-y-2">
-                            <Label>Photos</Label>
+                            <Label>Fotos</Label>
                             <div className="flex items-center gap-4">
                                 <div className="w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground">
                                     <Camera className="w-8 h-8"/>
                                 </div>
-                                <Button type="button" variant="outline">Upload Photos</Button>
+                                <Button type="button" variant="outline">Subir Fotos</Button>
                             </div>
-                            <p className="text-xs text-muted-foreground">Upload up to 5 photos of your bike.</p>
+                            <p className="text-xs text-muted-foreground">Sube hasta 5 fotos de tu bicicleta.</p>
                         </div>
                         
                         <div className="space-y-2">
-                            <Label>Proof of Ownership</Label>
+                            <Label>Prueba de Propiedad</Label>
                             <div>
-                                <Button type="button" variant="outline">Upload Document</Button>
+                                <Button type="button" variant="outline">Subir Documento</Button>
                             </div>
-                            <p className="text-xs text-muted-foreground">Upload receipt or other proof of ownership (optional).</p>
+                            <p className="text-xs text-muted-foreground">Sube el recibo u otra prueba de propiedad (opcional).</p>
                         </div>
 
                         <input type="hidden" name="userId" value={userId} />
@@ -165,11 +165,11 @@ export function BikeRegistrationForm({ userId }: { userId: string }) {
 
 function ReportTheftButton() {
     const { pending } = useFormStatus();
-    return <Button type="submit" variant="destructive" className="w-full" disabled={pending}>{pending ? 'Reporting...' : 'Report as Stolen'}</Button>;
+    return <Button type="submit" variant="destructive" className="w-full" disabled={pending}>{pending ? 'Reportando...' : 'Reportar como Robada'}</Button>;
 }
 function MarkRecoveredButton() {
     const { pending } = useFormStatus();
-    return <Button type="submit" variant="secondary" className="w-full bg-green-500 hover:bg-green-600 text-white" disabled={pending}>{pending ? 'Updating...' : 'Mark as Recovered'}</Button>;
+    return <Button type="submit" variant="secondary" className="w-full bg-green-500 hover:bg-green-600 text-white" disabled={pending}>{pending ? 'Actualizando...' : 'Marcar como Recuperada'}</Button>;
 }
 
 export function TheftReportForm({ bike }: { bike: Bike }) {

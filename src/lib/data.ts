@@ -33,8 +33,8 @@ const bikes: Bike[] = [
     ownershipDocs: [],
     theftReport: {
       date: new Date().toISOString(),
-      location: 'Downtown Park',
-      details: 'Stolen from bike rack between 2 PM and 4 PM.',
+      location: 'Parque Central',
+      details: 'Robada del portabicicletas entre las 2 PM y las 4 PM.',
     },
   },
   {
@@ -53,21 +53,21 @@ const bikes: Bike[] = [
 let homepageContent: HomepageSection[] = [
   {
     id: 'hero',
-    title: 'Your Bike, Secured.',
-    subtitle: 'The ultimate platform for bicycle registration and theft recovery.',
-    content: 'Join thousands of cyclists who trust BiciSecure to protect their prized possession. Register in minutes, report thefts instantly, and increase your chances of recovery.',
+    title: 'Tu Bici, Asegurada.',
+    subtitle: 'La plataforma definitiva para el registro de bicicletas y la recuperación en caso de robo.',
+    content: 'Únete a miles de ciclistas que confían en BiciSecure para proteger su preciada posesión. Regístrate en minutos, reporta robos al instante y aumenta tus posibilidades de recuperación.',
     imageUrl: getImage('hero-background'),
   },
   {
     id: 'features',
-    title: 'How It Works',
-    subtitle: 'Simple steps to peace of mind.',
+    title: 'Cómo Funciona',
+    subtitle: 'Pasos sencillos para tu tranquilidad.',
     content: ''
   },
   {
     id: 'cta',
-    title: 'Ready to Protect Your Ride?',
-    subtitle: 'Join BiciSecure today and ride with confidence.',
+    title: '¿Listo para Proteger tu Bici?',
+    subtitle: 'Únete a BiciSecure hoy y pedalea con confianza.',
     content: '',
     imageUrl: getImage('cta-background'),
   }
@@ -123,7 +123,7 @@ export const updateBikeStatus = (bikeId: string, status: 'stolen' | 'safe') => {
     if (bike) {
         bike.status = status;
         if(status === 'stolen' && !bike.theftReport) {
-            bike.theftReport = { date: new Date().toISOString(), location: 'Unknown', details: 'Reported stolen by owner.'}
+            bike.theftReport = { date: new Date().toISOString(), location: 'Unknown', details: 'Reportada como robada por el propietario.'}
         } else if (status === 'safe') {
             bike.theftReport = undefined;
         }
