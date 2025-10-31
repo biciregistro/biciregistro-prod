@@ -75,8 +75,8 @@ let homepageContent: HomepageSection[] = [
   },
   {
     id: 'features',
-    title: 'Cómo Funciona',
-    subtitle: 'Pasos sencillos para tu tranquilidad.',
+    title: '¿Por qué registrarte?',
+    subtitle: 'Simples razones para tu tranquilidad',
     content: ''
   },
   {
