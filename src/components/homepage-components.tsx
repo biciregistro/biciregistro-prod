@@ -65,7 +65,7 @@ export function BikeSearchForm() {
             <Input
                 type="text"
                 name="serial"
-                placeholder="Introduce el número de serie..."
+                placeholder="Introduce el numero de serie de la bici"
                 className="flex-1"
                 aria-label="Número de serie de la bicicleta"
             />
