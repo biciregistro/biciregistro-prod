@@ -172,6 +172,23 @@ export function ProfileForm({ user }: { user?: User }) {
         form.setValue('state', ''); // Reset state/province
     };
 
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const input = e.target.value.replace(/\D/g, '');
+        let formattedInput = '';
+
+        if (input.length > 0) {
+            formattedInput = input.substring(0, 2);
+        }
+        if (input.length > 2) {
+            formattedInput += '/' + input.substring(2, 4);
+        }
+        if (input.length > 4) {
+            formattedInput += '/' + input.substring(4, 8);
+        }
+
+        form.setValue('birthDate', formattedInput);
+    };
+
     return (
         <Form {...form}>
             <form action={formAction} className="space-y-8 max-w-2xl mx-auto">
@@ -255,7 +272,11 @@ export function ProfileForm({ user }: { user?: User }) {
                                 <FormItem>
                                     <FormLabel>Fecha de Nacimiento</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="DD/MM/AAAA" {...field} />
+                                        <Input 
+                                            placeholder="DD/MM/AAAA" 
+                                            {...field} 
+                                            onChange={handleDateChange}
+                                        />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
