@@ -53,7 +53,7 @@ const bikes: Bike[] = [
 let homepageContent: HomepageSection[] = [
   {
     id: 'hero',
-    title: 'Tu Bici, Asegurada.',
+    title: 'Tu bici, Protegida',
     subtitle: 'La plataforma definitiva para el registro de bicicletas y la recuperación en caso de robo.',
     content: 'Únete a miles de ciclistas que confían en Biciregistro para proteger su preciada posesión. Regístrate en minutos, reporta robos al instante y aumenta tus posibilidades de recuperación.',
     imageUrl: getImage('hero-background'),
