@@ -18,13 +18,10 @@ import { Input } from "@/components/ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { CalendarIcon, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
-import { Calendar } from './ui/calendar';
-import { cn } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
+import { Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Logo } from './icons/logo';
+import { cn } from '@/lib/utils';
 
 
 const profileFormSchema = z.object({
@@ -255,39 +252,11 @@ export function ProfileForm({ user }: { user?: User }) {
                             control={form.control}
                             name="birthDate"
                             render={({ field }) => (
-                                <FormItem className="flex flex-col">
+                                <FormItem>
                                     <FormLabel>Fecha de Nacimiento</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-full pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
-                                            )}
-                                            >
-                                            {field.value ? (
-                                                format(parseISO(field.value), "PPP")
-                                            ) : (
-                                                <span>Elige una fecha</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                            <Calendar
-                                                mode="single"
-                                                selected={field.value ? parseISO(field.value) : undefined}
-                                                onSelect={(date) => field.onChange(date?.toISOString().split('T')[0])}
-                                                disabled={(date) =>
-                                                    date > new Date() || date < new Date("1900-01-01")
-                                                }
-                                                initialFocus
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
+                                    <FormControl>
+                                        <Input placeholder="DD/MM/AAAA" {...field} />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -518,3 +487,5 @@ export function ProfileForm({ user }: { user?: User }) {
         </Form>
     );
 }
+
+    
