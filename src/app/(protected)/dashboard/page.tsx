@@ -29,13 +29,13 @@ export default async function DashboardPage() {
       </div>
 
       {bikes.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-4 sm:px-0">
           {bikes.map(bike => (
             <BikeCard key={bike.id} bike={bike} />
           ))}
         </div>
       ) : (
-        <div className="text-center py-12 md:py-20 border-2 border-dashed rounded-lg">
+        <div className="text-center py-12 md:py-20 border-2 border-dashed rounded-lg mx-4 sm:mx-0">
           <h2 className="text-xl font-semibold">Aún no hay bicicletas registradas.</h2>
           <p className="mt-2 text-muted-foreground">
             Comienza registrando tu primera bicicleta.
