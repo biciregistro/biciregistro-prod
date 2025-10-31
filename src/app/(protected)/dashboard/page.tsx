@@ -17,25 +17,25 @@ export default async function DashboardPage() {
 
   return (
     <div className="container py-6 md:py-8">
-      <div className="flex items-center justify-between mb-8 px-4 sm:px-0">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 px-4 sm:px-0 gap-4">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Tu Garaje</h1>
             <p className="text-muted-foreground">Gestiona tus bicicletas registradas.</p>
         </div>
-        <div className="flex gap-2">
-            <Button asChild variant="outline">
-              <Link href="/dashboard/profile">
-                <Pencil className="mr-2 h-4 w-4" />
-                Editar Perfil
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link href="/dashboard/register">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Registrar Nueva Bicicleta
-              </Link>
-            </Button>
-        </div>
+      </div>
+      <div className="flex flex-wrap gap-2 mb-8 px-4 sm:px-0">
+          <Button asChild variant="outline">
+            <Link href="/dashboard/profile">
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar Perfil
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/dashboard/register">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Registrar Nueva Bicicleta
+            </Link>
+          </Button>
       </div>
 
       {bikes.length > 0 ? (
