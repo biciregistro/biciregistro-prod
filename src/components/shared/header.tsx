@@ -23,13 +23,14 @@ type NavLink = {
   label: string;
   auth: boolean;
   admin?: boolean;
+  mobile?: boolean;
 };
 
 const navLinks: NavLink[] = [
-  { href: '/', label: 'Inicio', auth: false },
-  { href: '/search', label: 'Buscar Bicis', auth: false },
-  { href: '/dashboard', label: 'Panel', auth: true },
-  { href: '/admin', label: 'Admin', auth: true, admin: true },
+  { href: '/', label: 'Inicio', auth: false, mobile: true },
+  { href: '/search', label: 'Buscar Bicis', auth: false, mobile: false },
+  { href: '/dashboard', label: 'Panel', auth: true, mobile: true },
+  { href: '/admin', label: 'Admin', auth: true, admin: true, mobile: true },
 ];
 
 export function Header({ user }: { user: UserType | null }) {
@@ -42,30 +43,32 @@ export function Header({ user }: { user: UserType | null }) {
     return true;
   });
 
+  const mobileNavLinks = filteredNavLinks.filter(link => link.mobile !== false);
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center px-4 md:px-6">
-        <div className="mr-auto flex items-center">
-          <Link href="/" className="mr-6">
-            <Logo />
-          </Link>
-          <nav className="hidden items-center space-x-6 text-sm font-medium md:flex">
-            {filteredNavLinks.map(link => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  'transition-colors hover:text-foreground/80',
-                  pathname === link.href ? 'text-foreground' : 'text-foreground/60'
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
+      <div className="container flex h-16 items-center justify-between">
+        <div className="flex items-center">
+            <Link href="/" className="mr-6">
+                <Logo />
+            </Link>
+            <nav className="hidden items-center space-x-6 text-sm font-medium md:flex">
+                {filteredNavLinks.map(link => (
+                <Link
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                    'transition-colors hover:text-foreground/80',
+                    pathname === link.href ? 'text-foreground' : 'text-foreground/60'
+                    )}
+                >
+                    {link.label}
+                </Link>
+                ))}
+            </nav>
         </div>
         
-        <div className="flex flex-1 items-center justify-end md:hidden">
+        <div className="flex items-center justify-end gap-2">
            <Sheet>
               <SheetTrigger asChild>
                   <Button variant="ghost" size="icon" className="md:hidden">
@@ -79,12 +82,12 @@ export function Header({ user }: { user: UserType | null }) {
                       <Logo />
                   </Link>
                   <div className="flex flex-col space-y-3 pt-6">
-                      {filteredNavLinks.map(link => (
+                      {mobileNavLinks.map(link => (
                       <Link
                           key={link.href}
                           href={link.href}
                           className={cn(
-                          'transition-colors hover:text-foreground/80',
+                          'transition-colors hover:text-foreground/80 text-lg',
                           pathname === link.href ? 'text-foreground' : 'text-foreground/60'
                           )}
                       >
@@ -92,12 +95,21 @@ export function Header({ user }: { user: UserType | null }) {
                       </Link>
                       ))}
                   </div>
+
+                  {!user && (
+                    <div className="mt-6 flex flex-col gap-2">
+                        <Button asChild variant="outline">
+                            <Link href="/login">Iniciar Sesión</Link>
+                        </Button>
+                        <Button asChild>
+                            <Link href="/signup">Crear Cuenta</Link>
+                        </Button>
+                    </div>
+                  )}
+
               </SheetContent>
           </Sheet>
-        </div>
 
-
-        <div className="flex items-center justify-end">
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
