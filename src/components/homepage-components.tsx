@@ -18,7 +18,7 @@ const getImageData = (id: string) => {
 
 export function HeroSection({ section }: { section: HomepageSection }) {
   return (
-    <section className="relative w-full min-h-[60vh] md:min-h-[70vh] flex items-center pt-5 pb-10">
+    <section className="relative w-full min-h-[60vh] flex items-center pt-5 pb-10">
       <Image
         src={getImageData('hero-background').imageUrl}
         alt={getImageData('hero-background').description}
@@ -97,7 +97,7 @@ const features = [
 
 export function FeaturesSection({ section }: { section: HomepageSection }) {
   return (
-    <section className="py-8 sm:py-12 bg-secondary/50">
+    <section className="py-4 sm:py-6 bg-secondary/50">
       <div className="container text-center">
         <h2 className="text-3xl font-bold tracking-tight">{section.title}</h2>
         <p className="mt-2 text-lg text-muted-foreground">{section.subtitle}</p>
@@ -136,7 +136,7 @@ export function FeaturesSection({ section }: { section: HomepageSection }) {
 export function CtaSection({ section }: { section: HomepageSection }) {
     const imageData = getImageData('cta-background');
     return (
-        <section className="py-16 sm:py-24">
+        <section className="py-8 sm:py-12">
             <div className="container">
                 <div className={cn(
                     "relative rounded-lg p-10 md:p-20 overflow-hidden",
