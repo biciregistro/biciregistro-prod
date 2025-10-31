@@ -78,7 +78,7 @@ export default async function BikeDetailsPage({ params }: { params: { id: string
                     <CardTitle className="text-3xl">{bike.make} {bike.model}</CardTitle>
                     <CardDescription>
                         <Badge className={cn(bikeStatusStyles[bike.status], "text-base mt-2")}>
-                            Estado: {bike.status === 'safe' ? 'A salvo' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}
+                            Estado: {bike.status === 'safe' ? 'En Regla' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}
                         </Badge>
                     </CardDescription>
                 </CardHeader>

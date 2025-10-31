@@ -59,7 +59,7 @@ export default async function SearchPage({ searchParams }: { searchParams?: { se
                              <div>
                                 <p className="text-sm font-medium text-muted-foreground">Estado</p>
                                 <Badge className={cn(bikeStatusStyles[bike.status], "text-base")}>
-                                    {bike.status === 'safe' ? 'A salvo' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}
+                                    {bike.status === 'safe' ? 'En Regla' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}
                                 </Badge>
                              </div>
                              {bike.status === 'stolen' && (

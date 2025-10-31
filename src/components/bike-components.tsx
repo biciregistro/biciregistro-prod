@@ -43,7 +43,7 @@ export function BikeCard({ bike }: { bike: Bike }) {
                         className="object-cover"
                     />
                      <Badge className={cn("absolute top-2 right-2", bikeStatusStyles[bike.status])}>
-                        {bike.status === 'safe' ? 'A salvo' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}
+                        {bike.status === 'safe' ? 'En Regla' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}
                     </Badge>
                 </div>
             </Link>

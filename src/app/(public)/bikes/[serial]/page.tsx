@@ -58,7 +58,7 @@ export default async function PublicBikePage({ params }: { params: { serial: str
 
                         <div className="space-y-1">
                             <p className="text-sm font-medium">Estado</p>
-                            <Badge className={cn("text-base", bikeStatusStyles[bike.status])}>{bike.status === 'safe' ? 'A salvo' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}</Badge>
+                            <Badge className={cn("text-base", bikeStatusStyles[bike.status])}>{bike.status === 'safe' ? 'En Regla' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}</Badge>
                         </div>
                     </div>
                 </CardContent>
