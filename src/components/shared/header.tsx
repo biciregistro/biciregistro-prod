@@ -121,7 +121,7 @@ export function Header({ user }: { user: UserType | null }) {
                   <Link href="/dashboard">Panel</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="#">Perfil</Link>
+                  <Link href="/dashboard/profile">Perfil</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>

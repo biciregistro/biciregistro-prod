@@ -3,10 +3,10 @@ import { PlaceHolderImages } from './placeholder-images';
 
 const getImage = (id: string) => PlaceHolderImages.find(img => img.id === id)?.imageUrl || '';
 
-const users: User[] = [
-  { id: 'user-1', name: 'Alex Ryder', email: 'alex@example.com', role: 'ciclista', avatarUrl: 'https://picsum.photos/seed/avatar1/100/100' },
-  { id: 'user-2', name: 'Maria Garcia', email: 'maria@example.com', role: 'ciclista', avatarUrl: 'https://picsum.photos/seed/avatar2/100/100' },
-  { id: 'admin-1', name: 'Admin Vera', email: 'admin@biciregistro.com', role: 'admin', avatarUrl: 'https://picsum.photos/seed/avatar3/100/100' },
+let users: User[] = [
+  { id: 'user-1', name: 'Alex', lastName: 'Ryder', email: 'alex@example.com', role: 'ciclista', avatarUrl: 'https://picsum.photos/seed/avatar1/100/100', country: 'México', state: 'Jalisco', birthDate: '1990-05-15' },
+  { id: 'user-2', name: 'Maria', lastName: 'Garcia', email: 'maria@example.com', role: 'ciclista', avatarUrl: 'https://picsum.photos/seed/avatar2/100/100' },
+  { id: 'admin-1', name: 'Admin', lastName: 'Vera', email: 'admin@biciregistro.com', role: 'admin', avatarUrl: 'https://picsum.photos/seed/avatar3/100/100' },
 ];
 
 let bikes: Bike[] = [
@@ -84,6 +84,14 @@ export const getAuthenticatedUser = async (): Promise<User | null> => {
 
 export const findUserByEmail = async (email: string): Promise<User | undefined> => {
     return users.find(u => u.email === email);
+}
+
+export const updateUserData = (userId: string, userData: Partial<Omit<User, 'id' | 'email' | 'role'>>) => {
+    const index = users.findIndex(u => u.id === userId);
+    if (index !== -1) {
+        users[index] = { ...users[index], ...userData };
+    }
+    return users[index];
 }
 
 export const getUserBikes = async (userId: string): Promise<Bike[]> => {

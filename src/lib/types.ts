@@ -22,9 +22,13 @@ export type Bike = {
 export type User = {
   id: string;
   name: string;
+  lastName?: string;
   email: string;
   role: 'ciclista' | 'admin';
   avatarUrl?: string;
+  country?: string;
+  state?: string;
+  birthDate?: string;
 };
 
 export type HomepageSection = {

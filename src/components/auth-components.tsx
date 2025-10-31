@@ -83,9 +83,15 @@ export function SignupForm() {
                     <AlertDescription>{state.error}</AlertDescription>
                 </Alert>
             )}
-            <div className="grid gap-2">
-              <Label htmlFor="name">Nombre</Label>
-              <Input id="name" name="name" placeholder="Tu Nombre" required />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="name">Nombre(s)</Label>
+                    <Input id="name" name="name" placeholder="Tu nombre" required />
+                </div>
+                 <div className="grid gap-2">
+                    <Label htmlFor="lastName">Apellidos</Label>
+                    <Input id="lastName" name="lastName" placeholder="Tus apellidos" required />
+                </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Correo Electrónico</Label>

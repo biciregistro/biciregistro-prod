@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { addBike, findUserByEmail, updateBikeData, updateBikeStatus, updateHomepageSectionData } from './data';
+import { addBike, findUserByEmail, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData } from './data';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -12,6 +12,7 @@ const loginSchema = z.object({
 
 const signupSchema = z.object({
     name: z.string().min(2),
+    lastName: z.string().min(2),
     email: z.string().email(),
     password: z.string().min(6),
 });
@@ -40,6 +41,15 @@ const theftReportSchema = z.object({
     state: z.string().min(1, "El estado/provincia es obligatorio."),
     location: z.string().min(1, "La ubicación es obligatoria."),
     details: z.string().min(1, "Los detalles son obligatorios."),
+});
+
+const profileFormSchema = z.object({
+    id: z.string(),
+    name: z.string().min(2, "El nombre es obligatorio."),
+    lastName: z.string().min(2, "Los apellidos son obligatorios."),
+    birthDate: z.string().optional(),
+    country: z.string().optional(),
+    state: z.string().optional(),
 });
 
 
@@ -81,6 +91,26 @@ export async function signup(prevState: any, formData: FormData) {
   console.log('New user signed up:', validatedFields.data.email);
 
   redirect('/dashboard');
+}
+
+export async function updateProfile(prevState: any, formData: FormData) {
+    const validatedFields = profileFormSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Error: Por favor, revisa los campos del formulario.',
+        };
+    }
+
+    const { id, ...userData } = validatedFields.data;
+
+    updateUserData(id, userData);
+
+    console.log('User profile updated:', id);
+    revalidatePath('/dashboard/profile');
+    
+    return { message: 'Perfil actualizado correctamente.' };
 }
 
 export async function registerBike(prevState: any, formData: FormData) {
