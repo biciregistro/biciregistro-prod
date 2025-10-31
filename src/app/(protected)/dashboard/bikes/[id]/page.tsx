@@ -36,7 +36,7 @@ export default async function BikeDetailsPage({ params }: { params: { id: string
   }
 
   return (
-    <div className="container py-8">
+    <div className="container py-6 md:py-8">
       <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
         <div>
           <Carousel className="w-full">
@@ -56,8 +56,8 @@ export default async function BikeDetailsPage({ params }: { params: { id: string
               )}
             </CarouselContent>
             {bike.photos.length > 1 && <>
-                <CarouselPrevious className="ml-16" />
-                <CarouselNext className="mr-16" />
+                <CarouselPrevious className="ml-12 sm:ml-16" />
+                <CarouselNext className="mr-12 sm:mr-16" />
             </>}
           </Carousel>
         </div>

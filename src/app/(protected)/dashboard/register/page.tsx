@@ -9,7 +9,7 @@ export default async function RegisterBikePage() {
   }
 
   return (
-    <div className="container py-8">
+    <div className="container py-6 md:py-8">
       <div className="max-w-2xl mx-auto">
         <BikeRegistrationForm userId={user.id} />
       </div>

@@ -14,7 +14,7 @@ export default async function DashboardPage() {
   const bikes = await getUserBikes(user.id);
 
   return (
-    <div className="container py-8">
+    <div className="container py-6 md:py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Tu Garaje</h1>
@@ -35,7 +35,7 @@ export default async function DashboardPage() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-20 border-2 border-dashed rounded-lg">
+        <div className="text-center py-12 md:py-20 border-2 border-dashed rounded-lg">
           <h2 className="text-xl font-semibold">Aún no hay bicicletas registradas.</h2>
           <p className="mt-2 text-muted-foreground">
             Comienza registrando tu primera bicicleta.
