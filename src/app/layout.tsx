@@ -3,8 +3,8 @@ import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'BiciSecure - Registra y Protege Tu Bici',
-  description: 'BiciSecure te ayuda a registrar tu bicicleta, reportarla como robada y buscar bicicletas para verificar su propiedad.',
+  title: 'Biciregistro - Registra y Protege Tu Bici',
+  description: 'Biciregistro te ayuda a registrar tu bicicleta, reportarla como robada y buscar bicicletas para verificar su propiedad.',
 };
 
 export default function RootLayout({

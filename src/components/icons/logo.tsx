@@ -6,7 +6,7 @@ export function Logo({ className }: { className?: string }) {
     <div className={cn('flex items-center gap-2', className)}>
       <ShieldCheck className="h-7 w-7 text-primary" />
       <span className="text-xl font-bold tracking-tight text-foreground">
-        BiciSecure
+        Biciregistro
       </span>
     </div>
   );
