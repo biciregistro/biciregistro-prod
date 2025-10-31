@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { addBike, findUserByEmail, updateBikeStatus, updateHomepageSectionData } from './data';
+import { addBike, findUserByEmail, updateBikeData, updateBikeStatus, updateHomepageSectionData } from './data';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -16,7 +16,8 @@ const signupSchema = z.object({
     password: z.string().min(6),
 });
 
-const bikeRegistrationSchema = z.object({
+const bikeFormSchema = z.object({
+    id: z.string().optional(),
     serialNumber: z.string().min(3, "El número de serie es obligatorio."),
     make: z.string().min(2, "La marca es obligatoria."),
     model: z.string().min(1, "El modelo es obligatorio."),
@@ -74,7 +75,7 @@ export async function signup(prevState: any, formData: FormData) {
 }
 
 export async function registerBike(prevState: any, formData: FormData) {
-    const validatedFields = bikeRegistrationSchema.safeParse(Object.fromEntries(formData.entries()));
+    const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
         return {
@@ -92,6 +93,34 @@ export async function registerBike(prevState: any, formData: FormData) {
     console.log('Bike registered:', validatedFields.data.serialNumber);
     revalidatePath('/dashboard');
     redirect('/dashboard');
+}
+
+export async function updateBike(prevState: any, formData: FormData) {
+    const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
+  
+    if (!validatedFields.success) {
+      return {
+        errors: validatedFields.error.flatten().fieldErrors,
+        message: 'Error: Por favor, revisa los campos del formulario.',
+      };
+    }
+  
+    const { id, ...bikeData } = validatedFields.data;
+
+    if (!id) {
+        return {
+            errors: true,
+            message: 'Error: ID de bicicleta no encontrado.',
+        };
+    }
+  
+    updateBikeData(id, bikeData);
+  
+    console.log('Bike updated:', id);
+    revalidatePath(`/dashboard/bikes/${id}`);
+    revalidatePath('/dashboard');
+
+    return { message: 'Bicicleta actualizada correctamente.' };
 }
 
 export async function reportTheft(bikeId: string) {

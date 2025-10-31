@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useActionState, useFormStatus } from 'react-dom';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { useEffect } from 'react';
 
 import type { Bike } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -14,12 +14,13 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { markAsRecovered, registerBike, reportTheft } from '@/lib/actions';
+import { markAsRecovered, registerBike, reportTheft, updateBike } from '@/lib/actions';
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, ArrowLeft, Camera } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
@@ -63,42 +64,63 @@ export function BikeCard({ bike }: { bike: Bike }) {
   );
 }
 
-const bikeRegistrationFormSchema = z.object({
+const bikeFormSchema = z.object({
+    id: z.string().optional(),
     serialNumber: z.string().min(3, "El número de serie es obligatorio."),
     make: z.string().min(2, "La marca es obligatoria."),
     model: z.string().min(1, "El modelo es obligatorio."),
     color: z.string().min(2, "El color es obligatorio."),
 });
 
-type BikeRegistrationFormValues = z.infer<typeof bikeRegistrationFormSchema>;
+type BikeFormValues = z.infer<typeof bikeFormSchema>;
 
-function SubmitButton() {
+function SubmitButton({ isEditing }: { isEditing?: boolean }) {
     const { pending } = useFormStatus();
-    return <Button type="submit" disabled={pending} className="w-full">{pending ? 'Registrando...' : 'Registrar Bicicleta'}</Button>;
+    const text = isEditing ? 'Guardar Cambios' : 'Registrar Bicicleta';
+    const pendingText = isEditing ? 'Guardando...' : 'Registrando...';
+    return <Button type="submit" disabled={pending} className="w-full">{pending ? pendingText : text}</Button>;
 }
 
-export function BikeRegistrationForm({ userId }: { userId: string }) {
-    const [state, formAction] = useActionState(registerBike, null);
+export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: string, bike?: Bike, onSuccess?: () => void }) {
+    const isEditing = !!bike;
+    const action = isEditing ? updateBike : registerBike;
+    const [state, formAction] = useActionState(action, null);
+    const { toast } = useToast();
     
-    const form = useForm<BikeRegistrationFormValues>({
-        resolver: zodResolver(bikeRegistrationFormSchema),
+    const form = useForm<BikeFormValues>({
+        resolver: zodResolver(bikeFormSchema),
         defaultValues: {
-            serialNumber: "",
-            make: "",
-            model: "",
-            color: ""
+            id: bike?.id,
+            serialNumber: bike?.serialNumber || "",
+            make: bike?.make || "",
+            model: bike?.model || "",
+            color: bike?.color || ""
         },
     });
+
+    useEffect(() => {
+        if (state?.message) {
+            toast({
+                title: state.errors ? "Error" : "Éxito",
+                description: state.message,
+                variant: state.errors ? "destructive" : "default",
+            });
+            if (!state.errors && onSuccess) {
+                onSuccess();
+            }
+        }
+    }, [state, toast, onSuccess]);
+
 
     return (
         <Form {...form}>
             <form action={formAction} className="space-y-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Registrar una Nueva Bicicleta</CardTitle>
+                        <CardTitle>{isEditing ? 'Editar Bicicleta' : 'Registrar una Nueva Bicicleta'}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {state?.message && (
+                        {state?.message && !onSuccess && (
                             <Alert variant={state.errors ? "destructive" : "default"}>
                                 <AlertCircle className="h-4 w-4" />
                                 <AlertTitle>{state.errors ? 'Error' : 'Éxito'}</AlertTitle>
@@ -153,13 +175,20 @@ export function BikeRegistrationForm({ userId }: { userId: string }) {
                         </div>
 
                         <input type="hidden" name="userId" value={userId} />
+                        {isEditing && <input type="hidden" name="id" value={bike.id} />}
 
                     </CardContent>
                     <CardFooter className="flex flex-col-reverse sm:flex-row gap-2">
-                        <Button asChild variant="outline" className="w-full">
-                            <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Garaje</Link>
-                        </Button>
-                        <SubmitButton />
+                         {isEditing ? (
+                            <Button variant="outline" className="w-full" type="button" onClick={onSuccess}>
+                                Cancelar
+                            </Button>
+                         ) : (
+                            <Button asChild variant="outline" className="w-full">
+                                <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Garaje</Link>
+                            </Button>
+                         )}
+                        <SubmitButton isEditing={isEditing} />
                     </CardFooter>
                 </Card>
             </form>

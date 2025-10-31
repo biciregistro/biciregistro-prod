@@ -9,7 +9,7 @@ const users: User[] = [
   { id: 'admin-1', name: 'Admin Vera', email: 'admin@biciregistro.com', role: 'admin', avatarUrl: 'https://picsum.photos/seed/avatar3/100/100' },
 ];
 
-const bikes: Bike[] = [
+let bikes: Bike[] = [
   {
     id: 'bike-1',
     userId: 'user-1',
@@ -116,6 +116,14 @@ export const addBike = (bike: Omit<Bike, 'id' | 'status'>) => {
     };
     bikes.push(newBike);
     return newBike;
+}
+
+export const updateBikeData = (bikeId: string, bikeData: Partial<Omit<Bike, 'id' | 'userId' | 'photos' | 'ownershipDocs' | 'status'>>) => {
+    const index = bikes.findIndex(b => b.id === bikeId);
+    if (index !== -1) {
+        bikes[index] = { ...bikes[index], ...bikeData };
+    }
+    return bikes[index];
 }
 
 export const updateBikeStatus = (bikeId: string, status: 'stolen' | 'safe') => {
