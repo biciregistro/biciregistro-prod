@@ -28,7 +28,8 @@ function DetailItem({ label, value }: { label: string; value: React.ReactNode })
     );
 }
 
-export default function BikeDetailsPage({ params }: { params: { id: string } }) {
+export default function BikeDetailsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = use(paramsPromise);
   const [user, setUser] = useState<User | null>(null);
   const [bike, setBike] = useState<Bike | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -72,7 +73,7 @@ export default function BikeDetailsPage({ params }: { params: { id: string } }) 
 
   return (
     <div className="container py-6 md:py-8">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between px-4 sm:px-0">
         <Button asChild variant="outline">
           <Link href="/dashboard">
             <ArrowLeft className="mr-2 h-4 w-4" />
