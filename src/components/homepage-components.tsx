@@ -40,16 +40,13 @@ export function HeroSection({ section }: { section: HomepageSection }) {
             <p className="mt-2 max-w-2xl mx-auto text-muted-foreground">
               {section.content}
             </p>
-            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="mt-8 max-w-lg mx-auto">
+                <BikeSearchForm />
+            </div>
+            <div className="mt-4 flex justify-center">
               <Button asChild size="lg">
                 <Link href="/signup">Registra Tu Bici</Link>
               </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href="/search">Buscar una Bici</Link>
-              </Button>
-            </div>
-            <div className="mt-8 max-w-lg mx-auto">
-                <BikeSearchForm />
             </div>
           </div>
         </div>
