@@ -45,56 +45,59 @@ export function Header({ user }: { user: UserType | null }) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
-        <div className="mr-4 hidden md:flex">
-          <Link href="/" className="mr-6">
+        <div className="flex-1 md:flex-none md:flex-initial">
+          <Link href="/" className="md:mr-6">
             <Logo />
           </Link>
-          <nav className="flex items-center space-x-6 text-sm font-medium">
-            {filteredNavLinks.map(link => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  'transition-colors hover:text-foreground/80',
-                  pathname === link.href ? 'text-foreground' : 'text-foreground/60'
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
         </div>
         
-        <Sheet>
-            <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden">
-                    <Menu className="h-5 w-5" />
-                    <span className="sr-only">Abrir Menú</span>
-                </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="pr-0">
-                <Link href="/" className="mr-6">
-                    <Logo />
-                </Link>
-                <div className="flex flex-col space-y-3 pt-6">
-                    {filteredNavLinks.map(link => (
-                    <Link
-                        key={link.href}
-                        href={link.href}
-                        className={cn(
-                        'transition-colors hover:text-foreground/80',
-                        pathname === link.href ? 'text-foreground' : 'text-foreground/60'
-                        )}
-                    >
-                        {link.label}
-                    </Link>
-                    ))}
-                </div>
-            </SheetContent>
-        </Sheet>
+        <nav className="hidden items-center space-x-6 text-sm font-medium md:flex">
+          {filteredNavLinks.map(link => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn(
+                'transition-colors hover:text-foreground/80',
+                pathname === link.href ? 'text-foreground' : 'text-foreground/60'
+              )}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+        
+        <div className="flex flex-1 items-center justify-center md:hidden">
+           <Sheet>
+              <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="md:hidden">
+                      <Menu className="h-5 w-5" />
+                      <span className="sr-only">Abrir Menú</span>
+                  </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="pr-0">
+                  <Link href="/" className="mr-6">
+                      <Logo />
+                  </Link>
+                  <div className="flex flex-col space-y-3 pt-6">
+                      {filteredNavLinks.map(link => (
+                      <Link
+                          key={link.href}
+                          href={link.href}
+                          className={cn(
+                          'transition-colors hover:text-foreground/80',
+                          pathname === link.href ? 'text-foreground' : 'text-foreground/60'
+                          )}
+                      >
+                          {link.label}
+                      </Link>
+                      ))}
+                  </div>
+              </SheetContent>
+          </Sheet>
+        </div>
 
 
-        <div className="flex flex-1 items-center justify-end space-x-2">
+        <div className="flex items-center justify-end space-x-2 md:flex-initial">
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
