@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState, useFormStatus } from 'react';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { updateHomepageSection } from '@/lib/actions';
 import type { HomepageSection } from '@/lib/types';
 import { Button } from '@/components/ui/button';
