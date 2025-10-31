@@ -43,11 +43,6 @@ export function HeroSection({ section }: { section: HomepageSection }) {
             <div className="mt-8 max-w-lg mx-auto">
                 <BikeSearchForm />
             </div>
-            <div className="mt-4 flex justify-center">
-              <Button asChild size="lg">
-                <Link href="/signup">Registra Tu Bici</Link>
-              </Button>
-            </div>
           </div>
         </div>
       </div>

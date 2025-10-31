@@ -45,7 +45,7 @@ export function Header({ user }: { user: UserType | null }) {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
-        <div className="flex items-center">
+        <div className="mr-auto flex items-center">
           <Link href="/" className="mr-6">
             <Logo />
           </Link>
@@ -96,7 +96,7 @@ export function Header({ user }: { user: UserType | null }) {
         </div>
 
 
-        <div className="flex flex-1 items-center justify-end">
+        <div className="flex items-center justify-end">
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -136,7 +136,7 @@ export function Header({ user }: { user: UserType | null }) {
                 <Link href="/login">Iniciar Sesión</Link>
               </Button>
               <Button asChild>
-                <Link href="/signup">Registrarse</Link>
+                <Link href="/signup">Registra Tu Bici</Link>
               </Button>
             </nav>
           )}
