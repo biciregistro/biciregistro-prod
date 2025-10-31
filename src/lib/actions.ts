@@ -1,0 +1,127 @@
+'use server';
+
+import { z } from 'zod';
+import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
+import { addBike, findUserByEmail, updateBikeStatus, updateHomepageSectionData } from './data';
+
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+});
+
+const signupSchema = z.object({
+    name: z.string().min(2),
+    email: z.string().email(),
+    password: z.string().min(6),
+});
+
+const bikeRegistrationSchema = z.object({
+    serialNumber: z.string().min(3, "Serial number is required."),
+    make: z.string().min(2, "Make is required."),
+    model: z.string().min(1, "Model is required."),
+    color: z.string().min(2, "Color is required."),
+    userId: z.string(), // This will be hidden and pre-filled
+});
+
+const homepageEditSchema = z.object({
+    id: z.enum(['hero', 'features', 'cta']),
+    title: z.string(),
+    subtitle: z.string(),
+    content: z.string().optional(),
+    imageUrl: z.string().url().optional(),
+});
+
+
+export async function login(prevState: any, formData: FormData) {
+  const validatedFields = loginSchema.safeParse(Object.fromEntries(formData.entries()));
+
+  if (!validatedFields.success) {
+    return {
+      error: 'Invalid email or password.',
+    };
+  }
+
+  const { email } = validatedFields.data;
+  const user = await findUserByEmail(email);
+
+  if(!user) {
+    return {
+        error: 'No user found with this email.',
+    };
+  }
+
+  // In a real app, you would verify the password here.
+  // For mock purposes, we'll assume it's correct and set a cookie/session.
+  console.log('User logged in:', user.email);
+
+  redirect('/dashboard');
+}
+
+export async function signup(prevState: any, formData: FormData) {
+  const validatedFields = signupSchema.safeParse(Object.fromEntries(formData.entries()));
+
+  if (!validatedFields.success) {
+    return {
+      error: 'Invalid data provided.',
+    };
+  }
+
+  // In a real app, you'd create the user in the database.
+  console.log('New user signed up:', validatedFields.data.email);
+
+  redirect('/dashboard');
+}
+
+export async function registerBike(prevState: any, formData: FormData) {
+    const validatedFields = bikeRegistrationSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Error: Please check the form fields.',
+        };
+    }
+
+    addBike({
+        ...validatedFields.data,
+        photos: [], // In real app, upload and get URLs
+        ownershipDocs: [],
+    });
+
+    console.log('Bike registered:', validatedFields.data.serialNumber);
+    revalidatePath('/dashboard');
+    redirect('/dashboard');
+}
+
+export async function reportTheft(bikeId: string) {
+    updateBikeStatus(bikeId, 'stolen');
+    console.log(`Bike ${bikeId} reported as stolen.`);
+    revalidatePath(`/dashboard/bikes/${bikeId}`);
+    revalidatePath('/dashboard');
+}
+
+export async function markAsRecovered(bikeId: string) {
+    updateBikeStatus(bikeId, 'safe');
+    console.log(`Bike ${bikeId} marked as recovered.`);
+    revalidatePath(`/dashboard/bikes/${bikeId}`);
+    revalidatePath('/dashboard');
+}
+
+export async function updateHomepageSection(prevState: any, formData: FormData) {
+    const validatedFields = homepageEditSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            error: 'Invalid data provided.',
+        };
+    }
+    
+    updateHomepageSectionData(validatedFields.data);
+    console.log('Homepage section updated:', validatedFields.data.id);
+
+    revalidatePath('/');
+    return {
+        message: `Section '${validatedFields.data.id}' updated successfully.`,
+    };
+}
