@@ -149,7 +149,7 @@ export function CtaSection({ section }: { section: HomepageSection }) {
                         <p className="mt-2 text-lg text-muted-foreground">{section.subtitle}</p>
                         <div className="mt-8">
                             <Button asChild size="lg">
-                                <Link href="/signup">Comienza Gratis</Link>
+                                <Link href="/signup">Registra tu bici ahora</Link>
                             </Button>
                         </div>
                     </div>
