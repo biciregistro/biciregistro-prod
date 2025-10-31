@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -10,7 +10,7 @@ import { z } from "zod"
 
 import type { Bike } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -21,6 +21,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, ArrowLeft, Camera } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Textarea } from './ui/textarea';
 
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
@@ -196,18 +197,124 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
     );
 }
 
-function ReportTheftButton() {
+function ReportTheftButton({ ...props }) {
     const { pending } = useFormStatus();
-    return <Button type="submit" variant="destructive" className="w-full" disabled={pending}>{pending ? 'Reportando...' : 'Reportar como Robada'}</Button>;
+    return <Button type="submit" variant="destructive" className="w-full" disabled={pending} {...props}>{pending ? 'Reportando...' : 'Reportar como Robada'}</Button>;
 }
 function MarkRecoveredButton() {
     const { pending } = useFormStatus();
     return <Button type="submit" variant="secondary" className="w-full bg-green-500 hover:bg-green-600 text-white" disabled={pending}>{pending ? 'Actualizando...' : 'Marcar como Recuperada'}</Button>;
 }
 
+const theftReportSchema = z.object({
+    date: z.string().min(1, "La fecha es obligatoria."),
+    location: z.string().min(1, "La ubicación es obligatoria."),
+    details: z.string().min(1, "Los detalles son obligatorios."),
+});
+type TheftReportValues = z.infer<typeof theftReportSchema>;
+
 export function TheftReportForm({ bike }: { bike: Bike }) {
+    const [showForm, setShowForm] = useState(false);
+    const [state, formAction] = useActionState(reportTheft, null);
+    const { toast } = useToast();
+
+    const form = useForm<TheftReportValues>({
+        resolver: zodResolver(theftReportSchema),
+        defaultValues: {
+            date: new Date().toISOString().split('T')[0],
+            location: "",
+            details: ""
+        },
+    });
+
+    useEffect(() => {
+        if (state?.message) {
+            toast({
+                title: state.errors ? "Error" : "Éxito",
+                description: state.message,
+                variant: state.errors ? "destructive" : "default",
+            });
+            if (!state.errors) {
+                setShowForm(false);
+            }
+        }
+    }, [state, toast]);
+
     if (bike.status === 'stolen') {
-        return <form action={() => markAsRecovered(bike.id)}><MarkRecoveredButton /></form>
+        return (
+            <form action={async () => {
+                await markAsRecovered(bike.id)
+                toast({ title: "Bicicleta Actualizada", description: "La bicicleta ha sido marcada como recuperada." })
+            }}>
+                <MarkRecoveredButton />
+            </form>
+        )
     }
-    return <form action={() => reportTheft(bike.id)}><ReportTheftButton /></form>
+
+    if (!showForm) {
+        return <Button variant="destructive" className="w-full" onClick={() => setShowForm(true)}>Reportar como Robada</Button>
+    }
+
+    return (
+        <Form {...form}>
+            <form action={formAction} className="space-y-4">
+                 <CardHeader className="p-0 mb-4">
+                    <CardTitle>Reportar Robo</CardTitle>
+                    <CardDescription>Completa los detalles sobre el robo.</CardDescription>
+                </CardHeader>
+                
+                {state?.message && (
+                    <Alert variant={state.errors ? "destructive" : "default"}>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>{state.errors ? 'Error' : 'Éxito'}</AlertTitle>
+                        <AlertDescription>{state.message}</AlertDescription>
+                    </Alert>
+                )}
+                <FormField
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Fecha del Robo</FormLabel>
+                            <FormControl>
+                                <Input type="date" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="location"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Ubicación (aproximada)</FormLabel>
+                            <FormControl>
+                                <Input placeholder="ej., Parque Central, cerca de la fuente" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="details"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Detalles Adicionales</FormLabel>
+                            <FormControl>
+                                <Textarea placeholder="ej., La dejé candada a las 2pm y cuando volví a las 4pm ya no estaba." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <input type="hidden" name="bikeId" value={bike.id} />
+                <div className="flex flex-col-reverse sm:flex-row gap-2">
+                    <Button variant="outline" type="button" onClick={() => setShowForm(false)}>Cancelar</Button>
+                    <ReportTheftButton />
+                </div>
+            </form>
+        </Form>
+    );
 }

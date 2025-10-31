@@ -126,12 +126,12 @@ export const updateBikeData = (bikeId: string, bikeData: Partial<Omit<Bike, 'id'
     return bikes[index];
 }
 
-export const updateBikeStatus = (bikeId: string, status: 'stolen' | 'safe') => {
+export const updateBikeStatus = (bikeId: string, status: 'stolen' | 'safe', theftDetails?: Omit<Bike['theftReport'], 'date'> & { date: string }) => {
     const bike = bikes.find(b => b.id === bikeId);
     if (bike) {
         bike.status = status;
-        if(status === 'stolen' && !bike.theftReport) {
-            bike.theftReport = { date: new Date().toISOString(), location: 'Unknown', details: 'Reportada como robada por el propietario.'}
+        if(status === 'stolen') {
+            bike.theftReport = theftDetails ? { ...theftDetails, date: new Date(theftDetails.date).toISOString() } : { date: new Date().toISOString(), location: 'Unknown', details: 'Reportada como robada por el propietario.'}
         } else if (status === 'safe') {
             bike.theftReport = undefined;
         }

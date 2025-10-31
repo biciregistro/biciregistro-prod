@@ -33,6 +33,13 @@ const homepageEditSchema = z.object({
     imageUrl: z.string().url().optional(),
 });
 
+const theftReportSchema = z.object({
+    bikeId: z.string(),
+    date: z.string().min(1, "La fecha es obligatoria."),
+    location: z.string().min(1, "La ubicación es obligatoria."),
+    details: z.string().min(1, "Los detalles son obligatorios."),
+});
+
 
 export async function login(prevState: any, formData: FormData) {
   const validatedFields = loginSchema.safeParse(Object.fromEntries(formData.entries()));
@@ -123,11 +130,20 @@ export async function updateBike(prevState: any, formData: FormData) {
     return { message: 'Bicicleta actualizada correctamente.' };
 }
 
-export async function reportTheft(bikeId: string) {
-    updateBikeStatus(bikeId, 'stolen');
+export async function reportTheft(prevState: any, formData: FormData) {
+    const validatedFields = theftReportSchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Error: Por favor, completa todos los campos.',
+        };
+    }
+    const { bikeId, ...theftDetails } = validatedFields.data;
+    updateBikeStatus(bikeId, 'stolen', theftDetails);
     console.log(`Bicicleta ${bikeId} reportada como robada.`);
     revalidatePath(`/dashboard/bikes/${bikeId}`);
     revalidatePath('/dashboard');
+    return { message: "Reporte de robo enviado." };
 }
 
 export async function markAsRecovered(bikeId: string) {
