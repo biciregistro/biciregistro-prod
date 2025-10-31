@@ -373,7 +373,7 @@ export function ProfileForm({ user }: { user?: User }) {
                         <CardDescription>
                             {isEditing 
                                 ? 'Si no deseas cambiar tu contraseña, deja estos campos en blanco.'
-                                : 'Tu contraseña debe tener al menos 6 caracteres.'
+                                : 'Tu contraseña debe de tener al menos 6 caracteres, una mayuscula y un caracter especial'
                             }
                         </CardDescription>
                     </CardHeader>

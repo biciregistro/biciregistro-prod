@@ -66,17 +66,18 @@ const profileFormSchema = z.object({
     message: "Las nuevas contraseñas no coinciden.",
     path: ["confirmPassword"],
 }).refine(data => {
-    // For signup, newPassword is required
-    if (!data.id) { // This is how we detect signup
-        return data.newPassword && data.newPassword.length >= 6;
+    // For signup, newPassword is required and must follow rules
+    if (!data.id) { 
+        if (!data.newPassword) return false;
+        return /^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{6,}$/.test(data.newPassword);
     }
-    // For profile update, it's optional but must be >= 6 if present
+    // For profile update, it's optional but must follow rules if present
     if (data.newPassword) {
-        return data.newPassword.length >= 6;
+        return /^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{6,}$/.test(data.newPassword);
     }
     return true;
 }, {
-    message: "La contraseña debe tener al menos 6 caracteres.",
+    message: "La contraseña debe tener al menos 6 caracteres, una mayúscula, un número y un carácter especial.",
     path: ["newPassword"],
 });
 
@@ -111,7 +112,7 @@ export async function signup(prevState: any, formData: FormData) {
 
     if (!validatedFields.success) {
       return {
-        error: 'Datos proporcionados no válidos. Asegúrate de que las contraseñas coincidan y tengan al menos 6 caracteres.',
+        error: 'Datos proporcionados no válidos. Asegúrate de que las contraseñas coincidan y cumplan con los requisitos.',
       };
     }
 
