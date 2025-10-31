@@ -84,6 +84,21 @@ function SubmitButton({ isEditing }: { isEditing?: boolean }) {
     return <Button type="submit" disabled={pending} className="w-full">{pending ? pendingText : text}</Button>;
 }
 
+function PhotoUploadSlot({ label, description }: { label: string, description: string }) {
+    return (
+        <div className="space-y-2">
+            <Label>{label}</Label>
+            <div className="flex items-center gap-4">
+                <div className="w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground">
+                    <Camera className="w-8 h-8"/>
+                </div>
+                <Button type="button" variant="outline">Subir Foto</Button>
+            </div>
+            <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+    )
+}
+
 export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: string, bike?: Bike, onSuccess?: () => void }) {
     const isEditing = !!bike;
     const action = isEditing ? updateBike : registerBike;
@@ -158,15 +173,12 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                             <FormItem><FormLabel>Color Principal</FormLabel><FormControl><Input placeholder="ej., Azul" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
 
-                        <div className="space-y-2">
-                            <Label>Fotos</Label>
-                            <div className="flex items-center gap-4">
-                                <div className="w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground">
-                                    <Camera className="w-8 h-8"/>
-                                </div>
-                                <Button type="button" variant="outline">Subir Fotos</Button>
-                            </div>
-                            <p className="text-xs text-muted-foreground">Sube hasta 5 fotos de tu bicicleta.</p>
+                        <div className="space-y-6">
+                            <h4 className="font-medium text-base">Fotografías</h4>
+                            <PhotoUploadSlot label="Foto Lateral" description="Toma una foto completa del costado de tu bicicleta." />
+                            <PhotoUploadSlot label="Foto de Número de Serie" description="Toma una foto clara y legible del número de serie." />
+                            <PhotoUploadSlot label="Foto Adicional 1 (Componentes)" description="Foto de alguna modificación o componente específico." />
+                            <PhotoUploadSlot label="Foto Adicional 2 (Componentes)" description="Foto de otra seña particular o componente." />
                         </div>
                         
                         <div className="space-y-2">
@@ -273,111 +285,118 @@ export function TheftReportForm({ bike }: { bike: Bike }) {
     }
 
     return (
-        <Form {...form}>
-            <form action={formAction} className="space-y-4">
-                 <CardHeader className="p-0 mb-4">
-                    <CardTitle>Reportar Robo</CardTitle>
-                    <CardDescription>Completa los detalles sobre el robo.</CardDescription>
-                </CardHeader>
-                
-                {state?.message && (
-                    <Alert variant={state.errors ? "destructive" : "default"}>
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>{state.errors ? 'Error' : 'Éxito'}</AlertTitle>
-                        <AlertDescription>{state.message}</AlertDescription>
-                    </Alert>
-                )}
-                <FormField
-                    control={form.control}
-                    name="date"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Fecha del Robo</FormLabel>
-                            <FormControl>
-                                <Input type="date" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="country"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>País</FormLabel>
-                             <Select onValueChange={handleCountryChange} defaultValue={field.value}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecciona un país" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {countries.map(country => (
-                                        <SelectItem key={country.code} value={country.name}>{country.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+         <Card>
+            <CardHeader>
+                <CardTitle>Gestionar Estado de la Bicicleta</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <Form {...form}>
+                    <form action={formAction} className="space-y-4">
+                        <CardHeader className="p-0 mb-4">
+                            <CardTitle>Reportar Robo</CardTitle>
+                            <CardDescription>Completa los detalles sobre el robo.</CardDescription>
+                        </CardHeader>
+                        
+                        {state?.message && (
+                            <Alert variant={state.errors ? "destructive" : "default"}>
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertTitle>{state.errors ? 'Error' : 'Éxito'}</AlertTitle>
+                                <AlertDescription>{state.message}</AlertDescription>
+                            </Alert>
+                        )}
+                        <FormField
+                            control={form.control}
+                            name="date"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Fecha del Robo</FormLabel>
+                                    <FormControl>
+                                        <Input type="date" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="country"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>País</FormLabel>
+                                    <Select onValueChange={handleCountryChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Selecciona un país" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {countries.map(country => (
+                                                <SelectItem key={country.code} value={country.name}>{country.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
-                <FormField
-                    control={form.control}
-                    name="state"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Estado / Provincia</FormLabel>
-                             <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedCountry}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecciona un estado/provincia" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {states.map(state => (
-                                        <SelectItem key={state} value={state}>{state}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                        <FormField
+                            control={form.control}
+                            name="state"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Estado / Provincia</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedCountry}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Selecciona un estado/provincia" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {states.map(state => (
+                                                <SelectItem key={state} value={state}>{state}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
-                <FormField
-                    control={form.control}
-                    name="location"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Ubicación (Ciudad y/o dirección)</FormLabel>
-                            <FormControl>
-                                <Input placeholder="ej., Ciudad de México, cerca de la fuente del parque" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="details"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Detalles del robo</FormLabel>
-                            <FormControl>
-                                <Textarea placeholder="ej., La dejé candada a las 2pm y cuando volví a las 4pm ya no estaba." {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <input type="hidden" name="bikeId" value={bike.id} />
-                <div className="flex flex-col-reverse sm:flex-row gap-2">
-                    <Button variant="outline" type="button" onClick={() => setShowForm(false)}>Cancelar</Button>
-                    <ReportTheftButton />
-                </div>
-            </form>
-        </Form>
+                        <FormField
+                            control={form.control}
+                            name="location"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Ubicación (Ciudad y/o dirección)</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="ej., Ciudad de México, cerca de la fuente del parque" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="details"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Detalles del robo</FormLabel>
+                                    <FormControl>
+                                        <Textarea placeholder="ej., La dejé candada a las 2pm y cuando volví a las 4pm ya no estaba." {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <input type="hidden" name="bikeId" value={bike.id} />
+                        <div className="flex flex-col-reverse sm:flex-row gap-2">
+                            <Button variant="outline" type="button" onClick={() => setShowForm(false)}>Cancelar</Button>
+                            <ReportTheftButton />
+                        </div>
+                    </form>
+                </Form>
+            </CardContent>
+        </Card>
     );
 }
