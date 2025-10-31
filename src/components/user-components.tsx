@@ -19,7 +19,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { CalendarIcon, Eye, EyeOff } from 'lucide-react';
+import { CalendarIcon, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -50,12 +50,18 @@ const profileFormSchema = z.object({
     message: "Las nuevas contraseñas no coinciden.",
     path: ["confirmPassword"],
 }).refine(data => {
+    // For signup, newPassword is required and must follow rules
+    if (!data.id) { 
+        if (!data.newPassword) return false;
+        return /^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{6,}$/.test(data.newPassword);
+    }
+    // For profile update, it's optional but must follow rules if present
     if (data.newPassword) {
-        return data.newPassword.length >= 6;
+        return /^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{6,}$/.test(data.newPassword);
     }
     return true;
 }, {
-    message: "La nueva contraseña debe tener al menos 6 caracteres.",
+    message: "La contraseña debe tener al menos 6 caracteres, una mayúscula, un número y un carácter especial.",
     path: ["newPassword"],
 });
 
@@ -67,6 +73,39 @@ function SubmitButton({ isEditing }: { isEditing?: boolean }) {
     const text = isEditing ? 'Guardar Cambios' : 'Crear cuenta';
     const pendingText = isEditing ? 'Guardando...' : 'Creando...';
     return <Button type="submit" disabled={pending} className="w-full">{pending ? pendingText : text}</Button>;
+}
+
+function PasswordStrengthIndicator({ password = "" }: { password?: string }) {
+    const checks = {
+        length: password.length >= 6,
+        uppercase: /[A-Z]/.test(password),
+        lowercase: /[a-z]/.test(password),
+        number: /[0-9]/.test(password),
+        special: /[!@#$&*]/.test(password),
+    };
+
+    const criteria = [
+        { key: 'length', label: "Al menos 6 caracteres" },
+        { key: 'uppercase', label: "Una letra mayúscula" },
+        { key: 'number', label: "Un número" },
+        { key: 'special', label: "Un carácter especial (!@#$&*)" },
+    ];
+
+    if (!password) return null;
+
+    return (
+        <div className="space-y-2 text-sm">
+            {criteria.map(criterion => {
+                const met = checks[criterion.key as keyof typeof checks];
+                return (
+                    <div key={criterion.key} className={cn("flex items-center gap-2", met ? "text-green-600" : "text-muted-foreground")}>
+                        {met ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                        <span>{criterion.label}</span>
+                    </div>
+                );
+            })}
+        </div>
+    );
 }
 
 export function ProfileForm({ user }: { user?: User }) {
@@ -95,7 +134,10 @@ export function ProfileForm({ user }: { user?: User }) {
             newPassword: "",
             confirmPassword: "",
         },
+        mode: 'onTouched',
     });
+
+    const newPassword = form.watch("newPassword");
 
     useEffect(() => {
         if (state?.message && !isEditing) { // Show alert only on signup
@@ -373,7 +415,7 @@ export function ProfileForm({ user }: { user?: User }) {
                         <CardDescription>
                             {isEditing 
                                 ? 'Si no deseas cambiar tu contraseña, deja estos campos en blanco.'
-                                : 'Tu contraseña debe de tener al menos 6 caracteres, una mayuscula y un caracter especial'
+                                : 'Tu contraseña debe tener al menos 6 caracteres, una mayúscula, un número y un carácter especial.'
                             }
                         </CardDescription>
                     </CardHeader>
@@ -454,6 +496,9 @@ export function ProfileForm({ user }: { user?: User }) {
                                 )}
                             />
                         </div>
+                         {!isEditing && (
+                            <PasswordStrengthIndicator password={newPassword} />
+                         )}
                     </CardContent>
                     <CardFooter>
                          <div className="flex flex-col gap-4 w-full">
