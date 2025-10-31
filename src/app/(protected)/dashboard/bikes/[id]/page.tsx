@@ -41,7 +41,7 @@ export default async function BikeDetailsPage({ params }: { params: { id: string
   return (
     <div className="container py-6 md:py-8">
       <div className="mb-6 px-4 sm:px-0 flex items-center justify-between">
-        <Button asChild variant="outline" className="hover:bg-accent/80">
+        <Button asChild variant="outline">
           <Link href="/dashboard">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver al Garaje
