@@ -1,8 +1,10 @@
+'use client';
+
 import Link from 'next/link';
 import { getAuthenticatedUser, getUserBikes } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { BikeCard } from '@/components/bike-components';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Pencil } from 'lucide-react';
 import { redirect } from 'next/navigation';
 
 export default async function DashboardPage() {
@@ -20,12 +22,20 @@ export default async function DashboardPage() {
             <h1 className="text-3xl font-bold tracking-tight">Tu Garaje</h1>
             <p className="text-muted-foreground">Gestiona tus bicicletas registradas.</p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/register">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Registrar Nueva Bicicleta
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link href="/dashboard/profile">
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar Perfil
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/dashboard/register">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Registrar Nueva Bicicleta
+              </Link>
+            </Button>
+        </div>
       </div>
 
       {bikes.length > 0 ? (
