@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 
 import type { Bike } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { cn, calculateBikeProfileCompleteness } from '@/lib/utils';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { countries, type Country } from '@/lib/countries';
+import { Progress } from './ui/progress';
 
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
@@ -34,6 +35,7 @@ const bikeStatusStyles: { [key in Bike['status']]: string } = {
 
 export function BikeCard({ bike }: { bike: Bike }) {
   const bikeImage = bike.photos[0] || PlaceHolderImages.find(p => p.id === 'bike-1')?.imageUrl || '';
+  const completeness = calculateBikeProfileCompleteness(bike);
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-lg">
@@ -53,10 +55,19 @@ export function BikeCard({ bike }: { bike: Bike }) {
                 </div>
             </Link>
         </CardHeader>
-        <CardContent className="p-4">
-            <h3 className="font-semibold text-lg">{bike.make} {bike.model}</h3>
-            <p className="text-sm text-muted-foreground">{bike.color}</p>
-            <p className="text-sm font-mono text-muted-foreground mt-2">{bike.serialNumber}</p>
+        <CardContent className="p-4 space-y-3">
+            <div>
+                <h3 className="font-semibold text-lg">{bike.make} {bike.model}</h3>
+                <p className="text-sm text-muted-foreground">{bike.color}</p>
+                <p className="text-sm font-mono text-muted-foreground mt-2">{bike.serialNumber}</p>
+            </div>
+            <div className="space-y-1">
+                <div className="flex justify-between items-center text-xs text-muted-foreground">
+                    <span>Perfil Completo</span>
+                    <span>{completeness}%</span>
+                </div>
+                <Progress value={completeness} className="h-2" />
+            </div>
         </CardContent>
         <CardFooter className="p-4 pt-0">
             <Button asChild className="w-full">
