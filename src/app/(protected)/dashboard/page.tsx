@@ -1,5 +1,3 @@
-'use client';
-
 import Link from 'next/link';
 import { getAuthenticatedUser, getUserBikes } from '@/lib/data';
 import { Button } from '@/components/ui/button';
