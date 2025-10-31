@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { login } from '@/lib/actions';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Logo } from '@/components/icons/logo';
 
 function SubmitButton({ children }: { children: React.ReactNode }) {
@@ -23,6 +23,8 @@ function SubmitButton({ children }: { children: React.ReactNode }) {
 
 export function LoginForm() {
   const [state, formAction] = useActionState(login, null);
+  const [showPassword, setShowPassword] = useState(false);
+
 
   return (
     <Card className="w-full max-w-sm">
@@ -46,7 +48,18 @@ export function LoginForm() {
           </div>
           <div className="grid gap-2">
             <Label htmlFor="password">Contraseña</Label>
-            <Input id="password" name="password" type="password" required />
+            <div className="relative">
+                <Input id="password" name="password" type={showPassword ? 'text' : 'password'} required />
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                    onClick={() => setShowPassword(prev => !prev)}
+                >
+                    {showPassword ? <EyeOff /> : <Eye />}
+                </Button>
+            </div>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
