@@ -101,7 +101,7 @@ export function FeaturesSection({ section }: { section: HomepageSection }) {
       <div className="container text-center">
         <h2 className="text-3xl font-bold tracking-tight">{section.title}</h2>
         <p className="mt-2 text-lg text-muted-foreground">{section.subtitle}</p>
-        <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">
+        <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3 px-4 sm:px-0">
             {features.map((feature, index) => {
                 const imageData = getImageData(feature.imageId);
                 return (
