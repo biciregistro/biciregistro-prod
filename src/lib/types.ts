@@ -29,6 +29,9 @@ export type User = {
   country?: string;
   state?: string;
   birthDate?: string;
+  gender?: 'masculino' | 'femenino' | 'otro';
+  postalCode?: string;
+  whatsapp?: string;
 };
 
 export type HomepageSection = {

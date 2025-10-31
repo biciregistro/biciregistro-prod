@@ -4,7 +4,20 @@ import { PlaceHolderImages } from './placeholder-images';
 const getImage = (id: string) => PlaceHolderImages.find(img => img.id === id)?.imageUrl || '';
 
 let users: User[] = [
-  { id: 'user-1', name: 'Alex', lastName: 'Ryder', email: 'alex@example.com', role: 'ciclista', avatarUrl: 'https://picsum.photos/seed/avatar1/100/100', country: 'México', state: 'Jalisco', birthDate: '1990-05-15' },
+  { 
+    id: 'user-1', 
+    name: 'Alex', 
+    lastName: 'Ryder', 
+    email: 'alex@example.com', 
+    role: 'ciclista', 
+    avatarUrl: 'https://picsum.photos/seed/avatar1/100/100', 
+    country: 'México', 
+    state: 'Jalisco', 
+    birthDate: '1990-05-15',
+    gender: 'masculino',
+    postalCode: '44100',
+    whatsapp: '523312345678'
+  },
   { id: 'user-2', name: 'Maria', lastName: 'Garcia', email: 'maria@example.com', role: 'ciclista', avatarUrl: 'https://picsum.photos/seed/avatar2/100/100' },
   { id: 'admin-1', name: 'Admin', lastName: 'Vera', email: 'admin@biciregistro.com', role: 'admin', avatarUrl: 'https://picsum.photos/seed/avatar3/100/100' },
 ];

@@ -50,6 +50,28 @@ const profileFormSchema = z.object({
     birthDate: z.string().optional(),
     country: z.string().optional(),
     state: z.string().optional(),
+    gender: z.enum(['masculino', 'femenino', 'otro']).optional(),
+    postalCode: z.string().optional(),
+    whatsapp: z.string().optional(),
+    currentPassword: z.string().optional(),
+    newPassword: z.string().optional(),
+    confirmPassword: z.string().optional(),
+}).refine(data => {
+    if (data.newPassword || data.confirmPassword) {
+        return data.newPassword === data.confirmPassword;
+    }
+    return true;
+}, {
+    message: "Las nuevas contraseñas no coinciden.",
+    path: ["confirmPassword"],
+}).refine(data => {
+    if (data.newPassword) {
+        return data.newPassword.length >= 6;
+    }
+    return true;
+}, {
+    message: "La nueva contraseña debe tener al menos 6 caracteres.",
+    path: ["newPassword"],
 });
 
 
@@ -103,7 +125,14 @@ export async function updateProfile(prevState: any, formData: FormData) {
         };
     }
 
-    const { id, ...userData } = validatedFields.data;
+    const { id, currentPassword, newPassword, ...userData } = validatedFields.data;
+
+    // Handle password change
+    if (newPassword && currentPassword) {
+        // In a real app, you'd verify the current password here before updating.
+        console.log(`Password change requested for user ${id}.`);
+        // For now, we just log it. A real implementation would update the password hash.
+    }
 
     updateUserData(id, userData);
 

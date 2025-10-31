@@ -22,6 +22,7 @@ import { CalendarIcon } from 'lucide-react';
 import { Calendar } from './ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 
 const profileFormSchema = z.object({
@@ -31,7 +32,30 @@ const profileFormSchema = z.object({
     birthDate: z.string().optional(),
     country: z.string().optional(),
     state: z.string().optional(),
+    gender: z.enum(['masculino', 'femenino', 'otro']).optional(),
+    postalCode: z.string().optional(),
+    whatsapp: z.string().optional(),
+    currentPassword: z.string().optional(),
+    newPassword: z.string().optional(),
+    confirmPassword: z.string().optional(),
+}).refine(data => {
+    if (data.newPassword || data.confirmPassword) {
+        return data.newPassword === data.confirmPassword;
+    }
+    return true;
+}, {
+    message: "Las nuevas contraseñas no coinciden.",
+    path: ["confirmPassword"],
+}).refine(data => {
+    if (data.newPassword) {
+        return data.newPassword.length >= 6;
+    }
+    return true;
+}, {
+    message: "La nueva contraseña debe tener al menos 6 caracteres.",
+    path: ["newPassword"],
 });
+
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
@@ -55,6 +79,12 @@ export function ProfileForm({ user }: { user: User }) {
             birthDate: user.birthDate || "",
             country: user.country || "",
             state: user.state || "",
+            gender: user.gender || undefined,
+            postalCode: user.postalCode || "",
+            whatsapp: user.whatsapp || "",
+            currentPassword: "",
+            newPassword: "",
+            confirmPassword: "",
         },
     });
 
@@ -65,8 +95,16 @@ export function ProfileForm({ user }: { user: User }) {
                 description: state.message,
                 variant: state.errors ? "destructive" : "default",
             });
+            if (!state.errors) {
+                form.reset({
+                    ...form.getValues(),
+                    currentPassword: "",
+                    newPassword: "",
+                    confirmPassword: "",
+                });
+            }
         }
-    }, [state, toast]);
+    }, [state, toast, form]);
 
     const handleCountryChange = (countryName: string) => {
         const country = countries.find(c => c.name === countryName);
@@ -85,10 +123,16 @@ export function ProfileForm({ user }: { user: User }) {
                         <CardDescription>Actualiza tu información personal.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {state?.message && (
-                             <Alert variant={state.errors ? "destructive" : "default"}>
-                                <AlertTitle>{state.errors ? 'Error' : 'Éxito'}</AlertTitle>
+                        {state?.message && !state.errors && (
+                             <Alert variant={"default"}>
+                                <AlertTitle>Éxito</AlertTitle>
                                 <AlertDescription>{state.message}</AlertDescription>
+                            </Alert>
+                        )}
+                         {state?.errors && (
+                             <Alert variant={"destructive"}>
+                                <AlertTitle>Error</AlertTitle>
+                                <AlertDescription>{Object.values(state.errors).flat().join(', ')}</AlertDescription>
                             </Alert>
                         )}
 
@@ -186,31 +230,146 @@ export function ProfileForm({ user }: { user: User }) {
                             )}
                         />
 
-                        <FormField
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="state"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Estado / Provincia</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCountry}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Selecciona un estado/provincia" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {states.map(state => (
+                                                    <SelectItem key={state} value={state}>{state}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="postalCode"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Código Postal</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="Tu código postal" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+
+                         <FormField
                             control={form.control}
-                            name="state"
+                            name="gender"
+                            render={({ field }) => (
+                                <FormItem className="space-y-3">
+                                <FormLabel>Género</FormLabel>
+                                <FormControl>
+                                    <RadioGroup
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                    className="flex flex-col sm:flex-row space-y-1"
+                                    >
+                                    <FormItem className="flex items-center space-x-3 space-y-0">
+                                        <FormControl>
+                                        <RadioGroupItem value="masculino" />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">Masculino</FormLabel>
+                                    </FormItem>
+                                    <FormItem className="flex items-center space-x-3 space-y-0">
+                                        <FormControl>
+                                        <RadioGroupItem value="femenino" />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">Femenino</FormLabel>
+                                    </FormItem>
+                                    <FormItem className="flex items-center space-x-3 space-y-0">
+                                        <FormControl>
+                                        <RadioGroupItem value="otro" />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">Otro</FormLabel>
+                                    </FormItem>
+                                    </RadioGroup>
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                         <FormField
+                            control={form.control}
+                            name="whatsapp"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Estado / Provincia</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCountry}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Selecciona un estado/provincia" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {states.map(state => (
-                                                <SelectItem key={state} value={state}>{state}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <FormLabel>Teléfono de WhatsApp (Opcional)</FormLabel>
+                                    <FormControl>
+                                        <Input type="tel" placeholder="+52 1 55 1234 5678" {...field} />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
                        
                         <input type="hidden" name="id" value={user.id} />
+                    </CardContent>
+                </Card>
 
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Cambiar Contraseña</CardTitle>
+                        <CardDescription>Si no deseas cambiar tu contraseña, deja estos campos en blanco.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                         <FormField
+                            control={form.control}
+                            name="currentPassword"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Contraseña Actual</FormLabel>
+                                    <FormControl>
+                                        <Input type="password" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <FormField
+                                control={form.control}
+                                name="newPassword"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Nueva Contraseña</FormLabel>
+                                        <FormControl>
+                                            <Input type="password" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                             <FormField
+                                control={form.control}
+                                name="confirmPassword"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Repetir Nueva Contraseña</FormLabel>
+                                        <FormControl>
+                                            <Input type="password" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
                     </CardContent>
                     <CardFooter>
                         <SubmitButton />
