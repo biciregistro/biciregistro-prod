@@ -18,7 +18,7 @@ const getImageData = (id: string) => {
 
 export function HeroSection({ section }: { section: HomepageSection }) {
   return (
-    <section className="relative w-full h-[60vh] md:h-[70vh]">
+    <section className="relative w-full min-h-[60vh] md:min-h-[70vh] flex items-center py-20">
       <Image
         src={getImageData('hero-background').imageUrl}
         alt={getImageData('hero-background').description}
@@ -28,7 +28,7 @@ export function HeroSection({ section }: { section: HomepageSection }) {
         priority
       />
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="relative z-10 w-full">
         <div className="container text-center text-foreground">
           <div className="bg-background/80 backdrop-blur-sm p-8 rounded-xl max-w-3xl mx-auto">
             <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">
