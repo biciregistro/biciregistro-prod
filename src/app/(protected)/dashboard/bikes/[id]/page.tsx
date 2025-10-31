@@ -74,7 +74,7 @@ export default function BikeDetailsPage({ params: paramsPromise }: { params: Pro
   return (
     <div className="container py-6 md:py-8">
       <div className="mb-6 flex items-center justify-between px-4 sm:px-0">
-        <Button asChild variant="outline">
+        <Button asChild variant="outline" className="hover:bg-primary hover:text-primary-foreground">
           <Link href="/dashboard">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver al Garaje
@@ -145,7 +145,7 @@ export default function BikeDetailsPage({ params: paramsPromise }: { params: Pro
                              <DetailItem label="Estado/Provincia" value={bike.theftReport.state} />
                             <DetailItem label="Ubicación" value={bike.theftReport.location} />
                           </div>
-                          <DetailItem label="Detalles" value={bike.theftReport.details} />
+                          <DetailItem label="Detalles del robo" value={bike.theftReport.details} />
                       </CardContent>
                   </Card>
               )}

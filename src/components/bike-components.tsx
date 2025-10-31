@@ -364,7 +364,7 @@ export function TheftReportForm({ bike }: { bike: Bike }) {
                     name="details"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Detalles Adicionales</FormLabel>
+                            <FormLabel>Detalles del robo</FormLabel>
                             <FormControl>
                                 <Textarea placeholder="ej., La dejé candada a las 2pm y cuando volví a las 4pm ya no estaba." {...field} />
                             </FormControl>
