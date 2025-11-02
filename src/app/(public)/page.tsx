@@ -10,8 +10,10 @@ export default async function HomePage() {
   return (
     <>
       <HeroSection section={heroSection} />
-      <FeaturesSection section={featuresSection} />
-      <CtaSection section={ctaSection} />
+      <div className="container px-4">
+        <FeaturesSection section={featuresSection} />
+        <CtaSection section={ctaSection} />
+      </div>
     </>
   );
 }
