@@ -22,6 +22,7 @@ import {
   SheetTrigger,
   SheetClose,
 } from "@/components/ui/sheet"
+import { logout } from '@/lib/actions';
 
 const navLinks = [
   { href: '/', label: 'Inicio', auth: false },
@@ -33,8 +34,8 @@ export function Header({ user }: { user: UserType | null }) {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container px-4">
-        <div className="flex h-16 items-center justify-between">
+      <div className="container flex h-16 items-center">
+        <div className="flex w-full items-center justify-between">
             <div className="flex items-center gap-6">
                 <Link href="/" className="flex items-center space-x-2">
                     <Logo />
@@ -92,9 +93,11 @@ export function Header({ user }: { user: UserType | null }) {
                         </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                        Cerrar Sesión
-                    </DropdownMenuItem>
+                    <form action={logout}>
+                        <DropdownMenuItem asChild>
+                             <button type="submit" className="w-full text-left">Cerrar Sesión</button>
+                        </DropdownMenuItem>
+                    </form>
                     </DropdownMenuContent>
                 </DropdownMenu>
                 </div>
@@ -119,7 +122,7 @@ export function Header({ user }: { user: UserType | null }) {
                 </>
             )}
             </div>
-        </div>
+            </div>
       </div>
     </header>
   );

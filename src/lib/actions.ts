@@ -3,7 +3,10 @@
 import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
-import { addBike, findUserByEmail, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData } from './data';
+import { addBike, findUserByEmail, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, getUserById } from './data';
+import { createSession, deleteSession } from './auth';
+import { getAuth } from 'firebase-admin/auth';
+import { auth } from 'firebase-admin';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -94,21 +97,31 @@ export async function login(prevState: any, formData: FormData) {
       error: 'Correo electrónico o contraseña no válidos.',
     };
   }
+  const { email, password } = validatedFields.data;
 
-  const { email } = validatedFields.data;
-  const user = await findUserByEmail(email);
+  try {
+    // This is a client-side call that we are using in a server action
+    // In a production app, you'd likely have an API route or a different flow
+    // For this prototype, we'll use a temporary, less secure method to get the token
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, returnSecureToken: true }),
+    });
 
-  if(!user) {
-    return {
-        error: 'No se encontró ningún usuario con este correo electrónico.',
-    };
+    const result = await response.json();
+    
+    if (!response.ok) {
+        return { error: 'Credenciales no válidas.' };
+    }
+
+    await createSession(result.idToken);
+    redirect('/dashboard');
+
+  } catch (error) {
+    console.error('Login error:', error);
+    return { error: 'Ocurrió un error durante el inicio de sesión.' };
   }
-
-  // In a real app, you would verify the password here.
-  // For mock purposes, we'll assume it's correct and set a cookie/session.
-  console.log('User logged in:', user.email);
-
-  redirect('/dashboard');
 }
 
 export async function signup(prevState: any, formData: FormData) {
@@ -117,13 +130,42 @@ export async function signup(prevState: any, formData: FormData) {
     if (!validatedFields.success) {
       return {
         error: 'Datos proporcionados no válidos. Asegúrate de que las contraseñas coincidan y cumplan con los requisitos.',
+        errors: validatedFields.error.flatten().fieldErrors,
       };
     }
+    
+    const { email, newPassword, name, lastName, ...rest } = validatedFields.data;
+    
+    if(!newPassword) {
+        return { error: 'La contraseña es obligatoria.' };
+    }
 
-  // In a real app, you'd create the user in the database.
-  console.log('New user signed up:', validatedFields.data.email);
+    try {
+        const userCredential = await auth().createUser({
+            email,
+            password: newPassword,
+            displayName: `${name} ${lastName}`,
+        });
 
-  redirect('/dashboard');
+        const newUser = {
+            id: userCredential.uid,
+            email,
+            name,
+            lastName,
+            role: 'ciclista' as const, // default role
+             ...rest
+        };
+
+        await createUser(newUser);
+
+        return { message: '¡Cuenta creada con éxito! Ahora puedes iniciar sesión.' };
+    } catch (error: any) {
+        if (error.code === 'auth/email-already-exists') {
+            return { error: 'El correo electrónico ya está en uso.' };
+        }
+        console.error('Signup error:', error);
+        return { error: 'Ocurrió un error durante el registro.' };
+    }
 }
 
 export async function updateProfile(prevState: any, formData: FormData) {
@@ -144,20 +186,34 @@ export async function updateProfile(prevState: any, formData: FormData) {
             message: 'Error: No se pudo identificar al usuario.',
         }
     }
-
-    // Handle password change
-    if (newPassword && currentPassword) {
-        // In a real app, you'd verify the current password here before updating.
-        console.log(`Password change requested for user ${id}.`);
-        // For now, we just log it. A real implementation would update the password hash.
-    }
-
-    updateUserData(id, userData);
-
-    console.log('User profile updated:', id);
-    revalidatePath('/dashboard/profile');
     
-    return { message: 'Perfil actualizado correctamente.' };
+    try {
+         // Handle password change in Firebase Auth
+        if (newPassword) {
+            // In a real app, you'd need to reauthenticate the user to change password.
+            // This is complex from a server action. For this prototype, we'll update it directly
+            // This requires admin privileges.
+            await auth().updateUser(id, { password: newPassword });
+            console.log(`Password updated for user ${id}`);
+        }
+
+        // Update user display name in Firebase Auth
+        await auth().updateUser(id, { displayName: `${userData.name} ${userData.lastName}` });
+
+        // Update user data in Firestore
+        await updateUserData(id, userData);
+
+        console.log('User profile updated:', id);
+        revalidatePath('/dashboard/profile');
+        
+        return { message: 'Perfil actualizado correctamente.' };
+    } catch (error) {
+        console.error('Update profile error:', error);
+        return {
+            errors: { form: ['Ocurrió un error al actualizar el perfil.'] },
+            message: 'Ocurrió un error al actualizar el perfil.',
+        }
+    }
 }
 
 export async function registerBike(prevState: any, formData: FormData) {
@@ -248,4 +304,9 @@ export async function updateHomepageSection(prevState: any, formData: FormData) 
     return {
         message: `La sección '${validatedFields.data.id}' se actualizó correctamente.`,
     };
+}
+
+export async function logout() {
+    await deleteSession();
+    redirect('/login');
 }

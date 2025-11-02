@@ -1,5 +1,7 @@
 import type { Bike, User, HomepageSection } from './types';
 import { PlaceHolderImages } from './placeholder-images';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getAuthenticatedUser as getFirebaseUser } from './auth';
 
 const getImage = (id: string) => PlaceHolderImages.find(img => img.id === id)?.imageUrl || '';
 
@@ -94,24 +96,44 @@ let homepageContent: HomepageSection[] = [
   }
 ];
 
+
 // Mock API
 export const getAuthenticatedUser = async (): Promise<User | null> => {
-  // In a real app, this would involve session/token validation
-  // For now, we'll return a mock user. Change 'admin-1' to 'user-1' or null to test different states.
-  return users.find(u => u.id === 'user-1') || null;
+  const firebaseUser = await getFirebaseUser();
+  if (!firebaseUser) {
+    return null;
+  }
+  return getUserById(firebaseUser.uid);
 };
+
 
 export const findUserByEmail = async (email: string): Promise<User | undefined> => {
     return users.find(u => u.email === email);
 }
 
-export const updateUserData = (userId: string, userData: Partial<Omit<User, 'id' | 'email' | 'role'>>) => {
-    const index = users.findIndex(u => u.id === userId);
-    if (index !== -1) {
-        users[index] = { ...users[index], ...userData };
-    }
-    return users[index];
+export async function createUser(user: User) {
+    const db = getFirestore();
+    await db.collection('users').doc(user.id).set(user);
+    return user;
 }
+
+
+export async function getUserById(userId: string): Promise<User | null> {
+    const db = getFirestore();
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+        return null;
+    }
+    return userDoc.data() as User;
+}
+
+export const updateUserData = async (userId: string, userData: Partial<Omit<User, 'id' | 'email' | 'role'>>) => {
+    const db = getFirestore();
+    await db.collection('users').doc(userId).update(userData);
+    const userDoc = await db.collection('users').doc(userId).get();
+    return userDoc.data() as User;
+}
+
 
 export const getUserBikes = async (userId: string): Promise<Bike[]> => {
   return bikes.filter(bike => bike.userId === userId);
