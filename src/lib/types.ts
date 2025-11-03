@@ -11,7 +11,7 @@ export type Bike = {
   modality?: string;
   status: BikeStatus;
   photos: string[]; // URLs to images
-  ownershipDocs: string[]; // URLs to documents
+  ownershipProof?: string; // URL to a single ownership document/proof
   theftReport?: {
     date: string;
     location: string;

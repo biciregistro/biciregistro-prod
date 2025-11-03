@@ -19,12 +19,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, ArrowLeft, Camera } from 'lucide-react';
+import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { countries, type Country } from '@/lib/countries';
 import { Progress } from './ui/progress';
+import { ImageUpload } from '@/components/shared/image-upload'; // Import the new component
 
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
@@ -100,26 +101,18 @@ function SubmitButton({ isEditing }: { isEditing?: boolean }) {
     return <Button type="submit" disabled={pending} className="w-full">{pending ? pendingText : text}</Button>;
 }
 
-function PhotoUploadSlot({ label, description }: { label: string, description: string }) {
-    return (
-        <div className="space-y-2">
-            <Label>{label}</Label>
-            <div className="flex items-center gap-4">
-                <div className="w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center text-muted-foreground">
-                    <Camera className="w-8 h-8"/>
-                </div>
-                <Button type="button" variant="outline">Subir Foto</Button>
-            </div>
-            <p className="text-xs text-muted-foreground">{description}</p>
-        </div>
-    )
-}
-
 export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: string, bike?: Bike, onSuccess?: () => void }) {
     const isEditing = !!bike;
     const action = isEditing ? updateBike : registerBike;
     const [state, formAction] = useActionState(action, null);
     const { toast } = useToast();
+
+    // State for uploaded file URLs
+    const [photoUrl, setPhotoUrl] = useState(bike?.photos?.[0] || '');
+    const [serialNumberPhotoUrl, setSerialNumberPhotoUrl] = useState(bike?.photos?.[1] || '');
+    const [additionalPhoto1Url, setAdditionalPhoto1Url] = useState(bike?.photos?.[2] || '');
+    const [additionalPhoto2Url, setAdditionalPhoto2Url] = useState(bike?.photos?.[3] || '');
+    const [ownershipProofUrl, setOwnershipProofUrl] = useState(bike?.ownershipProof || '');
     
     const form = useForm<BikeFormValues>({
         resolver: zodResolver(bikeFormSchema),
@@ -218,24 +211,43 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                             )}
                         />
 
-
                         <div className="space-y-6 pt-4">
                             <h4 className="font-medium text-base border-b pb-2">Fotografías</h4>
-                            <PhotoUploadSlot label="Foto Lateral" description="Toma una foto completa del costado de tu bicicleta." />
-                            <PhotoUploadSlot label="Foto de Número de Serie" description="Toma una foto clara y legible del número de serie." />
-                            <PhotoUploadSlot label="Foto Adicional 1 (Componentes)" description="Foto de alguna modificación o componente específico." />
-                            <PhotoUploadSlot label="Foto Adicional 2 (Componentes)" description="Foto de otra seña particular o componente." />
+                            <div className="space-y-2">
+                                <Label>Foto Lateral (*Obligatoria)</Label>
+                                <ImageUpload onUploadSuccess={setPhotoUrl} storagePath="bike-photos" />
+                                <p className="text-xs text-muted-foreground">Toma una foto completa del costado de tu bicicleta.</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Foto de Número de Serie (*Obligatoria)</Label>
+                                <ImageUpload onUploadSuccess={setSerialNumberPhotoUrl} storagePath="serial-photos" />
+                                <p className="text-xs text-muted-foreground">Toma una foto clara y legible del número de serie.</p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Foto Adicional 1 (Componentes)</Label>
+                                <ImageUpload onUploadSuccess={setAdditionalPhoto1Url} storagePath="bike-photos" />
+                                <p className="text-xs text-muted-foreground">Foto de alguna modificación o componente específico.</p>
+                            </div>
+                             <div className="space-y-2">
+                                <Label>Foto Adicional 2 (Seña Particular)</Label>
+                                <ImageUpload onUploadSuccess={setAdditionalPhoto2Url} storagePath="bike-photos" />
+                                <p className="text-xs text-muted-foreground">Foto de alguna otra seña particular o componente.</p>
+                            </div>
                         </div>
                         
                         <div className="space-y-2 pt-4">
                             <Label>Prueba de Propiedad</Label>
-                            <div>
-                                <Button type="button" variant="outline">Subir Documento</Button>
-                            </div>
-                            <p className="text-xs text-muted-foreground">Sube el recibo u otra prueba de propiedad (opcional).</p>
+                            <ImageUpload onUploadSuccess={setOwnershipProofUrl} storagePath="ownership-proofs" />
+                            <p className="text-xs text-muted-foreground">Sube la factura, recibo o alguna otra prueba de propiedad (opcional).</p>
                         </div>
 
+                        {/* Hidden inputs to send URLs to the server action */}
                         <input type="hidden" name="userId" value={userId} />
+                        <input type="hidden" name="photoUrl" value={photoUrl} />
+                        <input type="hidden" name="serialNumberPhotoUrl" value={serialNumberPhotoUrl} />
+                        <input type="hidden" name="additionalPhoto1Url" value={additionalPhoto1Url} />
+                        <input type="hidden" name="additionalPhoto2Url" value={additionalPhoto2Url} />
+                        <input type="hidden" name="ownershipProofUrl" value={ownershipProofUrl} />
                         {isEditing && <input type="hidden" name="id" value={bike.id} />}
 
                     </CardContent>
@@ -256,6 +268,8 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
         </Form>
     );
 }
+
+// ... (El resto del archivo permanece igual)
 
 function ReportTheftButton({ ...props }) {
     const { pending } = useFormStatus();

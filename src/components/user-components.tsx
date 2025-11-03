@@ -11,6 +11,7 @@ import type { User } from '@/lib/types';
 import { updateProfile, signup } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { countries, type Country } from '@/lib/countries';
+import { profileFormSchema } from '@/lib/schemas';
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,47 +23,6 @@ import { Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Logo } from './icons/logo';
 import { cn } from '@/lib/utils';
-
-
-const profileFormSchema = z.object({
-    id: z.string().optional(),
-    name: z.string().min(2, "El nombre es obligatorio."),
-    lastName: z.string().min(2, "Los apellidos son obligatorios."),
-    email: z.string().email("El correo electrónico no es válido."),
-    birthDate: z.string().min(1, "La fecha de nacimiento es obligatoria."),
-    country: z.string().min(1, "El país es obligatorio."),
-    state: z.string().min(1, "El estado es obligatorio."),
-    gender: z.enum(['masculino', 'femenino', 'otro'], {
-        required_error: "Debes seleccionar un género.",
-    }),
-    postalCode: z.string().min(1, "El código postal es obligatorio."),
-    whatsapp: z.string().optional(),
-    currentPassword: z.string().optional(),
-    newPassword: z.string().optional(),
-    confirmPassword: z.string().optional(),
-}).refine(data => {
-    if (data.newPassword || data.confirmPassword) {
-        return data.newPassword === data.confirmPassword;
-    }
-    return true;
-}, {
-    message: "Las nuevas contraseñas no coinciden.",
-    path: ["confirmPassword"],
-}).refine(data => {
-    // For signup, newPassword is required and must follow rules
-    if (!data.id) { 
-        if (!data.newPassword) return false;
-        return /^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{6,}$/.test(data.newPassword);
-    }
-    // For profile update, it's optional but must follow rules if present
-    if (data.newPassword) {
-        return /^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{6,}$/.test(data.newPassword);
-    }
-    return true;
-}, {
-    message: "La contraseña debe tener al menos 6 caracteres, una mayúscula, un número y un carácter especial.",
-    path: ["newPassword"],
-});
 
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -107,10 +67,20 @@ function PasswordStrengthIndicator({ password = "" }: { password?: string }) {
     );
 }
 
+// Define a unified state type for the form action
+type FormState = {
+    message?: string;
+    error?: string;
+    errors?: {
+        [key: string]: string[] | undefined;
+    };
+} | null;
+
+
 export function ProfileForm({ user }: { user?: User }) {
     const isEditing = !!user;
     const action = isEditing ? updateProfile : signup;
-    const [state, formAction] = useActionState(action, null);
+    const [state, formAction] = useActionState<FormState, FormData>(action, null);
     const { toast } = useToast();
     const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === (user?.country || 'México')));
     const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
@@ -139,30 +109,35 @@ export function ProfileForm({ user }: { user?: User }) {
     const newPassword = form.watch("newPassword");
 
     useEffect(() => {
-        if (state?.message && !isEditing) { // Show alert only on signup
-             form.reset();
+        if (!state) return;
+
+        // On successful signup, reset form and show success message
+        if (state.message && !state.errors && !isEditing) {
+            form.reset();
         }
-        if (state?.message && isEditing) { // Show toast only on profile edit
+
+        // On successful profile update, show success toast
+        if (state.message && !state.errors && isEditing) {
             toast({
-                title: state.errors ? "Error" : "Éxito",
+                title: "Éxito",
                 description: state.message,
-                variant: state.errors ? "destructive" : "default",
             });
-            if (!state.errors) {
-                form.reset({
-                    ...form.getValues(),
-                    currentPassword: "",
-                    newPassword: "",
-                    confirmPassword: "",
-                });
-            }
+            form.reset({
+                ...form.getValues(),
+                currentPassword: "",
+                newPassword: "",
+                confirmPassword: "",
+            });
         }
-         if (state?.error && !isEditing) { // Specific for signup error
+        
+        // On any error (signup or update), show a destructive toast
+        const errorMessage = state.error || state.message;
+        if (errorMessage && (state.errors || state.error)) {
             toast({
                 variant: 'destructive',
-                title: "Registro Fallido",
-                description: state.error,
-            })
+                title: state.errors ? "Error de Validación" : "Acción Fallida",
+                description: errorMessage,
+            });
         }
     }, [state, toast, form, isEditing]);
 
@@ -211,16 +186,16 @@ export function ProfileForm({ user }: { user?: User }) {
                         )}
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {state?.message && !isEditing && !state.errors && (
+                        {state?.message && !state.errors && !isEditing && (
                              <Alert variant={"default"}>
                                 <AlertTitle>Éxito</AlertTitle>
                                 <AlertDescription>{state.message}</AlertDescription>
                             </Alert>
                         )}
-                         {state?.errors && isEditing && (
+                         {state?.errors && (
                              <Alert variant={"destructive"}>
                                 <AlertTitle>Error</AlertTitle>
-                                <AlertDescription>{Object.values(state.errors).flat().join(', ')}</AlertDescription>
+                                <AlertDescription>{state.message || 'Por favor, revisa los campos del formulario.'}</AlertDescription>
                             </Alert>
                         )}
 

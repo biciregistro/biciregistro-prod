@@ -3,10 +3,13 @@
 import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+
 import { addBike, findUserByEmail, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, getUserById } from './data';
 import { createSession, deleteSession } from './auth';
 import { getAuth } from 'firebase-admin/auth';
 import { auth } from 'firebase-admin';
+import { profileFormSchema } from './schemas';
+import { HomepageSection } from './types';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -20,6 +23,7 @@ const signupSchema = z.object({
     newPassword: z.string().min(6),
 });
 
+// Updated schema to include photo URLs
 const bikeFormSchema = z.object({
     id: z.string().optional(),
     serialNumber: z.string().min(3, "El número de serie es obligatorio."),
@@ -28,8 +32,15 @@ const bikeFormSchema = z.object({
     color: z.string().min(2, "El color es obligatorio."),
     modelYear: z.string().optional(),
     modality: z.string().optional(),
-    userId: z.string(), // This will be hidden and pre-filled
+    userId: z.string(),
+    // URLs from hidden inputs
+    photoUrl: z.string().url("URL de foto lateral inválida.").min(1, "La foto lateral es obligatoria."),
+    serialNumberPhotoUrl: z.string().url("URL de foto de serie inválida.").min(1, "La foto del número de serie es obligatoria."),
+    additionalPhoto1Url: z.string().url("URL de foto adicional 1 inválida.").optional(),
+    additionalPhoto2Url: z.string().url("URL de foto adicional 2 inválida.").optional(),
+    ownershipProofUrl: z.string().url("URL de prueba de propiedad inválida.").optional(),
 });
+
 
 const homepageEditSchema = z.object({
     id: z.enum(['hero', 'features', 'cta']),
@@ -46,46 +57,6 @@ const theftReportSchema = z.object({
     state: z.string().min(1, "El estado/provincia es obligatorio."),
     location: z.string().min(1, "La ubicación es obligatoria."),
     details: z.string().min(1, "Los detalles son obligatorios."),
-});
-
-const profileFormSchema = z.object({
-    id: z.string().optional(),
-    name: z.string().min(2, "El nombre es obligatorio."),
-    lastName: z.string().min(2, "Los apellidos son obligatorios."),
-    email: z.string().email("El correo electrónico no es válido."),
-    birthDate: z.string().min(1, "La fecha de nacimiento es obligatoria."),
-    country: z.string().min(1, "El país es obligatorio."),
-    state: z.string().min(1, "El estado es obligatorio."),
-    gender: z.enum(['masculino', 'femenino', 'otro'], {
-        required_error: "Debes seleccionar un género.",
-    }),
-    postalCode: z.string().min(1, "El código postal es obligatorio."),
-    whatsapp: z.string().optional(),
-    currentPassword: z.string().optional(),
-    newPassword: z.string().optional(),
-    confirmPassword: z.string().optional(),
-}).refine(data => {
-    if (data.newPassword || data.confirmPassword) {
-        return data.newPassword === data.confirmPassword;
-    }
-    return true;
-}, {
-    message: "Las nuevas contraseñas no coinciden.",
-    path: ["confirmPassword"],
-}).refine(data => {
-    // For signup, newPassword is required and must follow rules
-    if (!data.id) { 
-        if (!data.newPassword) return false;
-        return /^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{6,}$/.test(data.newPassword);
-    }
-    // For profile update, it's optional but must follow rules if present
-    if (data.newPassword) {
-        return /^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{6,}$/.test(data.newPassword);
-    }
-    return true;
-}, {
-    message: "La contraseña debe tener al menos 6 caracteres, una mayúscula, un número y un carácter especial.",
-    path: ["newPassword"],
 });
 
 
@@ -129,7 +100,7 @@ export async function signup(prevState: any, formData: FormData) {
 
     if (!validatedFields.success) {
       return {
-        error: 'Datos proporcionados no válidos. Asegúrate de que las contraseñas coincidan y cumplan con los requisitos.',
+        message: 'Datos proporcionados no válidos. Asegúrate de que las contraseñas coincidan y cumplan con los requisitos.',
         errors: validatedFields.error.flatten().fieldErrors,
       };
     }
@@ -140,8 +111,9 @@ export async function signup(prevState: any, formData: FormData) {
         return { error: 'La contraseña es obligatoria.' };
     }
 
+    let userCredential;
     try {
-        const userCredential = await auth().createUser({
+        userCredential = await auth().createUser({
             email,
             password: newPassword,
             displayName: `${name} ${lastName}`,
@@ -160,11 +132,28 @@ export async function signup(prevState: any, formData: FormData) {
 
         return { message: '¡Cuenta creada con éxito! Ahora puedes iniciar sesión.' };
     } catch (error: any) {
-        if (error.code === 'auth/email-already-exists') {
-            return { error: 'El correo electrónico ya está en uso.' };
+        // Log the full error to the server console for detailed debugging
+        console.error("SIGNUP_ACTION_ERROR:", JSON.stringify(error, null, 2));
+        
+        // If the user was somehow created in Auth but Firestore failed, delete the Auth user.
+        if (userCredential) {
+            await auth().deleteUser(userCredential.uid);
         }
-        console.error('Signup error:', error);
-        return { error: 'Ocurrió un error durante el registro.' };
+
+        // Handle specific, known Firebase Auth errors
+        switch (error.code) {
+            case 'auth/email-already-exists':
+                return { error: 'El correo electrónico ya está en uso por otra cuenta.' };
+            case 'auth/invalid-email':
+                return { error: 'El formato del correo electrónico no es válido.' };
+            case 'auth/weak-password':
+                return { error: 'La contraseña es demasiado débil. Debe tener al menos 6 caracteres.' };
+            case 'auth/operation-not-allowed':
+                return { error: 'El registro por correo electrónico y contraseña no está habilitado.' };
+            default:
+                 // Provide a generic but informative error for all other cases
+                return { error: 'Ocurrió un error inesperado durante el registro. Revisa los logs del servidor para más detalles.' };
+        }
     }
 }
 
@@ -182,8 +171,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
     
     if (!id) {
         return {
-            errors: { form: ['ID de usuario no encontrado.'] },
-            message: 'Error: No se pudo identificar al usuario.',
+            error: 'Error: No se pudo identificar al usuario.',
         }
     }
     
@@ -210,8 +198,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
     } catch (error) {
         console.error('Update profile error:', error);
         return {
-            errors: { form: ['Ocurrió un error al actualizar el perfil.'] },
-            message: 'Ocurrió un error al actualizar el perfil.',
+            error: 'Ocurrió un error al actualizar el perfil.',
         }
     }
 }
@@ -222,14 +209,31 @@ export async function registerBike(prevState: any, formData: FormData) {
     if (!validatedFields.success) {
         return {
             errors: validatedFields.error.flatten().fieldErrors,
-            message: 'Error: Por favor, revisa los campos del formulario.',
+            message: 'Error: Por favor, revisa los campos del formulario. Asegúrate de subir las fotos obligatorias.',
         };
     }
 
+    const { 
+        photoUrl, 
+        serialNumberPhotoUrl, 
+        additionalPhoto1Url, 
+        additionalPhoto2Url, 
+        ownershipProofUrl, 
+        ...bikeData 
+    } = validatedFields.data;
+    
+    // Create a clean array of photo URLs, filtering out any empty optional ones
+    const photos = [
+        photoUrl,
+        serialNumberPhotoUrl,
+        additionalPhoto1Url,
+        additionalPhoto2Url
+    ].filter((url): url is string => !!url);
+
     addBike({
-        ...validatedFields.data,
-        photos: [], // In real app, upload and get URLs
-        ownershipDocs: [],
+        ...bikeData,
+        photos,
+        ownershipProof: ownershipProofUrl || '',
     });
 
     console.log('Bike registered:', validatedFields.data.serialNumber);
@@ -237,7 +241,10 @@ export async function registerBike(prevState: any, formData: FormData) {
     redirect('/dashboard');
 }
 
+
 export async function updateBike(prevState: any, formData: FormData) {
+    // This needs to be updated to handle photo URLs as well if you want to edit them.
+    // For now, it only updates the text fields.
     const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
   
     if (!validatedFields.success) {
@@ -297,7 +304,11 @@ export async function updateHomepageSection(prevState: any, formData: FormData) 
         };
     }
     
-    updateHomepageSectionData(validatedFields.data);
+    const data: HomepageSection = {
+        ...validatedFields.data,
+        content: validatedFields.data.content || '',
+    }
+    updateHomepageSectionData(data);
     console.log('Homepage section updated:', validatedFields.data.id);
 
     revalidatePath('/');
