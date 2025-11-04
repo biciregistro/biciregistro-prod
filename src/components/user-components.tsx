@@ -13,6 +13,7 @@ import { updateProfile, signup } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { countries, type Country } from '@/lib/countries';
 import { profileFormSchema, signupSchema } from '@/lib/schemas';
+import { signInWithToken } from '@/lib/firebase/client';
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,29 +37,16 @@ function SubmitButton({ isEditing, isSigningIn }: { isEditing?: boolean, isSigni
     const { pending } = useFormStatus();
     
     let text = isEditing ? 'Guardar Cambios' : 'Crear cuenta';
-    if (isSigningIn) {
-      text = 'Iniciando sesión...';
-    }
+    if (isSigningIn) text = 'Iniciando sesión...';
 
     let pendingText = isEditing ? 'Guardando...' : 'Creando...';
-    if (isSigningIn) {
-      pendingText = 'Iniciando sesión...';
-    }
+    if (isSigningIn) pendingText = 'Iniciando sesión...';
 
     return <Button type="submit" disabled={pending || isSigningIn} className="w-full">{pending ? pendingText : text}</Button>;
 }
 
-const checks = {
-    length: false,
-    uppercase: false,
-    lowercase: false,
-    number: false,
-    special: false,
-};
-type CheckType = keyof typeof checks;
-
 function PasswordStrengthIndicator({ password = "" }: { password?: string }) {
-    const localChecks = {
+    const checks = {
         length: password.length >= 6,
         uppercase: /[A-Z]/.test(password),
         lowercase: /[a-z]/.test(password),
@@ -78,7 +66,7 @@ function PasswordStrengthIndicator({ password = "" }: { password?: string }) {
     return (
         <div className="space-y-2 text-sm">
             {criteria.map(criterion => {
-                const met = localChecks[criterion.key as CheckType];
+                const met = checks[criterion.key as keyof typeof checks];
                 return (
                     <div key={criterion.key} className={cn("flex items-center gap-2", met ? "text-green-600" : "text-muted-foreground")}>
                         {met ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
@@ -97,6 +85,7 @@ export function ProfileForm({ user }: { user?: User }) {
     const schema = isEditing ? profileFormSchema : signupSchema;
     
     const [state, formAction] = useActionState<ActionFormState, FormData>(action, null);
+    const [isSigningIn, setIsSigningIn] = useState(false);
     const { toast } = useToast();
     const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === (user?.country || 'México')));
     const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
@@ -131,25 +120,46 @@ export function ProfileForm({ user }: { user?: User }) {
     const password = form.watch(isEditing ? "newPassword" : "password");
 
     useEffect(() => {
-        if (state?.success) {
-            toast({
-                title: isEditing ? "Éxito" : "¡Cuenta creada!",
-                description: state.message || (isEditing ? "Tu perfil ha sido actualizado." : "Serás redirigido a tu panel."),
-            });
+        // 1. Handle successful signup and client-side sign in
+        if (state?.success && state.customToken) {
+            setIsSigningIn(true);
+            toast({ title: 'Cuenta creada', description: 'Iniciando sesión...' });
 
-            if (isEditing) {
-                form.reset({
-                    ...form.getValues(),
-                    currentPassword: "",
-                    newPassword: "",
-                    confirmPassword: "",
-                });
-            } else {
-                router.push('/dashboard');
-            }
+            const handleSignIn = async () => {
+                const { success, error } = await signInWithToken(state.customToken!);
+                if (success) {
+                    toast({ title: '¡Éxito!', description: 'Serás redirigido a tu panel.' });
+                    router.push('/dashboard');
+                } else {
+                    toast({
+                        title: 'Error de inicio de sesión',
+                        description: error || 'No pudimos iniciar tu sesión automáticamente. Por favor, ve a la página de login.',
+                        variant: 'destructive',
+                    });
+                    setIsSigningIn(false);
+                    router.push('/login');
+                }
+            };
+            handleSignIn();
+            return;
+        }
+
+        // 2. Handle successful profile update (editing mode)
+        if (state?.success && isEditing) {
+            toast({
+                title: "Éxito",
+                description: state.message || "Tu perfil ha sido actualizado.",
+            });
+            form.reset({
+                ...form.getValues(),
+                currentPassword: "",
+                newPassword: "",
+                confirmPassword: "",
+            });
             return;
         }
         
+        // 3. Handle any errors from the server action
         const errorMessage = state?.error || (state?.errors ? 'Datos proporcionados no válidos.' : null);
         if (errorMessage) {
             toast({
@@ -251,7 +261,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                         <Input type="email" placeholder="m@example.com" {...field} disabled={isEditing} />
                                     </FormControl>
                                     <FormMessage />
-                                </FormItem>
+                                 </FormItem>
                             )}
                         />
                         
@@ -285,7 +295,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                                 <FormControl>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Selecciona un país" />
-                                                    </Trigger>
+                                                    </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
                                                     {countries.map(country => (
@@ -309,7 +319,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                                     <FormControl>
                                                         <SelectTrigger>
                                                             <SelectValue placeholder="Selecciona un estado/provincia" />
-                                                        </Trigger>
+                                                        </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
                                                         {states.map(state => (
@@ -486,7 +496,7 @@ export function ProfileForm({ user }: { user?: User }) {
                     </CardContent>
                     <CardFooter>
                          <div className="flex flex-col gap-4 w-full">
-                            <SubmitButton isEditing={isEditing} />
+                            <SubmitButton isEditing={isEditing} isSigningIn={isSigningIn}/>
                             {!isEditing && (
                                  <div className="text-sm text-center text-muted-foreground">
                                     ¿Ya tienes una cuenta?{' '}
@@ -502,5 +512,3 @@ export function ProfileForm({ user }: { user?: User }) {
         </Form>
     );
 }
-
-    
