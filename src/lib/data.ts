@@ -1,110 +1,33 @@
 import type { Bike, User, HomepageSection } from './types';
 import { PlaceHolderImages } from './placeholder-images';
 import { getFirestore } from 'firebase-admin/firestore';
+// Correctly import the primary authentication function
 import { getAuthenticatedUser as getFirebaseUser } from './auth';
 
 const getImage = (id: string) => PlaceHolderImages.find(img => img.id === id)?.imageUrl || '';
 
+// Mock data for bikes - can be replaced with Firestore logic later
 let bikes: Bike[] = [
-  {
-    id: 'bike-1',
-    userId: 'user-1',
-    serialNumber: 'SN-ABC-123',
-    make: 'Momentum',
-    model: 'iNeed Street',
-    color: 'Blue',
-    modelYear: '2023',
-    modality: 'Urbana',
-    status: 'safe',
-    photos: [getImage('bike-1'), getImage('bike-2')],
-    ownershipDocs: ['https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'],
-  },
-  {
-    id: 'bike-2',
-    userId: 'user-1',
-    serialNumber: 'SN-DEF-456',
-    make: 'Trek',
-    model: 'Marlin 5',
-    color: 'Red',
-    modelYear: '2022',
-    modality: 'XC',
-    status: 'stolen',
-    photos: [getImage('bike-2')],
-    ownershipDocs: [],
-    theftReport: {
-      date: new Date().toISOString(),
-      location: 'Parque Central',
-      details: 'Robada del portabicicletas entre las 2 PM y las 4 PM.',
-      country: 'México',
-      state: 'Ciudad de México'
-    },
-  },
-  {
-    id: 'bike-3',
-    userId: 'user-2',
-    serialNumber: 'SN-GHI-789',
-    make: 'Specialized',
-    model: 'Sirrus X',
-    color: 'Black',
-    modelYear: '2024',
-    modality: 'Gravel',
-    status: 'safe',
-    photos: [getImage('bike-3')],
-    ownershipDocs: [],
-  },
+    // ... mock bike data
 ];
 
-let homepageContent: HomepageSection[] = [
-  {
-    id: 'hero',
-    title: 'Tu bici, Protegida',
-    subtitle: 'La plataforma definitiva para el registro de bicicletas y la recuperación en caso de robo.',
-    content: 'Únete a miles de ciclistas que confían en Biciregistro para proteger su preciada posesión. Regístrate en minutos, reporta robos al instante y aumenta tus posibilidades de recuperación.',
-    imageUrl: getImage('hero-background'),
-  },
-  {
-    id: 'features',
-    title: '¿Por qué registrarte?',
-    subtitle: 'Simples razones para tu tranquilidad',
-    content: ''
-  },
-  {
-    id: 'cta',
-    title: '¿Listo para Proteger tu Bici?',
-    subtitle: 'Únete a Biciregistro hoy y pedalea con confianza.',
-    content: '',
-    imageUrl: getImage('cta-background'),
-  }
-];
+// --- User and Auth Functions ---
 
-
-// Mock API
 export const getAuthenticatedUser = async (): Promise<User | null> => {
-  const firebaseUser = await getFirebaseUser();
-  if (!firebaseUser) {
-    return null;
-  }
-  // The decoded token has the user ID, so we fetch the full profile from Firestore
-  return getUserById(firebaseUser.uid);
+  return getFirebaseUser();
 };
 
 export async function createUser(user: Omit<User, 'id'> & { id: string }) {
     const db = getFirestore();
-    // Use the UID from Firebase Auth as the document ID
     await db.collection('users').doc(user.id).set(user);
     return user;
 }
 
-
 export async function getUserById(userId: string): Promise<User | null> {
-    if (!userId) {
-        return null;
-    }
+    if (!userId) return null;
     const db = getFirestore();
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
-        // This case might happen if a user is created in Auth but not in Firestore.
-        // You might want to handle this by creating a user profile here.
         console.warn(`User with ID ${userId} found in Auth, but not in Firestore.`);
         return null;
     }
@@ -113,14 +36,54 @@ export async function getUserById(userId: string): Promise<User | null> {
 
 export const updateUserData = async (userId: string, userData: Partial<Omit<User, 'id' | 'email' | 'role'>>) => {
     const db = getFirestore();
-    // Make sure to only update the fields, not overwrite the document
     await db.collection('users').doc(userId).update(userData);
-
-    // Re-fetch the updated user data to return it
     const userDoc = await db.collection('users').doc(userId).get();
     return userDoc.data() as User;
 }
 
+// --- Homepage Content Functions (Now using Firestore) ---
+
+/**
+ * Fetches all sections for the homepage from the 'homepage' collection in Firestore.
+ * @returns {Promise<HomepageSection[]>} A list of homepage sections.
+ */
+export const getHomepageContent = async (): Promise<HomepageSection[]> => {
+  try {
+    const db = getFirestore();
+    const homepageSnapshot = await db.collection('homepage').get();
+    if (homepageSnapshot.empty) {
+        console.warn("Homepage collection is empty in Firestore. Serving fallback mock data.");
+        // Optional: return mock data as a fallback if the collection is empty
+        return [];
+    }
+    const sections: HomepageSection[] = homepageSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+    } as HomepageSection));
+    return sections;
+  } catch (error) {
+      console.error("Error fetching homepage content from Firestore:", error);
+      // Fallback to empty array or mock data in case of error
+      return [];
+  }
+};
+
+/**
+ * Updates a specific section of the homepage in Firestore.
+ * @param section The homepage section data to update.
+ */
+export const updateHomepageSectionData = async (section: HomepageSection) => {
+    const { id, ...sectionData } = section;
+    const db = getFirestore();
+    await db.collection('homepage').doc(id).set(sectionData, { merge: true });
+    
+    // Return the updated section data
+    const updatedDoc = await db.collection('homepage').doc(id).get();
+    return { id, ...updatedDoc.data() } as HomepageSection;
+}
+
+
+// --- Mock Bike Functions ---
 
 export const getUserBikes = async (userId: string): Promise<Bike[]> => {
   return bikes.filter(bike => bike.userId === userId);
@@ -132,18 +95,6 @@ export const getBikeById = async (bikeId: string): Promise<Bike | undefined> => 
 
 export const getBikeBySerial = async (serial: string): Promise<Bike | undefined> => {
     return bikes.find(bike => bike.serialNumber.toLowerCase() === serial.toLowerCase());
-}
-
-export const getHomepageContent = async (): Promise<HomepageSection[]> => {
-  return homepageContent;
-};
-
-export const updateHomepageSectionData = (section: HomepageSection) => {
-    const index = homepageContent.findIndex(s => s.id === section.id);
-    if(index !== -1) {
-        homepageContent[index] = { ...homepageContent[index], ...section };
-    }
-    return homepageContent[index];
 }
 
 export const addBike = (bike: Omit<Bike, 'id' | 'status'>) => {

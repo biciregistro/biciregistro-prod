@@ -34,9 +34,10 @@ export async function getAuthenticatedUser(): Promise<User | null> {
         const user = await getUserById(decodedIdToken.uid);
         return user;
     } catch (error) {
+        // If the cookie is invalid (e.g., expired), or user not found in DB,
+        // simply return null. Do not attempt to delete the cookie here.
+        // Cookie deletion must happen in a Server Action or Route Handler.
         console.error('Error verifying session cookie or fetching user:', error);
-        // If the cookie is invalid or the user doesn't exist in the DB, clear the cookie
-        cookies().delete(SESSION_COOKIE_NAME);
         return null;
     }
 }
