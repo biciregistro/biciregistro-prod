@@ -25,6 +25,10 @@ export function LoginForm() {
   const [state, formAction] = useActionState(login, null);
   const [showPassword, setShowPassword] = useState(false);
 
+  const handleFormAction = (formData: FormData) => {
+    console.log('--- El formulario de login se está enviando desde el cliente ---');
+    formAction(formData);
+  };
 
   return (
     <Card className="w-full max-w-sm">
@@ -33,7 +37,7 @@ export function LoginForm() {
         <CardTitle>Bienvenido de Nuevo</CardTitle>
         <CardDescription>Ingresa tu correo electrónico para iniciar sesión en tu cuenta</CardDescription>
       </CardHeader>
-      <form action={formAction}>
+      <form action={handleFormAction}>
         <CardContent className="grid gap-4">
           {state?.error && (
             <Alert variant="destructive">
