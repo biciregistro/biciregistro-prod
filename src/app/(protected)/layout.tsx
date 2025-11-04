@@ -8,10 +8,14 @@ export default async function ProtectedLayout({
 }: {
   children: React.ReactNode;
 }) {
+  console.log('LAYOUT: Checking user authentication status...');
   const user = await getAuthenticatedUser();
 
   if (!user) {
+    console.log('LAYOUT: User is NOT authenticated. Redirecting to /login.');
     redirect('/login');
+  } else {
+    console.log(`LAYOUT: User is authenticated: ${user.email}. Rendering protected content.`);
   }
   
   return (

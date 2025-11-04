@@ -132,7 +132,6 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
             role: 'ciclista' as const,
         };
         await createUser(newUser);
-        await createSession(firebaseSignupResult.idToken);
 
         revalidatePath('/dashboard');
 

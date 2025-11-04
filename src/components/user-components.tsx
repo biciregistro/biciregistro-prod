@@ -37,10 +37,10 @@ function SubmitButton({ isEditing, isSigningIn }: { isEditing?: boolean, isSigni
     const { pending } = useFormStatus();
     
     let text = isEditing ? 'Guardar Cambios' : 'Crear cuenta';
-    if (isSigningIn) text = 'Iniciando sesión...';
+    if (isSigningIn) text = 'Finalizando...';
 
     let pendingText = isEditing ? 'Guardando...' : 'Creando...';
-    if (isSigningIn) pendingText = 'Iniciando sesión...';
+    if (isSigningIn) pendingText = 'Finalizando...';
 
     return <Button type="submit" disabled={pending || isSigningIn} className="w-full">{pending ? pendingText : text}</Button>;
 }
@@ -123,24 +123,52 @@ export function ProfileForm({ user }: { user?: User }) {
         // 1. Handle successful signup and client-side sign in
         if (state?.success && state.customToken) {
             setIsSigningIn(true);
-            toast({ title: 'Cuenta creada', description: 'Iniciando sesión...' });
-
-            const handleSignIn = async () => {
-                const { success, error } = await signInWithToken(state.customToken!);
-                if (success) {
+            toast({ title: 'Cuenta creada', description: 'Sincronizando sesión...' });
+    
+            const handleSignInAndSession = async () => {
+                // Step 1: Sign in client-side to get the ID token
+                const { success, idToken, error: signInError } = await signInWithToken(state.customToken!);
+    
+                if (!success || !idToken) {
+                    toast({
+                        title: 'Error de Autenticación',
+                        description: signInError || 'No se pudo obtener el token de sesión.',
+                        variant: 'destructive',
+                    });
+                    setIsSigningIn(false);
+                    router.push('/login');
+                    return;
+                }
+    
+                // Step 2: Send ID token to server to create the session cookie
+                try {
+                    const response = await fetch('/api/auth/session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ idToken }),
+                    });
+    
+                    if (!response.ok) {
+                        throw new Error('La creación de la sesión en el servidor falló.');
+                    }
+    
+                    // Step 3: Redirect only after the session cookie is set
                     toast({ title: '¡Éxito!', description: 'Serás redirigido a tu panel.' });
                     router.push('/dashboard');
-                } else {
+    
+                } catch (sessionError) {
+                    console.error("Session creation failed:", sessionError);
                     toast({
-                        title: 'Error de inicio de sesión',
-                        description: error || 'No pudimos iniciar tu sesión automáticamente. Por favor, ve a la página de login.',
+                        title: 'Error de Sesión',
+                        description: 'No pudimos sincronizar tu sesión. Por favor, intenta iniciar sesión manualmente.',
                         variant: 'destructive',
                     });
                     setIsSigningIn(false);
                     router.push('/login');
                 }
             };
-            handleSignIn();
+    
+            handleSignInAndSession();
             return;
         }
 

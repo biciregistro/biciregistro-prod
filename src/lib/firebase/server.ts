@@ -9,22 +9,24 @@ const createFirebaseAdminApp = (): App => {
 
     // In a Google Cloud environment (like Cloud Workstations, Cloud Run, App Engine),
     // the SDK can automatically discover the service account credentials.
-    // We just need to initialize the app without any specific credential configuration.
-    // The project ID will also be inferred from the environment.
+    // However, explicitly providing the projectId makes the initialization more robust.
+    // The GCLOUD_PROJECT environment variable is automatically set by App Hosting.
     
-    // For local development outside of a Google environment, you would need to set up
-    // Application Default Credentials (ADC) using `gcloud auth application-default login`.
+    // For local development, `gcloud auth application-default login` provides credentials,
+    // and the projectId is often inferred from that context. This code works for both.
     
     console.log("Initializing Firebase Admin SDK...");
     
     try {
-        const app = initializeApp();
+        const app = initializeApp({
+            projectId: process.env.GCLOUD_PROJECT, // Explicitly set the project ID
+        });
         console.log("Firebase Admin SDK initialized successfully.");
         return app;
     } catch (error: any) {
         console.error("Failed to initialize Firebase Admin SDK:", error);
         throw new Error(
-            `Firebase Admin SDK initialization failed. This might be due to missing or invalid credentials. Ensure you are authenticated in your environment (e.g., via 'gcloud auth application-default login') or that the necessary environment variables are set. Original error: ${error.message}`
+            `Firebase Admin SDK initialization failed. This might be due to missing or invalid credentials, or an undiscoverable project ID. Ensure you are authenticated in your environment. Original error: ${error.message}`
         );
     }
 };
