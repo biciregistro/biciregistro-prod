@@ -11,7 +11,7 @@ import type { User } from '@/lib/types';
 import { updateProfile, signup } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { countries, type Country } from '@/lib/countries';
-import { profileFormSchema } from '@/lib/schemas';
+import { profileFormSchema, signupSchema } from '@/lib/schemas';
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,11 @@ import { Logo } from './icons/logo';
 import { cn } from '@/lib/utils';
 
 
+// Unify form values using a common base and extending them
+type SignupFormValues = z.infer<typeof signupSchema>;
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
+type FormValues = SignupFormValues | ProfileFormValues;
+
 
 function SubmitButton({ isEditing }: { isEditing?: boolean }) {
     const { pending } = useFormStatus();
@@ -80,15 +84,17 @@ type FormState = {
 export function ProfileForm({ user }: { user?: User }) {
     const isEditing = !!user;
     const action = isEditing ? updateProfile : signup;
+    const schema = isEditing ? profileFormSchema : signupSchema;
+
     const [state, formAction] = useActionState<FormState, FormData>(action, null);
     const { toast } = useToast();
     const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === (user?.country || 'México')));
     const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
     const [showPassword, setShowPassword] = useState(false);
 
-    const form = useForm<ProfileFormValues>({
-        resolver: zodResolver(profileFormSchema),
-        defaultValues: {
+    const form = useForm<FormValues>({
+        resolver: zodResolver(schema),
+        defaultValues: isEditing ? {
             id: user?.id,
             name: user?.name || "",
             lastName: user?.lastName || "",
@@ -102,40 +108,43 @@ export function ProfileForm({ user }: { user?: User }) {
             currentPassword: "",
             newPassword: "",
             confirmPassword: "",
+        } : {
+            name: "",
+            lastName: "",
+            email: "",
+            password: "",
+            confirmPassword: "",
         },
         mode: 'onTouched',
     });
 
-    const newPassword = form.watch("newPassword");
+    const password = form.watch(isEditing ? "newPassword" : "password");
 
     useEffect(() => {
         if (!state) return;
 
-        // On successful signup, reset form and show success message
-        if (state.message && !state.errors && !isEditing) {
-            form.reset();
-        }
-
-        // On successful profile update, show success toast
-        if (state.message && !state.errors && isEditing) {
+        if (state.message && !state.errors) {
             toast({
                 title: "Éxito",
                 description: state.message,
             });
-            form.reset({
-                ...form.getValues(),
-                currentPassword: "",
-                newPassword: "",
-                confirmPassword: "",
-            });
+            if (!isEditing) {
+                form.reset();
+            } else {
+                 form.reset({
+                    ...form.getValues(),
+                    currentPassword: "",
+                    newPassword: "",
+                    confirmPassword: "",
+                });
+            }
         }
         
-        // On any error (signup or update), show a destructive toast
-        const errorMessage = state.error || state.message;
-        if (errorMessage && (state.errors || state.error)) {
+        const errorMessage = state.error || (state.errors ? 'Datos proporcionados no válidos. Asegúrate de que las contraseñas coincidan y cumplan con los requisitos.' : null);
+        if (errorMessage) {
             toast({
                 variant: 'destructive',
-                title: state.errors ? "Error de Validación" : "Acción Fallida",
+                title: "Error de Validación",
                 description: errorMessage,
             });
         }
@@ -145,8 +154,8 @@ export function ProfileForm({ user }: { user?: User }) {
         const country = countries.find(c => c.name === countryName);
         setSelectedCountry(country);
         setStates(country ? country.states : []);
-        form.setValue('country', countryName);
-        form.setValue('state', ''); // Reset state/province
+        form.setValue('country', countryName, { shouldValidate: true });
+        form.setValue('state', '', { shouldValidate: true });
     };
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,7 +172,7 @@ export function ProfileForm({ user }: { user?: User }) {
             formattedInput += '/' + input.substring(4, 8);
         }
 
-        form.setValue('birthDate', formattedInput);
+        form.setValue('birthDate', formattedInput, { shouldValidate: true });
     };
 
     return (
@@ -241,136 +250,140 @@ export function ProfileForm({ user }: { user?: User }) {
                                 </FormItem>
                             )}
                         />
-
-                        <FormField
-                            control={form.control}
-                            name="birthDate"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Fecha de Nacimiento</FormLabel>
-                                    <FormControl>
-                                        <Input 
-                                            placeholder="DD/MM/AAAA" 
-                                            {...field} 
-                                            onChange={handleDateChange}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                         <FormField
-                            control={form.control}
-                            name="country"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>País</FormLabel>
-                                    <Select onValueChange={handleCountryChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Selecciona un país" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {countries.map(country => (
-                                                <SelectItem key={country.code} value={country.name}>{country.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                                control={form.control}
-                                name="state"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Estado / Provincia</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCountry}>
+                        
+                        {isEditing && (
+                            <>
+                               <FormField
+                                    control={form.control}
+                                    name="birthDate"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Fecha de Nacimiento</FormLabel>
                                             <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Selecciona un estado/provincia" />
-                                                </SelectTrigger>
+                                                <Input 
+                                                    placeholder="DD/MM/AAAA" 
+                                                    {...field} 
+                                                    onChange={handleDateChange}
+                                                />
                                             </FormControl>
-                                            <SelectContent>
-                                                {states.map(state => (
-                                                    <SelectItem key={state} value={state}>{state}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="postalCode"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Código Postal</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="Tu código postal" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
 
-                         <FormField
-                            control={form.control}
-                            name="gender"
-                            render={({ field }) => (
-                                <FormItem className="space-y-3">
-                                <FormLabel>Género</FormLabel>
-                                <FormControl>
-                                    <RadioGroup
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value}
-                                    className="flex flex-col sm:flex-row space-y-1"
-                                    >
-                                    <FormItem className="flex items-center space-x-3 space-y-0">
-                                        <FormControl>
-                                        <RadioGroupItem value="masculino" />
-                                        </FormControl>
-                                        <FormLabel className="font-normal">Masculino</FormLabel>
-                                    </FormItem>
-                                    <FormItem className="flex items-center space-x-3 space-y-0">
-                                        <FormControl>
-                                        <RadioGroupItem value="femenino" />
-                                        </FormControl>
-                                        <FormLabel className="font-normal">Femenino</FormLabel>
-                                    </FormItem>
-                                    <FormItem className="flex items-center space-x-3 space-y-0">
-                                        <FormControl>
-                                        <RadioGroupItem value="otro" />
-                                        </FormControl>
-                                        <FormLabel className="font-normal">Otro</FormLabel>
-                                    </FormItem>
-                                    </RadioGroup>
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                                <FormField
+                                    control={form.control}
+                                    name="country"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>País</FormLabel>
+                                            <Select onValueChange={handleCountryChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Selecciona un país" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {countries.map(country => (
+                                                        <SelectItem key={country.code} value={country.name}>{country.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
 
-                         <FormField
-                            control={form.control}
-                            name="whatsapp"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Teléfono de WhatsApp (Opcional)</FormLabel>
-                                    <FormControl>
-                                        <Input type="tel" placeholder="+52 1 55 1234 5678" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="state"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Estado / Provincia</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCountry}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Selecciona un estado/provincia" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {states.map(state => (
+                                                            <SelectItem key={state} value={state}>{state}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="postalCode"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Código Postal</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Tu código postal" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+
+                                <FormField
+                                    control={form.control}
+                                    name="gender"
+                                    render={({ field }) => (
+                                        <FormItem className="space-y-3">
+                                        <FormLabel>Género</FormLabel>
+                                        <FormControl>
+                                            <RadioGroup
+                                            onValueChange={field.onChange}
+                                            defaultValue={field.value}
+                                            className="flex flex-col sm:flex-row space-y-1"
+                                            >
+                                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                                <FormControl>
+                                                <RadioGroupItem value="masculino" />
+                                                </FormControl>
+                                                <FormLabel className="font-normal">Masculino</FormLabel>
+                                            </FormItem>
+                                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                                <FormControl>
+                                                <RadioGroupItem value="femenino" />
+                                                </FormControl>
+                                                <FormLabel className="font-normal">Femenino</FormLabel>
+                                            </FormItem>
+                                            <FormItem className="flex items-center space-x-3 space-y-0">
+                                                <FormControl>
+                                                <RadioGroupItem value="otro" />
+                                                </FormControl>
+                                                <FormLabel className="font-normal">Otro</FormLabel>
+                                            </FormItem>
+                                            </RadioGroup>
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={form.control}
+                                    name="whatsapp"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Teléfono de WhatsApp (Opcional)</FormLabel>
+                                            <FormControl>
+                                                <Input type="tel" placeholder="+52 1 55 1234 5678" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </>
+                        )}
                        
                         {user && <input type="hidden" name="id" value={user.id} />}
                     </CardContent>
@@ -416,7 +429,7 @@ export function ProfileForm({ user }: { user?: User }) {
                         <div className={cn("grid grid-cols-1 gap-4", isEditing && "md:grid-cols-2")}>
                              <FormField
                                 control={form.control}
-                                name="newPassword"
+                                name={isEditing ? "newPassword" : "password"}
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>{isEditing ? 'Nueva Contraseña' : 'Contraseña'}</FormLabel>
@@ -464,7 +477,7 @@ export function ProfileForm({ user }: { user?: User }) {
                             />
                         </div>
                          {!isEditing && (
-                            <PasswordStrengthIndicator password={newPassword} />
+                            <PasswordStrengthIndicator password={password} />
                          )}
                     </CardContent>
                     <CardFooter>

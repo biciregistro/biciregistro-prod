@@ -6,7 +6,6 @@ import { revalidatePath } from 'next/cache';
 
 import { addBike, findUserByEmail, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, getUserById } from './data';
 import { createSession, deleteSession } from './auth';
-import { getAuth } from 'firebase-admin/auth';
 import { auth } from 'firebase-admin';
 import { profileFormSchema } from './schemas';
 import { HomepageSection } from './types';
