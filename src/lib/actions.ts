@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, getUserById } from './data';
 import { createSession, deleteSession } from './auth';
 import { adminAuth } from './firebase/server';
+import { firebaseConfig } from './firebase/client'; // Importar la configuración del cliente
 
 // CORRECT: Importing the single source of truth for schemas
 import { profileFormSchema, signupSchema } from './schemas';
@@ -65,7 +66,7 @@ export async function login(prevState: any, formData: FormData) {
   const { email, password } = validatedFields.data;
 
   try {
-    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_API_KEY}`, {
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, returnSecureToken: true }),
@@ -100,7 +101,7 @@ export async function signup(prevState: any, formData: FormData) {
 
     let firebaseSignupResult;
     try {
-        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${process.env.FIREBASE_API_KEY}`, {
+        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password, returnSecureToken: true }),
@@ -112,7 +113,10 @@ export async function signup(prevState: any, formData: FormData) {
             if (firebaseSignupResult.error?.message === 'EMAIL_EXISTS') {
                 return { error: 'El correo electrónico ya está en uso por otra cuenta.' };
             }
-            return { error: firebaseSignupResult.error?.message || 'Ocurrió un error durante el registro.' };
+            // Proporcionar un mensaje de error más específico si está disponible
+            const detailedError = firebaseSignupResult.error?.message || 'Ocurrió un error durante el registro.';
+            console.error("SIGNUP_API_ERROR:", detailedError);
+            return { error: `Error de Firebase: ${detailedError}` };
         }
 
         // Set display name in Firebase Auth
