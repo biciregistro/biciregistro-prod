@@ -55,35 +55,45 @@ const theftReportSchema = z.object({
 
 
 export async function login(prevState: any, formData: FormData) {
-  const validatedFields = loginSchema.safeParse(Object.fromEntries(formData.entries()));
+    const validatedFields = loginSchema.safeParse(Object.fromEntries(formData.entries()));
 
-  if (!validatedFields.success) {
-    return {
-      error: 'Correo electrónico o contraseña no válidos.',
-    };
-  }
-  const { email, password } = validatedFields.data;
-
-  try {
-    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, returnSecureToken: true }),
-    });
-
-    const result = await response.json();
-    
-    if (!response.ok) {
-        return { error: 'Credenciales no válidas.' };
+    if (!validatedFields.success) {
+        return {
+            error: 'Correo electrónico o contraseña no válidos.',
+        };
     }
+    const { email, password } = validatedFields.data;
 
-    await createSession(result.idToken);
-    redirect('/dashboard');
+    try {
+        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, returnSecureToken: true }),
+        });
 
-  } catch (error) {
-    console.error('Login error:', error);
-    return { error: 'Ocurrió un error durante el inicio de sesión.' };
-  }
+        const result = await response.json();
+
+        if (!response.ok) {
+            const errorCode = result.error?.message;
+            let errorMessage = 'Ocurrió un error durante el inicio de sesión.';
+
+            if (errorCode === 'INVALID_LOGIN_CREDENTIALS') {
+                errorMessage = 'Credenciales inválidas. Por favor, verifica tu correo y contraseña.';
+            } else if (errorCode === 'USER_DISABLED') {
+                errorMessage = 'Esta cuenta ha sido deshabilitada.';
+            }
+            
+            console.error('Login API Error:', errorCode);
+            return { error: errorMessage };
+        }
+
+        await createSession(result.idToken);
+        redirect('/dashboard');
+
+    } catch (error) {
+        console.error('Login Action Error:', error);
+        return { error: 'No se pudo conectar con el servicio de autenticación. Inténtalo de nuevo más tarde.' };
+    }
 }
 
 export async function signup(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
