@@ -8,10 +8,9 @@ import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, u
 import { createSession, deleteSession } from './auth';
 import { adminAuth } from './firebase/server';
 import { firebaseConfig } from './firebase/client';
-
+import { ActionFormState, HomepageSection } from './types';
 // CORRECT: Importing the single source of truth for schemas
 import { profileFormSchema, signupSchema } from './schemas';
-import { HomepageSection } from './types';
 
 // This schema is for the login form, it's fine to keep it here.
 const loginSchema = z.object({
@@ -87,7 +86,7 @@ export async function login(prevState: any, formData: FormData) {
   }
 }
 
-export async function signup(prevState: any, formData: FormData) {
+export async function signup(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
     const validatedFields = signupSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
@@ -121,6 +120,9 @@ export async function signup(prevState: any, formData: FormData) {
         await adminAuth.updateUser(firebaseSignupResult.localId, {
             displayName: `${name} ${lastName}`,
         });
+        
+        // Create a custom token for client-side sign-in
+        const customToken = await adminAuth.createCustomToken(firebaseSignupResult.localId);
 
         const newUser = {
             id: firebaseSignupResult.localId,
@@ -132,10 +134,13 @@ export async function signup(prevState: any, formData: FormData) {
         await createUser(newUser);
         await createSession(firebaseSignupResult.idToken);
 
-        // Revalidate a path to ensure the session cookie is set
         revalidatePath('/dashboard');
 
-        return { success: true, message: "¡Cuenta creada exitosamente!" };
+        return { 
+            success: true, 
+            message: "¡Cuenta creada exitosamente!",
+            customToken: customToken, // Send token to the client
+        };
 
     } catch (error: any) {
         console.error("SIGNUP_ACTION_ERROR:", JSON.stringify(error, null, 2));

@@ -1,6 +1,6 @@
 
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, signInWithCustomToken, AuthError } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -18,7 +18,25 @@ export const firebaseConfig = {
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
-const auth = getAuth(app);
+const auth = getApp() ? getAuth(app) : undefined;
 const storage = getStorage(app);
+
+// New function to sign in the client with a custom token
+export const signInWithToken = async (token: string): Promise<{ success: boolean; error?: string }> => {
+    if (!auth) {
+      const errorMessage = "Firebase Auth is not initialized.";
+      console.error(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+    try {
+        await signInWithCustomToken(auth, token);
+        return { success: true };
+    } catch (error) {
+        const authError = error as AuthError;
+        console.error("Client sign-in error:", authError);
+        return { success: false, error: "No se pudo iniciar sesión. Por favor, intenta de nuevo." };
+    }
+};
+
 
 export { app, db, auth, storage };

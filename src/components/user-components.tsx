@@ -8,11 +8,12 @@ import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-import type { User } from '@/lib/types';
+import type { User, ActionFormState } from '@/lib/types';
 import { updateProfile, signup } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { countries, type Country } from '@/lib/countries';
 import { profileFormSchema, signupSchema } from '@/lib/schemas';
+import { signInWithToken } from '@/lib/firebase/client';
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,11 +33,16 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 type FormValues = SignupFormValues | ProfileFormValues;
 
 
-function SubmitButton({ isEditing }: { isEditing?: boolean }) {
+function SubmitButton({ isEditing, isSigningIn }: { isEditing?: boolean, isSigningIn?: boolean }) {
     const { pending } = useFormStatus();
-    const text = isEditing ? 'Guardar Cambios' : 'Crear cuenta';
-    const pendingText = isEditing ? 'Guardando...' : 'Creando...';
-    return <Button type="submit" disabled={pending} className="w-full">{pending ? pendingText : text}</Button>;
+    
+    let text = isEditing ? 'Guardar Cambios' : 'Crear cuenta';
+    if (isSigningIn) text = 'Iniciando sesión...';
+
+    let pendingText = isEditing ? 'Guardando...' : 'Creando...';
+    if (isSigningIn) pendingText = 'Iniciando sesión...';
+
+    return <Button type="submit" disabled={pending || isSigningIn} className="w-full">{pending ? pendingText : text}</Button>;
 }
 
 function PasswordStrengthIndicator({ password = "" }: { password?: string }) {
@@ -72,24 +78,14 @@ function PasswordStrengthIndicator({ password = "" }: { password?: string }) {
     );
 }
 
-// Define a unified state type for the form action
-type FormState = {
-    message?: string;
-    error?: string;
-    errors?: {
-        [key: string]: string[] | undefined;
-    };
-    success?: boolean;
-} | null;
-
-
 export function ProfileForm({ user }: { user?: User }) {
     const router = useRouter();
     const isEditing = !!user;
     const action = isEditing ? updateProfile : signup;
     const schema = isEditing ? profileFormSchema : signupSchema;
-
-    const [state, formAction] = useActionState<FormState, FormData>(action, null);
+    
+    const [state, formAction] = useActionState<ActionFormState, FormData>(action, null);
+    const [isSigningIn, setIsSigningIn] = useState(false);
     const { toast } = useToast();
     const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === (user?.country || 'México')));
     const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
@@ -124,37 +120,51 @@ export function ProfileForm({ user }: { user?: User }) {
     const password = form.watch(isEditing ? "newPassword" : "password");
 
     useEffect(() => {
-        if (!state) return;
+        // 1. Handle successful signup and client-side sign in
+        if (state?.success && state.customToken) {
+            setIsSigningIn(true);
+            toast({ title: 'Cuenta creada', description: 'Iniciando sesión...' });
 
-        if (state.success && !isEditing) {
-            toast({
-                title: "¡Éxito!",
-                description: state.message || "Tu cuenta ha sido creada. Redirigiendo...",
-            });
-            router.push('/dashboard');
+            const handleSignIn = async () => {
+                const { success, error } = await signInWithToken(state.customToken!);
+                if (success) {
+                    toast({ title: '¡Éxito!', description: 'Serás redirigido a tu panel.' });
+                    router.push('/dashboard');
+                } else {
+                    toast({
+                        title: 'Error de inicio de sesión',
+                        description: error || 'No pudimos iniciar tu sesión automáticamente. Por favor, ve a la página de login.',
+                        variant: 'destructive',
+                    });
+                    setIsSigningIn(false);
+                    router.push('/login');
+                }
+            };
+            handleSignIn();
             return;
         }
 
-        if (state.message && !state.errors) {
+        // 2. Handle successful profile update (editing mode)
+        if (state?.success && isEditing) {
             toast({
                 title: "Éxito",
-                description: state.message,
+                description: state.message || "Tu perfil ha sido actualizado.",
             });
-            if (isEditing) {
-                 form.reset({
-                    ...form.getValues(),
-                    currentPassword: "",
-                    newPassword: "",
-                    confirmPassword: "",
-                });
-            }
+            form.reset({
+                ...form.getValues(),
+                currentPassword: "",
+                newPassword: "",
+                confirmPassword: "",
+            });
+            return;
         }
         
-        const errorMessage = state.error || (state.errors ? 'Datos proporcionados no válidos. Asegúrate de que las contraseñas coincidan y cumplan con los requisitos.' : null);
+        // 3. Handle any errors from the server action
+        const errorMessage = state?.error || (state?.errors ? 'Datos proporcionados no válidos.' : null);
         if (errorMessage) {
             toast({
                 variant: 'destructive',
-                title: "Error de Validación",
+                title: "Error en el formulario",
                 description: errorMessage,
             });
         }
@@ -205,16 +215,10 @@ export function ProfileForm({ user }: { user?: User }) {
                         )}
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {state?.message && !state.errors && !isEditing && (
-                             <Alert variant={"default"}>
-                                <AlertTitle>Éxito</AlertTitle>
-                                <AlertDescription>{state.message}</AlertDescription>
-                            </Alert>
-                        )}
-                         {state?.errors && (
+                        {state?.errors && (
                              <Alert variant={"destructive"}>
                                 <AlertTitle>Error</AlertTitle>
-                                <AlertDescription>{state.message || 'Por favor, revisa los campos del formulario.'}</AlertDescription>
+                                <AlertDescription>{state.error || 'Por favor, revisa los campos del formulario.'}</AlertDescription>
                             </Alert>
                         )}
 
@@ -291,7 +295,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                                 <FormControl>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Selecciona un país" />
-                                                    </SelectTrigger>
+                                                    </Trigger>
                                                 </FormControl>
                                                 <SelectContent>
                                                     {countries.map(country => (
@@ -315,7 +319,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                                     <FormControl>
                                                         <SelectTrigger>
                                                             <SelectValue placeholder="Selecciona un estado/provincia" />
-                                                        </SelectTrigger>
+                                                        </Trigger>
                                                     </FormControl>
                                                     <SelectContent>
                                                         {states.map(state => (
@@ -492,7 +496,7 @@ export function ProfileForm({ user }: { user?: User }) {
                     </CardContent>
                     <CardFooter>
                          <div className="flex flex-col gap-4 w-full">
-                            <SubmitButton isEditing={isEditing} />
+                            <SubmitButton isEditing={isEditing} isSigningIn={isSigningIn}/>
                             {!isEditing && (
                                  <div className="text-sm text-center text-muted-foreground">
                                     ¿Ya tienes una cuenta?{' '}

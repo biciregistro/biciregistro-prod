@@ -43,3 +43,14 @@ export type HomepageSection = {
   content: string;
   imageUrl?: string;
 };
+
+// State for server actions in forms
+export type ActionFormState = {
+    message?: string;
+    error?: string;
+    errors?: {
+        [key: string]: string[] | undefined;
+    };
+    success?: boolean;
+    customToken?: string;
+} | null;
