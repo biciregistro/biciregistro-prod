@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import { getAuthenticatedUser } from '@/lib/data';
-import { forceLogout } from '@/lib/actions';
 import { Header } from '@/components/shared/header';
 import { Footer } from '@/components/shared/footer';
 import { User } from '@/lib/types';
@@ -14,15 +13,12 @@ export default async function PublicLayout({
   try {
     user = await getAuthenticatedUser();
   } catch (error: any) {
-    // This is a self-healing mechanism. If the session cookie is invalid because the
-    // user was deleted from Firebase Auth, this error will be thrown. We catch it,
-    // force a logout to clear the bad cookie, and redirect to the homepage.
+    // If the session cookie is stale, the correct pattern is to redirect to a
+    // dedicated logout route handler that can clear the cookie.
     if (error.message.includes('no user record')) {
-      console.warn("Self-healing: Stale session cookie detected. Forcing logout.");
-      await forceLogout();
-      redirect('/');
+      console.warn("Self-healing: Stale session cookie detected. Redirecting to logout handler.");
+      redirect('/api/auth/logout');
     }
-    // For other unexpected errors, we'll just log them but not block rendering.
     console.error("PublicLayout Error: An unexpected error occurred while fetching user.", error);
   }
   

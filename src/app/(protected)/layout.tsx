@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import { getAuthenticatedUser } from '@/lib/data';
-import { forceLogout } from '@/lib/actions';
 import { Header } from '@/components/shared/header';
 import { Footer } from '@/components/shared/footer';
 import { User } from '@/lib/types';
@@ -14,13 +13,13 @@ export default async function ProtectedLayout({
   try {
     user = await getAuthenticatedUser();
   } catch (error: any) {
-    // Self-healing for stale session cookies applies here as well.
+    // If the session cookie is stale, the correct pattern is to redirect to a
+    // dedicated logout route handler that can clear the cookie.
     if (error.message.includes('no user record')) {
-      console.warn("Self-healing (Protected): Stale session cookie detected. Forcing logout.");
-      await forceLogout();
-      redirect('/login?reason=stale_session'); // Redirect to login after clearing the cookie
+      console.warn("Self-healing (Protected): Stale session cookie detected. Redirecting to logout handler.");
+      redirect('/api/auth/logout');
     }
-    // For other errors, we redirect to login as a safeguard.
+    // For other unexpected errors, we redirect to login as a safeguard.
     console.error("ProtectedLayout Error: An unexpected error occurred. Redirecting to login.", error);
     redirect('/login?reason=auth_error');
   }

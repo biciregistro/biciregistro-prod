@@ -1,7 +1,7 @@
 import type { Bike, User, HomepageSection } from './types';
 import { PlaceHolderImages } from './placeholder-images';
 import { getFirestore } from 'firebase-admin/firestore';
-import { getAuthenticatedUser as getFirebaseUser } from './auth';
+import { getDecodedSession } from './auth';
 
 const getImage = (id: string) => PlaceHolderImages.find(img => img.id === id)?.imageUrl || '';
 
@@ -36,13 +36,26 @@ let bikes: Bike[] = [
 
 // --- User and Auth Functions ---
 
+/**
+ * Gets the full authenticated user profile.
+ * It first checks for a valid session and then fetches the user data from Firestore.
+ * @returns {Promise<User | null>} The full user object or null if not authenticated.
+ */
 export const getAuthenticatedUser = async (): Promise<User | null> => {
-    const firebaseUser = await getFirebaseUser();
-    if (!firebaseUser) {
+    const decodedSession = await getDecodedSession();
+    if (!decodedSession) {
         return null;
     }
-    return getUserById(firebaseUser.uid);
+
+    try {
+        return await getUserById(decodedSession.uid);
+    } catch (error) {
+        // This handles cases where the user exists in Auth but not in Firestore.
+        console.error("Error fetching user from Firestore:", error);
+        return null;
+    }
 };
+
 
 export async function createUser(user: Omit<User, 'id'> & { id: string }) {
     const db = getFirestore();
@@ -55,8 +68,9 @@ export async function getUserById(userId: string): Promise<User | null> {
     const db = getFirestore();
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
-        console.warn(`User with ID ${userId} found in Auth, but not in Firestore.`);
-        return null;
+        // This is a critical error state: user is authenticated but has no DB record.
+        // Throwing an error here allows the calling layout to handle it, e.g., by logging out.
+        throw new Error(`User with ID ${userId} found in Auth, but not in Firestore.`);
     }
     return userDoc.data() as User;
 }
