@@ -10,13 +10,31 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { Skeleton } from './ui/skeleton';
 
 
 const getImageData = (id: string) => {
     return PlaceHolderImages.find(p => p.id === id) || PlaceHolderImages[0];
 }
 
-export function HeroSection({ section }: { section: HomepageSection }) {
+export function HeroSection({ section }: { section?: HomepageSection }) {
+  if (!section) {
+    return (
+        <section className="relative w-full min-h-[60vh] flex items-center pt-5 pb-10">
+            <Skeleton className="absolute inset-0" />
+            <div className="relative z-10 w-full">
+                <div className="container text-center">
+                    <div className="bg-background/80 backdrop-blur-sm p-8 rounded-xl max-w-3xl mx-auto space-y-4">
+                        <Skeleton className="h-12 w-3/4 mx-auto" />
+                        <Skeleton className="h-6 w-full mx-auto" />
+                        <Skeleton className="h-6 w-4/5 mx-auto" />
+                    </div>
+                </div>
+            </div>
+        </section>
+    )
+  }
+
   return (
     <section className="relative w-full min-h-[60vh] flex items-center pt-5 pb-10">
       <Image
@@ -95,7 +113,29 @@ const features = [
     }
 ]
 
-export function FeaturesSection({ section }: { section: HomepageSection }) {
+export function FeaturesSection({ section }: { section?: HomepageSection }) {
+    if (!section) {
+        return (
+            <section className="py-4 sm:py-6 bg-secondary/50">
+                <div className="container text-center space-y-4">
+                    <Skeleton className="h-9 w-1/2 mx-auto" />
+                    <Skeleton className="h-6 w-3/4 mx-auto" />
+                    <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3 px-4 sm:px-0">
+                        {[...Array(3)].map((_, i) => (
+                            <Card key={i}>
+                                <CardHeader><Skeleton className="aspect-video mb-4" /></CardHeader>
+                                <CardContent className="space-y-2">
+                                    <Skeleton className="h-6 w-1/2" />
+                                    <Skeleton className="h-4 w-full" />
+                                    <Skeleton className="h-4 w-full" />
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            </section>
+        );
+    }
   return (
     <section className="py-4 sm:py-6 bg-secondary/50">
       <div className="container text-center">
@@ -133,7 +173,17 @@ export function FeaturesSection({ section }: { section: HomepageSection }) {
   );
 }
 
-export function CtaSection({ section }: { section: HomepageSection }) {
+export function CtaSection({ section }: { section?: HomepageSection }) {
+    if (!section) {
+        return (
+            <section className="py-8 sm:py-12">
+                <div className="container">
+                    <Skeleton className="h-64 w-full" />
+                </div>
+            </section>
+        );
+    }
+
     const imageData = getImageData('cta-background');
     return (
         <section className="py-8 sm:py-12">
