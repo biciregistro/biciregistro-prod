@@ -97,6 +97,9 @@ export async function createUser(user: Omit<User, 'id'> & { id: string }) {
 
 
 export async function getUserById(userId: string): Promise<User | null> {
+    if (!userId) {
+        return null;
+    }
     const db = getFirestore();
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
@@ -112,6 +115,8 @@ export const updateUserData = async (userId: string, userData: Partial<Omit<User
     const db = getFirestore();
     // Make sure to only update the fields, not overwrite the document
     await db.collection('users').doc(userId).update(userData);
+
+    // Re-fetch the updated user data to return it
     const userDoc = await db.collection('users').doc(userId).get();
     return userDoc.data() as User;
 }
