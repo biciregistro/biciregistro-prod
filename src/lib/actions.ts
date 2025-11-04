@@ -63,8 +63,13 @@ export async function login(prevState: any, formData: FormData) {
         };
     }
     const { email, password } = validatedFields.data;
+    
+    // Log para confirmar que la clave de API está disponible
+    console.log('Server Action login: API Key is available:', !!firebaseConfig.apiKey);
 
-    console.log("API Key que se está usando en el servidor:", firebaseConfig.apiKey);
+    if (!firebaseConfig.apiKey) {
+      return { error: 'La configuración de la API Key de Firebase no está disponible en el servidor.' };
+    }
 
     try {
         const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`, {
@@ -280,7 +285,7 @@ export async function reportTheft(prevState: any, formData: FormData) {
     const { bikeId, ...theftDetails } = validatedFields.data;
     updateBikeStatus(bikeId, 'stolen', theftDetails);
     console.log(`Bicicleta ${bikeId} reportada como robada.`);
-    revalidatePath(`/dashboard/bikes/${bikeId}`);
+    revalidatePath(`/dashboard/bikes/${id}`);
     revalidatePath('/dashboard');
     return { message: "Reporte de robo enviado." };
 }
@@ -288,7 +293,7 @@ export async function reportTheft(prevState: any, formData: FormData) {
 export async function markAsRecovered(bikeId: string) {
     updateBikeStatus(bikeId, 'safe');
     console.log(`Bicicleta ${bikeId} marcada como recuperada.`);
-    revalidatePath(`/dashboard/bikes/${bikeId}`);
+    revalidatePath(`/dashboard/bikes/${id}`);
     revalidatePath('/dashboard');
 }
 
