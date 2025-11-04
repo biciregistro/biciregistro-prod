@@ -54,10 +54,10 @@ export async function getAuthenticatedUser(): Promise<User | null> {
         console.log('AUTH: Full user profile fetched from Firestore:', user.email);
         return user;
     } catch (error) {
-        // If the cookie is invalid (e.g., expired), or user not found in DB,
-        // simply return null. Do not attempt to delete the cookie here.
-        // Cookie deletion must happen in a Server Action or Route Handler.
-        console.error('AUTH: Error verifying session cookie. This is the critical failure point.', error);
+        // Improved error logging to provide more details
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+        const errorStack = error instanceof Error ? error.stack : 'No stack available';
+        console.error(`AUTH: Error verifying session cookie. This is the critical failure point. Message: [${errorMessage}], Stack: [${errorStack}]`, { originalError: error });
         return null;
     }
 }

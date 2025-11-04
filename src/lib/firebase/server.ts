@@ -1,4 +1,4 @@
-import { initializeApp, getApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApp, getApps, App, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
@@ -7,27 +7,32 @@ const createFirebaseAdminApp = (): App => {
         return getApp();
     }
 
-    // In a Google Cloud environment (like Cloud Workstations, Cloud Run, App Engine),
-    // the SDK can automatically discover the service account credentials.
-    // However, explicitly providing the projectId makes the initialization more robust.
-    // The GCLOUD_PROJECT environment variable is automatically set by App Hosting.
-    
-    // For local development, `gcloud auth application-default login` provides credentials,
-    // and the projectId is often inferred from that context. This code works for both.
-    
+    // This robust initialization works in multiple environments:
+    // 1. GCLOUD_PROJECT (production on App Hosting): Uses the env var.
+    // 2. GOOGLE_APPLICATION_CREDENTIALS (local with service account file): Uses the file.
+    // 3. Application Default Credentials (local with `gcloud auth` or Cloud Workstations): Infers from the environment.
     console.log("Initializing Firebase Admin SDK...");
-    
+
     try {
         const app = initializeApp({
-            projectId: process.env.GCLOUD_PROJECT, // Explicitly set the project ID
+            projectId: process.env.GCLOUD_PROJECT, // Best for production
         });
-        console.log("Firebase Admin SDK initialized successfully.");
+        console.log("Firebase Admin SDK initialized successfully via standard method.");
         return app;
     } catch (error: any) {
-        console.error("Failed to initialize Firebase Admin SDK:", error);
-        throw new Error(
-            `Firebase Admin SDK initialization failed. This might be due to missing or invalid credentials, or an undiscoverable project ID. Ensure you are authenticated in your environment. Original error: ${error.message}`
-        );
+        console.warn(`Standard initialization failed: ${error.message}. Attempting fallback for local/dev environments.`);
+        try {
+            // Fallback for local development or environments where ADC is set up
+            // but the project ID isn't automatically inferred.
+            const app = initializeApp();
+            console.log("Firebase Admin SDK initialized successfully via fallback (ADC).");
+            return app;
+        } catch (fallbackError: any) {
+            console.error("CRITICAL: All Firebase Admin SDK initialization methods failed.", fallbackError);
+            throw new Error(
+                `Could not initialize Firebase Admin SDK. Please check your environment setup. Original error: ${fallbackError.message}`
+            );
+        }
     }
 };
 
