@@ -2,6 +2,7 @@ import type { Bike, User, HomepageSection } from './types';
 import { PlaceHolderImages } from './placeholder-images';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getDecodedSession } from './auth';
+import { adminApp } from './firebase/server';
 
 const getImage = (id: string) => PlaceHolderImages.find(img => img.id === id)?.imageUrl || '';
 
@@ -58,14 +59,14 @@ export const getAuthenticatedUser = async (): Promise<User | null> => {
 
 
 export async function createUser(user: Omit<User, 'id'> & { id: string }) {
-    const db = getFirestore();
+    const db = getFirestore(adminApp);
     await db.collection('users').doc(user.id).set(user);
     return user;
 }
 
 export async function getUserById(userId: string): Promise<User | null> {
     if (!userId) return null;
-    const db = getFirestore();
+    const db = getFirestore(adminApp);
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
         // This is a critical error state: user is authenticated but has no DB record.
@@ -76,7 +77,7 @@ export async function getUserById(userId: string): Promise<User | null> {
 }
 
 export const updateUserData = async (userId: string, userData: Partial<Omit<User, 'id' | 'email' | 'role'>>) => {
-    const db = getFirestore();
+    const db = getFirestore(adminApp);
     await db.collection('users').doc(userId).update(userData);
     const userDoc = await db.collection('users').doc(userId).get();
     return userDoc.data() as User;
@@ -91,7 +92,7 @@ export const updateUserData = async (userId: string, userData: Partial<Omit<User
  */
 export const getHomepageContent = async (): Promise<HomepageSection[]> => {
   try {
-    const db = getFirestore();
+    const db = getFirestore(adminApp);
     const homepageCollection = db.collection('homepage');
     const homepageSnapshot = await homepageCollection.get();
     
@@ -131,7 +132,7 @@ export const getHomepageContent = async (): Promise<HomepageSection[]> => {
  */
 export const updateHomepageSectionData = async (section: HomepageSection) => {
     const { id, ...sectionData } = section;
-    const db = getFirestore();
+    const db = getFirestore(adminApp);
     await db.collection('homepage').doc(id).set(sectionData, { merge: true });
     
     // Return the updated section data
