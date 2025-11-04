@@ -1,10 +1,33 @@
 import type { Bike, User, HomepageSection } from './types';
 import { PlaceHolderImages } from './placeholder-images';
 import { getFirestore } from 'firebase-admin/firestore';
-// Correctly import the primary authentication function
 import { getAuthenticatedUser as getFirebaseUser } from './auth';
 
 const getImage = (id: string) => PlaceHolderImages.find(img => img.id === id)?.imageUrl || '';
+
+const fallbackHomepageData: HomepageSection[] = [
+    {
+        id: 'hero',
+        title: 'Biciregistro: Tu Bici, Segura y Registrada',
+        subtitle: 'La plataforma definitiva para proteger tu inversión y unirte a la comunidad ciclista.',
+        content: 'Registra el número de serie, denuncia robos y verifica bicicletas de segunda mano, todo en un solo lugar.',
+        imageUrl: getImage('hero-background'),
+    },
+    {
+        id: 'features',
+        title: 'Potencia y Sencillez',
+        subtitle: 'Diseñado por ciclistas, para ciclistas.',
+        content: '',
+    },
+    {
+        id: 'cta',
+        title: '¿Listo para rodar con seguridad?',
+        subtitle: 'Crea tu cuenta gratuita hoy mismo y mantén un registro seguro de todas tus bicicletas.',
+        content: '',
+        imageUrl: getImage('cta-background'),
+    }
+];
+
 
 // Mock data for bikes - can be replaced with Firestore logic later
 let bikes: Bike[] = [
@@ -14,7 +37,11 @@ let bikes: Bike[] = [
 // --- User and Auth Functions ---
 
 export const getAuthenticatedUser = async (): Promise<User | null> => {
-  return getFirebaseUser();
+    const firebaseUser = await getFirebaseUser();
+    if (!firebaseUser) {
+        return null;
+    }
+    return getUserById(firebaseUser.uid);
 };
 
 export async function createUser(user: Omit<User, 'id'> & { id: string }) {
@@ -45,28 +72,44 @@ export const updateUserData = async (userId: string, userData: Partial<Omit<User
 
 /**
  * Fetches all sections for the homepage from the 'homepage' collection in Firestore.
+ * If the collection is empty, it populates it with fallback data.
  * @returns {Promise<HomepageSection[]>} A list of homepage sections.
  */
 export const getHomepageContent = async (): Promise<HomepageSection[]> => {
   try {
     const db = getFirestore();
-    const homepageSnapshot = await db.collection('homepage').get();
+    const homepageCollection = db.collection('homepage');
+    const homepageSnapshot = await homepageCollection.get();
+    
     if (homepageSnapshot.empty) {
-        console.warn("Homepage collection is empty in Firestore. Serving fallback mock data.");
-        // Optional: return mock data as a fallback if the collection is empty
-        return [];
+        console.warn("Homepage collection is empty. Seeding with fallback data...");
+        
+        // Use a batch to write all fallback documents at once
+        const batch = db.batch();
+        fallbackHomepageData.forEach(section => {
+            const { id, ...data } = section;
+            const docRef = homepageCollection.doc(id);
+            batch.set(docRef, data);
+        });
+        await batch.commit();
+        
+        console.log("Fallback data seeded successfully.");
+        return fallbackHomepageData;
     }
+    
     const sections: HomepageSection[] = homepageSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
     } as HomepageSection));
+    
     return sections;
   } catch (error) {
       console.error("Error fetching homepage content from Firestore:", error);
-      // Fallback to empty array or mock data in case of error
-      return [];
+      // As a last resort, return the static fallback data without attempting to write
+      return fallbackHomepageData;
   }
 };
+
 
 /**
  * Updates a specific section of the homepage in Firestore.

@@ -35,12 +35,14 @@ export function HeroSection({ section }: { section?: HomepageSection }) {
     )
   }
 
+  const imageData = section.imageUrl ? { imageUrl: section.imageUrl, description: section.title, imageHint: 'hero image' } : getImageData('hero-background');
+
   return (
     <section className="relative w-full min-h-[60vh] flex items-center pt-5 pb-10">
       <Image
-        src={getImageData('hero-background').imageUrl}
-        alt={getImageData('hero-background').description}
-        data-ai-hint={getImageData('hero-background').imageHint}
+        src={imageData.imageUrl}
+        alt={imageData.description}
+        data-ai-hint={imageData.imageHint}
         fill
         className="object-cover"
         priority
@@ -184,7 +186,7 @@ export function CtaSection({ section }: { section?: HomepageSection }) {
         );
     }
 
-    const imageData = getImageData('cta-background');
+    const imageData = section.imageUrl ? { imageUrl: section.imageUrl, description: section.title, imageHint: 'cta image' } : getImageData('cta-background');
     return (
         <section className="py-8 sm:py-12">
             <div className="container">
