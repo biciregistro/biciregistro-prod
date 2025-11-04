@@ -4,25 +4,21 @@ import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
-import { addBike, findUserByEmail, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, getUserById } from './data';
+import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, getUserById } from './data';
 import { createSession, deleteSession } from './auth';
 import { auth } from 'firebase-admin';
-import { profileFormSchema } from './schemas';
+
+// CORRECT: Importing the single source of truth for schemas
+import { profileFormSchema, signupSchema } from './schemas';
 import { HomepageSection } from './types';
 
+// This schema is for the login form, it's fine to keep it here.
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
 });
 
-const signupSchema = z.object({
-    name: z.string().min(2),
-    lastName: z.string().min(2),
-    email: z.string().email(),
-    newPassword: z.string().min(6),
-});
-
-// Updated schema to include photo URLs
+// This schema is specific to bike registration, it's fine.
 const bikeFormSchema = z.object({
     id: z.string().optional(),
     serialNumber: z.string().min(3, "El número de serie es obligatorio."),
@@ -32,7 +28,6 @@ const bikeFormSchema = z.object({
     modelYear: z.string().optional(),
     modality: z.string().optional(),
     userId: z.string(),
-    // URLs from hidden inputs
     photoUrl: z.string().url("URL de foto lateral inválida.").min(1, "La foto lateral es obligatoria."),
     serialNumberPhotoUrl: z.string().url("URL de foto de serie inválida.").min(1, "La foto del número de serie es obligatoria."),
     additionalPhoto1Url: z.string().url("URL de foto adicional 1 inválida.").optional(),
@@ -40,7 +35,7 @@ const bikeFormSchema = z.object({
     ownershipProofUrl: z.string().url("URL de prueba de propiedad inválida.").optional(),
 });
 
-
+// Other local schemas that are not causing issues
 const homepageEditSchema = z.object({
     id: z.enum(['hero', 'features', 'cta']),
     title: z.string(),
@@ -70,10 +65,7 @@ export async function login(prevState: any, formData: FormData) {
   const { email, password } = validatedFields.data;
 
   try {
-    // This is a client-side call that we are using in a server action
-    // In a production app, you'd likely have an API route or a different flow
-    // For this prototype, we'll use a temporary, less secure method to get the token
-    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`, {
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, returnSecureToken: true }),
@@ -95,7 +87,8 @@ export async function login(prevState: any, formData: FormData) {
 }
 
 export async function signup(prevState: any, formData: FormData) {
-    const validatedFields = profileFormSchema.safeParse(Object.fromEntries(formData.entries()));
+    // CORRECT: Now using the correctly imported signupSchema
+    const validatedFields = signupSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
       return {
@@ -104,17 +97,14 @@ export async function signup(prevState: any, formData: FormData) {
       };
     }
     
-    const { email, newPassword, name, lastName, ...rest } = validatedFields.data;
-    
-    if(!newPassword) {
-        return { error: 'La contraseña es obligatoria.' };
-    }
+    // CORRECT: Destructuring `password`, which matches the schema
+    const { email, password, name, lastName } = validatedFields.data;
 
     let userCredential;
     try {
         userCredential = await auth().createUser({
             email,
-            password: newPassword,
+            password: password,
             displayName: `${name} ${lastName}`,
         });
 
@@ -123,23 +113,19 @@ export async function signup(prevState: any, formData: FormData) {
             email,
             name,
             lastName,
-            role: 'ciclista' as const, // default role
-             ...rest
+            role: 'ciclista' as const,
         };
 
         await createUser(newUser);
 
         return { message: '¡Cuenta creada con éxito! Ahora puedes iniciar sesión.' };
     } catch (error: any) {
-        // Log the full error to the server console for detailed debugging
         console.error("SIGNUP_ACTION_ERROR:", JSON.stringify(error, null, 2));
         
-        // If the user was somehow created in Auth but Firestore failed, delete the Auth user.
         if (userCredential) {
             await auth().deleteUser(userCredential.uid);
         }
 
-        // Handle specific, known Firebase Auth errors
         switch (error.code) {
             case 'auth/email-already-exists':
                 return { error: 'El correo electrónico ya está en uso por otra cuenta.' };
@@ -150,7 +136,6 @@ export async function signup(prevState: any, formData: FormData) {
             case 'auth/operation-not-allowed':
                 return { error: 'El registro por correo electrónico y contraseña no está habilitado.' };
             default:
-                 // Provide a generic but informative error for all other cases
                 return { error: 'Ocurrió un error inesperado durante el registro. Revisa los logs del servidor para más detalles.' };
         }
     }
@@ -175,19 +160,13 @@ export async function updateProfile(prevState: any, formData: FormData) {
     }
     
     try {
-         // Handle password change in Firebase Auth
         if (newPassword) {
-            // In a real app, you'd need to reauthenticate the user to change password.
-            // This is complex from a server action. For this prototype, we'll update it directly
-            // This requires admin privileges.
             await auth().updateUser(id, { password: newPassword });
             console.log(`Password updated for user ${id}`);
         }
 
-        // Update user display name in Firebase Auth
         await auth().updateUser(id, { displayName: `${userData.name} ${userData.lastName}` });
 
-        // Update user data in Firestore
         await updateUserData(id, userData);
 
         console.log('User profile updated:', id);
@@ -221,7 +200,6 @@ export async function registerBike(prevState: any, formData: FormData) {
         ...bikeData 
     } = validatedFields.data;
     
-    // Create a clean array of photo URLs, filtering out any empty optional ones
     const photos = [
         photoUrl,
         serialNumberPhotoUrl,
@@ -242,8 +220,6 @@ export async function registerBike(prevState: any, formData: FormData) {
 
 
 export async function updateBike(prevState: any, formData: FormData) {
-    // This needs to be updated to handle photo URLs as well if you want to edit them.
-    // For now, it only updates the text fields.
     const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
   
     if (!validatedFields.success) {
