@@ -5,25 +5,6 @@ import { getAuthenticatedUser as getFirebaseUser } from './auth';
 
 const getImage = (id: string) => PlaceHolderImages.find(img => img.id === id)?.imageUrl || '';
 
-let users: User[] = [
-  { 
-    id: 'user-1', 
-    name: 'Alex', 
-    lastName: 'Ryder', 
-    email: 'alex@example.com', 
-    role: 'ciclista', 
-    avatarUrl: 'https://picsum.photos/seed/avatar1/100/100', 
-    country: 'México', 
-    state: 'Jalisco', 
-    birthDate: '1990-05-15',
-    gender: 'masculino',
-    postalCode: '44100',
-    whatsapp: '523312345678'
-  },
-  { id: 'user-2', name: 'Maria', lastName: 'Garcia', email: 'maria@example.com', role: 'ciclista', avatarUrl: 'https://picsum.photos/seed/avatar2/100/100' },
-  { id: 'admin-1', name: 'Admin', lastName: 'Vera', email: 'admin@biciregistro.com', role: 'admin', avatarUrl: 'https://picsum.photos/seed/avatar3/100/100' },
-];
-
 let bikes: Bike[] = [
   {
     id: 'bike-1',
@@ -103,16 +84,13 @@ export const getAuthenticatedUser = async (): Promise<User | null> => {
   if (!firebaseUser) {
     return null;
   }
+  // The decoded token has the user ID, so we fetch the full profile from Firestore
   return getUserById(firebaseUser.uid);
 };
 
-
-export const findUserByEmail = async (email: string): Promise<User | undefined> => {
-    return users.find(u => u.email === email);
-}
-
-export async function createUser(user: User) {
+export async function createUser(user: Omit<User, 'id'> & { id: string }) {
     const db = getFirestore();
+    // Use the UID from Firebase Auth as the document ID
     await db.collection('users').doc(user.id).set(user);
     return user;
 }
@@ -122,6 +100,9 @@ export async function getUserById(userId: string): Promise<User | null> {
     const db = getFirestore();
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
+        // This case might happen if a user is created in Auth but not in Firestore.
+        // You might want to handle this by creating a user profile here.
+        console.warn(`User with ID ${userId} found in Auth, but not in Firestore.`);
         return null;
     }
     return userDoc.data() as User;
@@ -129,6 +110,7 @@ export async function getUserById(userId: string): Promise<User | null> {
 
 export const updateUserData = async (userId: string, userData: Partial<Omit<User, 'id' | 'email' | 'role'>>) => {
     const db = getFirestore();
+    // Make sure to only update the fields, not overwrite the document
     await db.collection('users').doc(userId).update(userData);
     const userDoc = await db.collection('users').doc(userId).get();
     return userDoc.data() as User;

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
-import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, getUserById } from './data';
+import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser } from './data';
 import { createSession, deleteSession } from './auth';
 import { auth } from 'firebase-admin';
 
@@ -126,18 +126,14 @@ export async function signup(prevState: any, formData: FormData) {
             await auth().deleteUser(userCredential.uid);
         }
 
-        switch (error.code) {
-            case 'auth/email-already-exists':
-                return { error: 'El correo electrónico ya está en uso por otra cuenta.' };
-            case 'auth/invalid-email':
-                return { error: 'El formato del correo electrónico no es válido.' };
-            case 'auth/weak-password':
-                return { error: 'La contraseña es demasiado débil. Debe tener al menos 6 caracteres.' };
-            case 'auth/operation-not-allowed':
-                return { error: 'El registro por correo electrónico y contraseña no está habilitado.' };
-            default:
-                return { error: 'Ocurrió un error inesperado durante el registro. Revisa los logs del servidor para más detalles.' };
+        if (error.code === 'auth/email-already-exists') {
+            return { error: 'El correo electrónico ya está en uso por otra cuenta.' };
         }
+        if (error.code) { // More generic error handling for other auth errors
+             return { error: error.message };
+        }
+        
+        return { error: 'Ocurrió un error inesperado durante el registro.' };
     }
 }
 
@@ -160,23 +156,26 @@ export async function updateProfile(prevState: any, formData: FormData) {
     }
     
     try {
+        // Only update password if newPassword is provided
         if (newPassword) {
             await auth().updateUser(id, { password: newPassword });
             console.log(`Password updated for user ${id}`);
         }
 
+        // Update display name in Firebase Auth
         await auth().updateUser(id, { displayName: `${userData.name} ${userData.lastName}` });
 
+        // Update user data in Firestore
         await updateUserData(id, userData);
 
-        console.log('User profile updated:', id);
+        console.log('User profile updated in Firestore:', id);
         revalidatePath('/dashboard/profile');
         
         return { message: 'Perfil actualizado correctamente.' };
-    } catch (error) {
+    } catch (error: any) {
         console.error('Update profile error:', error);
         return {
-            error: 'Ocurrió un error al actualizar el perfil.',
+             error: error.message || 'Ocurrió un error al actualizar el perfil.',
         }
     }
 }
