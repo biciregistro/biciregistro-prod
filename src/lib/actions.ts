@@ -7,10 +7,17 @@ import { revalidatePath } from 'next/cache';
 import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, getUserById } from './data';
 import { createSession, deleteSession } from './auth';
 import { adminAuth } from './firebase/server';
-import { firebaseConfig } from './firebase/client';
+// No usaremos la configuración del cliente aquí para asegurarnos de que la clave esté definida.
+// import { firebaseConfig } from './firebase/client'; 
 import { ActionFormState, HomepageSection } from './types';
 // CORRECT: Importing the single source of truth for schemas
 import { profileFormSchema, signupSchema } from './schemas';
+
+// --- INICIO DE LA PRUEBA DE DIAGNÓSTICO ---
+// Lee la clave de API directamente desde process.env para esta prueba.
+const HARDCODED_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+// --- FIN DE LA PRUEBA DE DIAGNÓSTICO ---
+
 
 // This schema is for the login form, it's fine to keep it here.
 const loginSchema = z.object({
@@ -65,14 +72,14 @@ export async function login(prevState: any, formData: FormData) {
     const { email, password } = validatedFields.data;
     
     // Log para confirmar que la clave de API está disponible
-    console.log('Server Action login: API Key is available:', !!firebaseConfig.apiKey);
+    console.log('Server Action login: API Key is available:', !!HARDCODED_API_KEY);
 
-    if (!firebaseConfig.apiKey) {
-      return { error: 'La configuración de la API Key de Firebase no está disponible en el servidor.' };
+    if (!HARDCODED_API_KEY) {
+      return { error: 'La configuración de la API Key de Firebase no está disponible en el servidor. Revisa el archivo .env.local' };
     }
 
     try {
-        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`, {
+        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${HARDCODED_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password, returnSecureToken: true }),
@@ -117,7 +124,7 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
 
     let firebaseSignupResult;
     try {
-        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
+        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${HARDCODED_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password, returnSecureToken: true }),
