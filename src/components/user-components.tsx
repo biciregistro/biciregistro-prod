@@ -13,7 +13,6 @@ import { updateProfile, signup } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { countries, type Country } from '@/lib/countries';
 import { profileFormSchema, signupSchema } from '@/lib/schemas';
-import { signInWithToken } from '@/lib/firebase/client';
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,19 +25,25 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Logo } from './icons/logo';
 import { cn } from '@/lib/utils';
 
+
 // Unify form values using a common base and extending them
 type SignupFormValues = z.infer<typeof signupSchema>;
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 type FormValues = SignupFormValues | ProfileFormValues;
 
+
 function SubmitButton({ isEditing, isSigningIn }: { isEditing?: boolean, isSigningIn?: boolean }) {
     const { pending } = useFormStatus();
     
     let text = isEditing ? 'Guardar Cambios' : 'Crear cuenta';
-    if (isSigningIn) text = 'Iniciando sesión...';
+    if (isSigningIn) {
+      text = 'Iniciando sesión...';
+    }
 
     let pendingText = isEditing ? 'Guardando...' : 'Creando...';
-    if (isSigningIn) pendingText = 'Iniciando sesión...';
+    if (isSigningIn) {
+      pendingText = 'Iniciando sesión...';
+    }
 
     return <Button type="submit" disabled={pending || isSigningIn} className="w-full">{pending ? pendingText : text}</Button>;
 }
@@ -497,3 +502,5 @@ export function ProfileForm({ user }: { user?: User }) {
         </Form>
     );
 }
+
+    
