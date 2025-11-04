@@ -64,6 +64,8 @@ export async function login(prevState: any, formData: FormData) {
     }
     const { email, password } = validatedFields.data;
 
+    console.log("API Key que se está usando en el servidor:", firebaseConfig.apiKey);
+
     try {
         const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`, {
             method: 'POST',

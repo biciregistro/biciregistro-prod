@@ -28,24 +28,32 @@ export async function createSession(idToken: string) {
  * @returns {Promise<DecodedIdToken | null>} The decoded user token or null if not authenticated.
  */
 export async function getDecodedSession(): Promise<DecodedIdToken | null> {
-    const cookieStore = cookies();
-    const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-    
-    if (!sessionCookie) {
-        return null;
-    }
-
     try {
-        // Verify the session cookie. `checkRevoked` is true.
+        const sessionCookie = cookies().get(SESSION_COOKIE_NAME)?.value;
+        
+        if (!sessionCookie) {
+            return null;
+        }
+        
         const decodedIdToken = await adminAuth.verifySessionCookie(sessionCookie, true);
         return decodedIdToken;
     } catch (error: any) {
-        // Session cookie is invalid or expired.
-        // This is an expected error path, so we'll log it for debugging.
-        console.log(`AUTH: Session cookie verification failed. Reason: ${error.message}`);
+        // This is an expected error path for unauthenticated users or expired cookies.
+        if (error.code === 'auth/session-cookie-expired' || error.code === 'auth/session-cookie-revoked') {
+            // Log for debugging, but it's not a critical server error.
+            console.log(`AUTH: Session cookie is invalid or expired. Reason: ${error.code}`);
+        } else if (error.name === 'DynamicServerError' && error.message.includes('cookies')) {
+            // This specific error can occur during static generation, it's safe to ignore.
+            console.log('AUTH: DynamicServerError accessing cookies during static analysis. Returning null.');
+        }
+        else {
+            // Log other unexpected errors.
+            console.error('AUTH: Unexpected error verifying session cookie:', error);
+        }
         return null;
     }
 }
+
 
 export async function deleteSession() {
     const cookieStore = cookies();
