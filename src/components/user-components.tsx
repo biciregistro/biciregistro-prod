@@ -26,12 +26,10 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Logo } from './icons/logo';
 import { cn } from '@/lib/utils';
 
-
 // Unify form values using a common base and extending them
 type SignupFormValues = z.infer<typeof signupSchema>;
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 type FormValues = SignupFormValues | ProfileFormValues;
-
 
 function SubmitButton({ isEditing, isSigningIn }: { isEditing?: boolean, isSigningIn?: boolean }) {
     const { pending } = useFormStatus();
@@ -45,8 +43,17 @@ function SubmitButton({ isEditing, isSigningIn }: { isEditing?: boolean, isSigni
     return <Button type="submit" disabled={pending || isSigningIn} className="w-full">{pending ? pendingText : text}</Button>;
 }
 
+const checks = {
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+    special: false,
+};
+type CheckType = keyof typeof checks;
+
 function PasswordStrengthIndicator({ password = "" }: { password?: string }) {
-    const checks = {
+    const localChecks = {
         length: password.length >= 6,
         uppercase: /[A-Z]/.test(password),
         lowercase: /[a-z]/.test(password),
@@ -66,7 +73,7 @@ function PasswordStrengthIndicator({ password = "" }: { password?: string }) {
     return (
         <div className="space-y-2 text-sm">
             {criteria.map(criterion => {
-                const met = checks[criterion.key as keyof typeof checks];
+                const met = localChecks[criterion.key as CheckType];
                 return (
                     <div key={criterion.key} className={cn("flex items-center gap-2", met ? "text-green-600" : "text-muted-foreground")}>
                         {met ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
@@ -85,7 +92,6 @@ export function ProfileForm({ user }: { user?: User }) {
     const schema = isEditing ? profileFormSchema : signupSchema;
     
     const [state, formAction] = useActionState<ActionFormState, FormData>(action, null);
-    const [isSigningIn, setIsSigningIn] = useState(false);
     const { toast } = useToast();
     const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === (user?.country || 'México')));
     const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
@@ -120,46 +126,25 @@ export function ProfileForm({ user }: { user?: User }) {
     const password = form.watch(isEditing ? "newPassword" : "password");
 
     useEffect(() => {
-        // 1. Handle successful signup and client-side sign in
-        if (state?.success && state.customToken) {
-            setIsSigningIn(true);
-            toast({ title: 'Cuenta creada', description: 'Iniciando sesión...' });
-
-            const handleSignIn = async () => {
-                const { success, error } = await signInWithToken(state.customToken!);
-                if (success) {
-                    toast({ title: '¡Éxito!', description: 'Serás redirigido a tu panel.' });
-                    router.push('/dashboard');
-                } else {
-                    toast({
-                        title: 'Error de inicio de sesión',
-                        description: error || 'No pudimos iniciar tu sesión automáticamente. Por favor, ve a la página de login.',
-                        variant: 'destructive',
-                    });
-                    setIsSigningIn(false);
-                    router.push('/login');
-                }
-            };
-            handleSignIn();
-            return;
-        }
-
-        // 2. Handle successful profile update (editing mode)
-        if (state?.success && isEditing) {
+        if (state?.success) {
             toast({
-                title: "Éxito",
-                description: state.message || "Tu perfil ha sido actualizado.",
+                title: isEditing ? "Éxito" : "¡Cuenta creada!",
+                description: state.message || (isEditing ? "Tu perfil ha sido actualizado." : "Serás redirigido a tu panel."),
             });
-            form.reset({
-                ...form.getValues(),
-                currentPassword: "",
-                newPassword: "",
-                confirmPassword: "",
-            });
+
+            if (isEditing) {
+                form.reset({
+                    ...form.getValues(),
+                    currentPassword: "",
+                    newPassword: "",
+                    confirmPassword: "",
+                });
+            } else {
+                router.push('/dashboard');
+            }
             return;
         }
         
-        // 3. Handle any errors from the server action
         const errorMessage = state?.error || (state?.errors ? 'Datos proporcionados no válidos.' : null);
         if (errorMessage) {
             toast({
@@ -496,7 +481,7 @@ export function ProfileForm({ user }: { user?: User }) {
                     </CardContent>
                     <CardFooter>
                          <div className="flex flex-col gap-4 w-full">
-                            <SubmitButton isEditing={isEditing} isSigningIn={isSigningIn}/>
+                            <SubmitButton isEditing={isEditing} />
                             {!isEditing && (
                                  <div className="text-sm text-center text-muted-foreground">
                                     ¿Ya tienes una cuenta?{' '}
