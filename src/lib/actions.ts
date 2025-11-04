@@ -113,18 +113,15 @@ export async function signup(prevState: any, formData: FormData) {
             if (firebaseSignupResult.error?.message === 'EMAIL_EXISTS') {
                 return { error: 'El correo electrónico ya está en uso por otra cuenta.' };
             }
-            // Proporcionar un mensaje de error más específico si está disponible
             const detailedError = firebaseSignupResult.error?.message || 'Ocurrió un error durante el registro.';
             console.error("SIGNUP_API_ERROR:", detailedError);
             return { error: `Error de Firebase: ${detailedError}` };
         }
 
-        // Set display name in Firebase Auth
         await adminAuth.updateUser(firebaseSignupResult.localId, {
             displayName: `${name} ${lastName}`,
         });
 
-        // Create user profile in Firestore
         const newUser = {
             id: firebaseSignupResult.localId,
             email,
@@ -133,17 +130,16 @@ export async function signup(prevState: any, formData: FormData) {
             role: 'ciclista' as const,
         };
         await createUser(newUser);
-
-        // Create session and log the user in
         await createSession(firebaseSignupResult.idToken);
 
-        // Return a success state instead of redirecting
+        // Revalidate a path to ensure the session cookie is set
+        revalidatePath('/dashboard');
+
         return { success: true, message: "¡Cuenta creada exitosamente!" };
 
     } catch (error: any) {
         console.error("SIGNUP_ACTION_ERROR:", JSON.stringify(error, null, 2));
         
-        // If user was created in Auth but something else failed, delete them to allow retry
         if (firebaseSignupResult?.localId) {
             await adminAuth.deleteUser(firebaseSignupResult.localId);
         }
@@ -171,16 +167,12 @@ export async function updateProfile(prevState: any, formData: FormData) {
     }
     
     try {
-        // Only update password if newPassword is provided
         if (newPassword) {
             await adminAuth.updateUser(id, { password: newPassword });
             console.log(`Password updated for user ${id}`);
         }
 
-        // Update display name in Firebase Auth
         await adminAuth.updateUser(id, { displayName: `${userData.name} ${userData.lastName}` });
-
-        // Update user data in Firestore
         await updateUserData(id, userData);
 
         console.log('User profile updated in Firestore:', id);
