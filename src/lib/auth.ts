@@ -28,36 +28,39 @@ export async function createSession(idToken: string) {
  * This function verifies the session cookie and then fetches the full user profile
  * from Firestore.
  * @returns {Promise<User | null>} The full user object or null if not authenticated.
+ * @throws Will throw an error if the session cookie is valid but the user record is not found in Firebase Auth.
  */
 export async function getAuthenticatedUser(): Promise<User | null> {
-    console.log('AUTH: Verifying authenticated user...');
     const sessionCookie = cookies().get(SESSION_COOKIE_NAME)?.value;
     
     if (!sessionCookie) {
-        console.log('AUTH: No session cookie found.');
         return null;
     }
-    console.log('AUTH: Session cookie found. Verifying with Firebase...');
 
     try {
         const decodedIdToken = await adminAuth.verifySessionCookie(sessionCookie, true);
-        console.log('AUTH: Session cookie verified successfully for UID:', decodedIdToken.uid);
-        
-        // After verifying the token, fetch the full user profile from your database
         const user = await getUserById(decodedIdToken.uid);
         
         if (!user) {
+            // This case is slightly different, user exists in Auth but not Firestore.
+            // For now, we treat it as "not logged in".
             console.warn(`AUTH: User with UID ${decodedIdToken.uid} verified but not found in Firestore.`);
             return null;
         }
 
-        console.log('AUTH: Full user profile fetched from Firestore:', user.email);
         return user;
-    } catch (error) {
-        // Improved error logging to provide more details
-        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-        const errorStack = error instanceof Error ? error.stack : 'No stack available';
-        console.error(`AUTH: Error verifying session cookie. This is the critical failure point. Message: [${errorMessage}], Stack: [${errorStack}]`, { originalError: error });
+    } catch (error: any) {
+        const errorMessage = error.message || 'An unknown error occurred';
+        
+        // Check for the specific error indicating the user doesn't exist in Firebase Auth.
+        // We need to re-throw this so the UI layer can catch it and handle self-healing (logout).
+        if (errorMessage.includes('no user record')) {
+            console.error(`AUTH: Stale session cookie error: ${errorMessage}`);
+            throw new Error(errorMessage); // Re-throw the specific error
+        }
+
+        // For other errors (e.g., cookie expired, malformed), we just log and return null.
+        console.log(`AUTH: Session cookie verification failed, user is not authenticated. Reason: ${errorMessage}`);
         return null;
     }
 }

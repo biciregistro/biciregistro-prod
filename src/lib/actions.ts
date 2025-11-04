@@ -306,3 +306,8 @@ export async function logout() {
     await deleteSession();
     redirect('/login');
 }
+
+export async function forceLogout() {
+    console.log('ACTIONS: Forcing logout by deleting session cookie.');
+    await deleteSession();
+}
