@@ -87,44 +87,30 @@ export const updateUserData = async (userId: string, userData: Partial<Omit<User
 
 /**
  * Fetches all sections for the homepage from the 'homepage' collection in Firestore.
- * If the collection is empty, it populates it with fallback data.
+ * If the collection is empty or an error occurs, it returns fallback data.
  * @returns {Promise<HomepageSection[]>} A list of homepage sections.
  */
 export const getHomepageContent = async (): Promise<HomepageSection[]> => {
-  try {
-    const db = getFirestore(adminApp);
-    const homepageCollection = db.collection('homepage');
-    const homepageSnapshot = await homepageCollection.get();
-    
-    if (homepageSnapshot.empty) {
-        console.warn("Homepage collection is empty. Seeding with fallback data...");
-        
-        // Use a batch to write all fallback documents at once
-        const batch = db.batch();
-        fallbackHomepageData.forEach(section => {
-            const { id, ...data } = section;
-            const docRef = homepageCollection.doc(id);
-            batch.set(docRef, data);
-        });
-        await batch.commit();
-        
-        console.log("Fallback data seeded successfully.");
+    try {
+        const db = getFirestore(adminApp);
+        const homepageSnapshot = await db.collection('homepage').get();
+
+        if (homepageSnapshot.empty) {
+            console.warn("Homepage collection is empty. Returning fallback data.");
+            return fallbackHomepageData;
+        }
+
+        const sections = homepageSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+        })) as HomepageSection[];
+
+        return sections;
+    } catch (error) {
+        console.error("Failed to fetch homepage content from Firestore. Returning fallback data.", error);
         return fallbackHomepageData;
     }
-    
-    const sections: HomepageSection[] = homepageSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-    } as HomepageSection));
-    
-    return sections;
-  } catch (error) {
-      console.error("Error fetching homepage content from Firestore:", error);
-      // As a last resort, return the static fallback data without attempting to write
-      return fallbackHomepageData;
-  }
 };
-
 
 /**
  * Updates a specific section of the homepage in Firestore.
