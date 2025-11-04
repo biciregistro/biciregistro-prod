@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import type { User } from '@/lib/types';
 import { updateProfile, signup } from '@/lib/actions';
@@ -78,10 +79,12 @@ type FormState = {
     errors?: {
         [key: string]: string[] | undefined;
     };
+    success?: boolean;
 } | null;
 
 
 export function ProfileForm({ user }: { user?: User }) {
+    const router = useRouter();
     const isEditing = !!user;
     const action = isEditing ? updateProfile : signup;
     const schema = isEditing ? profileFormSchema : signupSchema;
@@ -123,14 +126,21 @@ export function ProfileForm({ user }: { user?: User }) {
     useEffect(() => {
         if (!state) return;
 
+        if (state.success && !isEditing) {
+            toast({
+                title: "¡Éxito!",
+                description: state.message || "Tu cuenta ha sido creada. Redirigiendo...",
+            });
+            router.push('/dashboard');
+            return;
+        }
+
         if (state.message && !state.errors) {
             toast({
                 title: "Éxito",
                 description: state.message,
             });
-            if (!isEditing) {
-                form.reset();
-            } else {
+            if (isEditing) {
                  form.reset({
                     ...form.getValues(),
                     currentPassword: "",
@@ -148,7 +158,7 @@ export function ProfileForm({ user }: { user?: User }) {
                 description: errorMessage,
             });
         }
-    }, [state, toast, form, isEditing]);
+    }, [state, toast, form, isEditing, router]);
 
     const handleCountryChange = (countryName: string) => {
         const country = countries.find(c => c.name === countryName);

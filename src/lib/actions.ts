@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, getUserById } from './data';
 import { createSession, deleteSession } from './auth';
 import { adminAuth } from './firebase/server';
-import { firebaseConfig } from './firebase/client'; // Importar la configuración del cliente
+import { firebaseConfig } from './firebase/client';
 
 // CORRECT: Importing the single source of truth for schemas
 import { profileFormSchema, signupSchema } from './schemas';
@@ -137,6 +137,9 @@ export async function signup(prevState: any, formData: FormData) {
         // Create session and log the user in
         await createSession(firebaseSignupResult.idToken);
 
+        // Return a success state instead of redirecting
+        return { success: true, message: "¡Cuenta creada exitosamente!" };
+
     } catch (error: any) {
         console.error("SIGNUP_ACTION_ERROR:", JSON.stringify(error, null, 2));
         
@@ -147,9 +150,6 @@ export async function signup(prevState: any, formData: FormData) {
         
         return { error: 'Ocurrió un error inesperado durante el registro.' };
     }
-    
-    // Redirect to dashboard on successful signup
-    redirect('/dashboard');
 }
 
 export async function updateProfile(prevState: any, formData: FormData) {
