@@ -4,9 +4,9 @@ import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
-import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser } from './data';
+import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, getUserById } from './data';
 import { createSession, deleteSession } from './auth';
-import { auth } from 'firebase-admin';
+import { adminAuth } from './firebase/server';
 
 // CORRECT: Importing the single source of truth for schemas
 import { profileFormSchema, signupSchema } from './schemas';
@@ -87,54 +87,65 @@ export async function login(prevState: any, formData: FormData) {
 }
 
 export async function signup(prevState: any, formData: FormData) {
-    // CORRECT: Now using the correctly imported signupSchema
     const validatedFields = signupSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
       return {
-        message: 'Datos proporcionados no válidos. Asegúrate de que las contraseñas coincidan y cumplan con los requisitos.',
+        error: 'Datos proporcionados no válidos. Asegúrate de que las contraseñas coincidan y cumplan los requisitos.',
         errors: validatedFields.error.flatten().fieldErrors,
       };
     }
     
-    // CORRECT: Destructuring `password`, which matches the schema
     const { email, password, name, lastName } = validatedFields.data;
 
-    let userCredential;
+    let firebaseSignupResult;
     try {
-        userCredential = await auth().createUser({
-            email,
-            password: password,
+        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${process.env.FIREBASE_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, returnSecureToken: true }),
+        });
+
+        firebaseSignupResult = await response.json();
+        
+        if (!response.ok) {
+            if (firebaseSignupResult.error?.message === 'EMAIL_EXISTS') {
+                return { error: 'El correo electrónico ya está en uso por otra cuenta.' };
+            }
+            return { error: firebaseSignupResult.error?.message || 'Ocurrió un error durante el registro.' };
+        }
+
+        // Set display name in Firebase Auth
+        await adminAuth.updateUser(firebaseSignupResult.localId, {
             displayName: `${name} ${lastName}`,
         });
 
+        // Create user profile in Firestore
         const newUser = {
-            id: userCredential.uid,
+            id: firebaseSignupResult.localId,
             email,
             name,
             lastName,
             role: 'ciclista' as const,
         };
-
         await createUser(newUser);
 
-        return { message: '¡Cuenta creada con éxito! Ahora puedes iniciar sesión.' };
+        // Create session and log the user in
+        await createSession(firebaseSignupResult.idToken);
+
     } catch (error: any) {
         console.error("SIGNUP_ACTION_ERROR:", JSON.stringify(error, null, 2));
         
-        if (userCredential) {
-            await auth().deleteUser(userCredential.uid);
-        }
-
-        if (error.code === 'auth/email-already-exists') {
-            return { error: 'El correo electrónico ya está en uso por otra cuenta.' };
-        }
-        if (error.code) { // More generic error handling for other auth errors
-             return { error: error.message };
+        // If user was created in Auth but something else failed, delete them to allow retry
+        if (firebaseSignupResult?.localId) {
+            await adminAuth.deleteUser(firebaseSignupResult.localId);
         }
         
         return { error: 'Ocurrió un error inesperado durante el registro.' };
     }
+    
+    // Redirect to dashboard on successful signup
+    redirect('/dashboard');
 }
 
 export async function updateProfile(prevState: any, formData: FormData) {
@@ -158,12 +169,12 @@ export async function updateProfile(prevState: any, formData: FormData) {
     try {
         // Only update password if newPassword is provided
         if (newPassword) {
-            await auth().updateUser(id, { password: newPassword });
+            await adminAuth.updateUser(id, { password: newPassword });
             console.log(`Password updated for user ${id}`);
         }
 
         // Update display name in Firebase Auth
-        await auth().updateUser(id, { displayName: `${userData.name} ${userData.lastName}` });
+        await adminAuth.updateUser(id, { displayName: `${userData.name} ${userData.lastName}` });
 
         // Update user data in Firestore
         await updateUserData(id, userData);
