@@ -15,6 +15,14 @@ const getAdminApp = () => {
   // Otherwise, initialize it.
   const { projectId, clientEmail, privateKey } = firebaseAdminConfig;
 
+  // ==================== DIAGNOSTIC LOG ====================
+  // This will print the Project ID to your server terminal when the app starts.
+  // It helps verify that the environment variables are being loaded correctly.
+  console.log("--- Firebase Admin SDK Initialization ---");
+  console.log("Attempting to initialize with Project ID:", projectId);
+  console.log("-----------------------------------------");
+  // ======================================================
+
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error('Missing Firebase Admin SDK credentials. Check your .env.local file.');
   }
