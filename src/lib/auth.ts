@@ -29,8 +29,7 @@ export async function createSession(idToken: string) {
  */
 export async function getDecodedSession(): Promise<DecodedIdToken | null> {
     try {
-        const cookieStore = cookies();
-        const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+        const sessionCookie = cookies().get(SESSION_COOKIE_NAME)?.value;
         
         if (!sessionCookie) {
             return null;
