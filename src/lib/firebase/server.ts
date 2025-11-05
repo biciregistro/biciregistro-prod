@@ -1,41 +1,59 @@
-import { initializeApp, getApp, getApps, App, cert } from 'firebase-admin/app';
+// src/lib/firebase/server.ts
+import { initializeApp, getApps, cert, getApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import { firebaseAdminConfig } from './config';
 
-const createFirebaseAdminApp = (): App => {
-    if (getApps().length > 0) {
-        return getApp();
+const ADMIN_APP_NAME = 'firebase-frameworks';
+
+// --- Robust Admin SDK Initialization ---
+
+function initializeAdminApp() {
+  console.log('Initializing Firebase Admin SDK...');
+
+  const { projectId, clientEmail, privateKey } = firebaseAdminConfig;
+
+  if (!projectId || !clientEmail || !privateKey) {
+    const missingVars = [
+      !projectId && 'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+      !clientEmail && 'FIREBASE_CLIENT_EMAIL',
+      !privateKey && 'FIREBASE_PRIVATE_KEY',
+    ].filter(Boolean).join(', ');
+
+    const errorMessage = `
+      *******************************************************************************
+      * FIREBASE ADMIN SDK INITIALIZATION ERROR:                                    *
+      * Missing required environment variables: ${missingVars}                     *
+      * Please ensure your .env.local file is correctly set up for the Admin SDK.   *
+      *******************************************************************************
+    `;
+    console.error(errorMessage);
+    // Throw an error to prevent the application from starting with a broken config.
+    throw new Error(errorMessage);
+  }
+
+  try {
+    const app = initializeApp({
+      credential: cert({
+        projectId: firebaseAdminConfig.projectId,
+        clientEmail: firebaseAdminConfig.clientEmail,
+        privateKey: firebaseAdminConfig.privateKey,
+      }),
+    }, ADMIN_APP_NAME);
+    
+    console.log('Firebase Admin SDK initialized successfully.');
+    return app;
+  } catch (error: any) {
+    if (error.code === 'app/duplicate-app') {
+      console.log('Firebase Admin SDK already initialized.');
+      return getApp(ADMIN_APP_NAME);
     }
+    console.error('CRITICAL: Firebase Admin SDK initialization failed:', error);
+    throw error; // Re-throw the error to halt execution if something goes wrong.
+  }
+}
 
-    // This robust initialization works in multiple environments:
-    // 1. GCLOUD_PROJECT (production on App Hosting): Uses the env var.
-    // 2. GOOGLE_APPLICATION_CREDENTIALS (local with service account file): Uses the file.
-    // 3. Application Default Credentials (local with `gcloud auth` or Cloud Workstations): Infers from the environment.
-    console.log("Initializing Firebase Admin SDK...");
+const adminApp = getApps().length > 0 ? getApp(ADMIN_APP_NAME) : initializeAdminApp();
 
-    try {
-        const app = initializeApp({
-            projectId: process.env.GCLOUD_PROJECT, // Best for production
-        });
-        console.log("Firebase Admin SDK initialized successfully via standard method.");
-        return app;
-    } catch (error: any) {
-        console.warn(`Standard initialization failed: ${error.message}. Attempting fallback for local/dev environments.`);
-        try {
-            // Fallback for local development or environments where ADC is set up
-            // but the project ID isn't automatically inferred.
-            const app = initializeApp();
-            console.log("Firebase Admin SDK initialized successfully via fallback (ADC).");
-            return app;
-        } catch (fallbackError: any) {
-            console.error("CRITICAL: All Firebase Admin SDK initialization methods failed.", fallbackError);
-            throw new Error(
-                `Could not initialize Firebase Admin SDK. Please check your environment setup. Original error: ${fallbackError.message}`
-            );
-        }
-    }
-};
-
-export const adminApp = createFirebaseAdminApp();
 export const adminAuth = getAuth(adminApp);
 export const adminDb = getFirestore(adminApp);

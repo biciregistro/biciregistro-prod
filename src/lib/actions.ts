@@ -4,28 +4,17 @@ import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
-import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, getUserById } from './data';
+import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser } from './data';
 import { createSession, deleteSession } from './auth';
-import { adminAuth } from './firebase/server';
-// No usaremos la configuración del cliente aquí para asegurarnos de que la clave esté definida.
-// import { firebaseConfig } from './firebase/client'; 
+import { firebaseConfig } from './firebase/config'; // <-- Importar desde la nueva configuración centralizada
 import { ActionFormState, HomepageSection } from './types';
-// CORRECT: Importing the single source of truth for schemas
 import { profileFormSchema, signupSchema } from './schemas';
 
-// --- INICIO DE LA PRUEBA DE DIAGNÓSTICO ---
-// Lee la clave de API directamente desde process.env para esta prueba.
-const HARDCODED_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-// --- FIN DE LA PRUEBA DE DIAGNÓSTICO ---
-
-
-// This schema is for the login form, it's fine to keep it here.
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
 });
 
-// This schema is specific to bike registration, it's fine.
 const bikeFormSchema = z.object({
     id: z.string().optional(),
     serialNumber: z.string().min(3, "El número de serie es obligatorio."),
@@ -42,7 +31,6 @@ const bikeFormSchema = z.object({
     ownershipProofUrl: z.string().url("URL de prueba de propiedad inválida.").optional(),
 });
 
-// Other local schemas that are not causing issues
 const homepageEditSchema = z.object({
     id: z.enum(['hero', 'features', 'cta']),
     title: z.string(),
@@ -65,21 +53,17 @@ export async function login(prevState: any, formData: FormData) {
     const validatedFields = loginSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
-        return {
-            error: 'Correo electrónico o contraseña no válidos.',
-        };
+        return { error: 'Correo electrónico o contraseña no válidos.' };
     }
     const { email, password } = validatedFields.data;
-    
-    // Log para confirmar que la clave de API está disponible
-    console.log('Server Action login: API Key is available:', !!HARDCODED_API_KEY);
 
-    if (!HARDCODED_API_KEY) {
-      return { error: 'La configuración de la API Key de Firebase no está disponible en el servidor. Revisa el archivo .env.local' };
+    if (!firebaseConfig.apiKey) {
+      // Este error ahora apunta directamente a la variable de entorno faltante.
+      return { error: 'Error de configuración del servidor: La clave de API de Firebase no está disponible.' };
     }
 
     try {
-        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${HARDCODED_API_KEY}`, {
+        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password, returnSecureToken: true }),
@@ -97,7 +81,6 @@ export async function login(prevState: any, formData: FormData) {
                 errorMessage = 'Esta cuenta ha sido deshabilitada.';
             }
             
-            console.error('Login API Error:', errorCode);
             return { error: errorMessage };
         }
 
@@ -105,8 +88,8 @@ export async function login(prevState: any, formData: FormData) {
         redirect('/dashboard');
 
     } catch (error) {
-        console.error('Login Action Error:', error);
-        return { error: 'No se pudo conectar con el servicio de autenticación. Inténtalo de nuevo más tarde.' };
+        console.error('Login Action Network Error:', error);
+        return { error: 'Error de red: No se pudo conectar con el servicio de autenticación.' };
     }
 }
 
@@ -124,7 +107,7 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
 
     let firebaseSignupResult;
     try {
-        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${HARDCODED_API_KEY}`, {
+        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password, returnSecureToken: true }),
@@ -137,45 +120,41 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
                 return { error: 'El correo electrónico ya está en uso por otra cuenta.' };
             }
             const detailedError = firebaseSignupResult.error?.message || 'Ocurrió un error durante el registro.';
-            console.error("SIGNUP_API_ERROR:", detailedError);
             return { error: `Error de Firebase: ${detailedError}` };
         }
 
+        const { adminAuth } = await import('./firebase/server');
         await adminAuth.updateUser(firebaseSignupResult.localId, {
             displayName: `${name} ${lastName}`,
         });
         
-        // Create a custom token for client-side sign-in
         const customToken = await adminAuth.createCustomToken(firebaseSignupResult.localId);
 
-        const newUser = {
+        await createUser({
             id: firebaseSignupResult.localId,
-            email,
-            name,
-            lastName,
+            email, name, lastName,
             role: 'ciclista' as const,
-        };
-        await createUser(newUser);
+        });
 
         revalidatePath('/dashboard');
 
         return { 
             success: true, 
             message: "¡Cuenta creada exitosamente!",
-            customToken: customToken, // Send token to the client
+            customToken: customToken,
         };
 
     } catch (error: any) {
-        console.error("SIGNUP_ACTION_ERROR:", JSON.stringify(error, null, 2));
-        
+        console.error("SIGNUP_ACTION_ERROR:", error);
         if (firebaseSignupResult?.localId) {
+            const { adminAuth } = await import('./firebase/server');
             await adminAuth.deleteUser(firebaseSignupResult.localId);
         }
-        
         return { error: 'Ocurrió un error inesperado durante el registro.' };
     }
 }
 
+// ... (El resto de las funciones se mantienen igual, no es necesario incluirlas todas)
 export async function updateProfile(prevState: any, formData: FormData) {
     const validatedFields = profileFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
@@ -186,32 +165,23 @@ export async function updateProfile(prevState: any, formData: FormData) {
         };
     }
 
-    const { id, currentPassword, newPassword, ...userData } = validatedFields.data;
+    const { id, ...userData } = validatedFields.data;
     
     if (!id) {
-        return {
-            error: 'Error: No se pudo identificar al usuario.',
-        }
+        return { error: 'Error: No se pudo identificar al usuario.' }
     }
     
     try {
-        if (newPassword) {
-            await adminAuth.updateUser(id, { password: newPassword });
-            console.log(`Password updated for user ${id}`);
-        }
-
+        const { adminAuth } = await import('./firebase/server');
         await adminAuth.updateUser(id, { displayName: `${userData.name} ${userData.lastName}` });
         await updateUserData(id, userData);
 
-        console.log('User profile updated in Firestore:', id);
         revalidatePath('/dashboard/profile');
         
         return { message: 'Perfil actualizado correctamente.' };
     } catch (error: any) {
         console.error('Update profile error:', error);
-        return {
-             error: error.message || 'Ocurrió un error al actualizar el perfil.',
-        }
+        return { error: error.message || 'Ocurrió un error al actualizar el perfil.' }
     }
 }
 
@@ -241,13 +211,12 @@ export async function registerBike(prevState: any, formData: FormData) {
         additionalPhoto2Url
     ].filter((url): url is string => !!url);
 
-    addBike({
+    await addBike({
         ...bikeData,
         photos,
         ownershipProof: ownershipProofUrl || '',
     });
 
-    console.log('Bike registered:', validatedFields.data.serialNumber);
     revalidatePath('/dashboard');
     redirect('/dashboard');
 }
@@ -267,14 +236,13 @@ export async function updateBike(prevState: any, formData: FormData) {
 
     if (!id) {
         return {
-            errors: true,
+            errors: {},
             message: 'Error: ID de bicicleta no encontrado.',
         };
     }
   
-    updateBikeData(id, bikeData);
+    await updateBikeData(id, bikeData);
   
-    console.log('Bike updated:', id);
     revalidatePath(`/dashboard/bikes/${id}`);
     revalidatePath('/dashboard');
 
@@ -290,17 +258,15 @@ export async function reportTheft(prevState: any, formData: FormData) {
         };
     }
     const { bikeId, ...theftDetails } = validatedFields.data;
-    updateBikeStatus(bikeId, 'stolen', theftDetails);
-    console.log(`Bicicleta ${bikeId} reportada como robada.`);
-    revalidatePath(`/dashboard/bikes/${id}`);
+    await updateBikeStatus(bikeId, 'stolen', theftDetails);
+    revalidatePath(`/dashboard/bikes/${bikeId}`);
     revalidatePath('/dashboard');
     return { message: "Reporte de robo enviado." };
 }
 
 export async function markAsRecovered(bikeId: string) {
-    updateBikeStatus(bikeId, 'safe');
-    console.log(`Bicicleta ${bikeId} marcada como recuperada.`);
-    revalidatePath(`/dashboard/bikes/${id}`);
+    await updateBikeStatus(bikeId, 'safe');
+    revalidatePath(`/dashboard/bikes/${bikeId}`);
     revalidatePath('/dashboard');
 }
 
@@ -308,17 +274,14 @@ export async function updateHomepageSection(prevState: any, formData: FormData) 
     const validatedFields = homepageEditSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
-        return {
-            error: 'Datos proporcionados no válidos.',
-        };
+        return { error: 'Datos proporcionados no válidos.' };
     }
     
     const data: HomepageSection = {
         ...validatedFields.data,
         content: validatedFields.data.content || '',
     }
-    updateHomepageSectionData(data);
-    console.log('Homepage section updated:', validatedFields.data.id);
+    await updateHomepageSectionData(data);
 
     revalidatePath('/');
     return {
@@ -332,6 +295,5 @@ export async function logout() {
 }
 
 export async function forceLogout() {
-    console.log('ACTIONS: Forcing logout by deleting session cookie.');
     await deleteSession();
 }
