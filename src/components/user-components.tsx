@@ -98,17 +98,16 @@ export function ProfileForm({ user }: { user?: User }) {
             gender: user?.gender || undefined,
             postalCode: user?.postalCode || "",
             whatsapp: user?.whatsapp || "",
+            // Always initialize password fields to empty strings for controlled inputs
             password: "",
             currentPassword: "",
-            newPassword: "",
             confirmPassword: "",
         },
         mode: 'onTouched',
     });
-
-    const passwordToWatch = isEditing ? "newPassword" : "password";
-    const password = form.watch(passwordToWatch as "password" | "newPassword");
-
+    
+    // Watch the correct password field based on the context
+    const password = form.watch("password");
 
     useEffect(() => {
         // 1. Handle successful signup and client-side sign in
@@ -166,10 +165,11 @@ export function ProfileForm({ user }: { user?: User }) {
                 title: "Éxito",
                 description: state.message || "Tu perfil ha sido actualizado.",
             });
+            // Reset only password fields after successful update
             form.reset({
                 ...form.getValues(),
                 currentPassword: "",
-                newPassword: "",
+                password: "", // Changed from newPassword
                 confirmPassword: "",
             });
             return;
@@ -392,8 +392,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                                 <FormControl>
                                                 <RadioGroupItem value="otro" />
                                                 </FormControl>
-                 
-                                <FormLabel className="font-normal">Otro</FormLabel>
+                                                <FormLabel className="font-normal">Otro</FormLabel>
                                             </FormItem>
                                             </RadioGroup>
                                         </FormControl>
@@ -462,7 +461,7 @@ export function ProfileForm({ user }: { user?: User }) {
                         <div className={cn("grid grid-cols-1 gap-4", isEditing && "md:grid-cols-2")}>
                              <FormField
                                 control={form.control}
-                                name={isEditing ? "newPassword" : "password"}
+                                name="password" // <-- CORRECTED: Changed from "newPassword"
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>{isEditing ? 'Nueva Contraseña' : 'Contraseña'}</FormLabel>
