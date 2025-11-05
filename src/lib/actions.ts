@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 
 import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser } from './data';
 import { createSession, deleteSession } from './auth';
-import { firebaseConfig } from './firebase/config'; // <-- Importar desde la nueva configuración centralizada
+import { firebaseConfig } from './firebase/config';
 import { ActionFormState, HomepageSection } from './types';
 import { profileFormSchema, signupSchema } from './schemas';
 
@@ -58,7 +58,6 @@ export async function login(prevState: any, formData: FormData) {
     const { email, password } = validatedFields.data;
 
     if (!firebaseConfig.apiKey) {
-      // Este error ahora apunta directamente a la variable de entorno faltante.
       return { error: 'Error de configuración del servidor: La clave de API de Firebase no está disponible.' };
     }
 
@@ -124,6 +123,9 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         }
 
         const { adminAuth } = await import('./firebase/server');
+        if (!adminAuth) {
+            throw new Error("Firebase Admin SDK no está inicializado.");
+        }
         await adminAuth.updateUser(firebaseSignupResult.localId, {
             displayName: `${name} ${lastName}`,
         });
@@ -148,13 +150,12 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         console.error("SIGNUP_ACTION_ERROR:", error);
         if (firebaseSignupResult?.localId) {
             const { adminAuth } = await import('./firebase/server');
-            await adminAuth.deleteUser(firebaseSignupResult.localId);
+            if (adminAuth) await adminAuth.deleteUser(firebaseSignupResult.localId);
         }
         return { error: 'Ocurrió un error inesperado durante el registro.' };
     }
 }
 
-// ... (El resto de las funciones se mantienen igual, no es necesario incluirlas todas)
 export async function updateProfile(prevState: any, formData: FormData) {
     const validatedFields = profileFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
@@ -173,6 +174,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
     
     try {
         const { adminAuth } = await import('./firebase/server');
+        if (!adminAuth) throw new Error("Firebase Admin SDK no está inicializado.");
         await adminAuth.updateUser(id, { displayName: `${userData.name} ${userData.lastName}` });
         await updateUserData(id, userData);
 
@@ -259,14 +261,14 @@ export async function reportTheft(prevState: any, formData: FormData) {
     }
     const { bikeId, ...theftDetails } = validatedFields.data;
     await updateBikeStatus(bikeId, 'stolen', theftDetails);
-    revalidatePath(`/dashboard/bikes/${bikeId}`);
+    revalidatePath(`/dashboard/bikes/${id}`);
     revalidatePath('/dashboard');
     return { message: "Reporte de robo enviado." };
 }
 
 export async function markAsRecovered(bikeId: string) {
     await updateBikeStatus(bikeId, 'safe');
-    revalidatePath(`/dashboard/bikes/${bikeId}`);
+    revalidatePath(`/dashboard/bikes/${id}`);
     revalidatePath('/dashboard');
 }
 
