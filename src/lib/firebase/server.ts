@@ -9,15 +9,14 @@ const ADMIN_APP_NAME = 'firebase-frameworks';
 function initializeAdminApp() {
   const { projectId, clientEmail, privateKey } = firebaseAdminConfig;
 
+  // Corrected the error message to report the correct environment variables
   if (!projectId || !clientEmail || !privateKey) {
     const missingVars = [
-      !projectId && 'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+      !projectId && 'FIREBASE_PROJECT_ID',
       !clientEmail && 'FIREBASE_CLIENT_EMAIL',
       !privateKey && 'FIREBASE_PRIVATE_KEY',
     ].filter(Boolean).join(', ');
 
-    // This error will crash the server during startup, which is the desired behavior
-    // if the required environment variables are missing.
     throw new Error(`
       *******************************************************************************
       * FIREBASE ADMIN SDK INITIALIZATION ERROR:                                    *
@@ -41,13 +40,10 @@ function initializeAdminApp() {
       return getApp(ADMIN_APP_NAME);
     }
     console.error('CRITICAL: Firebase Admin SDK initialization failed:', error);
-    // Re-throw the error to ensure the server crashes on a critical failure.
     throw error;
   }
 }
 
-// Initialize the app and export the services.
-// If initialization fails, the server will crash. This is the intended "fail loudly" behavior.
 const adminApp = initializeAdminApp();
 const adminAuth = getAuth(adminApp);
 const adminDb = getFirestore(adminApp);

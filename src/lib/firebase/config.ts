@@ -14,10 +14,10 @@ export const firebaseConfig = {
 
 // This configuration is used ONLY by the server-side Admin SDK.
 export const firebaseAdminConfig = {
-  // Corrected to use the non-public environment variable
+  // Corrected to use the non-public environment variable from .env.local
   projectId: process.env.FIREBASE_PROJECT_ID, 
   clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  privateKey: process.env.FIREBASE_PRIVATE_KEY 
-    ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-    : undefined,
+  // The private key is now expected to be correctly formatted in the .env.local file.
+  // The fragile .replace() logic has been removed.
+  privateKey: process.env.FIREBASE_PRIVATE_KEY,
 };
