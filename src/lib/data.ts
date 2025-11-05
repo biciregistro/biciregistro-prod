@@ -1,8 +1,7 @@
 import type { Bike, User, HomepageSection } from './types';
 import { PlaceHolderImages } from './placeholder-images';
-import { getFirestore } from 'firebase-admin/firestore';
 import { getDecodedSession } from './auth';
-import { adminApp } from './firebase/server';
+import { adminDb } from './firebase/server'; // <-- Importar adminDb en lugar de adminApp
 
 const getImage = (id: string) => PlaceHolderImages.find(img => img.id === id)?.imageUrl || '';
 
@@ -59,15 +58,15 @@ export const getAuthenticatedUser = async (): Promise<User | null> => {
 
 
 export async function createUser(user: Omit<User, 'id'> & { id: string }) {
-    const db = getFirestore(adminApp);
-    await db.collection('users').doc(user.id).set(user);
+    if (!adminDb) throw new Error("Firebase Admin SDK not initialized.");
+    await adminDb.collection('users').doc(user.id).set(user);
     return user;
 }
 
 export async function getUserById(userId: string): Promise<User | null> {
     if (!userId) return null;
-    const db = getFirestore(adminApp);
-    const userDoc = await db.collection('users').doc(userId).get();
+    if (!adminDb) throw new Error("Firebase Admin SDK not initialized.");
+    const userDoc = await adminDb.collection('users').doc(userId).get();
     if (!userDoc.exists) {
         // This is a critical error state: user is authenticated but has no DB record.
         // Throwing an error here allows the calling layout to handle it, e.g., by logging out.
@@ -77,9 +76,9 @@ export async function getUserById(userId: string): Promise<User | null> {
 }
 
 export const updateUserData = async (userId: string, userData: Partial<Omit<User, 'id' | 'email' | 'role'>>) => {
-    const db = getFirestore(adminApp);
-    await db.collection('users').doc(userId).update(userData);
-    const userDoc = await db.collection('users').doc(userId).get();
+    if (!adminDb) throw new Error("Firebase Admin SDK not initialized.");
+    await adminDb.collection('users').doc(userId).update(userData);
+    const userDoc = await adminDb.collection('users').doc(userId).get();
     return userDoc.data() as User;
 }
 
@@ -92,8 +91,8 @@ export const updateUserData = async (userId: string, userData: Partial<Omit<User
  */
 export const getHomepageContent = async (): Promise<HomepageSection[]> => {
     try {
-        const db = getFirestore(adminApp);
-        const homepageSnapshot = await db.collection('homepage').get();
+        if (!adminDb) throw new Error("Firebase Admin SDK not initialized.");
+        const homepageSnapshot = await adminDb.collection('homepage').get();
 
         if (homepageSnapshot.empty) {
             console.warn("Homepage collection is empty. Returning fallback data.");
@@ -118,11 +117,11 @@ export const getHomepageContent = async (): Promise<HomepageSection[]> => {
  */
 export const updateHomepageSectionData = async (section: HomepageSection) => {
     const { id, ...sectionData } = section;
-    const db = getFirestore(adminApp);
-    await db.collection('homepage').doc(id).set(sectionData, { merge: true });
+    if (!adminDb) throw new Error("Firebase Admin SDK not initialized.");
+    await adminDb.collection('homepage').doc(id).set(sectionData, { merge: true });
     
     // Return the updated section data
-    const updatedDoc = await db.collection('homepage').doc(id).get();
+    const updatedDoc = await adminDb.collection('homepage').doc(id).get();
     return { id, ...updatedDoc.data() } as HomepageSection;
 }
 
