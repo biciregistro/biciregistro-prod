@@ -15,8 +15,8 @@ export const firebaseConfig = {
 
 // This configuration is used ONLY by the server-side Admin SDK.
 export const firebaseAdminConfig = {
-  // Trim any whitespace from the project ID and client email.
-  projectId: process.env.FIREBASE_PROJECT_ID?.trim(), 
+  // Use the same project ID as the client to ensure they are in sync.
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim(), 
   clientEmail: process.env.FIREBASE_CLIENT_EMAIL?.trim(),
   // Ensure the private key is correctly formatted by replacing escaped newlines.
   privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
