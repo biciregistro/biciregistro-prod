@@ -117,7 +117,8 @@ export async function getBikes(filter?: { userId?: string; status?: BikeStatus }
         query = bikesCollection;
     }
 
-    const snapshot = await query.orderBy('createdAt', 'desc').get();
+    // The .orderBy('createdAt', 'desc') was removed to prevent the missing index error.
+    const snapshot = await query.get();
     return snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
