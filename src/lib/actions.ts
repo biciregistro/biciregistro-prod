@@ -8,7 +8,7 @@ import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, u
 import { deleteSession } from './auth';
 import { firebaseConfig } from './firebase/config';
 import { ActionFormState, HomepageSection } from './types';
-import { profileFormSchema, signupSchema } from './schemas';
+import { userFormSchema } from './schemas'; // <-- SINGLE UNIFIED SCHEMA
 
 const bikeFormSchema = z.object({
     id: z.string().optional(),
@@ -45,7 +45,7 @@ const theftReportSchema = z.object({
 
 
 export async function signup(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
-    const validatedFields = signupSchema.safeParse(Object.fromEntries(formData.entries()));
+    const validatedFields = userFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
       return {
@@ -55,6 +55,11 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
     }
     
     const { email, password, name, lastName } = validatedFields.data;
+
+    // Password presence is already checked by the schema's superRefine
+    if (!password) {
+        return { error: 'La contraseña es obligatoria para el registro.' };
+    }
 
     let firebaseSignupResult;
     try {
@@ -109,7 +114,7 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
 }
 
 export async function updateProfile(prevState: any, formData: FormData) {
-    const validatedFields = profileFormSchema.safeParse(Object.fromEntries(formData.entries()));
+    const validatedFields = userFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
         return {
@@ -118,7 +123,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
         };
     }
 
-    const { id, ...userData } = validatedFields.data;
+    const { id, name, lastName, ...profileData } = validatedFields.data;
     
     if (!id) {
         return { error: 'Error: No se pudo identificar al usuario.' }
@@ -127,12 +132,29 @@ export async function updateProfile(prevState: any, formData: FormData) {
     try {
         const { adminAuth } = await import('./firebase/server');
         if (!adminAuth) throw new Error("Firebase Admin SDK no está inicializado.");
-        await adminAuth.updateUser(id, { displayName: `${userData.name} ${userData.lastName}` });
-        await updateUserData(id, userData);
+        
+        // Update display name in Firebase Auth
+        await adminAuth.updateUser(id, { displayName: `${name} ${lastName}` });
+        
+        // TODO: Handle password change logic here if newPassword is provided
+        
+        // Prepare data for Firestore update (excluding password fields)
+        const firestoreData = {
+            name,
+            lastName,
+            birthDate: profileData.birthDate,
+            country: profileData.country,
+            state: profileData.state,
+            gender: profileData.gender,
+            postalCode: profileData.postalCode,
+            whatsapp: profileData.whatsapp,
+        };
+
+        await updateUserData(id, firestoreData);
 
         revalidatePath('/dashboard/profile');
         
-        return { message: 'Perfil actualizado correctamente.' };
+        return { success: true, message: 'Perfil actualizado correctamente.' };
     } catch (error: any) {
         console.error('Update profile error:', error);
         return { error: error.message || 'Ocurrió un error al actualizar el perfil.' }

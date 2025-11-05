@@ -12,7 +12,7 @@ import type { User, ActionFormState } from '@/lib/types';
 import { updateProfile, signup } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { countries, type Country } from '@/lib/countries';
-import { profileFormSchema, signupSchema } from '@/lib/schemas';
+import { userFormSchema } from '@/lib/schemas'; // <-- SINGLE UNIFIED SCHEMA
 import { signInWithToken } from '@/lib/firebase/client';
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -26,12 +26,7 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Logo } from './icons/logo';
 import { cn } from '@/lib/utils';
 
-
-// Unify form values using a common base and extending them
-type SignupFormValues = z.infer<typeof signupSchema>;
-type ProfileFormValues = z.infer<typeof profileFormSchema>;
-type FormValues = SignupFormValues | ProfileFormValues;
-
+type FormValues = z.infer<typeof userFormSchema>;
 
 function SubmitButton({ isEditing, isSigningIn }: { isEditing?: boolean, isSigningIn?: boolean }) {
     const { pending } = useFormStatus();
@@ -82,7 +77,6 @@ export function ProfileForm({ user }: { user?: User }) {
     const router = useRouter();
     const isEditing = !!user;
     const action = isEditing ? updateProfile : signup;
-    const schema = isEditing ? profileFormSchema : signupSchema;
     
     const [state, formAction] = useActionState<ActionFormState, FormData>(action, null);
     const [isSigningIn, setIsSigningIn] = useState(false);
@@ -92,32 +86,29 @@ export function ProfileForm({ user }: { user?: User }) {
     const [showPassword, setShowPassword] = useState(false);
 
     const form = useForm<FormValues>({
-        resolver: zodResolver(schema),
-        defaultValues: isEditing ? {
-            id: user?.id,
+        resolver: zodResolver(userFormSchema),
+        defaultValues: {
+            id: user?.id || undefined,
             name: user?.name || "",
             lastName: user?.lastName || "",
             email: user?.email || "",
             birthDate: user?.birthDate || "",
-            country: user?.country || "",
+            country: user?.country || "México",
             state: user?.state || "",
             gender: user?.gender || undefined,
             postalCode: user?.postalCode || "",
             whatsapp: user?.whatsapp || "",
+            password: "",
             currentPassword: "",
             newPassword: "",
-            confirmPassword: "",
-        } : {
-            name: "",
-            lastName: "",
-            email: "",
-            password: "",
             confirmPassword: "",
         },
         mode: 'onTouched',
     });
 
-    const password = form.watch(isEditing ? "newPassword" : "password");
+    const passwordToWatch = isEditing ? "newPassword" : "password";
+    const password = form.watch(passwordToWatch as "password" | "newPassword");
+
 
     useEffect(() => {
         // 1. Handle successful signup and client-side sign in
@@ -126,7 +117,6 @@ export function ProfileForm({ user }: { user?: User }) {
             toast({ title: 'Cuenta creada', description: 'Sincronizando sesión...' });
     
             const handleSignInAndSession = async () => {
-                // Step 1: Sign in client-side to get the ID token
                 const { success, idToken, error: signInError } = await signInWithToken(state.customToken!);
     
                 if (!success || !idToken) {
@@ -140,7 +130,6 @@ export function ProfileForm({ user }: { user?: User }) {
                     return;
                 }
     
-                // Step 2: Send ID token to server to create the session cookie
                 try {
                     const response = await fetch('/api/auth/session', {
                         method: 'POST',
@@ -152,7 +141,6 @@ export function ProfileForm({ user }: { user?: User }) {
                         throw new Error('La creación de la sesión en el servidor falló.');
                     }
     
-                    // Step 3: Redirect only after the session cookie is set
                     toast({ title: '¡Éxito!', description: 'Serás redirigido a tu panel.' });
                     router.push('/dashboard');
     
@@ -203,7 +191,8 @@ export function ProfileForm({ user }: { user?: User }) {
         setSelectedCountry(country);
         setStates(country ? country.states : []);
         form.setValue('country', countryName, { shouldValidate: true });
-        form.setValue('state', '', { shouldValidate: true });
+        form.setValue('state', '');
+        form.clearErrors('state');
     };
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -304,7 +293,8 @@ export function ProfileForm({ user }: { user?: User }) {
                                             <FormControl>
                                                 <Input 
                                                     placeholder="DD/MM/AAAA" 
-                                                    {...field} 
+                                                    {...field}
+                                                    value={field.value || ''}
                                                     onChange={handleDateChange}
                                                 />
                                             </FormControl>
@@ -319,7 +309,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>País</FormLabel>
-                                            <Select onValueChange={handleCountryChange} defaultValue={field.value}>
+                                            <Select onValueChange={handleCountryChange} value={field.value || ''}>
                                                 <FormControl>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Selecciona un país" />
@@ -343,7 +333,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Estado / Provincia</FormLabel>
-                                                <Select onValueChange={field.onChange} value={field.value} disabled={!selectedCountry}>
+                                                <Select onValueChange={field.onChange} value={field.value || ''} disabled={!selectedCountry}>
                                                     <FormControl>
                                                         <SelectTrigger>
                                                             <SelectValue placeholder="Selecciona un estado/provincia" />
@@ -366,7 +356,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                             <FormItem>
                                                 <FormLabel>Código Postal</FormLabel>
                                                 <FormControl>
-                                                    <Input placeholder="Tu código postal" {...field} />
+                                                    <Input placeholder="Tu código postal" {...field} value={field.value || ''} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -383,7 +373,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                         <FormControl>
                                             <RadioGroup
                                             onValueChange={field.onChange}
-                                            defaultValue={field.value}
+                                            value={field.value || ''}
                                             className="flex flex-col sm:flex-row space-y-1"
                                             >
                                             <FormItem className="flex items-center space-x-3 space-y-0">
@@ -402,7 +392,8 @@ export function ProfileForm({ user }: { user?: User }) {
                                                 <FormControl>
                                                 <RadioGroupItem value="otro" />
                                                 </FormControl>
-                                                <FormLabel className="font-normal">Otro</FormLabel>
+                 
+                                <FormLabel className="font-normal">Otro</FormLabel>
                                             </FormItem>
                                             </RadioGroup>
                                         </FormControl>
@@ -418,7 +409,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                         <FormItem>
                                             <FormLabel>Teléfono de WhatsApp (Opcional)</FormLabel>
                                             <FormControl>
-                                                <Input type="tel" placeholder="+52 1 55 1234 5678" {...field} />
+                                                <Input type="tel" placeholder="+52 1 55 1234 5678" {...field} value={field.value || ''} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -427,7 +418,7 @@ export function ProfileForm({ user }: { user?: User }) {
                             </>
                         )}
                        
-                        {user && <input type="hidden" name="id" value={user.id} />}
+                        {user && <input type="hidden" {...form.register('id')} />}
                     </CardContent>
                 </Card>
 
@@ -451,7 +442,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                         <FormLabel>Contraseña Actual</FormLabel>
                                         <FormControl>
                                             <div className="relative">
-                                                <Input type={showPassword ? 'text' : 'password'} {...field} />
+                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={field.value || ''} />
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
@@ -477,7 +468,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                         <FormLabel>{isEditing ? 'Nueva Contraseña' : 'Contraseña'}</FormLabel>
                                         <FormControl>
                                             <div className="relative">
-                                                <Input type={showPassword ? 'text' : 'password'} {...field} />
+                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={field.value || ''} />
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
@@ -501,7 +492,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                         <FormLabel>{isEditing ? 'Repetir Nueva Contraseña': 'Repetir Contraseña'}</FormLabel>
                                         <FormControl>
                                             <div className="relative">
-                                                <Input type={showPassword ? 'text' : 'password'} {...field} />
+                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={field.value || ''} />
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
