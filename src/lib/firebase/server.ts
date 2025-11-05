@@ -4,50 +4,35 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { firebaseAdminConfig } from './config';
 
-const ADMIN_APP_NAME = 'firebase-frameworks';
+// A more robust way to initialize the Firebase Admin SDK.
+// This pattern prevents re-initialization in hot-reload environments.
+const getAdminApp = () => {
+  // If the app is already initialized, return it.
+  if (getApps().length > 0) {
+    return getApp();
+  }
 
-function initializeAdminApp() {
+  // Otherwise, initialize it.
   const { projectId, clientEmail, privateKey } = firebaseAdminConfig;
 
-  // Corrected the error message to report the correct environment variables
   if (!projectId || !clientEmail || !privateKey) {
-    const missingVars = [
-      !projectId && 'FIREBASE_PROJECT_ID',
-      !clientEmail && 'FIREBASE_CLIENT_EMAIL',
-      !privateKey && 'FIREBASE_PRIVATE_KEY',
-    ].filter(Boolean).join(', ');
-
-    throw new Error(`
-      *******************************************************************************
-      * FIREBASE ADMIN SDK INITIALIZATION ERROR:                                    *
-      * Missing required environment variables: ${missingVars}                     *
-      * Please ensure your .env.local file is correctly set up for the Admin SDK.   *
-      * The server will not start until this is corrected.                          *
-      *******************************************************************************
-    `);
+    throw new Error('Missing Firebase Admin SDK credentials. Check your .env.local file.');
   }
 
-  try {
-    return initializeApp({
-      credential: cert({
-        projectId,
-        clientEmail,
-        privateKey,
-      }),
-    }, ADMIN_APP_NAME);
-  } catch (error: any) {
-    if (error.code === 'app/duplicate-app') {
-      return getApp(ADMIN_APP_NAME);
-    }
-    console.error('CRITICAL: Firebase Admin SDK initialization failed:', error);
-    throw error;
-  }
-}
+  const app = initializeApp({
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    }),
+  });
 
-const adminApp = initializeAdminApp();
+  console.log('Firebase Admin SDK initialized successfully.');
+  return app;
+};
+
+const adminApp = getAdminApp();
 const adminAuth = getAuth(adminApp);
 const adminDb = getFirestore(adminApp);
-
-console.log('Firebase Admin SDK initialized successfully.');
 
 export { adminAuth, adminDb };
