@@ -14,14 +14,14 @@ export default async function DashboardPage() {
   const bikes = await getUserBikes(user.id);
 
   return (
-    <div className="container py-6 md:py-8">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 px-4 sm:px-0 gap-4">
+    <div className="container py-6 md:py-8 px-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Hola {user.name}, bienvenido a tu garaje</h1>
             <p className="text-muted-foreground">Gestiona tus bicicletas registradas.</p>
         </div>
       </div>
-      <div className="flex flex-wrap gap-2 mb-8 px-4 sm:px-0">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-8">
           <Button asChild variant="outline">
             <Link href="/dashboard/profile">
               <Pencil className="mr-2 h-4 w-4" />
@@ -37,13 +37,13 @@ export default async function DashboardPage() {
       </div>
 
       {bikes.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-4 sm:px-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {bikes.map(bike => (
             <BikeCard key={bike.id} bike={bike} />
           ))}
         </div>
       ) : (
-        <div className="text-center py-12 md:py-20 border-2 border-dashed rounded-lg mx-4 sm:mx-0">
+        <div className="text-center py-12 md:py-20 border-2 border-dashed rounded-lg">
           <h2 className="text-xl font-semibold">Aún no hay bicicletas registradas.</h2>
           <p className="mt-2 text-muted-foreground">
             Comienza registrando tu primera bicicleta.
