@@ -1,26 +1,42 @@
-import { NextResponse } from 'next/server';
-import { createSession } from '@/lib/auth';
-import { auth } from 'firebase-admin';
 
-export async function POST(request: Request) {
-  try {
-    const { idToken } = await request.json();
-    if (!idToken) {
-      console.error('API_SESSION_ERROR: idToken is required');
-      return NextResponse.json({ error: 'idToken is required' }, { status: 400 });
+import { adminAuth } from "@/lib/firebase/server";
+import { cookies } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
+
+export async function POST(request: NextRequest) {
+  const authorization = request.headers.get("Authorization");
+  
+  if (authorization?.startsWith("Bearer ")) {
+    const idToken = authorization.split("Bearer ")[1];
+    
+    try {
+      // Verify the ID token using the imported adminAuth instance
+      const decodedToken = await adminAuth.verifyIdToken(idToken);
+
+      if (decodedToken) {
+        // Generate session cookie
+        const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
+        const sessionCookie = await adminAuth.createSessionCookie(idToken, {
+          expiresIn,
+        });
+        const options = {
+          name: "session",
+          value: sessionCookie,
+          maxAge: expiresIn,
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+        };
+
+        // Add the cookie to the browser
+        cookies().set(options);
+        
+        return NextResponse.json({ status: "success" }, { status: 200 });
+      }
+    } catch (error) {
+      console.error("Session creation error:", error);
+      return NextResponse.json({ error: "Failed to create session." }, { status: 401 });
     }
-
-    // The createSession function handles setting the cookie.
-    // We are also adding logs within createSession to see if it's being triggered.
-    await createSession(idToken);
-
-    return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error) {
-    if (error instanceof auth.AuthError) {
-        console.error('API_SESSION_FIREBASE_ERROR:', error);
-        return NextResponse.json({ error: 'Firebase authentication error' }, { status: 401 });
-    }
-    console.error('API_SESSION_GENERIC_ERROR:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
+
+  return NextResponse.json({ error: "Authorization header not found." }, { status: 400 });
 }

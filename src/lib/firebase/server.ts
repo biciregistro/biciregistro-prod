@@ -16,54 +16,42 @@ function initializeAdminApp() {
       !privateKey && 'FIREBASE_PRIVATE_KEY',
     ].filter(Boolean).join(', ');
 
-    const errorMessage = `
+    // This error will crash the server during startup, which is the desired behavior
+    // if the required environment variables are missing.
+    throw new Error(`
       *******************************************************************************
       * FIREBASE ADMIN SDK INITIALIZATION ERROR:                                    *
       * Missing required environment variables: ${missingVars}                     *
       * Please ensure your .env.local file is correctly set up for the Admin SDK.   *
-      * This is a server-side error and will prevent the app from running correctly.*
+      * The server will not start until this is corrected.                          *
       *******************************************************************************
-    `;
-    // This error will be thrown ONLY on the server during startup.
-    throw new Error(errorMessage);
+    `);
   }
 
   try {
-    const app = initializeApp({
+    return initializeApp({
       credential: cert({
         projectId,
         clientEmail,
         privateKey,
       }),
     }, ADMIN_APP_NAME);
-    
-    console.log('Firebase Admin SDK initialized successfully.');
-    return app;
   } catch (error: any) {
     if (error.code === 'app/duplicate-app') {
       return getApp(ADMIN_APP_NAME);
     }
     console.error('CRITICAL: Firebase Admin SDK initialization failed:', error);
+    // Re-throw the error to ensure the server crashes on a critical failure.
     throw error;
   }
 }
 
-let adminApp;
-let adminAuth;
-let adminDb;
+// Initialize the app and export the services.
+// If initialization fails, the server will crash. This is the intended "fail loudly" behavior.
+const adminApp = initializeAdminApp();
+const adminAuth = getAuth(adminApp);
+const adminDb = getFirestore(adminApp);
 
-try {
-    adminApp = getApps().length > 0 ? getApp(ADMIN_APP_NAME) : initializeAdminApp();
-    adminAuth = getAuth(adminApp);
-    adminDb = getFirestore(adminApp);
-} catch (error: any) {
-    console.error(error.message);
-    // In a production environment, you might want to handle this more gracefully.
-    // For now, we'll set them to null so the app doesn't crash on import,
-    // but subsequent calls will fail.
-    adminAuth = null as any;
-    adminDb = null as any;
-}
-
+console.log('Firebase Admin SDK initialized successfully.');
 
 export { adminAuth, adminDb };
