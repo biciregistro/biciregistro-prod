@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, verifyUserPassword } from './data';
-import { deleteSession } from './auth';
+import { deleteSession, getDecodedSession } from './auth';
 import { firebaseConfig } from './firebase/config';
 import { ActionFormState, HomepageSection } from './types';
 import { userFormSchema } from './schemas'; // <-- SINGLE UNIFIED SCHEMA
@@ -56,7 +56,6 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
     
     const { email, password, name, lastName } = validatedFields.data;
 
-    // Password presence is already checked by the schema's superRefine
     if (!password) {
         return { error: 'La contraseña es obligatoria para el registro.' };
     }
@@ -114,6 +113,11 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
 }
 
 export async function updateProfile(prevState: any, formData: FormData): Promise<ActionFormState> {
+    const session = await getDecodedSession();
+    if (!session?.uid || !session.email) {
+        return { error: 'No estás autenticado. Por favor, inicia sesión de nuevo.' };
+    }
+
     const validatedFields = userFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
@@ -124,13 +128,13 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
     }
 
     const { 
-        id, name, lastName, email, 
+        id, name, lastName, 
         currentPassword, password, 
         ...otherProfileData 
     } = validatedFields.data;
 
-    if (!id) {
-        return { error: 'No se pudo identificar al usuario.' };
+    if (!id || id !== session.uid) {
+        return { error: 'No autorizado para realizar esta acción.' };
     }
 
     const isAttemptingPasswordChange = !!currentPassword || !!password;
@@ -141,30 +145,19 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
             throw new Error("Firebase Admin SDK no está inicializado.");
         }
 
-        // --- Step 1: Handle Password Change if requested ---
         if (isAttemptingPasswordChange) {
-            // Schema already ensures that if one is present, all are.
-            // But we add a safeguard here.
             if (!currentPassword || !password) {
                 return { error: 'Para cambiar la contraseña, debes proporcionar la actual y la nueva.' };
             }
-
-            // Verify the current password
-            const isPasswordValid = await verifyUserPassword(email, currentPassword);
+            const isPasswordValid = await verifyUserPassword(session.email, currentPassword);
             if (!isPasswordValid) {
                 return { error: 'La contraseña actual no es correcta.' };
             }
-
-            // If valid, update the password in Firebase Auth
             await adminAuth.updateUser(id, { password: password });
         }
 
-        // --- Step 2: Update User Profile Data ---
-        
-        // Update display name in Firebase Auth
         await adminAuth.updateUser(id, { displayName: `${name} ${lastName}` });
         
-        // Prepare data for Firestore update (excluding password and auth fields)
         const firestoreData = {
             name,
             lastName,
@@ -184,12 +177,7 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         
     } catch (error: any) {
         console.error('UPDATE_PROFILE_ERROR:', error);
-        
-        // Provide specific feedback for common Firebase errors
-        if (error.code === 'auth/wrong-password') {
-             return { error: 'La contraseña actual proporcionada no es correcta.' };
-        }
-        
+        // **** THIS IS THE KEY CHANGE: Return the specific error message ****
         return { error: error.message || 'Ocurrió un error inesperado al actualizar el perfil.' };
     }
 }
