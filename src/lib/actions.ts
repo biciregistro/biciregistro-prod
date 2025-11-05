@@ -118,11 +118,16 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         return { error: 'No estás autenticado. Por favor, inicia sesión de nuevo.' };
     }
 
-    const validatedFields = userFormSchema.safeParse(Object.fromEntries(formData.entries()));
+    const formDataObject = Object.fromEntries(formData.entries());
+    // Add the email from the secure session to the form data before validation
+    formDataObject.email = session.email;
+
+    const validatedFields = userFormSchema.safeParse(formDataObject);
 
     if (!validatedFields.success) {
+        const errorMessages = validatedFields.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
         return {
-            error: 'Por favor, revisa los campos del formulario.',
+            error: `Error de validación: ${errorMessages}`,
             errors: validatedFields.error.flatten().fieldErrors,
         };
     }
@@ -177,7 +182,6 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         
     } catch (error: any) {
         console.error('UPDATE_PROFILE_ERROR:', error);
-        // **** THIS IS THE KEY CHANGE: Return the specific error message ****
         return { error: error.message || 'Ocurrió un error inesperado al actualizar el perfil.' };
     }
 }
