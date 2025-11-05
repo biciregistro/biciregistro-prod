@@ -5,7 +5,7 @@ import { DecodedIdToken } from 'firebase-admin/auth';
 const SESSION_COOKIE_NAME = '__session';
 
 export async function createSession(idToken: string) {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     console.log('AUTH: Creating session...');
     const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
     try {
@@ -29,7 +29,8 @@ export async function createSession(idToken: string) {
  */
 export async function getDecodedSession(): Promise<DecodedIdToken | null> {
     try {
-        const sessionCookie = cookies().get(SESSION_COOKIE_NAME)?.value;
+        const cookieStore = await cookies();
+        const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
         
         if (!sessionCookie) {
             return null;
@@ -56,7 +57,7 @@ export async function getDecodedSession(): Promise<DecodedIdToken | null> {
 
 
 export async function deleteSession() {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     console.log('AUTH: Deleting session cookie.');
     cookieStore.delete(SESSION_COOKIE_NAME);
 }
