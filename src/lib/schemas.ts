@@ -28,21 +28,27 @@ export const userFormSchema = z.object({
     const isEditing = !!data.id;
 
     if (isEditing) {
-        // --- Profile field validation (only for editing mode) ---
-        if (data.birthDate && !/^\d{2}\/\d{2}\/\d{4}$/.test(data.birthDate)) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El formato de la fecha debe ser DD/MM/AAAA.', path: ['birthDate'] });
-        }
-        if (!data.country) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El país es obligatorio.', path: ['country'] });
-        }
-        if (!data.state) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El estado/provincia es obligatorio.', path: ['state'] });
-        }
-        if (!data.postalCode) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El código postal es obligatorio.', path: ['postalCode'] });
-        }
-        if (!data.gender) {
-            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Debes seleccionar un género.', path: ['gender'] });
+        // --- Profile fields validation ---
+        // These fields become required only if the user starts filling them out.
+        const profileFields = [data.birthDate, data.country, data.state, data.postalCode, data.gender];
+        const isProfileBeingFilled = profileFields.some(field => field);
+
+        if (isProfileBeingFilled) {
+            if (data.birthDate && !/^\d{2}\/\d{2}\/\d{4}$/.test(data.birthDate)) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El formato de la fecha debe ser DD/MM/AAAA.', path: ['birthDate'] });
+            }
+            if (!data.country) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El país es obligatorio si completas esta sección.', path: ['country'] });
+            }
+            if (!data.state) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El estado/provincia es obligatorio si completas esta sección.', path: ['state'] });
+            }
+            if (!data.postalCode) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El código postal es obligatorio si completas esta sección.', path: ['postalCode'] });
+            }
+            if (!data.gender) {
+                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Debes seleccionar un género si completas esta sección.', path: ['gender'] });
+            }
         }
 
         // --- Password change validation (only runs if newPassword field is filled) ---

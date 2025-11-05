@@ -113,20 +113,20 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
     }
 }
 
-export async function updateProfile(prevState: any, formData: FormData) {
+export async function updateProfile(prevState: any, formData: FormData): Promise<ActionFormState> {
     const validatedFields = userFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
         return {
+            error: 'Por favor, revisa los campos del formulario.',
             errors: validatedFields.error.flatten().fieldErrors,
-            message: 'Error: Por favor, revisa los campos del formulario.',
         };
     }
 
     const { id, name, lastName, ...profileData } = validatedFields.data;
     
     if (!id) {
-        return { error: 'Error: No se pudo identificar al usuario.' }
+        return { error: 'No se pudo identificar al usuario.' }
     }
     
     try {
