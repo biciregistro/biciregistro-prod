@@ -5,15 +5,10 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser } from './data';
-import { createSession, deleteSession } from './auth';
+import { deleteSession } from './auth';
 import { firebaseConfig } from './firebase/config';
 import { ActionFormState, HomepageSection } from './types';
 import { profileFormSchema, signupSchema } from './schemas';
-
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-});
 
 const bikeFormSchema = z.object({
     id: z.string().optional(),
@@ -48,49 +43,6 @@ const theftReportSchema = z.object({
     details: z.string().min(1, "Los detalles son obligatorios."),
 });
 
-
-export async function login(prevState: any, formData: FormData) {
-    const validatedFields = loginSchema.safeParse(Object.fromEntries(formData.entries()));
-
-    if (!validatedFields.success) {
-        return { error: 'Correo electrónico o contraseña no válidos.' };
-    }
-    const { email, password } = validatedFields.data;
-
-    if (!firebaseConfig.apiKey) {
-      return { error: 'Error de configuración del servidor: La clave de API de Firebase no está disponible.' };
-    }
-
-    try {
-        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, returnSecureToken: true }),
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-            const errorCode = result.error?.message;
-            let errorMessage = 'Ocurrió un error durante el inicio de sesión.';
-
-            if (errorCode === 'INVALID_LOGIN_CREDENTIALS') {
-                errorMessage = 'Credenciales inválidas. Por favor, verifica tu correo y contraseña.';
-            } else if (errorCode === 'USER_DISABLED') {
-                errorMessage = 'Esta cuenta ha sido deshabilitada.';
-            }
-            
-            return { error: errorMessage };
-        }
-
-        await createSession(result.idToken);
-        redirect('/dashboard');
-
-    } catch (error) {
-        console.error('Login Action Network Error:', error);
-        return { error: 'Error de red: No se pudo conectar con el servicio de autenticación.' };
-    }
-}
 
 export async function signup(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
     const validatedFields = signupSchema.safeParse(Object.fromEntries(formData.entries()));
@@ -261,14 +213,14 @@ export async function reportTheft(prevState: any, formData: FormData) {
     }
     const { bikeId, ...theftDetails } = validatedFields.data;
     await updateBikeStatus(bikeId, 'stolen', theftDetails);
-    revalidatePath(`/dashboard/bikes/${id}`);
+    revalidatePath(`/dashboard/bikes/${bikeId}`);
     revalidatePath('/dashboard');
     return { message: "Reporte de robo enviado." };
 }
 
 export async function markAsRecovered(bikeId: string) {
     await updateBikeStatus(bikeId, 'safe');
-    revalidatePath(`/dashboard/bikes/${id}`);
+    revalidatePath(`/dashboard/bikes/${bikeId}`);
     revalidatePath('/dashboard');
 }
 
