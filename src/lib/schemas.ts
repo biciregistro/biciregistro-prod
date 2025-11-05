@@ -9,14 +9,14 @@ export const userFormSchema = z.object({
     lastName: z.string().min(2, "Los apellidos son obligatorios."),
     email: z.string().email("El correo electrónico no es válido."),
 
-    // All other fields are optional at the base level.
-    // .superRefine will enforce them conditionally.
+    // Password fields are optional at the base level.
+    // .superRefine will enforce them conditionally for signup or password change.
     password: z.string().optional(),
     confirmPassword: z.string().optional(),
-    
     currentPassword: z.string().optional(),
     newPassword: z.string().optional(),
 
+    // Optional profile fields
     birthDate: z.string().optional(),
     country: z.string().optional(),
     state: z.string().optional(),
@@ -28,27 +28,24 @@ export const userFormSchema = z.object({
     const isEditing = !!data.id;
 
     if (isEditing) {
-        // --- Profile fields validation ---
-        // These fields become required only if the user starts filling them out.
-        const profileFields = [data.birthDate, data.country, data.state, data.postalCode, data.gender];
-        const isProfileBeingFilled = profileFields.some(field => field);
+        // --- Profile fields validation (Granular & Partial Updates Allowed) ---
+        // Validate the format of each field ONLY if a value is provided.
+        // This allows users to update their profile incrementally and receive
+        // specific error messages for the fields they are editing.
 
-        if (isProfileBeingFilled) {
-            if (data.birthDate && !/^\d{2}\/\d{2}\/\d{4}$/.test(data.birthDate)) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El formato de la fecha debe ser DD/MM/AAAA.', path: ['birthDate'] });
-            }
-            if (!data.country) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El país es obligatorio si completas esta sección.', path: ['country'] });
-            }
-            if (!data.state) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El estado/provincia es obligatorio si completas esta sección.', path: ['state'] });
-            }
-            if (!data.postalCode) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El código postal es obligatorio si completas esta sección.', path: ['postalCode'] });
-            }
-            if (!data.gender) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Debes seleccionar un género si completas esta sección.', path: ['gender'] });
-            }
+        // Validate Birth Date format
+        if (data.birthDate && !/^\d{2}\/\d{2}\/\d{4}$/.test(data.birthDate)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El formato debe ser DD/MM/AAAA.', path: ['birthDate'] });
+        }
+
+        // Validate Postal Code format (must be numeric)
+        if (data.postalCode && !/^\d+$/.test(data.postalCode)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El código postal solo debe contener números.', path: ['postalCode'] });
+        }
+
+        // Validate WhatsApp format (must be numeric)
+        if (data.whatsapp && !/^\d+$/.test(data.whatsapp)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'El WhatsApp solo debe contener números.', path: ['whatsapp'] });
         }
 
         // --- Password change validation (only runs if newPassword field is filled) ---
