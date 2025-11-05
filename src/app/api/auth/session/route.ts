@@ -19,14 +19,17 @@ export async function POST(request: NextRequest) {
           expiresIn,
         });
         
-        // Set cookie
-        cookies().set("session", sessionCookie, {
+        // Create a response object to set the cookie
+        const response = NextResponse.json({ status: "success" }, { status: 200 });
+
+        // Set the cookie on the response
+        response.cookies.set("session", sessionCookie, {
           maxAge: expiresIn,
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
         });
         
-        return NextResponse.json({ status: "success" }, { status: 200 });
+        return response; // Return the response with the cookie
       }
     } catch (error) {
       console.error("Session creation error:", error);
