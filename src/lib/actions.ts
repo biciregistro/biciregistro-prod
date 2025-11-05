@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
-import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser } from './data';
+import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, verifyUserPassword } from './data';
 import { deleteSession } from './auth';
 import { firebaseConfig } from './firebase/config';
 import { ActionFormState, HomepageSection } from './types';
@@ -123,31 +123,57 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         };
     }
 
-    const { id, name, lastName, ...profileData } = validatedFields.data;
-    
+    const { 
+        id, name, lastName, email, 
+        currentPassword, password, 
+        ...otherProfileData 
+    } = validatedFields.data;
+
     if (!id) {
-        return { error: 'No se pudo identificar al usuario.' }
+        return { error: 'No se pudo identificar al usuario.' };
     }
-    
+
+    const isAttemptingPasswordChange = !!currentPassword || !!password;
+
     try {
         const { adminAuth } = await import('./firebase/server');
-        if (!adminAuth) throw new Error("Firebase Admin SDK no está inicializado.");
+        if (!adminAuth) {
+            throw new Error("Firebase Admin SDK no está inicializado.");
+        }
+
+        // --- Step 1: Handle Password Change if requested ---
+        if (isAttemptingPasswordChange) {
+            // Schema already ensures that if one is present, all are.
+            // But we add a safeguard here.
+            if (!currentPassword || !password) {
+                return { error: 'Para cambiar la contraseña, debes proporcionar la actual y la nueva.' };
+            }
+
+            // Verify the current password
+            const isPasswordValid = await verifyUserPassword(email, currentPassword);
+            if (!isPasswordValid) {
+                return { error: 'La contraseña actual no es correcta.' };
+            }
+
+            // If valid, update the password in Firebase Auth
+            await adminAuth.updateUser(id, { password: password });
+        }
+
+        // --- Step 2: Update User Profile Data ---
         
         // Update display name in Firebase Auth
         await adminAuth.updateUser(id, { displayName: `${name} ${lastName}` });
         
-        // TODO: Handle password change logic here if newPassword is provided
-        
-        // Prepare data for Firestore update (excluding password fields)
+        // Prepare data for Firestore update (excluding password and auth fields)
         const firestoreData = {
             name,
             lastName,
-            birthDate: profileData.birthDate,
-            country: profileData.country,
-            state: profileData.state,
-            gender: profileData.gender,
-            postalCode: profileData.postalCode,
-            whatsapp: profileData.whatsapp,
+            birthDate: otherProfileData.birthDate,
+            country: otherProfileData.country,
+            state: otherProfileData.state,
+            gender: otherProfileData.gender,
+            postalCode: otherProfileData.postalCode,
+            whatsapp: otherProfileData.whatsapp,
         };
 
         await updateUserData(id, firestoreData);
@@ -155,11 +181,19 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         revalidatePath('/dashboard/profile');
         
         return { success: true, message: 'Perfil actualizado correctamente.' };
+        
     } catch (error: any) {
-        console.error('Update profile error:', error);
-        return { error: error.message || 'Ocurrió un error al actualizar el perfil.' }
+        console.error('UPDATE_PROFILE_ERROR:', error);
+        
+        // Provide specific feedback for common Firebase errors
+        if (error.code === 'auth/wrong-password') {
+             return { error: 'La contraseña actual proporcionada no es correcta.' };
+        }
+        
+        return { error: error.message || 'Ocurrió un error inesperado al actualizar el perfil.' };
     }
 }
+
 
 export async function registerBike(prevState: any, formData: FormData) {
     const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
