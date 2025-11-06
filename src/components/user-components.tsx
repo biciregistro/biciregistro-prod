@@ -335,7 +335,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>País</FormLabel>
-                                            <Select onValueChange={handleCountryChange} value={field.value || ''}>
+                                            <Select onValueChange={handleCountryChange} value={field.value || ''} name={field.name}>
                                                 <FormControl>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Selecciona un país" />
@@ -359,7 +359,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Estado / Provincia</FormLabel>
-                                                <Select onValueChange={field.onChange} value={field.value || ''} disabled={!selectedCountry}>
+                                                <Select onValueChange={field.onChange} value={field.value || ''} disabled={!selectedCountry} name={field.name}>
                                                     <FormControl>
                                                         <SelectTrigger>
                                                             <SelectValue placeholder="Selecciona un estado/provincia" />
@@ -401,6 +401,7 @@ export function ProfileForm({ user }: { user?: User }) {
                                             onValueChange={field.onChange}
                                             value={field.value || ''}
                                             className="flex flex-col sm:flex-row space-y-1"
+                                            name={field.name}
                                             >
                                             <FormItem className="flex items-center space-x-3 space-y-0">
                                                 <FormControl>
