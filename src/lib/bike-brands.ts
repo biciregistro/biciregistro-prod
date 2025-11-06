@@ -1,0 +1,36 @@
+export const bikeBrands = [
+    // Top 20
+    "Trek",
+    "Specialized",
+    "Giant",
+    "Cannondale",
+    "Scott",
+    "Canyon",
+    "Santa Cruz",
+    "Bianchi",
+    "Pinarello",
+    "Cervélo",
+    "Orbea",
+    "Merida",
+    "Cube",
+    "BMC (Bicycle Manufacturing Company)",
+    "Colnago",
+    "Yeti Cycles",
+    "GT Bicycles",
+    "Kona",
+    "Fuji",
+    "Lapierre",
+    // Next 10
+    "Ibis",
+    "Rocky Mountain",
+    "Pivot Cycles",
+    "Marin Bikes",
+    "Look",
+    "Ridley",
+    "Norco",
+    "Ghost",
+    "Felt",
+    "Diamondback",
+    // Add an option for other brands
+    "Otra"
+];

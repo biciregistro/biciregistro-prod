@@ -25,8 +25,8 @@ import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { countries, type Country } from '@/lib/countries';
 import { Progress } from './ui/progress';
-import { ImageUpload } from '@/components/shared/image-upload'; // Import the new component
-
+import { ImageUpload } from '@/components/shared/image-upload';
+import { bikeBrands } from '@/lib/bike-brands'; // Import the new brands list
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -172,9 +172,28 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                         />
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField control={form.control} name="make" render={({ field }) => (
-                                <FormItem><FormLabel>Marca</FormLabel><FormControl><Input placeholder="ej., Trek" {...field} /></FormControl><FormMessage /></FormItem>
-                            )} />
+                            <FormField
+                                control={form.control}
+                                name="make"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Marca</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Selecciona una marca" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {bikeBrands.map(brand => (
+                                                    <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                             <FormField control={form.control} name="model" render={({ field }) => (
                                 <FormItem><FormLabel>Modelo</FormLabel><FormControl><Input placeholder="ej., Marlin 5" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
