@@ -67,7 +67,7 @@ export function Header({ user }: { user: UserType | null }) {
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                         <Avatar className="h-8 w-8">
                         <AvatarImage src={user.avatarUrl} alt={user.name} />
-                        <AvatarFallback>
+                        <AvatarFallback className="bg-primary text-primary-foreground">
                             {user.name.charAt(0)}
                         </AvatarFallback>
                         </Avatar>

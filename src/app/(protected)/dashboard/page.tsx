@@ -31,7 +31,7 @@ export default async function DashboardPage() {
     const bikes = await getBikes({ userId: user.id });
 
     return (
-        <div className="container py-6 md:py-8">
+        <div className="container py-6 md:py-8 px-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="md:col-span-1">
                     <Card>
