@@ -193,7 +193,7 @@ export async function registerBike(prevState: any, formData: FormData) {
     if (!validatedFields.success) {
         return {
             errors: validatedFields.error.flatten().fieldErrors,
-            message: 'Error: Por favor, revisa los campos del formulario. Asegúrate de subir las fotos obligatorias.',
+            message: "Error: Por favor, revisa los campos del formulario.",
         };
     }
 

@@ -236,11 +236,21 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                                 <Label>Foto Lateral (*Obligatoria)</Label>
                                 <ImageUpload onUploadSuccess={setPhotoUrl} storagePath="bike-photos" />
                                 <p className="text-xs text-muted-foreground">Toma una foto completa del costado de tu bicicleta.</p>
+                                {state?.errors?.photoUrl && (
+                                    <p className="text-sm font-medium text-destructive">
+                                        {state.errors.photoUrl[0]}
+                                    </p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label>Foto de Número de Serie (*Obligatoria)</Label>
                                 <ImageUpload onUploadSuccess={setSerialNumberPhotoUrl} storagePath="serial-photos" />
                                 <p className="text-xs text-muted-foreground">Toma una foto clara y legible del número de serie.</p>
+                                {state?.errors?.serialNumberPhotoUrl && (
+                                    <p className="text-sm font-medium text-destructive">
+                                        {state.errors.serialNumberPhotoUrl[0]}
+                                    </p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label>Foto Adicional 1 (Componentes)</Label>

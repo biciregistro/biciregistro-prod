@@ -1,0 +1,28 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Permite la carga de imágenes en las carpetas específicas solo a usuarios autenticados.
+    // Además, se valida que el archivo sea una imagen y tenga un tamaño máximo de 5MB.
+    match /bike-photos/{fileName} {
+      allow write: if request.auth != null && 
+                      request.resource.size < 5 * 1024 * 1024 &&
+                      request.resource.contentType.matches('image/.*');
+      allow read; // Permite la lectura pública de las imágenes de las bicicletas
+    }
+
+    match /serial-photos/{fileName} {
+      allow write: if request.auth != null &&
+                      request.resource.size < 5 * 1024 * 1024 &&
+                      request.resource.contentType.matches('image/.*');
+      allow read; 
+    }
+
+    match /ownership-proofs/{fileName} {
+      allow write: if request.auth != null &&
+                      request.resource.size < 5 * 1024 * 1024 &&
+                      request.resource.contentType.matches('image/.*');
+      allow read;
+    }
+  }
+}
