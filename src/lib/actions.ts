@@ -4,11 +4,11 @@ import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
-import { addBike, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, verifyUserPassword } from './data';
+import { addBike, isSerialNumberUnique, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, verifyUserPassword } from './data';
 import { deleteSession, getDecodedSession } from './auth';
 import { firebaseConfig } from './firebase/config';
 import { ActionFormState, HomepageSection } from './types';
-import { userFormSchema } from './schemas'; // <-- SINGLE UNIFIED SCHEMA
+import { userFormSchema } from './schemas';
 
 const bikeFormSchema = z.object({
     id: z.string().optional(),
@@ -21,9 +21,9 @@ const bikeFormSchema = z.object({
     userId: z.string(),
     photoUrl: z.string().url("URL de foto lateral inválida.").min(1, "La foto lateral es obligatoria."),
     serialNumberPhotoUrl: z.string().url("URL de foto de serie inválida.").min(1, "La foto del número de serie es obligatoria."),
-    additionalPhoto1Url: z.string().url("URL de foto adicional 1 inválida.").optional(),
-    additionalPhoto2Url: z.string().url("URL de foto adicional 2 inválida.").optional(),
-    ownershipProofUrl: z.string().url("URL de prueba de propiedad inválida.").optional(),
+    additionalPhoto1Url: z.string().url("URL de foto adicional 1 inválida.").or(z.literal('')).optional(),
+    additionalPhoto2Url: z.string().url("URL de foto adicional 2 inválida.").or(z.literal('')).optional(),
+    ownershipProofUrl: z.string().url("URL de prueba de propiedad inválida.").or(z.literal('')).optional(),
 });
 
 const homepageEditSchema = z.object({
@@ -42,7 +42,6 @@ const theftReportSchema = z.object({
     location: z.string().min(1, "La ubicación es obligatoria."),
     details: z.string().min(1, "Los detalles son obligatorios."),
 });
-
 
 export async function signup(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
     const validatedFields = userFormSchema.safeParse(Object.fromEntries(formData.entries()));
@@ -119,7 +118,6 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
     }
 
     const formDataObject = Object.fromEntries(formData.entries());
-    // Add the email from the secure session to the form data before validation
     formDataObject.email = session.email;
 
     const validatedFields = userFormSchema.safeParse(formDataObject);
@@ -175,9 +173,7 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         };
 
         await updateUserData(id, firestoreData);
-
         revalidatePath('/dashboard/profile');
-        
         return { success: true, message: 'Perfil actualizado correctamente.' };
         
     } catch (error: any) {
@@ -185,7 +181,6 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         return { error: error.message || 'Ocurrió un error inesperado al actualizar el perfil.' };
     }
 }
-
 
 export async function registerBike(prevState: any, formData: FormData) {
     const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
@@ -203,18 +198,28 @@ export async function registerBike(prevState: any, formData: FormData) {
         additionalPhoto1Url, 
         additionalPhoto2Url, 
         ownershipProofUrl, 
+        serialNumber,
         ...bikeData 
     } = validatedFields.data;
+    
+    const isUnique = await isSerialNumberUnique(serialNumber);
+    if (!isUnique) {
+        return {
+            errors: { serialNumber: ["Este número de serie ya está registrado."] },
+            message: `Error: El número de serie '${serialNumber}' ya se encuentra registrado.`,
+        };
+    }
     
     const photos = [
         photoUrl,
         serialNumberPhotoUrl,
         additionalPhoto1Url,
         additionalPhoto2Url
-    ].filter((url): url is string => !!url);
+    ].filter((url): url is string => !!url && url.length > 0);
 
     await addBike({
         ...bikeData,
+        serialNumber,
         photos,
         ownershipProof: ownershipProofUrl || '',
     });
@@ -222,7 +227,6 @@ export async function registerBike(prevState: any, formData: FormData) {
     revalidatePath('/dashboard');
     redirect('/dashboard');
 }
-
 
 export async function updateBike(prevState: any, formData: FormData) {
     const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
@@ -234,20 +238,45 @@ export async function updateBike(prevState: any, formData: FormData) {
       };
     }
   
-    const { id, ...bikeData } = validatedFields.data;
+    const { id, serialNumber, ...bikeData } = validatedFields.data;
 
     if (!id) {
-        return {
-            errors: {},
-            message: 'Error: ID de bicicleta no encontrado.',
-        };
+        return { message: 'Error: ID de bicicleta no encontrado.' };
     }
   
-    await updateBikeData(id, bikeData);
+    const isUnique = await isSerialNumberUnique(serialNumber, id);
+    if (!isUnique) {
+        return {
+            errors: { serialNumber: ["Este número de serie ya está registrado."] },
+            message: `Error: El número de serie '${serialNumber}' ya se encuentra registrado.`,
+        };
+    }
+
+    const { 
+        photoUrl, 
+        serialNumberPhotoUrl, 
+        additionalPhoto1Url, 
+        additionalPhoto2Url, 
+        ownershipProofUrl, 
+        ...restBikeData 
+    } = bikeData;
+
+    const photos = [
+        photoUrl,
+        serialNumberPhotoUrl,
+        additionalPhoto1Url,
+        additionalPhoto2Url
+    ].filter((url): url is string => !!url && url.length > 0);
+    
+    await updateBikeData(id, {
+        ...restBikeData,
+        serialNumber,
+        photos,
+        ownershipProof: ownershipProofUrl || ''
+    });
   
     revalidatePath(`/dashboard/bikes/${id}`);
     revalidatePath('/dashboard');
-
     return { message: 'Bicicleta actualizada correctamente.' };
 }
 
@@ -284,7 +313,6 @@ export async function updateHomepageSection(prevState: any, formData: FormData) 
         content: validatedFields.data.content || '',
     }
     await updateHomepageSectionData(data);
-
     revalidatePath('/');
     return {
         message: `La sección '${validatedFields.data.id}' se actualizó correctamente.`,

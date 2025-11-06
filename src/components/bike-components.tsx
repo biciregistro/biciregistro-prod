@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useState, useCallback } from 'react';
 import { useFormStatus } from 'react-dom';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { debounce } from 'lodash';
 
 import type { Bike } from '@/lib/types';
 import { cn, calculateBikeProfileCompleteness } from '@/lib/utils';
@@ -26,7 +27,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { countries, type Country } from '@/lib/countries';
 import { Progress } from './ui/progress';
 import { ImageUpload } from '@/components/shared/image-upload';
-import { bikeBrands } from '@/lib/bike-brands'; // Import the new brands list
+import { bikeBrands } from '@/lib/bike-brands';
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -90,15 +91,13 @@ const bikeFormSchema = z.object({
 });
 
 type BikeFormValues = z.infer<typeof bikeFormSchema>;
-
 const modalityOptions = ["Urbana", "Gravel", "Pista", "XC", "Enduro", "Downhill", "Trail", "E-Bike", "Dirt Jump", "MTB"];
 
-
-function SubmitButton({ isEditing }: { isEditing?: boolean }) {
+function SubmitButton({ isEditing, isSerialInvalid }: { isEditing?: boolean, isSerialInvalid?: boolean }) {
     const { pending } = useFormStatus();
     const text = isEditing ? 'Guardar Cambios' : 'Registrar Bicicleta';
     const pendingText = isEditing ? 'Guardando...' : 'Registrando...';
-    return <Button type="submit" disabled={pending} className="w-full">{pending ? pendingText : text}</Button>;
+    return <Button type="submit" disabled={pending || isSerialInvalid} className="w-full">{pending ? pendingText : text}</Button>;
 }
 
 export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: string, bike?: Bike, onSuccess?: () => void }) {
@@ -107,12 +106,13 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
     const [state, formAction] = useActionState(action, null);
     const { toast } = useToast();
 
-    // State for uploaded file URLs
     const [photoUrl, setPhotoUrl] = useState(bike?.photos?.[0] || '');
     const [serialNumberPhotoUrl, setSerialNumberPhotoUrl] = useState(bike?.photos?.[1] || '');
     const [additionalPhoto1Url, setAdditionalPhoto1Url] = useState(bike?.photos?.[2] || '');
     const [additionalPhoto2Url, setAdditionalPhoto2Url] = useState(bike?.photos?.[3] || '');
     const [ownershipProofUrl, setOwnershipProofUrl] = useState(bike?.ownershipProof || '');
+    const [isCheckingSerial, setIsCheckingSerial] = useState(false);
+    const [serialExists, setSerialExists] = useState(false);
     
     const form = useForm<BikeFormValues>({
         resolver: zodResolver(bikeFormSchema),
@@ -127,6 +127,28 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
         },
     });
 
+    const checkSerialNumber = useCallback(debounce(async (serial: string) => {
+        if (serial.length < 3 || (isEditing && serial === bike?.serialNumber)) {
+            setSerialExists(false);
+            setIsCheckingSerial(false);
+            return;
+        }
+        setIsCheckingSerial(true);
+        try {
+            const response = await fetch('/api/check-serial', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ serialNumber: serial }),
+            });
+            const data = await response.json();
+            setSerialExists(!data.isUnique);
+        } catch (error) {
+            console.error("Error checking serial number:", error);
+        } finally {
+            setIsCheckingSerial(false);
+        }
+    }, 500), [isEditing, bike?.serialNumber]);
+
     useEffect(() => {
         if (state?.message) {
             toast({
@@ -139,7 +161,6 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
             }
         }
     }, [state, toast, onSuccess]);
-
 
     return (
         <Form {...form}>
@@ -164,13 +185,20 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                                 <FormItem>
                                     <FormLabel>Número de Serie</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="Ubicado en la parte inferior del cuadro de tu bicicleta" {...field} />
+                                        <Input 
+                                            placeholder="Ubicado en la parte inferior del cuadro de tu bicicleta" 
+                                            {...field}
+                                            onBlur={(e) => {
+                                                field.onBlur(); // keep existing onBlur behavior
+                                                checkSerialNumber(e.target.value);
+                                            }}
+                                        />
                                     </FormControl>
-                                    <FormMessage />
+                                    {isCheckingSerial && <p className="text-xs text-muted-foreground">Verificando...</p>}
+                                    {serialExists && <FormMessage>Este número de serie ya está registrado.</FormMessage>}
                                 </FormItem>
                             )}
                         />
-
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField
                                 control={form.control}
@@ -269,8 +297,6 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                             <ImageUpload onUploadSuccess={setOwnershipProofUrl} storagePath="ownership-proofs" />
                             <p className="text-xs text-muted-foreground">Sube la factura, recibo o alguna otra prueba de propiedad (opcional).</p>
                         </div>
-
-                        {/* Hidden inputs to send URLs to the server action */}
                         <input type="hidden" name="userId" value={userId} />
                         <input type="hidden" name="photoUrl" value={photoUrl} />
                         <input type="hidden" name="serialNumberPhotoUrl" value={serialNumberPhotoUrl} />
@@ -278,7 +304,6 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                         <input type="hidden" name="additionalPhoto2Url" value={additionalPhoto2Url} />
                         <input type="hidden" name="ownershipProofUrl" value={ownershipProofUrl} />
                         {isEditing && <input type="hidden" name="id" value={bike.id} />}
-
                     </CardContent>
                     <CardFooter className="flex flex-col-reverse sm:flex-row gap-2">
                          {isEditing ? (
@@ -290,16 +315,13 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                                 <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" />Volver al Garaje</Link>
                             </Button>
                          )}
-                        <SubmitButton isEditing={isEditing} />
+                        <SubmitButton isEditing={isEditing} isSerialInvalid={serialExists} />
                     </CardFooter>
                 </Card>
             </form>
         </Form>
     );
 }
-
-// ... (El resto del archivo permanece igual)
-
 function ReportTheftButton({ ...props }) {
     const { pending } = useFormStatus();
     return <Button type="submit" variant="destructive" className="w-full" disabled={pending} {...props}>{pending ? 'Reportando...' : 'Reportar como Robada'}</Button>;
@@ -354,7 +376,7 @@ export function TheftReportForm({ bike }: { bike: Bike }) {
         setSelectedCountry(country);
         setStates(country ? country.states : []);
         form.setValue('country', countryName);
-        form.setValue('state', ''); // Reset state/province
+        form.setValue('state', '');
     };
 
 

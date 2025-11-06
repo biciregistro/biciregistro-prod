@@ -4,6 +4,35 @@ import { firebaseConfig } from './firebase/config';
 import type { User, Bike, BikeStatus, HomepageSection } from './types';
 import { getDecodedSession } from '@/lib/auth';
 
+// --- Helper Functions ---
+
+// Normalizes a serial number for consistent storage and lookup.
+const normalizeSerialNumber = (serial: string): string => {
+    return serial.replace(/[\s-]+/g, '').toUpperCase();
+};
+
+// Checks if a serial number is unique, optionally excluding a specific bike ID.
+export async function isSerialNumberUnique(serial: string, excludeBikeId?: string): Promise<boolean> {
+    const normalizedSerial = normalizeSerialNumber(serial);
+    const db = getFirestore();
+    const bikesRef = db.collection('bikes');
+    const query = bikesRef.where('serialNumber', '==', normalizedSerial);
+    
+    const snapshot = await query.get();
+
+    if (snapshot.empty) {
+        return true; // No bike with this serial number found.
+    }
+
+    // If we need to exclude a bike ID (for updates), check if the found bike is the one we're excluding.
+    if (excludeBikeId) {
+        // If there is only one match and its ID is the one we want to exclude, then the serial is unique for other records.
+        return snapshot.docs.length === 1 && snapshot.docs[0].id === excludeBikeId;
+    }
+
+    // If not excluding any ID, and we found docs, it's a duplicate.
+    return false;
+}
 
 // Helper function to verify a user's password
 export async function verifyUserPassword(email: string, password_provided: string): Promise<boolean> {
@@ -19,26 +48,18 @@ export async function verifyUserPassword(email: string, password_provided: strin
                 returnSecureToken: false, 
             }),
         });
-
-        // If the sign-in is successful (status 200), the password is correct.
         return response.ok;
-
     } catch (error) {
         console.error("Error verifying password:", error);
-        return false; // On any error, assume the password is not valid.
+        return false;
     }
 }
-
 
 // --- User Management ---
 
 export async function getAuthenticatedUser(): Promise<User | null> {
     const session = await getDecodedSession();
-
-    if (!session?.uid) {
-        return null;
-    }
-
+    if (!session?.uid) return null;
     try {
         const db = getFirestore();
         const userDoc = await db.collection('users').doc(session.uid).get();
@@ -46,12 +67,8 @@ export async function getAuthenticatedUser(): Promise<User | null> {
             console.warn(`User document not found for UID: ${session.uid}`);
             return null;
         }
-
         const userData = userDoc.data() as User;
-        return {
-            ...userData,
-            id: userDoc.id,
-        };
+        return { ...userData, id: userDoc.id };
     } catch (error) {
         console.error("Failed to fetch authenticated user:", error);
         return null;
@@ -63,19 +80,10 @@ export async function getUser(userId: string): Promise<User | null> {
         console.error("getUser called with no userId");
         return null;
     }
-    
     try {
         const db = getFirestore();
         const docSnap = await db.collection('users').doc(userId).get();
-        
-        if (docSnap.exists) {
-            return {
-                id: docSnap.id,
-                ...docSnap.data()
-            } as User;
-        } else {
-            return null;
-        }
+        return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as User : null;
     } catch (error) {
         console.error("Error fetching user:", error);
         return null;
@@ -89,7 +97,6 @@ export async function createUser(user: User) {
 
 export async function updateUserData(userId: string, data: Partial<Omit<User, 'id' | 'role' | 'email'>>) {
     const db = getFirestore();
-    // Ensure that only non-undefined values are sent to Firestore
     const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
     if (Object.keys(cleanData).length > 0) {
         await db.collection('users').doc(userId).update(cleanData);
@@ -99,26 +106,21 @@ export async function updateUserData(userId: string, data: Partial<Omit<User, 'i
 // --- Bike Management ---
 export async function getBikes(filter?: { userId?: string; status?: BikeStatus }): Promise<Bike[]> {
     const db = getFirestore();
-    const bikesCollection = db.collection('bikes');
-    let query;
+    let query: any = db.collection('bikes');
+    const conditions: Filter[] = [];
 
-    if (filter?.userId && filter?.status) {
-        query = bikesCollection.where(
-            Filter.and(
-                Filter.where('userId', '==', filter.userId),
-                Filter.where('status', '==', filter.status)
-            )
-        );
-    } else if (filter?.userId) {
-        query = bikesCollection.where('userId', '==', filter.userId);
-    } else if (filter?.status) {
-        query = bikesCollection.where('status', '==', filter.status);
-    } else {
-        query = bikesCollection;
+    if (filter?.userId) {
+        conditions.push(Filter.where('userId', '==', filter.userId));
+    }
+    if (filter?.status) {
+        conditions.push(Filter.where('status', '==', filter.status));
     }
 
-    // The .orderBy('createdAt', 'desc') was removed to prevent the missing index error.
-    const snapshot = await query.get();
+    if (conditions.length > 0) {
+        query = query.where(Filter.and(...conditions));
+    }
+    
+    const snapshot = await query.orderBy('createdAt', 'desc').get();
     return snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -130,19 +132,10 @@ export async function getBike(bikeId: string): Promise<Bike | null> {
         console.error("getBike called with no bikeId");
         return null;
     }
-    
     try {
         const db = getFirestore();
         const docSnap = await db.collection('bikes').doc(bikeId).get();
-        
-        if (docSnap.exists) {
-            return {
-                id: docSnap.id,
-                ...docSnap.data()
-            } as Bike;
-        } else {
-            return null;
-        }
+        return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Bike : null;
     } catch (error) {
         console.error("Error fetching bike:", error);
         return null;
@@ -153,6 +146,7 @@ export async function addBike(bikeData: Omit<Bike, 'id' | 'createdAt' | 'status'
     const db = getFirestore();
     const newBike = {
         ...bikeData,
+        serialNumber: normalizeSerialNumber(bikeData.serialNumber),
         status: 'safe' as const,
         createdAt: FieldValue.serverTimestamp(),
     };
@@ -161,7 +155,11 @@ export async function addBike(bikeData: Omit<Bike, 'id' | 'createdAt' | 'status'
 
 export async function updateBikeData(bikeId: string, data: Partial<Omit<Bike, 'id'>>) {
     const db = getFirestore();
-    await db.collection('bikes').doc(bikeId).update(data);
+    const dataToUpdate = { ...data };
+    if (data.serialNumber) {
+        dataToUpdate.serialNumber = normalizeSerialNumber(data.serialNumber);
+    }
+    await db.collection('bikes').doc(bikeId).update(dataToUpdate);
 }
 
 export async function updateBikeStatus(bikeId: string, status: BikeStatus, theftDetails?: Bike['theftReport']) {
