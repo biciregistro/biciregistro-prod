@@ -6,13 +6,13 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 import type { User, ActionFormState } from '@/lib/types';
 import { updateProfile, signup } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { countries, type Country } from '@/lib/countries';
-import { userFormSchema } from '@/lib/schemas'; // <-- SINGLE UNIFIED SCHEMA
+import { userFormSchema } from '@/lib/schemas';
 import { signInWithToken } from '@/lib/firebase/client';
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -25,6 +25,34 @@ import { Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Logo } from './icons/logo';
 import { cn } from '@/lib/utils';
+
+// --- Dashboard Navigation ---
+export function DashboardNav() {
+    const pathname = usePathname();
+    const navItems = [
+      { href: '/dashboard', label: 'Mi Garaje' },
+      { href: '/dashboard/register', label: 'Registrar Bici' },
+      { href: '/dashboard/profile', label: 'Mi Perfil' },
+    ];
+  
+    return (
+      <nav className="grid items-start gap-2">
+        {navItems.map((item) => (
+          <Link key={item.href} href={item.href}>
+            <span
+              className={cn(
+                'group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground',
+                pathname === item.href ? 'bg-accent' : 'transparent'
+              )}
+            >
+              <span>{item.label}</span>
+            </span>
+          </Link>
+        ))}
+      </nav>
+    );
+}
+
 
 type FormValues = z.infer<typeof userFormSchema>;
 
@@ -98,16 +126,15 @@ export function ProfileForm({ user }: { user?: User }) {
             gender: user?.gender || undefined,
             postalCode: user?.postalCode || "",
             whatsapp: user?.whatsapp || "",
-            // Always initialize password fields to empty strings for controlled inputs
             password: "",
             currentPassword: "",
+            newPassword: "",
             confirmPassword: "",
         },
         mode: 'onTouched',
     });
-    
-    // Watch the correct password field based on the context
-    const password = form.watch("password");
+
+    const password = form.watch(isEditing ? "newPassword" : "password");
 
     useEffect(() => {
         // 1. Handle successful signup and client-side sign in
@@ -165,11 +192,10 @@ export function ProfileForm({ user }: { user?: User }) {
                 title: "Éxito",
                 description: state.message || "Tu perfil ha sido actualizado.",
             });
-            // Reset only password fields after successful update
             form.reset({
                 ...form.getValues(),
                 currentPassword: "",
-                password: "", // Changed from newPassword
+                newPassword: "",
                 confirmPassword: "",
             });
             return;
@@ -392,7 +418,8 @@ export function ProfileForm({ user }: { user?: User }) {
                                                 <FormControl>
                                                 <RadioGroupItem value="otro" />
                                                 </FormControl>
-                                                <FormLabel className="font-normal">Otro</FormLabel>
+                 
+                                <FormLabel className="font-normal">Otro</FormLabel>
                                             </FormItem>
                                             </RadioGroup>
                                         </FormControl>
@@ -461,7 +488,7 @@ export function ProfileForm({ user }: { user?: User }) {
                         <div className={cn("grid grid-cols-1 gap-4", isEditing && "md:grid-cols-2")}>
                              <FormField
                                 control={form.control}
-                                name="password" // <-- CORRECTED: Changed from "newPassword"
+                                name={isEditing ? "newPassword" : "password"}
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>{isEditing ? 'Nueva Contraseña' : 'Contraseña'}</FormLabel>
