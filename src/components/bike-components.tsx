@@ -206,7 +206,7 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Marca</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value} name={field.name}>
                                             <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Selecciona una marca" />
@@ -241,7 +241,7 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Modalidad</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value} name={field.name}>
                                         <FormControl>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Selecciona una modalidad" />
@@ -430,7 +430,7 @@ export function TheftReportForm({ bike }: { bike: Bike }) {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>País</FormLabel>
-                                    <Select onValueChange={handleCountryChange} defaultValue={field.value}>
+                                    <Select onValueChange={handleCountryChange} defaultValue={field.value} name={field.name}>
                                         <FormControl>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Selecciona un país" />
@@ -453,7 +453,7 @@ export function TheftReportForm({ bike }: { bike: Bike }) {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Estado / Provincia</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedCountry}>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedCountry} name={field.name}>
                                         <FormControl>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Selecciona un estado/provincia" />

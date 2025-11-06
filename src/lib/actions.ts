@@ -10,21 +10,31 @@ import { firebaseConfig } from './firebase/config';
 import { ActionFormState, HomepageSection } from './types';
 import { userFormSchema } from './schemas';
 
+// Helper function to handle optional string fields from forms
+const optionalString = (schema: z.ZodString) => 
+    z.preprocess((val) => (val === '' ? undefined : val), schema.optional());
+
 const bikeFormSchema = z.object({
     id: z.string().optional(),
     serialNumber: z.string().min(3, "El número de serie es obligatorio."),
     make: z.string().min(2, "La marca es obligatoria."),
     model: z.string().min(1, "El modelo es obligatorio."),
     color: z.string().min(2, "El color es obligatorio."),
-    modelYear: z.string().optional(),
-    modality: z.string().optional(),
+    
+    // Apply the helper function to optional text fields
+    modelYear: optionalString(z.string()),
+    modality: optionalString(z.string()),
+    
     userId: z.string(),
     photoUrl: z.string().url("URL de foto lateral inválida.").min(1, "La foto lateral es obligatoria."),
     serialNumberPhotoUrl: z.string().url("URL de foto de serie inválida.").min(1, "La foto del número de serie es obligatoria."),
-    additionalPhoto1Url: z.string().url("URL de foto adicional 1 inválida.").or(z.literal('')).optional(),
-    additionalPhoto2Url: z.string().url("URL de foto adicional 2 inválida.").or(z.literal('')).optional(),
-    ownershipProofUrl: z.string().url("URL de prueba de propiedad inválida.").or(z.literal('')).optional(),
+    
+    // Apply the helper function to optional URL fields
+    additionalPhoto1Url: optionalString(z.string().url({ message: "URL de foto adicional 1 inválida." })),
+    additionalPhoto2Url: optionalString(z.string().url({ message: "URL de foto adicional 2 inválida." })),
+    ownershipProofUrl: optionalString(z.string().url({ message: "URL de prueba de propiedad inválida." })),
 });
+
 
 const homepageEditSchema = z.object({
     id: z.enum(['hero', 'features', 'cta']),
@@ -183,12 +193,22 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
 }
 
 export async function registerBike(prevState: any, formData: FormData) {
-    const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
+    const formDataObject = Object.fromEntries(formData.entries());
+    const validatedFields = bikeFormSchema.safeParse(formDataObject);
 
     if (!validatedFields.success) {
+        const errors = validatedFields.error.flatten().fieldErrors;
+        
+        // Construct a detailed, user-friendly error message
+        const errorMessages = Object.entries(errors)
+            .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+            .join('; ');
+
+        console.error("DEBUG: Errores de validación de Zod:", errors);
+
         return {
-            errors: validatedFields.error.flatten().fieldErrors,
-            message: "Error: Por favor, revisa los campos del formulario.",
+            errors,
+            message: `Error de validación. Revisa los siguientes campos: ${errorMessages}`,
         };
     }
 
@@ -215,7 +235,7 @@ export async function registerBike(prevState: any, formData: FormData) {
         serialNumberPhotoUrl,
         additionalPhoto1Url,
         additionalPhoto2Url
-    ].filter((url): url is string => !!url && url.length > 0);
+    ].filter((url): url is string => !!url);
 
     await addBike({
         ...bikeData,
@@ -229,12 +249,17 @@ export async function registerBike(prevState: any, formData: FormData) {
 }
 
 export async function updateBike(prevState: any, formData: FormData) {
-    const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
+    const formDataObject = Object.fromEntries(formData.entries());
+    const validatedFields = bikeFormSchema.safeParse(formDataObject);
   
     if (!validatedFields.success) {
+        const errors = validatedFields.error.flatten().fieldErrors;
+        const errorMessages = Object.entries(errors)
+            .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+            .join('; ');
       return {
-        errors: validatedFields.error.flatten().fieldErrors,
-        message: 'Error: Por favor, revisa los campos del formulario.',
+        errors,
+        message: `Error de validación. Revisa los siguientes campos: ${errorMessages}`,
       };
     }
   
@@ -266,7 +291,7 @@ export async function updateBike(prevState: any, formData: FormData) {
         serialNumberPhotoUrl,
         additionalPhoto1Url,
         additionalPhoto2Url
-    ].filter((url): url is string => !!url && url.length > 0);
+    ].filter((url): url is string => !!url);
     
     await updateBikeData(id, {
         ...restBikeData,
