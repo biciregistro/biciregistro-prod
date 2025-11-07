@@ -1,7 +1,7 @@
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
@@ -9,7 +9,10 @@ import { BikeRegistrationForm, TheftReportForm } from '@/components/bike-compone
 import { cn } from '@/lib/utils';
 import type { Bike, User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Pencil, FileDown } from 'lucide-react';
+import { ArrowLeft, Pencil, FileDown, UploadCloud, Loader2 } from 'lucide-react';
+import { ImageUpload } from '@/components/shared/image-upload';
+import { updateOwnershipProof } from '@/lib/actions';
+import { useToast } from '@/hooks/use-toast';
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -27,15 +30,72 @@ function DetailItem({ label, value }: { label: string; value: React.ReactNode })
     );
 }
 
+function OwnershipProofSection({ bike }: { bike: Bike }) {
+    const { toast } = useToast();
+    const [isPending, startTransition] = useTransition();
+
+    const handleUploadSuccess = (url: string) => {
+        startTransition(async () => {
+            try {
+                await updateOwnershipProof(bike.id, url);
+                toast({
+                    title: "Éxito",
+                    description: "El documento de propiedad se ha cargado y guardado.",
+                });
+                // Force a refresh to show the updated state
+                window.location.reload();
+            } catch (error) {
+                toast({
+                    title: "Error",
+                    description: "No se pudo guardar el documento. Por favor, inténtalo de nuevo.",
+                    variant: "destructive",
+                });
+            }
+        });
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Documento de Propiedad</CardTitle>
+            </CardHeader>
+            <CardContent>
+                {bike.ownershipProof ? (
+                    <Button asChild variant="outline" className="w-full justify-start">
+                        <a href={bike.ownershipProof} target="_blank" rel="noopener noreferrer">
+                            <FileDown className="mr-2 h-4 w-4" />
+                            Descargar Documento
+                        </a>
+                    </Button>
+                ) : (
+                    <div className="text-center">
+                        <p className="text-sm text-muted-foreground mb-4">
+                            No has cargado un documento. Sube una foto o PDF de tu factura o prueba de compra.
+                        </p>
+                        {isPending ? (
+                             <Button disabled className="w-full">
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Guardando...
+                            </Button>
+                        ) : (
+                             <ImageUpload 
+                                onUploadSuccess={handleUploadSuccess} 
+                                storagePath="ownership-proofs" 
+                             />
+                        )}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function BikeDetailsPageClient({ user, bike: initialBike }: { user: User; bike: Bike }) {
   const [bike, setBike] = useState<Bike>(initialBike);
   const [isEditing, setIsEditing] = useState(false);
 
   const handleUpdateSuccess = async () => {
     setIsEditing(false);
-    // TODO: Implement a client-side data fetching strategy or rely on server-side props
-    // For now, we'll just optimistically update the UI.
-    // A full refresh or a more sophisticated state management would be needed here.
     window.location.reload(); 
   }
 
@@ -87,39 +147,25 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
               <Card>
                   <CardHeader>
                       <CardTitle className="text-3xl">{bike.make} {bike.model}</CardTitle>
-                      <CardDescription>
-                          <Badge className={cn(bikeStatusStyles[bike.status], "text-base mt-2")}>
-                              Estado: {bike.status === 'safe' ? 'En Regla' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}
-                          </Badge>
+                      <CardDescription className="font-mono text-base pt-1">
+                          {bike.serialNumber}
                       </CardDescription>
+                      <div className="pt-2">
+                        <Badge className={cn(bikeStatusStyles[bike.status], "text-base")}>
+                            Estado: {bike.status === 'safe' ? 'En Regla' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}
+                        </Badge>
+                      </div>
                   </CardHeader>
                   <CardContent className="grid grid-cols-2 gap-4">
-                      <DetailItem label="Número de Serie" value={<span className="font-mono">{bike.serialNumber}</span>} />
                       <DetailItem label="Marca" value={bike.make} />
                       <DetailItem label="Modelo" value={bike.model} />
-                       <DetailItem label="Año Modelo" value={bike.modelYear} />
+                      <DetailItem label="Año Modelo" value={bike.modelYear} />
                       <DetailItem label="Color" value={bike.color} />
                       <DetailItem label="Modalidad" value={bike.modality} />
                   </CardContent>
               </Card>
 
-              {bike.ownershipDocs && bike.ownershipDocs.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Documentos de Propiedad</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {bike.ownershipDocs.map((doc, index) => (
-                      <Button asChild variant="outline" key={index} className="w-full justify-start">
-                        <a href={doc} target="_blank" rel="noopener noreferrer">
-                          <FileDown className="mr-2 h-4 w-4" />
-                          Descargar Documento {index + 1}
-                        </a>
-                      </Button>
-                    ))}
-                  </CardContent>
-                </Card>
-              )}
+              <OwnershipProofSection bike={bike} />
 
               {bike.status === 'stolen' && bike.theftReport && (
                    <Card className="border-destructive">
@@ -129,8 +175,9 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                       <CardContent className="space-y-4">
                           <div className="grid grid-cols-2 gap-4">
                             <DetailItem label="Fecha del Reporte" value={new Date(bike.theftReport.date).toLocaleDateString()} />
-                             <DetailItem label="País" value={bike.theftReport.country} />
-                             <DetailItem label="Estado/Provincia" value={bike.theftReport.state} />
+                            <DetailItem label="Hora del Reporte" value={bike.theftReport.time} />
+                            <DetailItem label="País" value={bike.theftReport.country} />
+                            <DetailItem label="Estado/Provincia" value={bike.theftReport.state} />
                             <DetailItem label="Ubicación" value={bike.theftReport.location} />
                           </div>
                           <DetailItem label="Detalles del robo" value={bike.theftReport.details} />

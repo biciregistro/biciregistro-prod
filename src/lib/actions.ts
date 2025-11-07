@@ -54,6 +54,11 @@ const theftReportSchema = z.object({
     details: z.string().min(1, "Los detalles son obligatorios."),
 });
 
+const ownershipProofSchema = z.object({
+    bikeId: z.string(),
+    proofUrl: z.string().url("La URL del documento no es válida."),
+});
+
 export async function signup(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
     const validatedFields = userFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
@@ -305,6 +310,19 @@ export async function updateBike(prevState: any, formData: FormData) {
     revalidatePath('/dashboard');
     return { message: 'Bicicleta actualizada correctamente.' };
 }
+
+export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
+    const validatedFields = ownershipProofSchema.safeParse({ bikeId, proofUrl });
+
+    if (!validatedFields.success) {
+        throw new Error("Datos de prueba de propiedad no válidos.");
+    }
+    
+    await updateBikeData(bikeId, { ownershipProof: proofUrl });
+    
+    revalidatePath(`/dashboard/bikes/${bikeId}`);
+}
+
 
 export async function reportTheft(prevState: any, formData: FormData) {
     const validatedFields = theftReportSchema.safeParse(Object.fromEntries(formData.entries()));

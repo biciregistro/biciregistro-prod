@@ -14,6 +14,7 @@ export type Bike = {
   ownershipProof?: string; // URL to a single ownership document/proof
   theftReport?: {
     date: string;
+    time?: string;
     location: string;
     details: string;
     country?: string;
@@ -44,13 +45,11 @@ export type HomepageSection = {
   imageUrl?: string;
 };
 
-// State for server actions in forms
+// Type for server action form state
 export type ActionFormState = {
-    message?: string;
-    error?: string;
-    errors?: {
-        [key: string]: string[] | undefined;
-    };
-    success?: boolean;
-    customToken?: string;
+  error?: string;
+  errors?: Record<string, string[]>;
+  success?: boolean;
+  message?: string;
+  customToken?: string;
 } | null;
