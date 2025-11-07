@@ -1,9 +1,7 @@
 'use client';
-import { notFound, redirect } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState, use } from 'react';
-import { getAuthenticatedUser, getBike } from '@/lib/data';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
@@ -12,6 +10,7 @@ import { cn } from '@/lib/utils';
 import type { Bike, User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, FileDown } from 'lucide-react';
+import { getBikeById } from '@/lib/data'; // Allowed in Server Actions
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -29,46 +28,16 @@ function DetailItem({ label, value }: { label: string; value: React.ReactNode })
     );
 }
 
-export default function BikeDetailsPage({ params }: { params: { id: string } }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [bike, setBike] = useState<Bike | null>(null);
+export default function BikeDetailsPageClient({ user, bike: initialBike }: { user: User; bike: Bike }) {
+  const [bike, setBike] = useState<Bike>(initialBike);
   const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchData() {
-      const fetchedUser = await getAuthenticatedUser();
-      if (!fetchedUser) {
-        redirect('/login');
-        return;
-      }
-      setUser(fetchedUser);
-
-      const fetchedBike = await getBike(params.id);
-      if (!fetchedBike || fetchedBike.userId !== fetchedUser.id) {
-        notFound();
-        return;
-      }
-      setBike(fetchedBike);
-      setIsLoading(false);
-    }
-    fetchData();
-  }, [params.id]);
 
   const handleUpdateSuccess = async () => {
     setIsEditing(false);
-    setIsLoading(true);
-    const updatedBike = await getBike(params.id);
-    if(updatedBike) setBike(updatedBike);
-    setIsLoading(false);
-  }
-
-  if (isLoading || !bike || !user) {
-    return (
-        <div className="container py-6 md:py-8 text-center">
-            <p>Cargando...</p>
-        </div>
-    )
+    const updatedBike = await getBikeById(bike.id);
+    if (updatedBike) {
+        setBike(updatedBike);
+    }
   }
 
   return (
