@@ -1,5 +1,5 @@
 import 'server-only';
-import { getFirestore, FieldValue, Filter } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, Filter, Timestamp } from 'firebase-admin/firestore';
 import { firebaseConfig } from './firebase/config';
 import type { User, Bike, BikeStatus, HomepageSection } from './types';
 import { getDecodedSession } from '@/lib/auth';
@@ -83,7 +83,7 @@ export async function getUser(userId: string): Promise<User | null> {
     try {
         const db = getFirestore();
         const docSnap = await db.collection('users').doc(userId).get();
-        return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as User : null;
+        return docSnap.exists ? { id: docSnap.id, ...docSnap.data() } as User : null;
     } catch (error) {
         console.error("Error fetching user:", error);
         return null;
@@ -103,6 +103,24 @@ export async function updateUserData(userId: string, data: Partial<Omit<User, 'i
     }
 }
 
+// --- Data Serialization Helper ---
+const convertDocTimestamps = (data: any): any => {
+    if (!data) return data;
+  
+    const convertedData = { ...data };
+  
+    if (convertedData.createdAt && convertedData.createdAt instanceof Timestamp) {
+      convertedData.createdAt = convertedData.createdAt.toDate().toISOString();
+    }
+  
+    if (convertedData.theftReport?.date && convertedData.theftReport.date instanceof Timestamp) {
+      convertedData.theftReport.date = convertedData.theftReport.date.toDate().toISOString();
+    }
+  
+    return convertedData;
+  };
+  
+
 // --- Bike Management ---
 export async function getBikes(filter?: { userId?: string; status?: BikeStatus }): Promise<Bike[]> {
     const db = getFirestore();
@@ -121,10 +139,10 @@ export async function getBikes(filter?: { userId?: string; status?: BikeStatus }
     }
     
     const snapshot = await query.orderBy('createdAt', 'desc').get();
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-    })) as Bike[];
+    return snapshot.docs.map(doc => {
+        const data = convertDocTimestamps(doc.data());
+        return { id: doc.id, ...data } as Bike;
+    });
 }
 
 export async function getBike(bikeId: string): Promise<Bike | null> {
@@ -135,7 +153,10 @@ export async function getBike(bikeId: string): Promise<Bike | null> {
     try {
         const db = getFirestore();
         const docSnap = await db.collection('bikes').doc(bikeId).get();
-        return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Bike : null;
+        if (!docSnap.exists) return null;
+        
+        const data = convertDocTimestamps(docSnap.data());
+        return { id: docSnap.id, ...data } as Bike;
     } catch (error) {
         console.error("Error fetching bike:", error);
         return null;

@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils';
 import type { Bike, User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, FileDown } from 'lucide-react';
-import { getBikeById } from '@/lib/data'; // Allowed in Server Actions
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -34,10 +33,10 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
 
   const handleUpdateSuccess = async () => {
     setIsEditing(false);
-    const updatedBike = await getBikeById(bike.id);
-    if (updatedBike) {
-        setBike(updatedBike);
-    }
+    // TODO: Implement a client-side data fetching strategy or rely on server-side props
+    // For now, we'll just optimistically update the UI.
+    // A full refresh or a more sophisticated state management would be needed here.
+    window.location.reload(); 
   }
 
   return (
