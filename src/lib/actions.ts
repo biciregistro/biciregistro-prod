@@ -47,6 +47,7 @@ const homepageEditSchema = z.object({
 const theftReportSchema = z.object({
     bikeId: z.string(),
     date: z.string().min(1, "La fecha es obligatoria."),
+    time: z.string().optional(),
     country: z.string().min(1, "El país es obligatorio."),
     state: z.string().min(1, "El estado/provincia es obligatorio."),
     location: z.string().min(1, "La ubicación es obligatoria."),
