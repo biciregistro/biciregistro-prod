@@ -3,6 +3,7 @@ import { getFirestore, FieldValue, Filter, Timestamp } from 'firebase-admin/fire
 import { firebaseConfig } from './firebase/config';
 import type { User, Bike, BikeStatus, HomepageSection } from './types';
 import { getDecodedSession } from '@/lib/auth';
+import { adminAuth } from './firebase/server';
 
 // --- Helper Functions ---
 
@@ -65,7 +66,18 @@ export async function getAuthenticatedUser(): Promise<User | null> {
         const userDoc = await db.collection('users').doc(session.uid).get();
         if (!userDoc.exists) {
             console.warn(`User document not found for UID: ${session.uid}`);
-            return null;
+            // Attempt to self-heal by creating the user document
+            const firebaseUser = await adminAuth.getUser(session.uid);
+            const newUser: User = {
+                id: firebaseUser.uid,
+                email: firebaseUser.email!,
+                name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
+                lastName: '', // Default empty value
+                role: 'ciclista', // FIX: Assign the correct default role
+            };
+            await db.collection('users').doc(newUser.id).set(newUser);
+            console.log(`Self-healing: Created user document for UID: ${newUser.id}`);
+            return newUser;
         }
         const userData = userDoc.data() as User;
         return { ...userData, id: userDoc.id };
@@ -124,18 +136,14 @@ const convertDocTimestamps = (data: any): any => {
 // --- Bike Management ---
 export async function getBikes(filter?: { userId?: string; status?: BikeStatus }): Promise<Bike[]> {
     const db = getFirestore();
-    let query: any = db.collection('bikes');
-    const conditions: Filter[] = [];
+    let query: FirebaseFirestore.Query = db.collection('bikes');
 
+    // Chain .where() clauses directly, which is the correct way to build the query.
     if (filter?.userId) {
-        conditions.push(Filter.where('userId', '==', filter.userId));
+        query = query.where('userId', '==', filter.userId);
     }
     if (filter?.status) {
-        conditions.push(Filter.where('status', '==', filter.status));
-    }
-
-    if (conditions.length > 0) {
-        query = query.where(Filter.and(...conditions));
+        query = query.where('status', '==', filter.status);
     }
     
     const snapshot = await query.orderBy('createdAt', 'desc').get();

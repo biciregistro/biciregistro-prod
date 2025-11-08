@@ -167,10 +167,10 @@ export function ProfileForm({ user }: { user?: User }) {
                         throw new Error('La creación de la sesión en el servidor falló.');
                     }
     
-                    toast({ title: '¡Éxito!', description: 'Serás redirigido a tu panel.' });
-                    router.push('/dashboard');
+                    toast({ title: '¡Éxito!', description: 'Por favor, completa tu perfil para continuar.' });
+                    router.push('/dashboard/profile');
     
-                } catch (sessionError) {
+                } catch (sessionError: any) {
                     console.error("Session creation failed:", sessionError);
                     toast({
                         title: 'Error de Sesión',
@@ -198,6 +198,7 @@ export function ProfileForm({ user }: { user?: User }) {
                 newPassword: "",
                 confirmPassword: "",
             });
+            router.push('/dashboard');
             return;
         }
         

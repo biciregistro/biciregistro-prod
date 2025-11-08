@@ -25,7 +25,6 @@ const bikeFormSchema = z.object({
     modelYear: optionalString(z.string()),
     modality: optionalString(z.string()),
     
-    userId: z.string(),
     photoUrl: z.string().url("URL de foto lateral inválida.").min(1, "La foto lateral es obligatoria."),
     serialNumberPhotoUrl: z.string().url("URL de foto de serie inválida.").min(1, "La foto del número de serie es obligatoria."),
     
@@ -199,18 +198,19 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
 }
 
 export async function registerBike(prevState: any, formData: FormData) {
+    const session = await getDecodedSession();
+    if (!session?.uid) {
+        return { message: 'Error: No estás autenticado.' };
+    }
+
     const formDataObject = Object.fromEntries(formData.entries());
     const validatedFields = bikeFormSchema.safeParse(formDataObject);
 
     if (!validatedFields.success) {
         const errors = validatedFields.error.flatten().fieldErrors;
-        
-        // Construct a detailed, user-friendly error message
         const errorMessages = Object.entries(errors)
             .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
             .join('; ');
-
-        console.error("DEBUG: Errores de validación de Zod:", errors);
 
         return {
             errors,
@@ -245,6 +245,7 @@ export async function registerBike(prevState: any, formData: FormData) {
 
     await addBike({
         ...bikeData,
+        userId: session.uid, // <-- FIX: Associate bike with the authenticated user
         serialNumber,
         photos,
         ownershipProof: ownershipProofUrl || '',
