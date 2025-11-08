@@ -127,9 +127,9 @@ export function ProfileForm({ user }: { user?: User }) {
             postalCode: user?.postalCode || "",
             whatsapp: user?.whatsapp || "",
             password: "",
+            confirmPassword: "",
             currentPassword: "",
             newPassword: "",
-            confirmPassword: "",
         },
         mode: 'onTouched',
     });
@@ -202,11 +202,11 @@ export function ProfileForm({ user }: { user?: User }) {
         }
         
         // 3. Handle any errors from the server action
-        const errorMessage = state?.error || (state?.errors ? 'Datos proporcionados no válidos.' : null);
+        const errorMessage = state?.error || (state?.errors ? 'Datos proporcionados no válidos. Asegúrate de que las contraseñas coincidan y cumplan los requisitos.' : null);
         if (errorMessage) {
             toast({
                 variant: 'destructive',
-                title: "Error en el formulario",
+                title: "Error",
                 description: errorMessage,
             });
         }
@@ -486,8 +486,8 @@ export function ProfileForm({ user }: { user?: User }) {
                                 )}
                             />
                         )}
-                        <div className={cn("grid grid-cols-1 gap-4", isEditing && "md:grid-cols-2")}>
-                             <FormField
+                        <div className={cn("grid grid-cols-1 gap-4", !isEditing && "md:grid-cols-2")}>
+                            <FormField
                                 control={form.control}
                                 name={isEditing ? "newPassword" : "password"}
                                 render={({ field }) => (

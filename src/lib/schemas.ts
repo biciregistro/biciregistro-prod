@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+const passwordSchema = z.string()
+    .min(6, "La contraseña debe tener al menos 6 caracteres.")
+    .regex(/[A-Z]/, "La contraseña debe tener al menos una letra mayúscula.")
+    .regex(/[0-9]/, "La contraseña debe tener al menos un número.")
+    .regex(/[!@#$&*]/, "La contraseña debe tener al menos un carácter especial (!@#$&*).");
+    
 // --- Unified Schema for User Form (Signup and Profile Update) ---
 // This schema defines all possible fields and uses .superRefine for conditional validation.
 export const userFormSchema = z.object({
@@ -23,9 +29,10 @@ export const userFormSchema = z.object({
 
     // --- Password fields ---
     // Optional at the base level; superRefine will enforce them conditionally.
-    password: z.string().optional(), // Represents "new password" in edit mode
+    password: z.string().optional(),
     confirmPassword: z.string().optional(),
     currentPassword: z.string().optional(),
+    newPassword: z.string().optional(),
 
 }).superRefine((data, ctx) => {
     // --- SCENARIO 1: SIGNUP (No ID present) ---
@@ -37,12 +44,17 @@ export const userFormSchema = z.object({
                 message: "La contraseña es obligatoria.",
                 path: ["password"],
             });
-        } else if (data.password.length < 6) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "La contraseña debe tener al menos 6 caracteres.",
-                path: ["password"],
-            });
+        } else {
+            const validation = passwordSchema.safeParse(data.password);
+            if (!validation.success) {
+                validation.error.issues.forEach(issue => {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: issue.message,
+                        path: ["password"],
+                    });
+                });
+            }
         }
         if (data.password !== data.confirmPassword) {
             ctx.addIssue({
@@ -55,11 +67,11 @@ export const userFormSchema = z.object({
 
     // --- SCENARIO 2: PROFILE EDIT (ID is present) ---
     // This logic handles the optional password change.
-    const { currentPassword, password, confirmPassword } = data;
-    const isAttemptingPasswordChange = currentPassword || password || confirmPassword;
+    const { currentPassword, newPassword, confirmPassword } = data;
+    const isAttemptingPasswordChange = currentPassword || newPassword || confirmPassword;
 
     // If the user types in any of the password fields, all become required.
-    if (isAttemptingPasswordChange) {
+    if (data.id && isAttemptingPasswordChange) {
         if (!currentPassword) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
@@ -67,20 +79,25 @@ export const userFormSchema = z.object({
                 path: ["currentPassword"],
             });
         }
-        if (!password) {
+        if (!newPassword) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
                 message: "La nueva contraseña es obligatoria.",
-                path: ["password"],
+                path: ["newPassword"],
             });
-        } else if (password.length < 6) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "La nueva contraseña debe tener al menos 6 caracteres.",
-                path: ["password"],
-            });
+        } else {
+            const validation = passwordSchema.safeParse(newPassword);
+            if (!validation.success) {
+                validation.error.issues.forEach(issue => {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: issue.message,
+                        path: ["newPassword"],
+                    });
+                });
+            }
         }
-        if (password !== confirmPassword) {
+        if (newPassword !== confirmPassword) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
                 message: "Las nuevas contraseñas no coinciden.",
