@@ -1,9 +1,9 @@
-import { notFound } from 'next/navigation';
 import Image from 'next/image';
-import { getBikeBySerial } from '@/lib/data';
+import { getBikeBySerial, getUser } from '@/lib/data';
 import { BikeSearchForm } from '@/components/homepage-components';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
 import type { Bike } from '@/lib/types';
 
@@ -16,13 +16,17 @@ const bikeStatusStyles: { [key in Bike['status']]: string } = {
 export default async function SearchPage({ searchParams }: { searchParams?: { serial?: string } }) {
   const serial = searchParams?.serial;
   let bike: Bike | undefined;
+  let owner: Awaited<ReturnType<typeof getUser>> | undefined;
 
   if (serial) {
     bike = await getBikeBySerial(serial);
+    if (bike) {
+      owner = await getUser(bike.userId);
+    }
   }
   
   return (
-    <div className="container py-8">
+    <div className="container py-8 px-4">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold tracking-tight text-center mb-4">Búsqueda Pública de Bicicletas</h1>
         <p className="text-muted-foreground text-center mb-8">
@@ -43,18 +47,30 @@ export default async function SearchPage({ searchParams }: { searchParams?: { se
                     <CardHeader>
                         <CardTitle>Resultado de la Búsqueda</CardTitle>
                     </CardHeader>
-                    <CardContent className="flex flex-col md:flex-row gap-6">
-                        <div className="w-full md:w-1/3">
-                            <div className="relative aspect-video rounded-lg overflow-hidden border">
-                                <Image 
-                                    src={bike.photos[0] || ''}
-                                    alt={`${bike.make} ${bike.model}`}
-                                    fill
-                                    className="object-cover"
-                                />
+                    <CardContent className="space-y-6">
+                        {bike.photos && bike.photos.length > 0 && (
+                            <div className="relative">
+                                <Carousel className="w-full">
+                                    <CarouselContent>
+                                        {bike.photos.map((photo, index) => (
+                                            <CarouselItem key={index}>
+                                                <div className="relative aspect-video rounded-lg overflow-hidden border">
+                                                    <Image 
+                                                        src={photo}
+                                                        alt={`Foto ${index + 1} de ${bike.make} ${bike.model}`}
+                                                        fill
+                                                        className="object-cover"
+                                                    />
+                                                </div>
+                                            </CarouselItem>
+                                        ))}
+                                    </CarouselContent>
+                                    <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 z-10" />
+                                    <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 z-10" />
+                                </Carousel>
                             </div>
-                        </div>
-                        <div className="flex-1 space-y-3">
+                        )}
+                        <div className="space-y-4">
                             <h2 className="text-2xl font-bold">{bike.make} {bike.model}</h2>
                              <div>
                                 <p className="text-sm font-medium text-muted-foreground">Estado</p>
@@ -73,6 +89,18 @@ export default async function SearchPage({ searchParams }: { searchParams?: { se
                                 <p className="text-sm font-medium text-muted-foreground">Color</p>
                                 <p>{bike.color}</p>
                             </div>
+                            {owner && (
+                                <>
+                                    <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Propietario Actual</p>
+                                        <p>{owner.name} {owner.lastName}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-muted-foreground">Ubicación de Registro</p>
+                                        <p>{owner.state && `${owner.state}, `}{owner.country}</p>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

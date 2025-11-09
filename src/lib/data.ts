@@ -171,6 +171,23 @@ export async function getBike(bikeId: string): Promise<Bike | null> {
     }
 }
 
+export async function getBikeBySerial(serial: string): Promise<Bike | null> {
+    const normalizedSerial = normalizeSerialNumber(serial);
+    const db = getFirestore();
+    const bikesRef = db.collection('bikes');
+    const query = bikesRef.where('serialNumber', '==', normalizedSerial);
+    
+    const snapshot = await query.get();
+
+    if (snapshot.empty) {
+        return null;
+    }
+
+    const doc = snapshot.docs[0];
+    const data = convertDocTimestamps(doc.data());
+    return { id: doc.id, ...data } as Bike;
+}
+
 export async function addBike(bikeData: Omit<Bike, 'id' | 'createdAt' | 'status'>) {
     const db = getFirestore();
     const newBike = {
