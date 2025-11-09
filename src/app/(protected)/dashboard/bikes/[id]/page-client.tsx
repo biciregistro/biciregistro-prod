@@ -13,6 +13,7 @@ import { ArrowLeft, Pencil, FileDown, UploadCloud, Loader2 } from 'lucide-react'
 import { ImageUpload } from '@/components/shared/image-upload';
 import { updateOwnershipProof } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
+import QRCodeGenerator from '@/components/bike-components/qr-code-generator';
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -162,6 +163,18 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                       <DetailItem label="Año Modelo" value={bike.modelYear} />
                       <DetailItem label="Color" value={bike.color} />
                       <DetailItem label="Modalidad" value={bike.modality} />
+                  </CardContent>
+              </Card>
+
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Código QR de Registro</CardTitle>
+                      <CardDescription>
+                            Escanea o descarga este código QR para acceder rápidamente al perfil público de tu bicicleta.
+                      </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      <QRCodeGenerator serialNumber={bike.serialNumber} />
                   </CardContent>
               </Card>
 
