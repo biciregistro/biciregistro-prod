@@ -18,6 +18,7 @@ Biciregistro es una aplicación web moderna construida con Next.js, diseñada pa
   - Fotografías (vista lateral, número de serie, componentes).
   - Documentos de propiedad (facturas, recibos).
 - **Indicador de Perfil Completo:** Una barra de progreso que motiva a los usuarios a completar todos los datos de sus bicicletas.
+- **Descarga de Etiqueta QR:** Generación de una etiqueta estilizada en formato PDF (6x9 cm) que incluye el logo de la plataforma, el código QR de la bicicleta y su número de serie, lista para imprimir y adherir al cuadro de la bicicleta.
 - **Reporte de Robo:** Funcionalidad para marcar una bicicleta como robada, incluyendo detalles como fecha, ubicación y descripción del incidente.
 - **Búsqueda Pública:** Una página de acceso público para consultar el estado de una bicicleta mediante su número de serie.
 - **Panel de Administración:** Una sección protegida para que los administradores gestionen el contenido de la página de inicio.

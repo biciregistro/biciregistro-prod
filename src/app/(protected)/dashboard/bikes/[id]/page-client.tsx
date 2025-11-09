@@ -1,7 +1,8 @@
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
@@ -43,7 +44,6 @@ function OwnershipProofSection({ bike }: { bike: Bike }) {
                     title: "Éxito",
                     description: "El documento de propiedad se ha cargado y guardado.",
                 });
-                // Force a refresh to show the updated state
                 window.location.reload();
             } catch (error) {
                 toast({
@@ -95,6 +95,14 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
   const [bike, setBike] = useState<Bike>(initialBike);
   const [isEditing, setIsEditing] = useState(false);
 
+  const BikePDFDownloader = useMemo(() => dynamic(
+    () => import('@/components/bike-components/bike-pdf-downloader'),
+    { 
+      ssr: false,
+      loading: () => <Button variant="outline" disabled className="w-full sm:w-auto"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando...</Button>
+    }
+  ), []);
+
   const handleUpdateSuccess = async () => {
     setIsEditing(false);
     window.location.reload(); 
@@ -102,17 +110,20 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
 
   return (
     <div className="container py-6 md:py-8">
-      <div className="mb-6 flex items-center justify-between px-4 sm:px-0">
-        <Button asChild variant="outline" className="hover:bg-primary hover:text-primary-foreground">
+      <div className="mb-6 flex flex-col sm:flex-row items-center justify-between px-4 sm:px-0 gap-4">
+        <Button asChild variant="outline" className="w-full sm:w-auto hover:bg-primary hover:text-primary-foreground">
           <Link href="/dashboard">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver al Garaje
           </Link>
         </Button>
-        <Button variant="secondary" onClick={() => setIsEditing(!isEditing)}>
-          <Pencil className="mr-2 h-4 w-4" />
-          {isEditing ? 'Cancelar Edición' : 'Editar Detalles'}
-        </Button>
+        <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2">
+            <BikePDFDownloader bike={bike} className="w-full sm:w-auto" />
+            <Button variant="secondary" onClick={() => setIsEditing(!isEditing)} className="w-full sm:w-auto">
+              <Pencil className="mr-2 h-4 w-4" />
+              {isEditing ? 'Cancelar Edición' : 'Editar Detalles'}
+            </Button>
+        </div>
       </div>
 
       {isEditing ? (
