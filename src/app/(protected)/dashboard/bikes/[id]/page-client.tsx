@@ -1,8 +1,9 @@
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
@@ -16,6 +17,7 @@ import { ImageUpload } from '@/components/shared/image-upload';
 import { updateOwnershipProof } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import QRCodeGenerator from '@/components/bike-components/qr-code-generator';
+import { auth } from '@/lib/firebase/client';
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -36,6 +38,17 @@ function DetailItem({ label, value }: { label: string; value: React.ReactNode })
 function OwnershipProofSection({ bike }: { bike: Bike }) {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
+    const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
+
+    useEffect(() => {
+        if (!auth) return;
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setAuthUser(user);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const currentUserId = authUser?.uid;
 
     const handleUploadSuccess = (url: string) => {
         startTransition(async () => {
@@ -82,7 +95,8 @@ function OwnershipProofSection({ bike }: { bike: Bike }) {
                         ) : (
                              <ImageUpload 
                                 onUploadSuccess={handleUploadSuccess} 
-                                storagePath="ownership-proofs" 
+                                storagePath={`ownership-proofs/${currentUserId}`} 
+                                disabled={!currentUserId}
                              />
                         )}
                     </div>

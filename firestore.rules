@@ -1,0 +1,25 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check for a valid App Check token
+    function isAppCheckVerified() {
+      return request.app != null;
+    }
+    
+    // Rule for user-specific data
+    // Users can only read and write their own documents, from a verified app
+    match /users/{userId}/{documents=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId && isAppCheckVerified();
+    }
+
+    // Rule for the bikes collection
+    // Anyone can read (for public search), but only authenticated users 
+    // from a verified app can create, update, or delete.
+    match /bikes/{bikeId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null && isAppCheckVerified();
+    }
+  }
+}

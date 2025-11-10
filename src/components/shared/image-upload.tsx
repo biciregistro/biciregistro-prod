@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ref, uploadBytesResumumable, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,13 @@ import Image from "next/image";
 interface ImageUploadProps {
   onUploadSuccess: (url: string) => void;
   storagePath: string;
+  disabled?: boolean;
 }
 
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-export function ImageUpload({ onUploadSuccess, storagePath }: ImageUploadProps) {
+export function ImageUpload({ onUploadSuccess, storagePath, disabled = false }: ImageUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [downloadURL, setDownloadURL] = useState<string | null>(null);
@@ -28,14 +29,13 @@ export function ImageUpload({ onUploadSuccess, storagePath }: ImageUploadProps) 
     const selectedFile = e.target.files?.[0];
 
     if (selectedFile) {
-      // Client-side validation for file size
       if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
         toast({
           title: "Error al Cargar Archivo",
           description: `El archivo excede el límite de ${MAX_FILE_SIZE_MB}MB.`,
           variant: "destructive",
         });
-        e.target.value = ""; // Clear the input
+        e.target.value = "";
         return;
       }
       
@@ -50,6 +50,10 @@ export function ImageUpload({ onUploadSuccess, storagePath }: ImageUploadProps) 
     if (!file) {
       setError("Por favor, selecciona un archivo primero.");
       return;
+    }
+    if (disabled) {
+        setError("La subida de archivos está deshabilitada.");
+        return;
     }
 
     const fileName = `${storagePath}/${Date.now()}_${file.name}`;
@@ -94,8 +98,9 @@ export function ImageUpload({ onUploadSuccess, storagePath }: ImageUploadProps) 
           onChange={handleFileChange}
           accept="image/*,application/pdf"
           className="max-w-xs cursor-pointer"
+          disabled={disabled}
         />
-        <Button onClick={handleUpload} disabled={!file || uploadProgress !== null}>
+        <Button onClick={handleUpload} disabled={disabled || !file || uploadProgress !== null}>
           {uploadProgress !== null ? "Subiendo..." : "Subir"}
         </Button>
       </div>
