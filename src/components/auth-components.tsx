@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { auth } from '@/lib/firebase/client';
+import { Eye, EyeOff } from 'lucide-react';
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ export function LoginForm() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -91,16 +93,24 @@ export function LoginForm() {
                             onChange={(e) => setEmail(e.target.value)}
                         />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 relative">
                         <Label htmlFor="password">Contraseña</Label>
                         <Input
                             id="password"
                             name="password"
-                            type="password"
+                            type={showPassword ? 'text' : 'password'}
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
+                            className="pr-10" // Add padding to make space for the icon
                         />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 top-6 pr-3 flex items-center text-gray-500"
+                        >
+                            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
                     </div>
                     <Button type="submit" disabled={isLoading} className="w-full">
                         {isLoading ? 'Iniciando...' : 'Iniciar Sesión'}
