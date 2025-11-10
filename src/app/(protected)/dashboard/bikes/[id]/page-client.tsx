@@ -177,18 +177,6 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                   </CardContent>
               </Card>
 
-              <Card>
-                  <CardHeader>
-                      <CardTitle>Código QR de Registro</CardTitle>
-                      <CardDescription>
-                            Escanea o descarga este código QR para acceder rápidamente al perfil público de tu bicicleta.
-                      </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                      <QRCodeGenerator serialNumber={bike.serialNumber} />
-                  </CardContent>
-              </Card>
-
               <OwnershipProofSection bike={bike} />
 
               {bike.status === 'stolen' && bike.theftReport && (
@@ -215,6 +203,18 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                   </CardHeader>
                   <CardContent>
                       <TheftReportForm bike={bike} />
+                  </CardContent>
+              </Card>
+              
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Código QR de Registro</CardTitle>
+                      <CardDescription>
+                            Escanea o descarga este código QR para acceder rápidamente al perfil público de tu bicicleta.
+                      </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      <QRCodeGenerator serialNumber={bike.serialNumber} />
                   </CardContent>
               </Card>
           </div>
