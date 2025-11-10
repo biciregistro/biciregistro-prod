@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { BikeRegistrationForm, TheftReportForm } from '@/components/bike-components';
+import { TransferOwnershipForm } from '@/components/bike-components/transfer-ownership-form';
 import { cn } from '@/lib/utils';
 import type { Bike, User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -205,6 +206,24 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                       <TheftReportForm bike={bike} />
                   </CardContent>
               </Card>
+              
+              {bike.status === 'safe' && (
+                  <Card>
+                      <CardHeader>
+                          <CardTitle>Transferir Propiedad</CardTitle>
+                          <CardDescription>
+                              Transfiere el registro de esta bicicleta a otro usuario. 
+                              El nuevo propietario debe tener una cuenta en la plataforma.
+                          </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                          <TransferOwnershipForm 
+                              bikeId={bike.id} 
+                              bikeName={`${bike.make} ${bike.model}`}
+                          />
+                      </CardContent>
+                  </Card>
+              )}
               
               <Card>
                   <CardHeader>

@@ -102,6 +102,27 @@ export async function getUser(userId: string): Promise<User | null> {
     }
 }
 
+export async function getUserByEmail(email: string): Promise<User | null> {
+    if (!email) {
+        console.error("getUserByEmail called with no email");
+        return null;
+    }
+    try {
+        const db = getFirestore();
+        const usersRef = db.collection('users');
+        const q = usersRef.where('email', '==', email).limit(1);
+        const querySnapshot = await q.get();
+        if (querySnapshot.empty) {
+            return null;
+        }
+        const userDoc = querySnapshot.docs[0];
+        return { id: userDoc.id, ...userDoc.data() } as User;
+    } catch (error) {
+        console.error("Error fetching user by email:", error);
+        return null;
+    }
+}
+
 export async function createUser(user: User) {
     const db = getFirestore();
     await db.collection('users').doc(user.id).set(user);

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
-import { addBike, isSerialNumberUnique, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, verifyUserPassword } from './data';
+import { addBike, isSerialNumberUnique, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, verifyUserPassword, getUserByEmail, getBike } from './data';
 import { deleteSession, getDecodedSession } from './auth';
 import { firebaseConfig } from './firebase/config';
 import { ActionFormState, HomepageSection } from './types';
@@ -56,6 +56,11 @@ const theftReportSchema = z.object({
 const ownershipProofSchema = z.object({
     bikeId: z.string(),
     proofUrl: z.string().url("La URL del documento no es válida."),
+});
+
+const transferOwnershipSchema = z.object({
+    bikeId: z.string(),
+    newOwnerEmail: z.string().email("El correo electrónico no es válido."),
 });
 
 export async function signup(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
@@ -243,13 +248,17 @@ export async function registerBike(prevState: any, formData: FormData) {
         additionalPhoto2Url
     ].filter((url): url is string => !!url);
 
-    await addBike({
-        ...bikeData,
-        userId: session.uid, // <-- FIX: Associate bike with the authenticated user
-        serialNumber,
-        photos,
-        ownershipProof: ownershipProofUrl || '',
-    });
+    try {
+        await addBike({
+            ...bikeData,
+            userId: session.uid,
+            serialNumber,
+            photos,
+            ownershipProof: ownershipProofUrl || '',
+        });
+    } catch (error) {
+        return { message: 'Error de base de datos: No se pudo registrar la bicicleta.' };
+    }
 
     revalidatePath('/dashboard');
     redirect('/dashboard');
@@ -300,16 +309,20 @@ export async function updateBike(prevState: any, formData: FormData) {
         additionalPhoto2Url
     ].filter((url): url is string => !!url);
     
-    await updateBikeData(id, {
-        ...restBikeData,
-        serialNumber,
-        photos,
-        ownershipProof: ownershipProofUrl || ''
-    });
+    try {
+        await updateBikeData(id, {
+            ...restBikeData,
+            serialNumber,
+            photos,
+            ownershipProof: ownershipProofUrl || ''
+        });
+    } catch (error) {
+        return { message: 'Error de base de datos: No se pudo actualizar la bicicleta.' };
+    }
   
     revalidatePath(`/dashboard/bikes/${id}`);
     revalidatePath('/dashboard');
-    return { message: 'Bicicleta actualizada correctamente.' };
+    return { success: true, message: 'Bicicleta actualizada correctamente.' };
 }
 
 export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
@@ -324,7 +337,6 @@ export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
     revalidatePath(`/dashboard/bikes/${bikeId}`);
 }
 
-
 export async function reportTheft(prevState: any, formData: FormData) {
     const validatedFields = theftReportSchema.safeParse(Object.fromEntries(formData.entries()));
     if (!validatedFields.success) {
@@ -337,7 +349,7 @@ export async function reportTheft(prevState: any, formData: FormData) {
     await updateBikeStatus(bikeId, 'stolen', theftDetails);
     revalidatePath(`/dashboard/bikes/${bikeId}`);
     revalidatePath('/dashboard');
-    return { message: "Reporte de robo enviado." };
+    return { success: true, message: "Reporte de robo enviado." };
 }
 
 export async function markAsRecovered(bikeId: string) {
@@ -345,6 +357,51 @@ export async function markAsRecovered(bikeId: string) {
     revalidatePath(`/dashboard/bikes/${bikeId}`);
     revalidatePath('/dashboard');
 }
+
+export async function transferOwnership(prevState: any, formData: FormData): Promise<ActionFormState> {
+    const session = await getDecodedSession();
+    if (!session?.uid) {
+        return { error: 'No estás autenticado.' };
+    }
+
+    const validatedFields = transferOwnershipSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return { 
+            error: 'El correo electrónico proporcionado no es válido.',
+            errors: validatedFields.error.flatten().fieldErrors 
+        };
+    }
+
+    const { bikeId, newOwnerEmail } = validatedFields.data;
+
+    if (session.email === newOwnerEmail) {
+        return { error: 'No puedes transferir una bicicleta a ti mismo.' };
+    }
+
+    try {
+        const bike = await getBike(bikeId);
+        if (bike?.userId !== session.uid) {
+            return { error: 'No autorizado. No eres el propietario de esta bicicleta.' };
+        }
+        
+        const newOwner = await getUserByEmail(newOwnerEmail);
+        if (!newOwner) {
+            return { error: 'No se encontró ningún usuario con ese correo electrónico.' };
+        }
+
+        await updateBikeData(bikeId, { userId: newOwner.id });
+
+    } catch (error: any) {
+        console.error("TRANSFER_OWNERSHIP_ERROR:", error);
+        return { error: 'Ocurrió un error inesperado durante la transferencia.' };
+    }
+    
+    revalidatePath('/dashboard');
+    revalidatePath(`/dashboard/bikes/${bikeId}`);
+    redirect('/dashboard');
+}
+
 
 export async function updateHomepageSection(prevState: any, formData: FormData) {
     const validatedFields = homepageEditSchema.safeParse(Object.fromEntries(formData.entries()));
