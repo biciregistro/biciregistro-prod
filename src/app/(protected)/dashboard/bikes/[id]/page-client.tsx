@@ -109,6 +109,10 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
     window.location.reload(); 
   }
 
+  const formattedValue = bike.appraisedValue 
+    ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(bike.appraisedValue) 
+    : null;
+
   return (
     <div className="container py-6 md:py-8">
       <div className="mb-6 flex flex-col sm:flex-row items-center justify-between px-4 sm:px-0 gap-4">
@@ -175,6 +179,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                       <DetailItem label="Año Modelo" value={bike.modelYear} />
                       <DetailItem label="Color" value={bike.color} />
                       <DetailItem label="Modalidad" value={bike.modality} />
+                      <DetailItem label="Valor Aproximado" value={formattedValue} />
                   </CardContent>
               </Card>
 

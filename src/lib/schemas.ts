@@ -107,3 +107,14 @@ export const userFormSchema = z.object({
     }
     // If no password fields are filled, superRefine does nothing, and validation passes for them.
 });
+
+export const BikeRegistrationSchema = z.object({
+  serialNumber: z.string().min(1, "El número de serie es obligatorio."),
+  make: z.string().min(1, "La marca es obligatoria."),
+  model: z.string().min(1, "El modelo es obligatorio."),
+  color: z.string().min(1, "El color es obligatorio."),
+  modelYear: z.string().optional(),
+  modality: z.string().optional(),
+  appraisedValue: z.coerce.number().positive("El valor debe ser un número positivo.").optional(),
+  photos: z.array(z.string()).optional(),
+});

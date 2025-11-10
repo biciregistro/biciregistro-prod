@@ -8,27 +8,16 @@ import { addBike, isSerialNumberUnique, updateBikeData, updateBikeStatus, update
 import { deleteSession, getDecodedSession } from './auth';
 import { firebaseConfig } from './firebase/config';
 import { ActionFormState, HomepageSection } from './types';
-import { userFormSchema } from './schemas';
+import { userFormSchema, BikeRegistrationSchema } from './schemas';
 
 // Helper function to handle optional string fields from forms
 const optionalString = (schema: z.ZodString) => 
     z.preprocess((val) => (val === '' ? undefined : val), schema.optional());
 
-const bikeFormSchema = z.object({
+const bikeFormSchema = BikeRegistrationSchema.extend({
     id: z.string().optional(),
-    serialNumber: z.string().min(3, "El número de serie es obligatorio."),
-    make: z.string().min(2, "La marca es obligatoria."),
-    model: z.string().min(1, "El modelo es obligatorio."),
-    color: z.string().min(2, "El color es obligatorio."),
-    
-    // Apply the helper function to optional text fields
-    modelYear: optionalString(z.string()),
-    modality: optionalString(z.string()),
-    
     photoUrl: z.string().url("URL de foto lateral inválida.").min(1, "La foto lateral es obligatoria."),
     serialNumberPhotoUrl: z.string().url("URL de foto de serie inválida.").min(1, "La foto del número de serie es obligatoria."),
-    
-    // Apply the helper function to optional URL fields
     additionalPhoto1Url: optionalString(z.string().url({ message: "URL de foto adicional 1 inválida." })),
     additionalPhoto2Url: optionalString(z.string().url({ message: "URL de foto adicional 2 inválida." })),
     ownershipProofUrl: optionalString(z.string().url({ message: "URL de prueba de propiedad inválida." })),

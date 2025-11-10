@@ -34,7 +34,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
+import { BikeRegistrationSchema } from '@/lib/schemas';
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -128,17 +129,8 @@ export function BikeCard({ bike }: { bike: Bike }) {
         </Card>
     );
 }
-const bikeFormSchema = z.object({
-    id: z.string().optional(),
-    serialNumber: z.string().min(3, "El número de serie es obligatorio."),
-    make: z.string().min(2, "La marca es obligatoria."),
-    model: z.string().min(1, "El modelo es obligatorio."),
-    color: z.string().min(2, "El color es obligatorio."),
-    modelYear: z.string().optional(),
-    modality: z.string().optional(),
-});
 
-type BikeFormValues = z.infer<typeof bikeFormSchema>;
+type BikeFormValues = z.infer<typeof BikeRegistrationSchema>;
 const modalityOptions = ["Urbana", "Gravel", "Pista", "XC", "Enduro", "Downhill", "Trail", "E-Bike", "Dirt Jump", "MTB"];
 
 function SubmitButton({ isEditing, isSerialInvalid }: { isEditing?: boolean, isSerialInvalid?: boolean }) {
@@ -163,15 +155,15 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
     const [serialExists, setSerialExists] = useState(false);
     
     const form = useForm<BikeFormValues>({
-        resolver: zodResolver(bikeFormSchema),
+        resolver: zodResolver(BikeRegistrationSchema),
         defaultValues: {
-            id: bike?.id,
             serialNumber: bike?.serialNumber || "",
             make: bike?.make || "",
             model: bike?.model || "",
             color: bike?.color || "",
             modelYear: bike?.modelYear || "",
             modality: bike?.modality || "",
+            appraisedValue: bike?.appraisedValue || 0,
         },
     });
 
@@ -301,6 +293,20 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        
+                        <FormField
+                            control={form.control}
+                            name="appraisedValue"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Valor Aproximado (MXN)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="ej., 15000" {...field} />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}

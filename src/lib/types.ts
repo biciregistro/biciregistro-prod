@@ -12,6 +12,7 @@ export type Bike = {
   status: BikeStatus;
   photos: string[]; // URLs to images
   ownershipProof?: string; // URL to a single ownership document/proof
+  appraisedValue?: number; // Approximate value of the bike
   theftReport?: {
     date: string;
     time?: string;
