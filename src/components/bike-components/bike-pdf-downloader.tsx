@@ -113,13 +113,13 @@ export default function BikePDFDownloader({ bike, className }: { bike: Bike, cla
     };
 
   return (
-    <Button variant="default" onClick={handleDownload} disabled={loading} className={cn(className)}>
+    <Button variant="default" onClick={handleDownload} disabled={loading} className={cn("w-full", className)}>
       {loading ? (
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
       ) : (
         <Download className="mr-2 h-4 w-4" />
       )}
-      {loading ? 'Generando...' : 'Descargar Etiqueta'}
+      {loading ? 'Generando...' : 'Descargar Etiqueta QR'}
     </Button>
   );
 }

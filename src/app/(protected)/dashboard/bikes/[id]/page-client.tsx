@@ -100,7 +100,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
     () => import('@/components/bike-components/bike-pdf-downloader'),
     { 
       ssr: false,
-      loading: () => <Button variant="outline" disabled className="w-full sm:w-auto"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando...</Button>
+      loading: () => <Button variant="default" disabled className="w-full"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando...</Button>
     }
   ), []);
 
@@ -123,7 +123,6 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
           </Link>
         </Button>
         <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2">
-            <BikePDFDownloader bike={bike} className="w-full sm:w-auto" />
             <Button variant="secondary" onClick={() => setIsEditing(!isEditing)} className="w-full sm:w-auto">
               <Pencil className="mr-2 h-4 w-4" />
               {isEditing ? 'Cancelar Edición' : 'Editar Detalles'}
@@ -180,6 +179,18 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                       <DetailItem label="Color" value={bike.color} />
                       <DetailItem label="Modalidad" value={bike.modality} />
                       <DetailItem label="Valor Aproximado" value={formattedValue} />
+                  </CardContent>
+              </Card>
+
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Protege tu Bici con la Etiqueta QR</CardTitle>
+                      <CardDescription>
+                          Esta etiqueta es una protección activa y un disuasivo de robo. Descárgala, imprímela en papel autoadherible y colócala en un lugar visible del marco.
+                      </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      <BikePDFDownloader bike={bike} />
                   </CardContent>
               </Card>
 
