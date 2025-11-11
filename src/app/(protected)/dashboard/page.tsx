@@ -6,7 +6,7 @@ import type { Bike, User } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { BikeCard } from '@/components/bike-components';
+import { BikeCard } from '@/components/bike-card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { PlusCircle, Edit } from 'lucide-react';

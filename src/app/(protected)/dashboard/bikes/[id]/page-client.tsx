@@ -7,7 +7,7 @@ import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { BikeRegistrationForm, TheftReportForm } from '@/components/bike-components';
+import { BikeRegistrationForm, TheftReportForm } from '@/components/bike-card';
 import { TransferOwnershipForm } from '@/components/bike-components/transfer-ownership-form';
 import { cn } from '@/lib/utils';
 import type { Bike, User } from '@/lib/types';

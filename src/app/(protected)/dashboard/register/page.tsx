@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getAuthenticatedUser } from '@/lib/data';
-import { BikeRegistrationForm } from '@/components/bike-components';
+import { BikeRegistrationForm } from '@/components/bike-card';
 
 export default async function RegisterBikePage() {
   const user = await getAuthenticatedUser();
