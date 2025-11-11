@@ -1,0 +1,157 @@
+# Guía de Desarrollo y Despliegue para BiciRegistro
+
+Este documento contiene las directrices y buenas prácticas esenciales que todo desarrollador debe seguir para asegurar que el código sea consistente, mantenible y, sobre todo, **desplegable sin errores**.
+
+Cada una de estas reglas se basa en problemas reales que hemos resuelto. Seguir estas guías nos ahorrará tiempo y evitará que los mismos errores vuelvan a ocurrir.
+
+---
+
+## 1. Gestión de Variables de Entorno y Secretos
+
+El entorno de despliegue en Firebase App Hosting **NO** lee los archivos `.env.local`. Todas las variables de entorno deben ser gestionadas a través de secretos y declaradas en los archivos de configuración de App Hosting.
+
+#### Reglas:
+
+1.  **No subas archivos `.env` al repositorio.** Deben estar siempre en `.gitignore`.
+2.  **Cualquier nueva variable de entorno es un secreto.** Tanto las claves de servidor como las variables públicas del cliente (`NEXT_PUBLIC_*`) deben crearse como secretos en Google Secret Manager.
+3.  **Usa Firebase CLI para gestionar secretos.** Esto asegura que los permisos de IAM se asignen correctamente.
+
+#### Cómo Añadir una Nueva Variable de Entorno:
+
+**Paso 1: Crear el Secreto**
+```bash
+# Nombra el secreto con minúsculas y guiones
+firebase apphosting:secrets:set [nombre-del-secreto] --project [id-del-proyecto]
+```
+Cuando te pida el valor, cópialo de tu archivo `.env.local`.
+
+**Paso 2: Declarar la Variable en App Hosting**
+Añade una referencia al secreto en `apphosting.dev.yaml` (o `apphosting.prod.yaml`). La variable debe coincidir con la del código (ej. `NEXT_PUBLIC_FIREBASE_API_KEY`).
+
+```yaml
+# apphosting.dev.yaml
+
+env:
+  # ... otros secretos del servidor
+  - variable: FIREBASE_PRIVATE_KEY
+    secret: firebase-private-key
+
+  # ✅ BUENA PRÁCTICA: Variables públicas del cliente gestionadas como secretos
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    secret: next-public-firebase-api-key
+```
+
+---
+
+## 2. Sensibilidad a Mayúsculas y Nombres de Archivos (Case-Sensitivity)
+
+**¡ESTA ES LA CAUSA MÁS COMÚN DE FALLOS DE BUILD!**
+
+El servidor donde se despliega (Linux) es **sensible a mayúsculas y minúsculas**, mientras que tu entorno local (macOS/Windows) probablemente no lo es. Un error de `casing` que funciona en tu máquina **fallará catastróficamente** en el despliegue.
+
+#### Reglas:
+
+1.  **Las importaciones deben coincidir EXACTAMENTE.** La ruta en una declaración `import` debe ser idéntica, carácter por carácter, al nombre del archivo o directorio en el sistema de archivos.
+
+    ```tsx
+    // ❌ MAL: El archivo se llama 'card.tsx'
+    import { Card } from '@/components/ui/Card';
+
+    // ✅ BIEN: La importación coincide con el nombre del archivo 'card.tsx'
+    import { Card } from '@/components/ui/card';
+    ```
+
+2.  **No crear conflictos de nombres.** Nunca crees un archivo y un directorio con el mismo nombre base en la misma ruta.
+
+    ```
+    // ❌ MAL: Ambigüedad para el compilador
+    /components/
+      ├── bike-components/
+      └── bike-components.tsx
+
+    // ✅ BIEN: Nombres únicos y sin ambigüedad
+    /components/
+      ├── bike-components/
+      └── bike-card.tsx
+    ```
+
+#### Prevención a Nivel de Sistema (Recomendado):
+
+Para forzar a tu Git local a comportarse como el servidor, ejecuta este comando una vez en tu terminal:
+```bash
+git config core.ignorecase false
+```
+Esto hará que Git detecte los cambios de mayúsculas/minúsculas como modificaciones, evitando la desincronización con el repositorio.
+
+---
+
+## 3. Prácticas Específicas de Next.js
+
+Next.js tiene reglas estrictas sobre cómo se debe estructurar el código para que el `build` de producción funcione.
+
+#### Reglas:
+
+1.  **Importaciones Dinámicas (`next/dynamic`) deben ser de Nivel Superior.**
+    El compilador de Next.js necesita ver la llamada a `dynamic()` de forma estática. Nunca la envuelvas en un hook como `useMemo` o la declares dentro del cuerpo de un componente.
+
+    ```tsx
+    // ❌ MAL: Oculta la importación al análisis estático del build
+    export default function MyComponent() {
+      const MyDynamicComponent = useMemo(() => dynamic(...), []);
+      // ...
+    }
+
+    // ✅ BIEN: Declarado en el nivel superior del módulo
+    const MyDynamicComponent = dynamic(...);
+
+    export default function MyComponent() {
+      // ...
+    }
+    ```
+
+2.  **Forzar Renderizado Dinámico cuando sea Necesario.**
+    Por defecto, Next.js intenta prerenderizar las páginas de forma estática. Si una página o layout usa funciones que dependen de la solicitud del usuario (como `cookies()` o `headers()`), debes forzar su renderizado dinámico.
+
+    ```tsx
+    // src/app/(protected)/layout.tsx
+
+    // ✅ BUENA PRÁCTICA: Asegura que las rutas protegidas no intenten ser estáticas
+    export const dynamic = 'force-dynamic';
+
+    export default async function ProtectedLayout({ children }) {
+      // ... lógica de autenticación que usa cookies
+    }
+    ```
+
+3.  **Inicialización de SDKs de Cliente.**
+    Cualquier SDK que solo funcione en el navegador (como el SDK de cliente de Firebase) debe tener una lógica que impida su ejecución durante el `build` en el servidor.
+
+    ```typescript
+    // src/lib/firebase/client.ts
+
+    let app;
+
+    // ✅ BIEN: Comprobar si estamos en el navegador antes de inicializar
+    if (typeof window !== 'undefined') {
+      app = initializeApp(firebaseConfig);
+    }
+    ```
+
+---
+
+## 4. Configuración del Proyecto
+
+Mantén los archivos de configuración limpios y únicos.
+
+1.  **Un solo `tsconfig.json` y `next.config.ts`.** Estos archivos deben existir únicamente en la raíz del proyecto. No crees duplicados en otras carpetas.
+2.  **Mantener `baseUrl` en `tsconfig.json`.** Esto asegura que el alias `@/` se resuelva de manera explícita y sin ambigüedades.
+    ```json
+    {
+      "compilerOptions": {
+        "baseUrl": ".",
+        "paths": {
+          "@/*": ["./src/*"]
+        }
+      }
+    }
+    ```
