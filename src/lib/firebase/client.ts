@@ -1,12 +1,10 @@
-
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, signInWithCustomToken, type Auth, type AuthError } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
 // This object is the single source of truth for the Firebase configuration.
-// It is used by both the client-side and server-side code.
 export const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -16,20 +14,49 @@ export const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// --- LAZY INITIALIZATION ---
+// This function ensures Firebase is initialized only once and only on the client.
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+let storage: FirebaseStorage;
 
-// Initialize App Check
-if (typeof window !== "undefined") {
-  initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!),
-    isTokenAutoRefreshEnabled: true
-  });
+function initializeClientApp() {
+  if (getApps().length > 0) {
+    app = getApp();
+  } else {
+    // Ensure this runs only in the browser
+    if (typeof window === "undefined") {
+      throw new Error("Firebase client SDK can only be initialized in the browser.");
+    }
+    
+    // Validate that the config keys are present
+    if (!firebaseConfig.apiKey) {
+      throw new Error("NEXT_PUBLIC_FIREBASE_API_KEY is not set. The client app cannot be initialized.");
+    }
+
+    app = initializeApp(firebaseConfig);
+
+    // Initialize App Check only on the client
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!),
+      isTokenAutoRefreshEnabled: true
+    });
+  }
+  
+  // Assign the services after ensuring the app is initialized
+  auth = getAuth(app);
+  db = getFirestore(app);
+  storage = getStorage(app);
 }
 
-const db = getFirestore(app);
-const auth: Auth | undefined = getApp() ? getAuth(app) : undefined;
-const storage = getStorage(app);
+// Call the initialization function so that the services are available for export.
+// This still runs when the module is first imported, but the logic inside prevents
+// server-side execution.
+if (typeof window !== 'undefined') {
+  initializeClientApp();
+}
+
 
 /**
  * Signs the user in with a custom token and retrieves their ID token.
@@ -37,10 +64,9 @@ const storage = getStorage(app);
  * @returns An object with success status, the ID token, or an error message.
  */
 export const signInWithToken = async (token: string): Promise<{ success: boolean; idToken?: string; error?: string }> => {
+    // Ensure services are initialized before use
     if (!auth) {
-      const errorMessage = "Firebase Auth is not initialized.";
-      console.error(errorMessage);
-      return { success: false, error: errorMessage };
+      initializeClientApp();
     }
     try {
         const userCredential = await signInWithCustomToken(auth, token);
@@ -53,5 +79,5 @@ export const signInWithToken = async (token: string): Promise<{ success: boolean
     }
 };
 
-
+// Export the initialized services
 export { app, db, auth, storage };

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
-import { getAuthenticatedUser, getHomepageContent } from '@/lib/data';
+import { getAuthenticatedUser, getHomepageData } from '@/lib/data';
 import { HomepageEditor } from '@/components/admin-components';
+import type { HomepageSection } from '@/lib/types';
 
 export default async function AdminPage() {
   const user = await getAuthenticatedUser();
@@ -11,7 +12,9 @@ export default async function AdminPage() {
     redirect('/dashboard');
   }
 
-  const homepageSections = await getHomepageContent();
+  const homepageData = await getHomepageData();
+  // Convert the object of sections into an array for the component
+  const homepageSections: HomepageSection[] = Object.values(homepageData);
 
   return (
     <div className="container py-8">
