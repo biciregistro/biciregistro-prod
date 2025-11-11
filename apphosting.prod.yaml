@@ -1,0 +1,10 @@
+# Environment-specific overrides for the 'prod' environment.
+
+env:
+  # Reference the secrets from the 'biciregistro-prod' project's Secret Manager.
+  - variable: FIREBASE_PROJECT_ID
+    secret: firebase-project-id
+  - variable: FIREBASE_CLIENT_EMAIL
+    secret: firebase-client-email
+  - variable: FIREBASE_PRIVATE_KEY
+    secret: firebase-private-key
