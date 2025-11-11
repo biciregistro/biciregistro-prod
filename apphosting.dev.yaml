@@ -1,11 +1,9 @@
-# Environment-specific overrides for the 'dev' environment. (DIAGNOSTIC STEP)
+# Environment-specific overrides for the 'dev' environment.
 
 env:
-  # Temporarily using a plaintext value to diagnose the Secret Manager issue.
+  # Reference the secrets from the 'biciregistro-dev' project's Secret Manager.
   - variable: FIREBASE_PROJECT_ID
-    value: "studio-535179390-fbbb5"
-
-  # We still expect the build to fail on the next secret, which will prove the issue is with Secret Manager access.
+    secret: firebase-project-id
   - variable: FIREBASE_CLIENT_EMAIL
     secret: firebase-client-email
   - variable: FIREBASE_PRIVATE_KEY
