@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { BikeRegistrationForm, TheftReportForm } from '@/components/bike-card';
-import TransferOwnershipForm from '@/components/bike-components/transfer-ownership-form';
+import { TransferOwnershipForm } from '@/components/bike-components/transfer-ownership-form';
 import { cn } from '@/lib/utils';
 import type { Bike, User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
