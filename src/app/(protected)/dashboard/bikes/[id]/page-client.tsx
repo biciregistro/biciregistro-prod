@@ -19,6 +19,15 @@ import { useToast } from '@/hooks/use-toast';
 import QRCodeGenerator from '@/components/bike-components/qr-code-generator';
 import { auth } from '@/lib/firebase/client';
 
+// DECLARACIÓN CORRECTA: A nivel superior del módulo
+const BikePDFDownloader = dynamic(
+  () => import('@/components/bike-components/bike-pdf-downloader'),
+  { 
+    ssr: false,
+    loading: () => <Button variant="default" disabled className="w-full"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando...</Button>
+  }
+);
+
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
   stolen: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700',
@@ -109,14 +118,6 @@ function OwnershipProofSection({ bike }: { bike: Bike }) {
 export default function BikeDetailsPageClient({ user, bike: initialBike }: { user: User; bike: Bike }) {
   const [bike, setBike] = useState<Bike>(initialBike);
   const [isEditing, setIsEditing] = useState(false);
-
-  const BikePDFDownloader = useMemo(() => dynamic(
-    () => import('@/components/bike-components/bike-pdf-downloader'),
-    { 
-      ssr: false,
-      loading: () => <Button variant="default" disabled className="w-full"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando...</Button>
-    }
-  ), []);
 
   const handleUpdateSuccess = async () => {
     setIsEditing(false);
