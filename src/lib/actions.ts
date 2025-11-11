@@ -6,9 +6,9 @@ import { revalidatePath } from 'next/cache';
 
 import { addBike, isSerialNumberUnique, updateBikeData, updateBikeStatus, updateHomepageSectionData, updateUserData, createUser, verifyUserPassword, getUserByEmail, getBike } from './data';
 import { deleteSession, getDecodedSession } from './auth';
-import { firebaseConfig } from './firebase/config';
 import { ActionFormState, HomepageSection } from './types';
 import { userFormSchema, BikeRegistrationSchema } from './schemas';
+import { adminAuth } from './firebase/server';
 
 // Helper function to handle optional string fields from forms
 const optionalString = (schema: z.ZodString) => 
@@ -37,7 +37,7 @@ const theftReportSchema = z.object({
     date: z.string().min(1, "La fecha es obligatoria."),
     time: z.string().optional(),
     country: z.string().min(1, "El país es obligatorio."),
-    state: z.string().min(1, "El estado/provincia es obligatorio."),
+state: z.string().min(1, "El estado/provincia es obligatorio."),
     location: z.string().min(1, "La ubicación es obligatoria."),
     details: z.string().min(1, "Los detalles son obligatorios."),
 });
@@ -56,10 +56,17 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
     const validatedFields = userFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
-      return {
-        error: 'Datos proporcionados no válidos. Asegúrate de que las contraseñas coincidan y cumplan los requisitos.',
-        errors: validatedFields.error.flatten().fieldErrors,
-      };
+        // --- IMPROVED ERROR HANDLING ---
+        const fieldErrors = validatedFields.error.flatten().fieldErrors;
+        const errorMessages = Object.values(fieldErrors).flat(); // Get all error messages
+        
+        // Join messages for a more descriptive error
+        const descriptiveError = `Error de validación: ${errorMessages.join('. ')}.`;
+
+        return {
+            error: descriptiveError, // Return the descriptive error
+            errors: fieldErrors,
+        };
     }
     
     const { email, password, name, lastName } = validatedFields.data;
@@ -68,37 +75,24 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         return { error: 'La contraseña es obligatoria para el registro.' };
     }
 
-    let firebaseSignupResult;
+    let newUser;
     try {
-        const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${firebaseConfig.apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, returnSecureToken: true }),
-        });
-
-        firebaseSignupResult = await response.json();
-        
-        if (!response.ok) {
-            if (firebaseSignupResult.error?.message === 'EMAIL_EXISTS') {
-                return { error: 'El correo electrónico ya está en uso por otra cuenta.' };
-            }
-            const detailedError = firebaseSignupResult.error?.message || 'Ocurrió un error durante el registro.';
-            return { error: `Error de Firebase: ${detailedError}` };
-        }
-
-        const { adminAuth } = await import('./firebase/server');
-        if (!adminAuth) {
-            throw new Error("Firebase Admin SDK no está inicializado.");
-        }
-        await adminAuth.updateUser(firebaseSignupResult.localId, {
+        // Use Admin SDK to create the user, bypassing App Check and client API keys
+        newUser = await adminAuth.createUser({
+            email,
+            password,
             displayName: `${name} ${lastName}`,
         });
         
-        const customToken = await adminAuth.createCustomToken(firebaseSignupResult.localId);
+        // Create a custom token for the new user to sign in on the client
+        const customToken = await adminAuth.createCustomToken(newUser.uid);
 
+        // Create the corresponding user document in Firestore
         await createUser({
-            id: firebaseSignupResult.localId,
-            email, name, lastName,
+            id: newUser.uid,
+            email,
+            name, 
+            lastName,
             role: 'ciclista' as const,
         });
 
@@ -112,10 +106,17 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
 
     } catch (error: any) {
         console.error("SIGNUP_ACTION_ERROR:", error);
-        if (firebaseSignupResult?.localId) {
-            const { adminAuth } = await import('./firebase/server');
-            if (adminAuth) await adminAuth.deleteUser(firebaseSignupResult.localId);
+        
+        // If user creation succeeded in Auth but failed elsewhere, roll back
+        if (newUser?.uid) {
+            await adminAuth.deleteUser(newUser.uid);
         }
+
+        // Handle specific Firebase Admin errors
+        if (error.code === 'auth/email-already-exists') {
+            return { error: 'El correo electrónico ya está en uso por otra cuenta.' };
+        }
+        
         return { error: 'Ocurrió un error inesperado durante el registro.' };
     }
 }
@@ -152,11 +153,6 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
     const isAttemptingPasswordChange = !!currentPassword || !!password;
 
     try {
-        const { adminAuth } = await import('./firebase/server');
-        if (!adminAuth) {
-            throw new Error("Firebase Admin SDK no está inicializado.");
-        }
-
         if (isAttemptingPasswordChange) {
             if (!currentPassword || !password) {
                 return { error: 'Para cambiar la contraseña, debes proporcionar la actual y la nueva.' };

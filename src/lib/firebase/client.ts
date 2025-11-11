@@ -38,10 +38,19 @@ function initializeClientApp() {
     app = initializeApp(firebaseConfig);
 
     // Initialize App Check only on the client
-    initializeAppCheck(app, {
-      provider: new ReCaptchaV3Provider(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!),
-      isTokenAutoRefreshEnabled: true
-    });
+    if (typeof window !== "undefined") {
+      // Set the debug token in development to allow local testing
+      // IMPORTANT: This is intended for LOCAL DEVELOPMENT ONLY.
+      if (process.env.NODE_ENV === "development") {
+        // @ts-ignore
+        self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+      }
+
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!),
+        isTokenAutoRefreshEnabled: true
+      });
+    }
   }
   
   // Assign the services after ensuring the app is initialized
