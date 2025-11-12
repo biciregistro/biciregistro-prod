@@ -4,6 +4,7 @@ import { firebaseConfig } from './firebase/config';
 import type { User, Bike, BikeStatus, HomepageSection } from './types';
 import { getDecodedSession } from '@/lib/auth';
 import { adminAuth } from './firebase/server';
+import { defaultHomepageData } from './homepage-data'; // Import the default data
 
 // --- Helper Functions ---
 
@@ -244,6 +245,14 @@ export async function updateBikeStatus(bikeId: string, status: BikeStatus, theft
 export async function getHomepageData(): Promise<{ [key: string]: HomepageSection }> {
     const db = getFirestore();
     const snapshot = await db.collection('homepage').get();
+    
+    // If the collection is empty in Firestore, return the hardcoded default data.
+    if (snapshot.empty) {
+        console.log("Homepage collection is empty. Returning default data.");
+        return defaultHomepageData;
+    }
+    
+    // Otherwise, process the data from Firestore as usual.
     const sections: { [key: string]: HomepageSection } = {};
     snapshot.forEach(doc => {
         sections[doc.id] = doc.data() as HomepageSection;
