@@ -348,7 +348,7 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                         
                         <div className="space-y-2 pt-4">
                             <Label>Prueba de Propiedad</Label>
-                            <ImageUpload onUploadSuccess={setOwnershipProofUrl} storagePath="ownership-proofs" />
+                            <ImageUpload onUploadSuccess={setOwnershipProofUrl} storagePath={`ownership-proofs/${userId}`} />
                             <p className="text-xs text-muted-foreground">Sube la factura, recibo o alguna otra prueba de propiedad (opcional).</p>
                         </div>
                         <input type="hidden" name="userId" value={userId} />
