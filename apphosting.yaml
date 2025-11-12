@@ -1,30 +1,51 @@
-# Settings to manage and configure a Firebase App Hosting backend.
-# https://firebase.google.com/docs/app-hosting/configure
+# apphosting.yaml
+# Base configuration for all environments.
 
-# Specifies the version of the App Hosting schema.
+# Specifies the version of the App Hosting YAML file schema.
+# The `specVersion` should be set to `v1alpha1` for early access.
 specVersion: v1alpha1
 
-# Defines the commands to build and start the application.
+# Defines the command to build the application.
+# This command is executed in the root directory of the project.
 build:
-  # Command to build the Next.js application for production.
+  # The command to run to build the application.
   run: npm run build
-start:
-  # Command to start the production server after the build.
-  run: npm start
+  # Expose NEXT_PUBLIC_* environment variables to the build process.
+  # This makes them available to the client-side Firebase SDK.
+  env:
+    - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+      secret: next-public-firebase-api-key
+    - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+      secret: next-public-firebase-auth-domain
+    - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+      secret: next-public-firebase-project-id
+    - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+      secret: next-public-firebase-storage-bucket
+    - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+      secret: next-public-firebase-messaging-sender-id
+    - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+      secret: next-public-firebase-app-id
+    - variable: NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+      secret: next-public-recaptcha-site-key
 
-# Runtime settings for the server instance.
-runConfig:
-  # Optional: Sets the minimum number of instances to keep running.
-  # 0 is cost-effective for low traffic, but may have cold starts.
-  minInstances: 0
-  # Sets the maximum number of instances to scale up to.
-  maxInstances: 100
-  # Optional: CPU and Memory settings. Defaults are usually fine to start.
-  cpu: 1
-  memoryMiB: 512
+# Defines the command and settings for running the application.
+run:
+  # The command to run to start the application.
+  run: npm run start
+  # These environment variables are available at runtime for the server.
+  # Production-specific values are defined in 'apphosting.prod.yaml'.
+  env:
+    - variable: FIREBASE_PROJECT_ID
+    - variable: FIREBASE_CLIENT_EMAIL
+    - variable: FIREBASE_PRIVATE_KEY
+    - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    - variable: NEXT_PUBLIC_RECAPTCHA_SITE_KEY
 
-# Environment variables can be defined here, but it's recommended
-# to set secrets in the Firebase Console for better security.
-env:
-  - variable: NODE_ENV
-    value: production
+# Specifies the location of the static assets.
+# Next.js outputs static files to the '.next' directory.
+publicDir: .next
