@@ -68,7 +68,7 @@ function SubmitButton({ isEditing, isSigningIn }: { isEditing?: boolean, isSigni
     return <Button type="submit" disabled={pending || isSigningIn} className="w-full">{pending ? pendingText : text}</Button>;
 }
 
-function PasswordStrengthIndicator({ password = "" }: { password?: string }) {
+export function PasswordStrengthIndicator({ password = "" }: { password?: string }) {
     const checks = {
         length: password.length >= 6,
         uppercase: /[A-Z]/.test(password),
@@ -87,7 +87,7 @@ function PasswordStrengthIndicator({ password = "" }: { password?: string }) {
     if (!password) return null;
 
     return (
-        <div className="space-y-2 text-sm">
+        <div className="space-y-2 text-sm pt-2">
             {criteria.map(criterion => {
                 const met = checks[criterion.key as keyof typeof checks];
                 return (
