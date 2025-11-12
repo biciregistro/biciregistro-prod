@@ -8,7 +8,7 @@ Cada una de estas reglas se basa en problemas reales que hemos resuelto. Seguir 
 
 ## 1. Gestión de Variables de Entorno y Secretos
 
-El entorno de despliegue en Firebase App Hosting **NO** lee los archivos `.env.local`. Todas las variables de entorno deben ser gestionadas a través de secretos y declaradas en los archivos de configuración de App Hosting.
+El entorno de despliegue en Firebase App Hosting **NO** lee los archivos \`.env.local\`. Todas las variables de entorno deben ser gestionadas a través de secretos y declaradas en los archivos de configuración de App Hosting.
 
 #### Reglas:
 
@@ -154,4 +154,81 @@ Mantén los archivos de configuración limpios y únicos.
         }
       }
     }
+    ```
+
+---
+
+## 5. Estrategia de Ramas (Git Flow Simplificado)
+
+Para garantizar la estabilidad y un flujo de trabajo ordenado, seguimos una estrategia de dos ramas principales que se corresponden con nuestros entornos desplegados.
+
+### Ramas Principales
+
+*   **`main`**: Rama de **PRODUCCIÓN**.
+    *   **Propósito:** Contiene únicamente el código que ha sido probado y está desplegado para los usuarios finales.
+    *   **Regla:** **NUNCA** se debe hacer `push` directamente a `main`. El código solo llega a `main` al fusionar `develop`.
+    *   **Despliegue Automático:** Un `push` a `main` despliega al proyecto `biciregistro-prod`.
+
+*   **`develop`**: Rama de **DESARROLLO**.
+    *   **Propósito:** Es la rama principal de trabajo. Contiene las últimas características listas para ser probadas.
+    *   **Regla:** El código solo llega a `develop` al fusionar ramas de características (`feature`).
+    *   **Despliegue Automático:** Un `push` a `develop` despliega al proyecto de `dev` (`studio-535179390-fbbb5`).
+
+### Flujo de Trabajo para Nuevas Características
+
+1.  **Crear Rama:** Siempre crea tu rama de característica a partir de la última versión de `develop`.
+    ```bash
+    git checkout develop
+    git pull origin develop
+    git checkout -b feature/nombre-descriptivo
+    ```
+
+2.  **Desarrollar:** Trabaja y haz `commit` de tus cambios en tu rama `feature`.
+
+3.  **Fusionar a `develop`:** Cuando tu característica esté lista y probada localmente, fusiónala en `develop` para desplegarla en el entorno de pruebas.
+    ```bash
+    git checkout develop
+    git pull origin develop
+    git merge feature/nombre-descriptivo
+    git push origin develop
+    ```
+
+4.  **Verificar en `dev`:** Confirma que tus cambios funcionan como se espera en la URL del ambiente de desarrollo.
+
+### Flujo de Trabajo para Lanzamientos a Producción
+
+Este proceso se realiza únicamente cuando `develop` es estable y está listo para ser lanzado.
+
+1.  **Fusionar a `main`:**
+    ```bash
+    git checkout main
+    git pull origin main
+    git merge develop
+    git push origin main
+    ```
+2.  **¡Lanzamiento!** El `push` a `main` activará el despliegue a producción.
+
+### Flujo para Correcciones Urgentes (Hotfix)
+
+Si encuentras un bug crítico en producción:
+
+1.  **Crea una rama `hotfix` desde `main`:**
+    ```bash
+    git checkout main
+    git pull origin main
+    git checkout -b hotfix/descripcion-del-bug
+    ```
+2.  **Aplica y fusiona la corrección en `main`:**
+    ```bash
+    # Haces el commit con el arreglo...
+    git checkout main
+    git merge hotfix/descripcion-del-bug
+    git push origin main # <-- Despliega la corrección a producción
+    ```
+3.  **¡IMPORTANTE! Fusiona también en `develop`:**
+    Para asegurar que la corrección no se pierda en el próximo ciclo de desarrollo.
+    ```bash
+    git checkout develop
+    git merge hotfix/descripcion-del-bug
+    git push origin develop
     ```
