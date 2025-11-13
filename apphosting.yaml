@@ -5,6 +5,15 @@ specVersion: v1alpha1
 build:
   run: npm run build
   env:
+    # Server-side variables needed for 'next build'
+    - variable: FIREBASE_PROJECT_ID
+      secret: firebase-project-id
+    - variable: FIREBASE_CLIENT_EMAIL
+      secret: firebase-client-email
+    - variable: FIREBASE_PRIVATE_KEY
+      secret: firebase-private-key
+
+    # Client-side variables
     - variable: NEXT_PUBLIC_FIREBASE_API_KEY
       secret: next-public-firebase-api-key
     - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN

@@ -2,7 +2,15 @@
 
 build:
   env:
-    # NEXT_PUBLIC variables needed by the client-side Firebase SDK during build time.
+    # Server-side variables needed for 'next build'
+    - variable: FIREBASE_PROJECT_ID
+      secret: firebase-project-id
+    - variable: FIREBASE_CLIENT_EMAIL
+      secret: firebase-client-email
+    - variable: FIREBASE_PRIVATE_KEY
+      secret: firebase-private-key
+
+    # Client-side variables
     - variable: NEXT_PUBLIC_FIREBASE_API_KEY
       secret: next-public-firebase-api-key
     - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
@@ -20,15 +28,15 @@ build:
 
 run:
   env:
-    # Server-side variables needed at runtime for Firebase Admin SDK.
+    # Server-side variables needed at runtime.
     - variable: FIREBASE_PROJECT_ID
       secret: firebase-project-id
     - variable: FIREBASE_CLIENT_EMAIL
       secret: firebase-client-email
     - variable: FIREBASE_PRIVATE_KEY
       secret: firebase-private-key
-
-    # NEXT_PUBLIC variables also needed at runtime for Server Components.
+    
+    # Client-side variables also needed at runtime for Server Components.
     - variable: NEXT_PUBLIC_FIREBASE_API_KEY
       secret: next-public-firebase-api-key
     - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
