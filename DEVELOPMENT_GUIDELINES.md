@@ -172,7 +172,7 @@ Para garantizar la estabilidad y un flujo de trabajo ordenado, seguimos una estr
 *   **`develop`**: Rama de **DESARROLLO**.
     *   **Propósito:** Es la rama principal de trabajo. Contiene las últimas características listas para ser probadas.
     *   **Regla:** El código solo llega a `develop` al fusionar ramas de características (`feature`).
-    *   **Despliegue Automático:** Un `push` a `develop` despliega al proyecto de `dev` (`studio-535179390-fbbb5`).
+    *   **Despliegue Automático:** Un `push` a `develop` despliega al proyecto de `dev` (`studio-53517930-fbbb5`).
 
 ### Flujo de Trabajo para Nuevas Características
 
@@ -207,6 +207,35 @@ Este proceso se realiza únicamente cuando `develop` es estable y está listo pa
     git push origin main
     ```
 2.  **¡Lanzamiento!** El `push` a `main` activará el despliegue a producción.
+
+### Despliegue de Reglas de Firebase
+
+**IMPORTANTE:** El pipeline de despliegue automático **solo** despliega la aplicación web. Las reglas de seguridad de Firestore (`firestore.rules`) y Storage (`storage.rules`) deben ser desplegadas manualmente.
+
+**Cuándo Desplegar Reglas:**
+-   Cada vez que se fusionen cambios de `develop` a `main` que modifiquen los archivos `firestore.rules` o `storage.rules`.
+-   Si se sospecha que las reglas entre entornos están desincronizadas.
+
+**Cómo Desplegar:**
+
+1.  **Asegúrate de estar en la rama `main`:**
+    ```bash
+    git checkout main
+    git pull origin main
+    ```
+2.  **Ejecuta el comando de despliegue de reglas apuntando al proyecto correcto:**
+    
+    **Para Desarrollo:**
+    ```bash
+    # Desplegar ambas reglas a DEV
+    firebase deploy --only firestore,storage -P studio-535179390-fbbb5
+    ```
+
+    **Para Producción:**
+    ```bash
+    # Desplegar ambas reglas a PROD
+    firebase deploy --only firestore,storage -P biciregistro-prod
+    ```
 
 ### Flujo para Correcciones Urgentes (Hotfix)
 
