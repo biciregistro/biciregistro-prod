@@ -1,53 +1,25 @@
 # Environment-specific overrides for the 'dev' environment.
+# This file only specifies the secrets for the development environment.
+# The structure and availability are inherited from apphosting.yaml.
 
-build:
-  env:
-    # Server-side variables needed for 'next build'
-    - variable: FIREBASE_PROJECT_ID
-      secret: firebase-project-id
-    - variable: FIREBASE_CLIENT_EMAIL
-      secret: firebase-client-email
-    - variable: FIREBASE_PRIVATE_KEY
-      secret: firebase-private-key
-
-    # Client-side variables
-    - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-      secret: next-public-firebase-api-key
-    - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-      secret: next-public-firebase-auth-domain
-    - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-      secret: next-public-firebase-project-id
-    - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-      secret: next-public-firebase-storage-bucket
-    - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-      secret: next-public-firebase-messaging-sender-id
-    - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-      secret: next-public-firebase-app-id
-    - variable: NEXT_PUBLIC_RECAPTCHA_SITE_KEY
-      secret: next-public-recaptcha-site-key
-
-run:
-  env:
-    # Server-side variables needed at runtime.
-    - variable: FIREBASE_PROJECT_ID
-      secret: firebase-project-id
-    - variable: FIREBASE_CLIENT_EMAIL
-      secret: firebase-client-email
-    - variable: FIREBASE_PRIVATE_KEY
-      secret: firebase-private-key
-    
-    # Client-side variables also needed at runtime for Server Components.
-    - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-      secret: next-public-firebase-api-key
-    - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-      secret: next-public-firebase-auth-domain
-    - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-      secret: next-public-firebase-project-id
-    - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-      secret: next-public-firebase-storage-bucket
-    - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-      secret: next-public-firebase-messaging-sender-id
-    - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-      secret: next-public-firebase-app-id
-    - variable: NEXT_PUBLIC_RECAPTCHA_SITE_KEY
-      secret: next-public-recaptcha-site-key
+env:
+  - variable: FIREBASE_PROJECT_ID
+    secret: firebase-project-id
+  - variable: FIREBASE_CLIENT_EMAIL
+    secret: firebase-client-email
+  - variable: FIREBASE_PRIVATE_KEY
+    secret: firebase-private-key
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    secret: next-public-firebase-api-key
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    secret: next-public-firebase-auth-domain
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    secret: next-public-firebase-project-id
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    secret: next-public-firebase-storage-bucket
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    secret: next-public-firebase-messaging-sender-id
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    secret: next-public-firebase-app-id
+  - variable: NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+    secret: next-public-recaptcha-site-key
