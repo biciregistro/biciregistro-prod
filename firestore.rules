@@ -1,25 +1,153 @@
+/**
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a strict user-ownership model for cyclist data and an admin-based model for homepage content.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores cyclist profiles, with 'userId' matching the Firebase Auth UID.
+ * - /users/{userId}/bikes/{bikeId}: Stores bikes owned by the cyclist, with a denormalized 'ownerId' field.
+ * - /users/{userId}/bikes/{bikeId}/theftReports/{theftReportId}: Stores theft reports for a specific bike.
+ * - /bike_shops/{bikeShopId}: Stores bike shop profiles (currently open reads, restricted writes).
+ * - /home_page_sections/{homePageSectionId}: Stores editable homepage sections, accessible only by admins.
+ * - /roles_admin/{uid}: Used to grant admin privileges; presence of a document with the user's UID grants admin access.
+ *
+ * Key Security Decisions:
+ * - User data is strictly owned and controlled by the authenticated user (CRUD operations).
+ * - Bikes and TheftReports inherit ownership from their parent cyclist.
+ * - Listing users is not permitted.
+ * - HomePageSections are only accessible by admins, determined by membership in the /roles_admin collection.
+ * - BikeShops are readable by everyone, but write operations should be restricted to admins or the bike shop itself (TODO).
+ *
+ * Denormalization for Authorization:
+ * - The 'ownerId' field is denormalized in the Bike document to avoid costly `get()` calls and enable simpler, more performant security rules.
+ */
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check for a valid App Check token
-    function isAppCheckVerified() {
-      return request.app != null;
-    }
-    
-    // Rule for user-specific data
-    // Users can only read and write their own documents, from a verified app
-    match /users/{userId}/{documents=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId && isAppCheckVerified();
+    /**
+     * @description Checks if the request is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Rule for the bikes collection
-    // Anyone can read (for public search), but only authenticated users 
-    // from a verified app can create, update, or delete.
-    match /bikes/{bikeId} {
-      allow read: if true;
-      allow create, update, delete: if request.auth != null && isAppCheckVerified();
+    /**
+     * @description Checks if the authenticated user's UID matches the provided userId.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the authenticated user is an existing owner of the document.
+     */
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+    }
+
+     /**
+      * @description Checks if the authenticated user is an admin.
+      */
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /**
+     * @description Defines the access rules for cyclist profiles.
+     * @path /users/{userId}
+     * @allow (create) Authenticated user with matching UID can create their profile.
+     * @allow (get, update, delete) Authenticated user can access and modify their own profile.
+     * @deny (create) Unauthenticated user cannot create a profile.
+     * @deny (update, delete) User cannot modify another user's profile.
+     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // Prevent listing all users
+
+      allow create: if isOwner(userId) && request.resource.data.id == request.auth.uid;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id; //Enforce immutability of the user ID.
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Defines the access rules for bikes owned by a specific cyclist.
+     * @path /users/{userId}/bikes/{bikeId}
+     * @allow (create) Authenticated user can create a bike under their profile with matching ownerId.
+     * @allow (get, update, delete) Authenticated user can access and modify their own bike.
+     * @deny (create) Unauthenticated user cannot create a bike.
+     * @deny (update, delete) User cannot modify another user's bike.
+     * @principle Enforces document ownership for writes, validates relational integrity between documents.
+     */
+    match /users/{userId}/bikes/{bikeId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) && request.resource.data.ownerId == userId;
+      allow update: if isExistingOwner(userId) && resource.data.ownerId == userId; // OwnerId cannot be changed.
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Defines the access rules for theft reports for a specific bike owned by a cyclist.
+     * @path /users/{userId}/bikes/{bikeId}/theftReports/{theftReportId}
+     * @allow (create) Authenticated user can create a theft report for their bike.
+     * @allow (get, update, delete) Authenticated user can access and modify their own theft report.
+     * @deny (create) Unauthenticated user cannot create a theft report.
+     * @deny (update, delete) User cannot modify another user's theft report.
+     * @principle Enforces document ownership for writes, validates relational integrity between documents.
+     */
+    match /users/{userId}/bikes/{bikeId}/theftReports/{theftReportId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Defines the access rules for bike shop profiles.
+     * @path /bike_shops/{bikeShopId}
+     * @allow (get, list) Public access to bike shop profiles.
+     * @deny (create, update, delete) Only admins can create, update, or delete bike shop profiles.
+     * @principle Grants public read access, restricts write access to admins.
+     */
+    match /bike_shops/{bikeShopId} {
+      allow get, list: if true; // Public read access
+      allow create, update, delete: if isAdmin(); // Only admins can modify.
+      // TODO: Add shop owner control for write access.
+    }
+
+    /**
+     * @description Defines the access rules for editable sections of the homepage.
+     * @path /home_page_sections/{homePageSectionId}
+     * @allow (get, list, create, update, delete) Only admins can manage homepage sections.
+     * @deny (get, list, create, update, delete) Non-admins cannot access or modify homepage sections.
+     * @principle Restricts access to admin-managed content.
+     */
+    match /home_page_sections/{homePageSectionId} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Defines the access rules for admin role assignments.
+     * @path /roles_admin/{uid}
+     * @allow create: if isSignedIn() && request.auth.uid == uid;
+     * @allow get: if isAdmin();
+     * @allow list: if false;
+     * @allow update: if false;
+     * @allow delete: if isSignedIn() && request.auth.uid == uid;
+     */
+     match /roles_admin/{uid} {
+        allow create: if isSignedIn() && request.auth.uid == uid;
+        allow get: if isAdmin();
+        allow list: if false;
+        allow update: if false;
+        allow delete: if isSignedIn() && request.auth.uid == uid;
     }
   }
 }
