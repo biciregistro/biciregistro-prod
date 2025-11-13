@@ -206,15 +206,15 @@ Este proceso se realiza únicamente cuando `develop` es estable y está listo pa
     git merge develop
     git push origin main
     ```
-2.  **¡Lanzamiento!** El `push` a `main` activará el despliegue a producción.
+2.  **¡Lanzamiento!** El `push` a `main` activará el desplieggue a producción.
 
-### Despliegue de Reglas de Firebase
+### Despliegue de Configuración de Firebase (Firestore y Storage)
 
-**IMPORTANTE:** El pipeline de despliegue automático **solo** despliega la aplicación web. Las reglas de seguridad de Firestore (`firestore.rules`) y Storage (`storage.rules`) deben ser desplegadas manualmente.
+**IMPORTANTE:** El pipeline de despliegue automático **solo** despliega la aplicación web. La configuración de back-end de Firebase (reglas de seguridad, índices, etc.) debe ser desplegada manualmente.
 
-**Cuándo Desplegar Reglas:**
--   Cada vez que se fusionen cambios de `develop` a `main` que modifiquen los archivos `firestore.rules` o `storage.rules`.
--   Si se sospecha que las reglas entre entornos están desincronizadas.
+**Cuándo Desplegar:**
+-   Cada vez que se fusionen cambios de `develop` a `main` que modifiquen los archivos `firestore.rules`, `firestore.indexes.json` o `storage.rules`.
+-   Si se sospecha que la configuración entre entornos está desincronizada.
 
 **Cómo Desplegar:**
 
@@ -223,17 +223,17 @@ Este proceso se realiza únicamente cuando `develop` es estable y está listo pa
     git checkout main
     git pull origin main
     ```
-2.  **Ejecuta el comando de despliegue de reglas apuntando al proyecto correcto:**
+2.  **Ejecuta el comando de despliegue apuntando al proyecto correcto:**
     
     **Para Desarrollo:**
     ```bash
-    # Desplegar ambas reglas a DEV
+    # Desplegar toda la configuración de back-end a DEV
     firebase deploy --only firestore,storage -P studio-535179390-fbbb5
     ```
 
     **Para Producción:**
     ```bash
-    # Desplegar ambas reglas a PROD
+    # Desplegar toda la configuración de back-end a PROD
     firebase deploy --only firestore,storage -P biciregistro-prod
     ```
 
