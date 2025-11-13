@@ -62,9 +62,14 @@ export async function verifyUserPassword(email: string, password_provided: strin
 export async function getAuthenticatedUser(): Promise<User | null> {
     const session = await getDecodedSession();
     if (!session?.uid) return null;
+
     try {
         const db = getFirestore();
         const userDoc = await db.collection('users').doc(session.uid).get();
+
+        // Check if the user has an 'admin' claim in their auth token.
+        const isAdmin = session.admin === true;
+
         if (!userDoc.exists) {
             console.warn(`User document not found for UID: ${session.uid}`);
             // Attempt to self-heal by creating the user document
@@ -74,19 +79,29 @@ export async function getAuthenticatedUser(): Promise<User | null> {
                 email: firebaseUser.email!,
                 name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
                 lastName: '', // Default empty value
-                role: 'ciclista', // FIX: Assign the correct default role
+                // If they are an admin, set the role here, otherwise default to 'ciclista'
+                role: isAdmin ? 'admin' : 'ciclista',
             };
             await db.collection('users').doc(newUser.id).set(newUser);
             console.log(`Self-healing: Created user document for UID: ${newUser.id}`);
             return newUser;
         }
+
         const userData = userDoc.data() as User;
+
+        // The auth claim is the source of truth.
+        // If the user is an admin via claims, override their role from Firestore.
+        if (isAdmin) {
+            userData.role = 'admin';
+        }
+
         return { ...userData, id: userDoc.id };
     } catch (error) {
         console.error("Failed to fetch authenticated user:", error);
         return null;
     }
 }
+
 
 export async function getUser(userId: string): Promise<User | null> {
     if (!userId) {
@@ -246,19 +261,22 @@ export async function getHomepageData(): Promise<{ [key: string]: HomepageSectio
     const db = getFirestore();
     const snapshot = await db.collection('homepage').get();
     
-    // If the collection is empty in Firestore, return the hardcoded default data.
-    if (snapshot.empty) {
-        console.log("Homepage collection is empty. Returning default data.");
-        return defaultHomepageData;
-    }
-    
-    // Otherwise, process the data from Firestore as usual.
-    const sections: { [key: string]: HomepageSection } = {};
+    const firestoreData: { [key: string]: HomepageSection } = {};
     snapshot.forEach(doc => {
-        sections[doc.id] = doc.data() as HomepageSection;
+        // Important: Re-add the document ID to the object
+        firestoreData[doc.id] = { id: doc.id, ...doc.data() } as HomepageSection;
     });
-    return sections;
+
+    // Merge default data with Firestore data, ensuring all sections exist
+    // and that Firestore data overwrites defaults.
+    const mergedData = {
+        ...defaultHomepageData,
+        ...firestoreData,
+    };
+    
+    return mergedData;
 }
+
 
 export async function updateHomepageSectionData(data: HomepageSection) {
     const db = getFirestore();

@@ -52,9 +52,16 @@ export function LoginForm() {
                 const errorData = await response.json();
                 throw new Error(errorData.error || 'Falló la creación de la sesión.');
             }
+            
+            const sessionData = await response.json();
 
             toast({ title: "¡Éxito!", description: "Has iniciado sesión correctamente." });
-            router.push('/dashboard');
+
+            if (sessionData.isAdmin) {
+                router.push('/admin');
+            } else {
+                router.push('/dashboard');
+            }
 
         } catch (error: any) {
             console.error("Login failed:", error);

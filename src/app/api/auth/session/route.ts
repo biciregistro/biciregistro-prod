@@ -14,16 +14,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "ID token not found in request body." }, { status: 400 });
     }
 
-    // --- FIX: Verify the ID token before creating a session cookie. ---
-    // This step ensures that the token is valid and not revoked.
-    await adminAuth.verifyIdToken(idToken);
+    // Verify the ID token and decode it to get user claims.
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const isAdmin = decodedToken.admin === true;
 
     const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
     const sessionCookie = await adminAuth.createSessionCookie(idToken, {
       expiresIn,
     });
     
-    const response = NextResponse.json({ status: "success" }, { status: 200 });
+    // Include isAdmin status in the response
+    const response = NextResponse.json({ status: "success", isAdmin }, { status: 200 });
 
     response.cookies.set(SESSION_COOKIE_NAME, sessionCookie, {
       maxAge: expiresIn,
