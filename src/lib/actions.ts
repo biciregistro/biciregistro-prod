@@ -4,13 +4,13 @@ import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
-import { 
-    addBike, 
-    isSerialNumberUnique, 
-    updateBikeData, 
-    updateHomepageSectionData, 
-    updateUserData, 
-    createUser, 
+import {
+    addBike,
+    isSerialNumberUnique,
+    updateBikeData,
+    updateHomepageSectionData,
+    updateUserData,
+    createUser,
     verifyUserPassword,
     getHomepageData
 } from './data';
@@ -20,7 +20,7 @@ import { userFormSchema, BikeRegistrationSchema } from './schemas';
 import { adminAuth } from './firebase/server';
 
 // Helper function to handle optional string fields from forms
-const optionalString = (schema: z.ZodString) => 
+const optionalString = (schema: z.ZodString) =>
     z.preprocess((val) => (val === '' ? undefined : val), schema.optional());
 
 const bikeFormSchema = BikeRegistrationSchema.extend({
@@ -71,7 +71,7 @@ export async function updateHomepageSection(prevState: any, formData: FormData) 
     if (!validatedFields.success) {
         return { error: 'Datos proporcionados no válidos.', errors: validatedFields.error.flatten().fieldErrors };
     }
-    
+
     const data: Partial<HomepageSection> = { ...validatedFields.data };
 
     try {
@@ -101,7 +101,7 @@ export async function updateFeatureItem(prevState: any, formData: FormData) {
             return { error: 'La sección de características no fue encontrada o es del tipo incorrecto.' };
         }
 
-        const updatedFeatures = featuresSection.features.map((feature: Feature & { id?: string }) => 
+        const updatedFeatures = featuresSection.features.map((feature: Feature & { id?: string }) =>
             feature.id === featureId ? { ...feature, ...updatedFeatureData } : feature
         );
 
@@ -147,7 +147,7 @@ export async function reportTheft(prevState: any, formData: FormData) {
     try {
         await updateBikeData(bikeId, {
             status: 'stolen',
-            theft: theftData,
+            theftReport: theftData,
         });
         revalidatePath('/dashboard');
         return { message: 'El robo ha sido reportado exitosamente.' };
@@ -160,7 +160,7 @@ export async function markAsRecovered(bikeId: string) {
     try {
         await updateBikeData(bikeId, {
             status: 'safe',
-            theft: null, // Remove theft details
+            theftReport: undefined, // Remove theft details
         });
         revalidatePath('/dashboard');
     } catch (error) {
