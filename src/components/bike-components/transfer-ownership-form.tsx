@@ -1,6 +1,7 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { transferOwnership } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,6 @@ import {
     DialogTrigger,
     DialogClose,
 } from "@/components/ui/dialog"
-import { useState } from 'react';
 
 
 interface TransferOwnershipFormProps {
@@ -37,7 +37,7 @@ function SubmitButton() {
 
 export function TransferOwnershipForm({ bikeId, bikeName }: TransferOwnershipFormProps) {
     const initialState = { error: '' };
-    const [state, dispatch] = useFormState(transferOwnership, initialState);
+    const [state, dispatch] = useActionState(transferOwnership, initialState);
     const [open, setOpen] = useState(false);
 
     return (
