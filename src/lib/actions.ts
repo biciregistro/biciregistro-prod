@@ -169,6 +169,20 @@ export async function markAsRecovered(bikeId: string) {
     }
 }
 
+export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
+    try {
+        await updateBikeData(bikeId, {
+            ownershipProof: proofUrl,
+        });
+        revalidatePath(`/dashboard/bikes/${bikeId}`);
+    } catch (error) {
+        console.error("Failed to update ownership proof:", error);
+        // Optionally, return an error to be handled by the client
+        throw new Error("Could not update ownership proof.");
+    }
+}
+
+
 export async function logout() {
     await deleteSession();
     redirect('/login');
