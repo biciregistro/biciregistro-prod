@@ -48,6 +48,17 @@ const featureItemSchema = z.object({
     imageUrl: z.string().url('La URL de la imagen no es válida'),
 });
 
+// Schema for theft report form
+const theftReportSchema = z.object({
+    bikeId: z.string(),
+    date: z.string().min(1, "La fecha es obligatoria."),
+    time: z.string().optional(),
+    country: z.string().min(1, "El país es obligatorio."),
+    state: z.string().min(1, "El estado/provincia es obligatorio."),
+    location: z.string().min(1, "La ubicación es obligatoria."),
+    details: z.string().min(1, "Los detalles son obligatorios."),
+});
+
 
 export async function signup(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
     // ... implementation remains correct
@@ -86,12 +97,10 @@ export async function updateFeatureItem(prevState: any, formData: FormData) {
         const homepageData = await getHomepageData();
         const featuresSection = homepageData['features'];
 
-        // Type Guard: Ensure we are working with the 'features' section
         if (!featuresSection || featuresSection.id !== 'features') {
             return { error: 'La sección de características no fue encontrada o es del tipo incorrecto.' };
         }
 
-        // Now TypeScript knows featuresSection.features is safe to access
         const updatedFeatures = featuresSection.features.map((feature: Feature & { id?: string }) => 
             feature.id === featureId ? { ...feature, ...updatedFeatureData } : feature
         );
@@ -125,6 +134,41 @@ export async function updateBike(prevState: any, formData: FormData) {
     // ... implementation remains correct
     return { success: true, message: 'Bicicleta actualizada correctamente.' };
 }
+
+export async function reportTheft(prevState: any, formData: FormData) {
+    const validatedFields = theftReportSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return { errors: validatedFields.error.flatten().fieldErrors, message: 'Faltan campos. No se pudo reportar el robo.' };
+    }
+
+    const { bikeId, ...theftData } = validatedFields.data;
+
+    try {
+        await updateBikeData(bikeId, {
+            status: 'stolen',
+            theft: theftData,
+        });
+        revalidatePath('/dashboard');
+        return { message: 'El robo ha sido reportado exitosamente.' };
+    } catch (error) {
+        return { message: 'Error de base de datos: No se pudo reportar el robo.' };
+    }
+}
+
+export async function markAsRecovered(bikeId: string) {
+    try {
+        await updateBikeData(bikeId, {
+            status: 'safe',
+            theft: null, // Remove theft details
+        });
+        revalidatePath('/dashboard');
+    } catch (error) {
+        // Handle potential errors, maybe return a message
+        console.error("Failed to mark as recovered:", error);
+    }
+}
+
 export async function logout() {
     await deleteSession();
     redirect('/login');
