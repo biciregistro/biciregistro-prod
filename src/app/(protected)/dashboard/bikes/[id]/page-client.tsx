@@ -218,7 +218,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                       </CardHeader>
                       <CardContent className="space-y-4">
                           <div className="grid grid-cols-2 gap-4">
-                            <DetailItem label="Fecha del Reporte" value={new Date(bike.theftReport.date).toLocaleDateString()} />
+                            <DetailItem label="Fecha del Reporte" value={new Date(bike.theftReport.date).toLocaleDateString('es-MX', { timeZone: 'UTC' })} />
                             <DetailItem label="Hora del Reporte" value={bike.theftReport.time} />
                             <DetailItem label="País" value={bike.theftReport.country} />
                             <DetailItem label="Estado/Provincia" value={bike.theftReport.state} />
