@@ -16,7 +16,8 @@ export default async function BikeDetailsPage(props: PageProps) {
     redirect('/login');
   }
 
-  const bike = await getBike(id);
+  // Corrected call to getBike with both userId and bikeId
+  const bike = await getBike(user.id, id);
   if (!bike || bike.userId !== user.id) {
     notFound();
   }

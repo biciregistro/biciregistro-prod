@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { debounce } from 'lodash';
 import { useRouter } from 'next/navigation';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 
 import type { Bike, BikeFormState } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -37,6 +38,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { BikeRegistrationSchema } from '@/lib/schemas';
+import { auth } from '@/lib/firebase/client';
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -156,7 +158,16 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
     const [ownershipProofUrl, setOwnershipProofUrl] = useState(bike?.ownershipProof || '');
     const [isCheckingSerial, setIsCheckingSerial] = useState(false);
     const [serialExists, setSerialExists] = useState(false);
+    const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
     
+    useEffect(() => {
+        if (!auth) return;
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setAuthUser(user);
+        });
+        return () => unsubscribe();
+    }, []);
+
     const form = useForm<BikeFormValues>({
         resolver: zodResolver(BikeRegistrationSchema),
         defaultValues: {
@@ -193,7 +204,7 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
     }, 500), [isEditing, bike?.serialNumber]);
 
     useEffect(() => {
-        if (!state) return; // Guard clause to prevent accessing null state
+        if (!state) return;
 
         if (state.message) {
             toast({
@@ -205,7 +216,6 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                 if (onSuccess) {
                     onSuccess();
                 } else {
-                    // Redirect to dashboard on successful registration
                     router.push('/dashboard');
                 }
             }
@@ -326,7 +336,7 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                             <h4 className="font-medium text-base border-b pb-2">Fotografías</h4>
                             <div className="space-y-2">
                                 <Label>Foto Lateral (*Obligatoria)</Label>
-                                <ImageUpload onUploadSuccess={setPhotoUrl} storagePath="bike-photos" />
+                                <ImageUpload onUploadSuccess={setPhotoUrl} storagePath="bike-photos" disabled={!authUser} />
                                 <p className="text-xs text-muted-foreground">Toma una foto completa del costado de tu bicicleta.</p>
                                 {state?.errors?.photoUrl && (
                                     <p className="text-sm font-medium text-destructive">
@@ -336,7 +346,7 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                             </div>
                             <div className="space-y-2">
                                 <Label>Foto de Número de Serie (*Obligatoria)</Label>
-                                <ImageUpload onUploadSuccess={setSerialNumberPhotoUrl} storagePath="serial-photos" />
+                                <ImageUpload onUploadSuccess={setSerialNumberPhotoUrl} storagePath="serial-photos" disabled={!authUser} />
                                 <p className="text-xs text-muted-foreground">Toma una foto clara y legible del número de serie.</p>
                                 {state?.errors?.serialNumberPhotoUrl && (
                                     <p className="text-sm font-medium text-destructive">
@@ -346,22 +356,21 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                             </div>
                             <div className="space-y-2">
                                 <Label>Foto Adicional 1 (Componentes)</Label>
-                                <ImageUpload onUploadSuccess={setAdditionalPhoto1Url} storagePath="bike-photos" />
+                                <ImageUpload onUploadSuccess={setAdditionalPhoto1Url} storagePath="bike-photos" disabled={!authUser} />
                                 <p className="text-xs text-muted-foreground">Foto de alguna modificación o componente específico.</p>
                             </div>
                              <div className="space-y-2">
                                 <Label>Foto Adicional 2 (Seña Particular)</Label>
-                                <ImageUpload onUploadSuccess={setAdditionalPhoto2Url} storagePath="bike-photos" />
+                                <ImageUpload onUploadSuccess={setAdditionalPhoto2Url} storagePath="bike-photos" disabled={!authUser} />
                                 <p className="text-xs text-muted-foreground">Foto de alguna otra seña particular o componente.</p>
                             </div>
                         </div>
                         
                         <div className="space-y-2 pt-4">
                             <Label>Prueba de Propiedad</Label>
-                            <ImageUpload onUploadSuccess={setOwnershipProofUrl} storagePath={`ownership-proofs/${userId}`} />
+                            <ImageUpload onUploadSuccess={setOwnershipProofUrl} storagePath={`ownership-proofs/${userId}`} disabled={!authUser} />
                             <p className="text-xs text-muted-foreground">Sube la factura, recibo o alguna otra prueba de propiedad (opcional).</p>
                         </div>
-                        <input type="hidden" name="userId" value={userId} />
                         <input type="hidden" name="photoUrl" value={photoUrl} />
                         <input type="hidden" name="serialNumberPhotoUrl" value={serialNumberPhotoUrl} />
                         <input type="hidden" name="additionalPhoto1Url" value={additionalPhoto1Url} />
@@ -461,7 +470,6 @@ export function TheftReportForm({ bike, onSuccess }: { bike: Bike, onSuccess?: (
                     description: "La bicicleta ha sido marcada como recuperada." 
                 });
                 
-                // Forzar una actualización completa para evitar el error de hidratación
                 router.refresh();
 
                 if (onSuccess) {
@@ -473,7 +481,6 @@ export function TheftReportForm({ bike, onSuccess }: { bike: Bike, onSuccess?: (
         )
     }
     
-    // Si onSuccess está definido, el formulario siempre es visible (contexto modal)
     const isVisible = showForm || onSuccess;
 
     if (!isVisible) {

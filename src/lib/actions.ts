@@ -26,7 +26,6 @@ const optionalString = (schema: z.ZodString) =>
 
 const bikeFormSchema = BikeRegistrationSchema.extend({
     id: z.string().optional(),
-    userId: z.string().min(1, 'El ID de usuario es obligatorio.'),
     photoUrl: z.string().url("URL de foto lateral inválida.").min(1, "La foto lateral es obligatoria."),
     serialNumberPhotoUrl: z.string().url("URL de foto de serie inválida.").min(1, "La foto del número de serie es obligatoria."),
     additionalPhoto1Url: optionalString(z.string().url({ message: "URL de foto adicional 1 inválida." })),
@@ -72,8 +71,6 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         };
     }
     
-    // The superRefine logic in the schema ensures email is present for signup.
-    // This check satisfies TypeScript's static analysis.
     if (!validatedFields.data.email) {
         return { error: 'El correo electrónico es inexplicablemente inválido a pesar de pasar la validación.' };
     }
@@ -81,25 +78,21 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
     const { email, password, name, lastName } = validatedFields.data;
 
     try {
-        // Step 1: Create user in Firebase Authentication
         const userRecord = await adminAuth.createUser({
             email,
             password: password!,
             displayName: `${name} ${lastName}`,
         });
         
-        // Step 2: Create a custom token for client-side sign-in
         const customToken = await adminAuth.createCustomToken(userRecord.uid);
         
-        // Step 3: Create user document in Firestore database
         await createFirestoreUser({
             id: userRecord.uid,
             ...validatedFields.data,
-            email: email, // Ensure email is passed as a string
-            role: 'ciclista', // Default role for new signups
+            email: email, 
+            role: 'ciclista', 
         });
         
-        // Step 4: Return success and the custom token
         return { success: true, customToken: customToken };
         
     } catch (error: any) {
@@ -129,7 +122,6 @@ export async function updateHomepageSection(prevState: any, formData: FormData) 
     }
 }
 
-// Server Action to update a single feature item
 export async function updateFeatureItem(prevState: any, formData: FormData) {
     const validatedFields = featureItemSchema.safeParse(Object.fromEntries(formData.entries()));
 
@@ -188,9 +180,7 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
     }
 
     try {
-        // --- Password Change Logic ---
         if (newPassword && currentPassword) {
-            // Need user's email to verify password, get it from the session claim
             if (!session.email) {
                  return { error: 'No se pudo verificar tu identidad. Tu sesión no tiene un correo electrónico asociado.' };
             }
@@ -204,7 +194,6 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
             await adminAuth.updateUser(session.uid, { password: newPassword });
         }
 
-        // --- Firestore Data Update ---
         await updateUserData(session.uid, userData);
 
         revalidatePath('/dashboard/profile');
@@ -223,6 +212,11 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
 }
 
 export async function registerBike(prevState: BikeFormState, formData: FormData): Promise<BikeFormState> {
+    const session = await getDecodedSession();
+    if (!session?.uid) {
+        return { success: false, message: 'No estás autenticado.' };
+    }
+
     const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
@@ -233,17 +227,18 @@ export async function registerBike(prevState: BikeFormState, formData: FormData)
         };
     }
 
-    const { id, ...bikeData } = validatedFields.data;
+    const { photoUrl, serialNumberPhotoUrl, additionalPhoto1Url, additionalPhoto2Url, ownershipProofUrl, ...bikeData } = validatedFields.data;
 
     try {
-        await addBike({
+        await addBike(session.uid, {
             ...bikeData,
+            ownershipProof: ownershipProofUrl,
             photos: [
-                bikeData.photoUrl,
-                bikeData.serialNumberPhotoUrl,
-                bikeData.additionalPhoto1Url,
-                bikeData.additionalPhoto2Url,
-            ].filter(Boolean) as string[],
+                photoUrl,
+                serialNumberPhotoUrl,
+                additionalPhoto1Url,
+                additionalPhoto2Url,
+            ].filter((url): url is string => !!url),
         });
 
         revalidatePath('/dashboard');
@@ -256,6 +251,11 @@ export async function registerBike(prevState: BikeFormState, formData: FormData)
 }
 
 export async function updateBike(prevState: BikeFormState, formData: FormData): Promise<BikeFormState> {
+    const session = await getDecodedSession();
+    if (!session?.uid) {
+        return { success: false, message: 'No estás autenticado.' };
+    }
+
     const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
@@ -266,20 +266,21 @@ export async function updateBike(prevState: BikeFormState, formData: FormData): 
         };
     }
 
-    const { id, ...bikeData } = validatedFields.data;
+    const { id, photoUrl, serialNumberPhotoUrl, additionalPhoto1Url, additionalPhoto2Url, ownershipProofUrl, ...bikeData } = validatedFields.data;
     if (!id) {
         return { success: false, message: "Error: No se encontró el ID de la bicicleta para actualizar." };
     }
 
     try {
-        await updateBikeData(id, {
+        await updateBikeData(session.uid, id, {
             ...bikeData,
+            ownershipProof: ownershipProofUrl,
             photos: [
-                bikeData.photoUrl,
-                bikeData.serialNumberPhotoUrl,
-                bikeData.additionalPhoto1Url,
-                bikeData.additionalPhoto2Url,
-            ].filter(Boolean) as string[],
+                photoUrl,
+                serialNumberPhotoUrl,
+                additionalPhoto1Url,
+                additionalPhoto2Url,
+            ].filter((url): url is string => !!url),
         });
         revalidatePath('/dashboard');
         revalidatePath(`/dashboard/bikes/${id}`);
@@ -291,6 +292,11 @@ export async function updateBike(prevState: BikeFormState, formData: FormData): 
 }
 
 export async function reportTheft(prevState: any, formData: FormData) {
+    const session = await getDecodedSession();
+    if (!session?.uid) {
+        return { message: 'No estás autenticado.' };
+    }
+
     const validatedFields = theftReportSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
@@ -300,7 +306,7 @@ export async function reportTheft(prevState: any, formData: FormData) {
     const { bikeId, ...theftData } = validatedFields.data;
 
     try {
-        await updateBikeData(bikeId, {
+        await updateBikeData(session.uid, bikeId, {
             status: 'stolen',
             theftReport: theftData,
         });
@@ -313,8 +319,13 @@ export async function reportTheft(prevState: any, formData: FormData) {
 }
 
 export async function markAsRecovered(bikeId: string) {
+    const session = await getDecodedSession();
+    if (!session?.uid) {
+        // Handle not authenticated
+        return;
+    }
     try {
-        await updateBikeData(bikeId, {
+        await updateBikeData(session.uid, bikeId, {
             status: 'safe',
             theftReport: undefined, // Remove theft details
         });
@@ -326,8 +337,12 @@ export async function markAsRecovered(bikeId: string) {
 }
 
 export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
+    const session = await getDecodedSession();
+    if (!session?.uid) {
+        throw new Error("User not authenticated.");
+    }
     try {
-        await updateBikeData(bikeId, {
+        await updateBikeData(session.uid, bikeId, {
             ownershipProof: proofUrl,
         });
         revalidatePath(`/dashboard/bikes/${bikeId}`);
@@ -361,14 +376,11 @@ export async function transferOwnership(prevState: { error: string }, formData: 
     const currentUserId = session.uid;
 
     try {
-        const bike = await getBike(bikeId);
-        if (!bike) {
-            return { error: 'La bicicleta no fue encontrada.' };
-        }
-
-        if (bike.userId !== currentUserId) {
-            return { error: 'No tienes permiso para transferir esta bicicleta.' };
-        }
+        // This is complex with nested collections. A full implementation would require a Cloud Function
+        // to move the bike document and its subcollections atomically.
+        // For now, we'll just update the ownerId, which will break access for the original owner.
+        // This is a simplification and should be addressed with a more robust backend process.
+        console.warn("Performing a non-atomic ownership transfer. This is a simplified implementation.");
 
         const newOwner = await getUserByEmail(newOwnerEmail);
         if (!newOwner) {
@@ -379,11 +391,11 @@ export async function transferOwnership(prevState: { error: string }, formData: 
             return { error: 'No puedes transferirte la bicicleta a ti mismo.' };
         }
 
-        // Proceed with the transfer
-        await updateBikeData(bikeId, { userId: newOwner.id, status: 'safe' });
+        // This is where a Cloud Function would be triggered to move the document.
+        // The client-side action can only do so much.
+        // For now, we cannot implement this securely and correctly without backend changes.
+        return { error: 'La transferencia de propiedad está temporalmente deshabilitada. Contacta a soporte.' };
 
-        revalidatePath('/dashboard');
-        redirect('/dashboard');
 
     } catch (error) {
         console.error('Error al transferir la propiedad:', error);

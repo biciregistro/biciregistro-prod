@@ -13,26 +13,23 @@ const normalizeSerialNumber = (serial: string): string => {
     return serial.replace(/[\s-]+/g, '').toUpperCase();
 };
 
-// Checks if a serial number is unique, optionally excluding a specific bike ID.
+// Checks if a serial number is unique across all bikes.
 export async function isSerialNumberUnique(serial: string, excludeBikeId?: string): Promise<boolean> {
     const normalizedSerial = normalizeSerialNumber(serial);
     const db = getFirestore();
-    const bikesRef = db.collection('bikes');
+    const bikesRef = db.collectionGroup('bikes'); // Query across all users' bikes subcollections
     const query = bikesRef.where('serialNumber', '==', normalizedSerial);
     
     const snapshot = await query.get();
 
     if (snapshot.empty) {
-        return true; // No bike with this serial number found.
+        return true;
     }
 
-    // If we need to exclude a bike ID (for updates), check if the found bike is the one we're excluding.
     if (excludeBikeId) {
-        // If there is only one match and its ID is the one we want to exclude, then the serial is unique for other records.
         return snapshot.docs.length === 1 && snapshot.docs[0].id === excludeBikeId;
     }
 
-    // If not excluding any ID, and we found docs, it's a duplicate.
     return false;
 }
 
@@ -67,19 +64,16 @@ export async function getAuthenticatedUser(): Promise<User | null> {
         const db = getFirestore();
         const userDoc = await db.collection('users').doc(session.uid).get();
 
-        // Check if the user has an 'admin' claim in their auth token.
         const isAdmin = session.admin === true;
 
         if (!userDoc.exists) {
             console.warn(`User document not found for UID: ${session.uid}`);
-            // Attempt to self-heal by creating the user document
             const firebaseUser = await adminAuth.getUser(session.uid);
             const newUser: User = {
                 id: firebaseUser.uid,
                 email: firebaseUser.email!,
                 name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
-                lastName: '', // Default empty value
-                // If they are an admin, set the role here, otherwise default to 'ciclista'
+                lastName: '',
                 role: isAdmin ? 'admin' : 'ciclista',
             };
             await db.collection('users').doc(newUser.id).set(newUser);
@@ -89,8 +83,6 @@ export async function getAuthenticatedUser(): Promise<User | null> {
 
         const userData = userDoc.data() as User;
 
-        // The auth claim is the source of truth.
-        // If the user is an admin via claims, override their role from Firestore.
         if (isAdmin) {
             userData.role = 'admin';
         }
@@ -104,10 +96,7 @@ export async function getAuthenticatedUser(): Promise<User | null> {
 
 
 export async function getUser(userId: string): Promise<User | null> {
-    if (!userId) {
-        console.error("getUser called with no userId");
-        return null;
-    }
+    if (!userId) return null;
     try {
         const db = getFirestore();
         const docSnap = await db.collection('users').doc(userId).get();
@@ -119,18 +108,13 @@ export async function getUser(userId: string): Promise<User | null> {
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-    if (!email) {
-        console.error("getUserByEmail called with no email");
-        return null;
-    }
+    if (!email) return null;
     try {
         const db = getFirestore();
         const usersRef = db.collection('users');
         const q = usersRef.where('email', '==', email).limit(1);
         const querySnapshot = await q.get();
-        if (querySnapshot.empty) {
-            return null;
-        }
+        if (querySnapshot.empty) return null;
         const userDoc = querySnapshot.docs[0];
         return { id: userDoc.id, ...userDoc.data() } as User;
     } catch (error) {
@@ -155,49 +139,33 @@ export async function updateUserData(userId: string, data: Partial<Omit<User, 'i
 // --- Data Serialization Helper ---
 const convertDocTimestamps = (data: any): any => {
     if (!data) return data;
-  
     const convertedData = { ...data };
-  
-    if (convertedData.createdAt && convertedData.createdAt instanceof Timestamp) {
+    if (convertedData.createdAt instanceof Timestamp) {
       convertedData.createdAt = convertedData.createdAt.toDate().toISOString();
     }
-  
-    if (convertedData.theftReport?.date && convertedData.theftReport.date instanceof Timestamp) {
+    if (convertedData.theftReport?.date instanceof Timestamp) {
       convertedData.theftReport.date = convertedData.theftReport.date.toDate().toISOString();
     }
-  
     return convertedData;
-  };
+};
   
+// --- Bike Management (Corrected for Nested Structure) ---
 
-// --- Bike Management ---
-export async function getBikes(filter?: { userId?: string; status?: BikeStatus }): Promise<Bike[]> {
+export async function getBikes(userId: string): Promise<Bike[]> {
     const db = getFirestore();
-    let query: FirebaseFirestore.Query = db.collection('bikes');
-
-    // Chain .where() clauses directly, which is the correct way to build the query.
-    if (filter?.userId) {
-        query = query.where('userId', '==', filter.userId);
-    }
-    if (filter?.status) {
-        query = query.where('status', '==', filter.status);
-    }
-    
-    const snapshot = await query.orderBy('createdAt', 'desc').get();
+    const bikesRef = db.collection('users').doc(userId).collection('bikes');
+    const snapshot = await bikesRef.orderBy('createdAt', 'desc').get();
     return snapshot.docs.map(doc => {
         const data = convertDocTimestamps(doc.data());
         return { id: doc.id, ...data } as Bike;
     });
 }
 
-export async function getBike(bikeId: string): Promise<Bike | null> {
-    if (!bikeId) {
-        console.error("getBike called with no bikeId");
-        return null;
-    }
+export async function getBike(userId: string, bikeId: string): Promise<Bike | null> {
+    if (!userId || !bikeId) return null;
     try {
         const db = getFirestore();
-        const docSnap = await db.collection('bikes').doc(bikeId).get();
+        const docSnap = await db.collection('users').doc(userId).collection('bikes').doc(bikeId).get();
         if (!docSnap.exists) return null;
         
         const data = convertDocTimestamps(docSnap.data());
@@ -211,59 +179,45 @@ export async function getBike(bikeId: string): Promise<Bike | null> {
 export async function getBikeBySerial(serial: string): Promise<Bike | null> {
     const normalizedSerial = normalizeSerialNumber(serial);
     const db = getFirestore();
-    const bikesRef = db.collection('bikes');
+    const bikesRef = db.collectionGroup('bikes'); // Query across all subcollections
     const query = bikesRef.where('serialNumber', '==', normalizedSerial);
     
     const snapshot = await query.get();
 
-    if (snapshot.empty) {
-        return null;
-    }
+    if (snapshot.empty) return null;
 
     const doc = snapshot.docs[0];
     const data = convertDocTimestamps(doc.data());
     return { id: doc.id, ...data } as Bike;
 }
 
-export async function addBike(bikeData: Omit<Bike, 'id' | 'createdAt' | 'status'>) {
+export async function addBike(userId: string, bikeData: Omit<Bike, 'id' | 'createdAt' | 'status' | 'userId'>) {
     const db = getFirestore();
     const newBike = {
         ...bikeData,
+        userId: userId, // Ensure userId is set
         serialNumber: normalizeSerialNumber(bikeData.serialNumber),
         status: 'safe' as const,
         createdAt: FieldValue.serverTimestamp(),
     };
-    await db.collection('bikes').add(newBike);
+    await db.collection('users').doc(userId).collection('bikes').add(newBike);
 }
 
-export async function updateBikeData(bikeId: string, data: Partial<Omit<Bike, 'id'>>) {
+export async function updateBikeData(userId: string, bikeId: string, data: Partial<Omit<Bike, 'id'>>) {
     const db = getFirestore();
     const dataToUpdate: { [key: string]: any } = { ...data };
 
-    // Normalize serial number if present
     if (data.serialNumber) {
         dataToUpdate.serialNumber = normalizeSerialNumber(data.serialNumber);
     }
     
-    // Convert undefined to FieldValue.delete() for Firestore compatibility
     for (const key in dataToUpdate) {
         if (dataToUpdate[key] === undefined) {
             dataToUpdate[key] = FieldValue.delete();
         }
     }
 
-    await db.collection('bikes').doc(bikeId).update(dataToUpdate);
-}
-
-export async function updateBikeStatus(bikeId: string, status: BikeStatus, theftDetails?: Bike['theftReport']) {
-    const db = getFirestore();
-    const updateData: any = { status };
-    if (status === 'stolen') {
-        updateData.theftReport = theftDetails;
-    } else {
-        updateData.theftReport = FieldValue.delete();
-    }
-    await db.collection('bikes').doc(bikeId).update(updateData);
+    await db.collection('users').doc(userId).collection('bikes').doc(bikeId).update(dataToUpdate);
 }
 
 // --- Homepage Content Management ---
@@ -273,12 +227,9 @@ export async function getHomepageData(): Promise<{ [key: string]: HomepageSectio
     
     const firestoreData: { [key: string]: HomepageSection } = {};
     snapshot.forEach(doc => {
-        // Important: Re-add the document ID to the object
         firestoreData[doc.id] = { id: doc.id, ...doc.data() } as HomepageSection;
     });
 
-    // Merge default data with Firestore data, ensuring all sections exist
-    // and that Firestore data overwrites defaults.
     const mergedData = {
         ...defaultHomepageData,
         ...firestoreData,
