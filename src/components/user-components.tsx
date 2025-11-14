@@ -137,78 +137,77 @@ export function ProfileForm({ user }: { user?: User }) {
     const password = form.watch(isEditing ? "newPassword" : "password");
 
     useEffect(() => {
-        // 1. Handle successful signup and client-side sign in
-        if (state?.success && state.customToken) {
-            setIsSigningIn(true);
-            toast({ title: 'Cuenta creada', description: 'Sincronizando sesión...' });
-    
-            const handleSignInAndSession = async () => {
-                const { success, idToken, error: signInError } = await signInWithToken(state.customToken!);
-    
-                if (!success || !idToken) {
-                    toast({
-                        title: 'Error de Autenticación',
-                        description: signInError || 'No se pudo obtener el token de sesión.',
-                        variant: 'destructive',
-                    });
-                    setIsSigningIn(false);
-                    router.push('/login');
-                    return;
-                }
-    
-                try {
-                    const response = await fetch('/api/auth/session', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ idToken }),
-                    });
-    
-                    if (!response.ok) {
-                        throw new Error('La creación de la sesión en el servidor falló.');
+        if (!state) return;
+
+        // --- Success States ---
+        if (state.success) {
+            // Handle successful signup
+            if (state.customToken) {
+                setIsSigningIn(true);
+                toast({ title: 'Cuenta creada', description: 'Sincronizando sesión...' });
+                
+                const handleSignInAndSession = async () => {
+                    const { success, idToken, error: signInError } = await signInWithToken(state.customToken!);
+                    if (!success || !idToken) {
+                        toast({ title: 'Error de Autenticación', description: signInError || 'No se pudo obtener el token de sesión.', variant: 'destructive' });
+                        setIsSigningIn(false);
+                        router.push('/login');
+                        return;
                     }
-    
-                    toast({ title: '¡Éxito!', description: 'Por favor, completa tu perfil para continuar.' });
-                    router.push('/dashboard/profile');
-    
-                } catch (sessionError: any) {
-                    console.error("Session creation failed:", sessionError);
-                    toast({
-                        title: 'Error de Sesión',
-                        description: 'No pudimos sincronizar tu sesión. Por favor, intenta iniciar sesión manualmente.',
-                        variant: 'destructive',
-                    });
-                    setIsSigningIn(false);
-                    router.push('/login');
-                }
-            };
-    
-            handleSignInAndSession();
+                    try {
+                        const response = await fetch('/api/auth/session', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ idToken }),
+                        });
+                        if (!response.ok) throw new Error('La creación de la sesión en el servidor falló.');
+                        toast({ title: '¡Éxito!', description: 'Por favor, completa tu perfil para continuar.' });
+                        router.push('/dashboard/profile');
+                    } catch (sessionError) {
+                        toast({ title: 'Error de Sesión', description: 'No pudimos sincronizar tu sesión. Por favor, intenta iniciar sesión manualmente.', variant: 'destructive' });
+                        setIsSigningIn(false);
+                        router.push('/login');
+                    }
+                };
+                handleSignInAndSession();
+            }
+            // Handle successful profile update
+            else if (isEditing) {
+                toast({ title: "Éxito", description: state.message || "Tu perfil ha sido actualizado." });
+                form.reset({
+                    ...form.getValues(),
+                    currentPassword: "",
+                    newPassword: "",
+                    confirmPassword: "",
+                });
+                router.push('/dashboard');
+            }
             return;
         }
 
-        // 2. Handle successful profile update (editing mode)
-        if (state?.success && isEditing) {
-            toast({
-                title: "Éxito",
-                description: state.message || "Tu perfil ha sido actualizado.",
+        // --- Error States ---
+        // Handle validation errors from Zod
+        if (state.errors) {
+            const { errors } = state;
+            Object.keys(errors).forEach((key) => {
+                const field = key as keyof FormValues;
+                const message = errors[field]?.[0];
+                if (message) {
+                    form.setError(field, { type: 'server', message });
+                }
             });
-            form.reset({
-                ...form.getValues(),
-                currentPassword: "",
-                newPassword: "",
-                confirmPassword: "",
+             toast({
+                variant: 'destructive',
+                title: "Error de Validación",
+                description: state.error || "Por favor, revisa los campos marcados en rojo.",
             });
-            router.push('/dashboard');
-            return;
-        }
-        
-        // 3. Handle any errors from the server action
-        const errorMessage = state?.error || (state?.errors ? 'Datos proporcionados no válidos. Asegúrate de que las contraseñas coincidan y cumplan los requisitos.' : null);
-        if (errorMessage) {
+        } 
+        // Handle other general errors
+        else if (state.error) {
             toast({
                 variant: 'destructive',
                 title: "Error",
-                description: errorMessage,
+                description: state.error,
             });
         }
     }, [state, toast, form, isEditing, router]);
@@ -241,7 +240,7 @@ export function ProfileForm({ user }: { user?: User }) {
 
     return (
         <Form {...form}>
-            <form action={formAction} className="space-y-8 max-w-2xl mx-auto">
+            <form action={form.handleSubmit(() => formAction(new FormData(form.control._formRef.current)))} className="space-y-8 max-w-2xl mx-auto">
                 <Card>
                     <CardHeader>
                         {!isEditing && (
@@ -259,13 +258,6 @@ export function ProfileForm({ user }: { user?: User }) {
                         )}
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {state?.errors && (
-                             <Alert variant={"destructive"}>
-                                <AlertTitle>Error</AlertTitle>
-                                <AlertDescription>{state.error || 'Por favor, revisa los campos del formulario.'}</AlertDescription>
-                            </Alert>
-                        )}
-
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField
                                 control={form.control}
