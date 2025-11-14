@@ -12,10 +12,12 @@ import {
     updateUserData,
     createUser,
     verifyUserPassword,
-    getHomepageData
+    getHomepageData,
+    getUserByEmail,
+    getBike,
 } from './data';
 import { deleteSession, getDecodedSession } from './auth';
-import { ActionFormState, HomepageSection, Feature } from './types';
+import { ActionFormState, HomepageSection, Feature, BikeFormState } from './types';
 import { userFormSchema, BikeRegistrationSchema } from './schemas';
 import { adminAuth } from './firebase/server';
 
@@ -25,6 +27,7 @@ const optionalString = (schema: z.ZodString) =>
 
 const bikeFormSchema = BikeRegistrationSchema.extend({
     id: z.string().optional(),
+    userId: z.string().min(1, 'El ID de usuario es obligatorio.'),
     photoUrl: z.string().url("URL de foto lateral inválida.").min(1, "La foto lateral es obligatoria."),
     serialNumberPhotoUrl: z.string().url("URL de foto de serie inválida.").min(1, "La foto del número de serie es obligatoria."),
     additionalPhoto1Url: optionalString(z.string().url({ message: "URL de foto adicional 1 inválida." })),
@@ -125,14 +128,72 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
     return { error: 'Ocurrió un error inesperado.' };
 }
 
-export async function registerBike(prevState: any, formData: FormData) {
-    // ... implementation remains correct
-    redirect('/dashboard');
+export async function registerBike(prevState: BikeFormState, formData: FormData): Promise<BikeFormState> {
+    const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            success: false,
+            message: 'Error de validación. Por favor, revisa los campos.',
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    const { id, ...bikeData } = validatedFields.data;
+
+    try {
+        await addBike({
+            ...bikeData,
+            photos: [
+                bikeData.photoUrl,
+                bikeData.serialNumberPhotoUrl,
+                bikeData.additionalPhoto1Url,
+                bikeData.additionalPhoto2Url,
+            ].filter(Boolean) as string[],
+        });
+
+        revalidatePath('/dashboard');
+        return { success: true, message: '¡Bicicleta registrada exitosamente!' };
+
+    } catch (error) {
+        console.error("Database error during bike registration:", error);
+        return { success: false, message: 'Error en la base de datos: No se pudo registrar la bicicleta.' };
+    }
 }
 
-export async function updateBike(prevState: any, formData: FormData) {
-    // ... implementation remains correct
-    return { success: true, message: 'Bicicleta actualizada correctamente.' };
+export async function updateBike(prevState: BikeFormState, formData: FormData): Promise<BikeFormState> {
+    const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            success: false,
+            message: 'Error de validación. Por favor, revisa los campos.',
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    const { id, ...bikeData } = validatedFields.data;
+    if (!id) {
+        return { success: false, message: "Error: No se encontró el ID de la bicicleta para actualizar." };
+    }
+
+    try {
+        await updateBikeData(id, {
+            ...bikeData,
+            photos: [
+                bikeData.photoUrl,
+                bikeData.serialNumberPhotoUrl,
+                bikeData.additionalPhoto1Url,
+                bikeData.additionalPhoto2Url,
+            ].filter(Boolean) as string[],
+        });
+        revalidatePath('/dashboard');
+        revalidatePath(`/dashboard/bikes/${id}`);
+        return { success: true, message: 'Bicicleta actualizada correctamente.' };
+    } catch (error) {
+        console.error("Database error during bike update:", error);
+        return { success: false, message: 'Error en la base de datos: No se pudo actualizar la bicicleta.' };
+    }
 }
 
 export async function reportTheft(prevState: any, formData: FormData) {
@@ -164,8 +225,73 @@ export async function markAsRecovered(bikeId: string) {
         });
         revalidatePath('/dashboard');
     } catch (error) {
-        // Handle potential errors, maybe return a message
         console.error("Failed to mark as recovered:", error);
+    }
+}
+
+export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
+    try {
+        await updateBikeData(bikeId, {
+            ownershipProof: proofUrl,
+        });
+        revalidatePath(`/dashboard/bikes/${bikeId}`);
+    } catch (error) {
+        console.error("Failed to update ownership proof:", error);
+        throw new Error("Could not update ownership proof.");
+    }
+}
+
+export async function transferOwnership(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+    const session = await getDecodedSession();
+    if (!session?.uid) {
+        return { error: 'Debes iniciar sesión para transferir la propiedad.' };
+    }
+
+    const schema = z.object({
+        bikeId: z.string(),
+        newOwnerEmail: z.string().email('Por favor, introduce un correo electrónico válido.'),
+    });
+
+    const validatedFields = schema.safeParse({
+        bikeId: formData.get('bikeId'),
+        newOwnerEmail: formData.get('newOwnerEmail'),
+    });
+
+    if (!validatedFields.success) {
+        return { error: 'Datos inválidos. Por favor, revisa el correo electrónico.' };
+    }
+
+    const { bikeId, newOwnerEmail } = validatedFields.data;
+    const currentUserId = session.uid;
+
+    try {
+        const bike = await getBike(bikeId);
+        if (!bike) {
+            return { error: 'La bicicleta no fue encontrada.' };
+        }
+
+        if (bike.userId !== currentUserId) {
+            return { error: 'No tienes permiso para transferir esta bicicleta.' };
+        }
+
+        const newOwner = await getUserByEmail(newOwnerEmail);
+        if (!newOwner) {
+            return { error: 'El usuario con ese correo electrónico no fue encontrado.' };
+        }
+
+        if (newOwner.id === currentUserId) {
+            return { error: 'No puedes transferirte la bicicleta a ti mismo.' };
+        }
+
+        // Proceed with the transfer
+        await updateBikeData(bikeId, { userId: newOwner.id, status: 'safe' });
+
+        revalidatePath('/dashboard');
+        redirect('/dashboard');
+
+    } catch (error) {
+        console.error('Error al transferir la propiedad:', error);
+        return { error: 'Ocurrió un error en el servidor. Por favor, inténtalo de nuevo.' };
     }
 }
 

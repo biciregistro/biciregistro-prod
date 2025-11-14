@@ -78,3 +78,10 @@ export type ActionFormState = {
   message?: string;
   customToken?: string;
 } | null;
+
+// Standardized type for bike registration/update form state
+export type BikeFormState = {
+    success: boolean;
+    message: string;
+    errors?: Record<string, string[]>;
+} | null;
