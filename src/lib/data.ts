@@ -238,10 +238,20 @@ export async function addBike(bikeData: Omit<Bike, 'id' | 'createdAt' | 'status'
 
 export async function updateBikeData(bikeId: string, data: Partial<Omit<Bike, 'id'>>) {
     const db = getFirestore();
-    const dataToUpdate = { ...data };
+    const dataToUpdate: { [key: string]: any } = { ...data };
+
+    // Normalize serial number if present
     if (data.serialNumber) {
         dataToUpdate.serialNumber = normalizeSerialNumber(data.serialNumber);
     }
+    
+    // Convert undefined to FieldValue.delete() for Firestore compatibility
+    for (const key in dataToUpdate) {
+        if (dataToUpdate[key] === undefined) {
+            dataToUpdate[key] = FieldValue.delete();
+        }
+    }
+
     await db.collection('bikes').doc(bikeId).update(dataToUpdate);
 }
 

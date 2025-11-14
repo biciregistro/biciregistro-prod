@@ -211,6 +211,7 @@ export async function reportTheft(prevState: any, formData: FormData) {
             theftReport: theftData,
         });
         revalidatePath('/dashboard');
+        revalidatePath(`/dashboard/bikes/${bikeId}`);
         return { message: 'El robo ha sido reportado exitosamente.' };
     } catch (error) {
         return { message: 'Error de base de datos: No se pudo reportar el robo.' };
@@ -224,6 +225,7 @@ export async function markAsRecovered(bikeId: string) {
             theftReport: undefined, // Remove theft details
         });
         revalidatePath('/dashboard');
+        revalidatePath(`/dashboard/bikes/${bikeId}`);
     } catch (error) {
         console.error("Failed to mark as recovered:", error);
     }
