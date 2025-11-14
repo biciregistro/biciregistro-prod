@@ -9,7 +9,8 @@ interface PageProps {
   };
 }
 
-export default async function BikeDetailsPage({ params: { id } }: PageProps) {
+export default async function BikeDetailsPage(props: PageProps) {
+  const { id } = props.params;
   const user = await getAuthenticatedUser();
   if (!user) {
     redirect('/login');
