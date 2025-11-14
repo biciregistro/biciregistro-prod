@@ -240,7 +240,7 @@ export function ProfileForm({ user }: { user?: User }) {
 
     return (
         <Form {...form}>
-            <form action={form.handleSubmit(() => formAction(new FormData(form.control._formRef.current)))} className="space-y-8 max-w-2xl mx-auto">
+            <form action={formAction} className="space-y-8 max-w-2xl mx-auto">
                 <Card>
                     <CardHeader>
                         {!isEditing && (

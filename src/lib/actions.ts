@@ -6,11 +6,10 @@ import { revalidatePath } from 'next/cache';
 
 import {
     addBike,
-    isSerialNumberUnique,
     updateBikeData,
     updateHomepageSectionData,
     updateUserData,
-    createUser,
+    createUser as createFirestoreUser, // Renamed import
     verifyUserPassword,
     getHomepageData,
     getUserByEmail,
@@ -73,26 +72,34 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         };
     }
     
-    const { email, password } = validatedFields.data;
+    const { email, password, name, lastName } = validatedFields.data;
 
     try {
-        const { userRecord, customToken } = await createUser(email, password!);
-        const { uid } = userRecord;
-
-        const userData = {
-            id: uid,
+        // Step 1: Create user in Firebase Authentication
+        const userRecord = await adminAuth.createUser({
+            email,
+            password: password!,
+            displayName: `${name} ${lastName}`,
+        });
+        
+        // Step 2: Create a custom token for client-side sign-in
+        const customToken = await adminAuth.createCustomToken(userRecord.uid);
+        
+        // Step 3: Create user document in Firestore database
+        await createFirestoreUser({
+            id: userRecord.uid,
             ...validatedFields.data,
-        };
+            role: 'ciclista', // Default role for new signups
+        });
         
-        await updateUserData(uid, userData);
-        
-        // Return success and the custom token for client-side sign-in
+        // Step 4: Return success and the custom token
         return { success: true, customToken: customToken };
         
     } catch (error: any) {
         if (error.code === 'auth/email-already-exists') {
             return { error: 'Este correo electrónico ya está en uso.' };
         }
+        console.error("Signup error:", error);
         return { error: 'Ocurrió un error inesperado durante la creación de la cuenta.' };
     }
 }
@@ -176,9 +183,16 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
     try {
         // --- Password Change Logic ---
         if (newPassword && currentPassword) {
-            const isPasswordVerified = await verifyUserPassword(session.uid, currentPassword);
+            // Need user's email to verify password, get it from the session claim
+            if (!session.email) {
+                 return { error: 'No se pudo verificar tu identidad. Tu sesión no tiene un correo electrónico asociado.' };
+            }
+            const isPasswordVerified = await verifyUserPassword(session.email, currentPassword);
             if (!isPasswordVerified) {
-                return { error: 'La contraseña actual es incorrecta.' };
+                return { 
+                    error: 'La contraseña actual es incorrecta.',
+                    errors: { currentPassword: ['La contraseña actual no es correcta.'] }
+                };
             }
             await adminAuth.updateUser(session.uid, { password: newPassword });
         }
@@ -192,7 +206,10 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
     } catch (error: any) {
         console.error("Update profile error:", error);
         if (error.code === 'auth/wrong-password') {
-            return { error: 'La contraseña actual es incorrecta.' };
+            return { 
+                error: 'La contraseña actual es incorrecta.',
+                errors: { currentPassword: ['La contraseña actual no es correcta.'] }
+            };
         }
         return { error: 'Hubo un error inesperado al actualizar tu perfil.' };
     }
