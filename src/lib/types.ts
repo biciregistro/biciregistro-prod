@@ -38,13 +38,37 @@ export type User = {
   whatsapp?: string;
 };
 
-export type HomepageSection = {
-  id: 'hero' | 'features' | 'cta';
+// --- Homepage Content Types (Corrected) ---
+
+export type Feature = {
   title: string;
-  subtitle: string;
-  content: string;
+  description: string;
   imageUrl?: string;
 };
+
+// Use a discriminated union for more type-safe sections
+export type HomepageSection =
+  | {
+      id: 'hero';
+      title: string;
+      subtitle: string;
+      buttonText?: string;
+      imageUrl?: string;
+    }
+  | {
+      id: 'features';
+      title: string;
+      subtitle: string;
+      features: Feature[];
+    }
+  | {
+      id: 'cta';
+      title: string;
+      subtitle: string;
+      buttonText?: string;
+      imageUrl?: string;
+    };
+
 
 // Type for server action form state
 export type ActionFormState = {

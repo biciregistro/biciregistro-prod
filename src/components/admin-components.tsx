@@ -50,14 +50,9 @@ function SectionEditForm({ section }: { section: HomepageSection }) {
             </div>
             <div className="space-y-2">
                 <Label htmlFor="subtitle">Subtítulo</Label>
-                <Input id="subtitle" name="subtitle" defaultValue={section.subtitle} />
+                <Textarea id="subtitle" name="subtitle" defaultValue={section.subtitle} />
             </div>
-            {section.id === 'hero' && (
-                 <div className="space-y-2">
-                    <Label htmlFor="content">Contenido</Label>
-                    <Textarea id="content" name="content" defaultValue={section.content} />
-                </div>
-            )}
+            {/* Removed the obsolete 'content' field */}
             <SubmitButton />
         </form>
     );
@@ -69,6 +64,8 @@ export function HomepageEditor({ sections }: { sections: HomepageSection[] }) {
     const featuresSection = sections.find(s => s.id === 'features')!;
     const ctaSection = sections.find(s => s.id === 'cta')!;
     
+    // This component will need to be updated to the 3-tab layout after merging the fixes.
+    // For now, this structure matches the state of the branch.
     return (
         <Card>
             <CardHeader>
