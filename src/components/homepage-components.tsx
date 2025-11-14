@@ -85,7 +85,7 @@ export function HeroSection({ section }: { section?: Extract<HomepageSection, { 
             </p>
             <div className="mt-8 max-w-lg mx-auto space-y-4">
                <BikeSearchForm />
-               {section.buttonText && <Button asChild><Link href="/dashboard/register">{section.buttonText}</Link></Button>}
+               {section.buttonText && <Button asChild><Link href="/signup">{section.buttonText}</Link></Button>}
             </div>
           </div>
         </div>
@@ -100,7 +100,19 @@ export function FeaturesSection({ section }: { section?: Extract<HomepageSection
         return (
             <section className="py-12 sm:py-16 bg-secondary/50">
                 <div className="container text-center space-y-4 px-4">
-                    <Skeleton className="h-9 w-3/4 mx-auto" /><Skeleton className="h-6 w-full mx-auto" /><div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">{[...Array(3)].map((_, i) => (<Card key={i} className="p-4"><Skeleton className="aspect-video mb-4" /><Skeleton className="h-6 w-1/2 mb-2" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /></Card>))}</div></div>
+                    <Skeleton className="h-9 w-3/4 mx-auto" />
+                    <Skeleton className="h-6 w-full mx-auto" />
+                    <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">
+                        {[...Array(3)].map((_, i) => (
+                            <Card key={i} className="p-4">
+                                <Skeleton className="aspect-video mb-4" />
+                                <Skeleton className="h-6 w-1/2 mb-2" />
+                                <Skeleton className="h-4 w-full" />
+                                <Skeleton className="h-4 w-full" />
+                            </Card>
+                        ))}
+                    </div>
+                </div>
             </section>
         );
     }
@@ -116,8 +128,15 @@ export function FeaturesSection({ section }: { section?: Extract<HomepageSection
                 return (
                     <Card key={index} className="text-left overflow-hidden">
                         {feature.imageUrl && <div className="relative aspect-video"><Image src={feature.imageUrl} alt={feature.title} fill className="object-cover" /></div>}
-                        <CardHeader><CardTitle className="flex items-center gap-2"><IconComponent className="w-6 h-6 text-primary" /><span>{feature.title}</span></CardTitle></CardHeader>
-                        <CardContent><p className="text-muted-foreground">{feature.description}</p></CardContent>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <IconComponent className="w-6 h-6 text-primary" />
+                                <span>{feature.title}</span>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-muted-foreground">{feature.description}</p>
+                        </CardContent>
                     </Card>
                 )
             })}
@@ -132,7 +151,9 @@ export function CtaSection({ section }: { section?: Extract<HomepageSection, { i
     if (!section) {
         return (
             <section className="py-12 sm:py-16">
-                <div className="container px-4"><Skeleton className="h-64 w-full" /></div>
+                <div className="container px-4">
+                    <Skeleton className="h-64 w-full" />
+                </div>
             </section>
         );
     }
