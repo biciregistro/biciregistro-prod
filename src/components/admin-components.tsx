@@ -2,92 +2,169 @@
 
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { updateHomepageSection } from '@/lib/actions';
-import type { HomepageSection } from '@/lib/types';
+import { updateHomepageSection, updateFeatureItem } from '@/lib/actions';
+import type { HomepageSection, Feature } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { ImageUpload } from './shared/image-upload';
 
-function SubmitButton() {
+function SubmitButton({ text = "Guardar Cambios" }: { text?: string }) {
     const { pending } = useFormStatus();
-    return <Button type="submit" disabled={pending}>{pending ? 'Guardando...' : 'Guardar Cambios'}</Button>;
+    return <Button type="submit" disabled={pending}>{pending ? 'Guardando...' : text}</Button>;
 }
 
+// Universal form for sections like Hero and CTA
 function SectionEditForm({ section }: { section: HomepageSection }) {
     const [state, formAction] = useActionState(updateHomepageSection, null);
     const { toast } = useToast();
     
-    useEffect(() => {
-        if(state?.message) {
-            toast({
-                title: "Éxito",
-                description: state.message,
-            })
-        }
-        if(state?.error) {
-            toast({
-                variant: 'destructive',
-                title: "Error",
-                description: state.error,
-            })
-        }
-    }, [state, toast])
+    // Safely access imageUrl only if it exists on the section type
+    const initialImageUrl = 'imageUrl' in section ? section.imageUrl : '';
+    const [imageUrl, setImageUrl] = useState(initialImageUrl || '');
 
+    useEffect(() => {
+        if (state?.message) {
+            toast({ title: "Éxito", description: state.message });
+        }
+        if (state?.error) {
+            toast({ variant: 'destructive', title: "Error", description: state.error });
+        }
+    }, [state, toast]);
+
+    const hasButtonText = 'buttonText' in section;
+    const hasImage = 'imageUrl' in section;
+
+    const getImageGuidelines = () => {
+        if (section.id === 'hero') return "Recomendado: 1920x1080px";
+        return "Recomendado: 1280x720px";
+    };
 
     return (
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} className="space-y-6">
             <input type="hidden" name="id" value={section.id} />
+            {hasImage && <input type="hidden" name="imageUrl" value={imageUrl} />}
+
             <div className="space-y-2">
-                <Label htmlFor="title">Título</Label>
-                <Input id="title" name="title" defaultValue={section.title} />
+                <Label htmlFor={`title-${section.id}`}>Título</Label>
+                <Input id={`title-${section.id}`} name="title" defaultValue={section.title} />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="subtitle">Subtítulo</Label>
-                <Textarea id="subtitle" name="subtitle" defaultValue={section.subtitle} />
+                <Label htmlFor={`subtitle-${section.id}`}>Subtítulo</Label>
+                <Textarea id={`subtitle-${section.id}`} name="subtitle" defaultValue={section.subtitle} rows={4} />
             </div>
-            {/* Removed the obsolete 'content' field */}
+            {hasButtonText && (
+                <div className="space-y-2">
+                    <Label htmlFor={`buttonText-${section.id}`}>Texto del Botón</Label>
+                    <Input id={`buttonText-${section.id}`} name="buttonText" defaultValue={section.buttonText} />
+                </div>
+            )}
+            {hasImage && (
+                 <div className="space-y-2">
+                    <Label>Imagen de Fondo</Label>
+                    <div className="p-4 border rounded-md bg-muted/40">
+                        <ImageUpload 
+                            storagePath={`homepage/${section.id}`}
+                            onUploadSuccess={setImageUrl}
+                            guidelinesText={getImageGuidelines()}
+                        />
+                        {imageUrl && <p className="text-xs text-muted-foreground mt-2">URL actual: {imageUrl}</p>}
+                    </div>
+                </div>
+            )}
             <SubmitButton />
         </form>
     );
 }
 
+// Specific form for a single feature item
+function FeatureItemEditForm({ feature, featureId }: { feature: Feature, featureId: string }) {
+    const [state, formAction] = useActionState(updateFeatureItem, null);
+    const { toast } = useToast();
+    const [imageUrl, setImageUrl] = useState(feature.imageUrl || '');
 
+    useEffect(() => {
+        if (state?.message) {
+            toast({ title: "Éxito", description: state.message });
+        }
+        if (state?.error) {
+            toast({ variant: 'destructive', title: "Error", description: state.error });
+        }
+    }, [state, toast]);
+
+    return (
+        <form action={formAction} className="p-4 border rounded-lg space-y-4 bg-muted/20">
+            <input type="hidden" name="featureId" value={featureId} />
+            <input type="hidden" name="imageUrl" value={imageUrl} />
+            <div className="space-y-2">
+                <Label>Título de Característica</Label>
+                <Input name="title" defaultValue={feature.title} />
+            </div>
+            <div className="space-y-2">
+                <Label>Descripción</Label>
+                <Textarea name="description" defaultValue={feature.description} />
+            </div>
+             <div className="space-y-2">
+                <Label>Ícono / Imagen</Label>
+                <div className="p-4 border rounded-md bg-background">
+                    <ImageUpload 
+                        storagePath="homepage/features"
+                        onUploadSuccess={setImageUrl}
+                        guidelinesText="Recomendado: 800x800px"
+                    />
+                     {imageUrl && <p className="text-xs text-muted-foreground mt-2">URL actual: {imageUrl}</p>}
+                </div>
+            </div>
+            <SubmitButton text="Guardar Característica" />
+        </form>
+    )
+}
+
+// Main component orchestrating the tabs and forms
 export function HomepageEditor({ sections }: { sections: HomepageSection[] }) {
     const heroSection = sections.find(s => s.id === 'hero')!;
     const featuresSection = sections.find(s => s.id === 'features')!;
     const ctaSection = sections.find(s => s.id === 'cta')!;
     
-    // This component will need to be updated to the 3-tab layout after merging the fixes.
-    // For now, this structure matches the state of the branch.
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Editor de Contenido de la Página Principal</CardTitle>
                 <CardDescription>
-                    Actualiza el contenido de texto para las secciones principales de la página de inicio pública.
+                    Actualiza el contenido para las secciones de la página de inicio. Los cambios se reflejan inmediatamente.
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <Tabs defaultValue="hero">
                     <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="hero">Sección Principal</TabsTrigger>
+                        <TabsTrigger value="hero">Sección Hero</TabsTrigger>
                         <TabsTrigger value="features">Características</TabsTrigger>
-                        <TabsTrigger value="cta">Llamada a la acción</TabsTrigger>
+                        <TabsTrigger value="cta">Llamada a la Acción</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="hero" className="pt-4">
+
+                    <TabsContent value="hero" className="pt-6">
                         <SectionEditForm section={heroSection} />
                     </TabsContent>
-                    <TabsContent value="features" className="pt-4">
+
+                    <TabsContent value="features" className="pt-6">
                         <SectionEditForm section={featuresSection} />
+                        <div className="my-6 border-t" />
+                        <div className="space-y-6">
+                            <h3 className="text-lg font-semibold tracking-tight">
+                                Características Individuales
+                            </h3>
+                            {featuresSection.features?.map((feature: any, index: number) => (
+                               <FeatureItemEditForm key={feature.id || index} feature={feature} featureId={feature.id} />
+                            ))}
+                        </div>
                     </TabsContent>
-                    <TabsContent value="cta" className="pt-4">
+
+                    <TabsContent value="cta" className="pt-6">
                         <SectionEditForm section={ctaSection} />
                     </TabsContent>
                 </Tabs>

@@ -13,12 +13,13 @@ interface ImageUploadProps {
   onUploadSuccess: (url: string) => void;
   storagePath: string;
   disabled?: boolean;
+  guidelinesText?: string; // Nueva prop opcional para las guías
 }
 
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-export function ImageUpload({ onUploadSuccess, storagePath, disabled = false }: ImageUploadProps) {
+export function ImageUpload({ onUploadSuccess, storagePath, disabled = false, guidelinesText }: ImageUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [downloadURL, setDownloadURL] = useState<string | null>(null);
@@ -105,9 +106,17 @@ export function ImageUpload({ onUploadSuccess, storagePath, disabled = false }: 
         </Button>
       </div>
       
-      <p className="text-xs text-muted-foreground pt-1">
-        Tamaño máximo por archivo: {MAX_FILE_SIZE_MB}MB
-      </p>
+      <div className="pt-1">
+        <p className="text-xs text-muted-foreground">
+          Tamaño máximo por archivo: {MAX_FILE_SIZE_MB}MB
+        </p>
+        {/* Renderiza el texto de las guías solo si se proporciona */}
+        {guidelinesText && (
+          <p className="text-xs text-muted-foreground">
+            {guidelinesText}
+          </p>
+        )}
+      </div>
 
       {uploadProgress !== null && (
         <Progress value={uploadProgress} className="w-full mt-4" />
