@@ -13,7 +13,8 @@ export const userFormSchema = z.object({
     id: z.string().optional(), // Presence of ID indicates editing mode
     name: z.string().min(2, "El nombre es obligatorio."),
     lastName: z.string().min(2, "Los apellidos son obligatorios."),
-    email: z.string().email("El correo electrónico no es válido."),
+    // Email is optional at the base level; superRefine will enforce it for signup.
+    email: z.string().email("El correo electrónico no es válido.").optional(),
 
     // --- Optional profile fields ---
     phone: z.string().optional(),
@@ -36,8 +37,15 @@ export const userFormSchema = z.object({
 
 }).superRefine((data, ctx) => {
     // --- SCENARIO 1: SIGNUP (No ID present) ---
-    // Password and Confirm Password are required and must be valid.
+    // Email, Password, and Confirm Password are required and must be valid.
     if (!data.id) {
+        if (!data.email) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "El correo electrónico es obligatorio.",
+                path: ["email"],
+            });
+        }
         if (!data.password) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
