@@ -72,6 +72,12 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         };
     }
     
+    // The superRefine logic in the schema ensures email is present for signup.
+    // This check satisfies TypeScript's static analysis.
+    if (!validatedFields.data.email) {
+        return { error: 'El correo electrónico es inexplicablemente inválido a pesar de pasar la validación.' };
+    }
+
     const { email, password, name, lastName } = validatedFields.data;
 
     try {
@@ -89,6 +95,7 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         await createFirestoreUser({
             id: userRecord.uid,
             ...validatedFields.data,
+            email: email, // Ensure email is passed as a string
             role: 'ciclista', // Default role for new signups
         });
         
