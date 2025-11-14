@@ -64,8 +64,37 @@ const theftReportSchema = z.object({
 
 
 export async function signup(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
-    // ... implementation remains correct
-    return { error: 'Ocurrió un error inesperado.' };
+    const validatedFields = userFormSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            error: 'Datos proporcionados no válidos. Asegúrate de que las contraseñas coincidan y cumplan los requisitos.',
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+    
+    const { email, password } = validatedFields.data;
+
+    try {
+        const { userRecord, customToken } = await createUser(email, password!);
+        const { uid } = userRecord;
+
+        const userData = {
+            id: uid,
+            ...validatedFields.data,
+        };
+        
+        await updateUserData(uid, userData);
+        
+        // Return success and the custom token for client-side sign-in
+        return { success: true, customToken: customToken };
+        
+    } catch (error: any) {
+        if (error.code === 'auth/email-already-exists') {
+            return { error: 'Este correo electrónico ya está en uso.' };
+        }
+        return { error: 'Ocurrió un error inesperado durante la creación de la cuenta.' };
+    }
 }
 
 export async function updateHomepageSection(prevState: any, formData: FormData) {
@@ -124,8 +153,49 @@ export async function updateFeatureItem(prevState: any, formData: FormData) {
 
 
 export async function updateProfile(prevState: any, formData: FormData): Promise<ActionFormState> {
-    // ... implementation remains correct
-    return { error: 'Ocurrió un error inesperado.' };
+    const session = await getDecodedSession();
+    if (!session?.uid) {
+        return { error: 'No estás autenticado.' };
+    }
+
+    const validatedFields = userFormSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            error: 'Datos proporcionados no válidos.',
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    const { id, currentPassword, newPassword, email, ...userData } = validatedFields.data;
+
+    if (id !== session.uid) {
+        return { error: 'No tienes permiso para actualizar este perfil.' };
+    }
+
+    try {
+        // --- Password Change Logic ---
+        if (newPassword && currentPassword) {
+            const isPasswordVerified = await verifyUserPassword(session.uid, currentPassword);
+            if (!isPasswordVerified) {
+                return { error: 'La contraseña actual es incorrecta.' };
+            }
+            await adminAuth.updateUser(session.uid, { password: newPassword });
+        }
+
+        // --- Firestore Data Update ---
+        await updateUserData(session.uid, userData);
+
+        revalidatePath('/dashboard/profile');
+        return { success: true, message: 'Perfil actualizado correctamente.' };
+
+    } catch (error: any) {
+        console.error("Update profile error:", error);
+        if (error.code === 'auth/wrong-password') {
+            return { error: 'La contraseña actual es incorrecta.' };
+        }
+        return { error: 'Hubo un error inesperado al actualizar tu perfil.' };
+    }
 }
 
 export async function registerBike(prevState: BikeFormState, formData: FormData): Promise<BikeFormState> {
