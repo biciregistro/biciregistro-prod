@@ -17,7 +17,7 @@ import {
     getBike,
 } from './data';
 import { deleteSession, getDecodedSession } from './auth';
-import { ActionFormState, HomepageSection, Feature } from './types';
+import { ActionFormState, HomepageSection, Feature, BikeFormState } from './types';
 import { userFormSchema, BikeRegistrationSchema } from './schemas';
 import { adminAuth } from './firebase/server';
 
@@ -27,6 +27,7 @@ const optionalString = (schema: z.ZodString) =>
 
 const bikeFormSchema = BikeRegistrationSchema.extend({
     id: z.string().optional(),
+    userId: z.string().min(1, 'El ID de usuario es obligatorio.'),
     photoUrl: z.string().url("URL de foto lateral inválida.").min(1, "La foto lateral es obligatoria."),
     serialNumberPhotoUrl: z.string().url("URL de foto de serie inválida.").min(1, "La foto del número de serie es obligatoria."),
     additionalPhoto1Url: optionalString(z.string().url({ message: "URL de foto adicional 1 inválida." })),
@@ -127,14 +128,72 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
     return { error: 'Ocurrió un error inesperado.' };
 }
 
-export async function registerBike(prevState: any, formData: FormData) {
-    // ... implementation remains correct
-    redirect('/dashboard');
+export async function registerBike(prevState: BikeFormState, formData: FormData): Promise<BikeFormState> {
+    const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            success: false,
+            message: 'Error de validación. Por favor, revisa los campos.',
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    const { id, ...bikeData } = validatedFields.data;
+
+    try {
+        await addBike({
+            ...bikeData,
+            photos: [
+                bikeData.photoUrl,
+                bikeData.serialNumberPhotoUrl,
+                bikeData.additionalPhoto1Url,
+                bikeData.additionalPhoto2Url,
+            ].filter(Boolean) as string[],
+        });
+
+        revalidatePath('/dashboard');
+        return { success: true, message: '¡Bicicleta registrada exitosamente!' };
+
+    } catch (error) {
+        console.error("Database error during bike registration:", error);
+        return { success: false, message: 'Error en la base de datos: No se pudo registrar la bicicleta.' };
+    }
 }
 
-export async function updateBike(prevState: any, formData: FormData) {
-    // ... implementation remains correct
-    return { success: true, message: 'Bicicleta actualizada correctamente.' };
+export async function updateBike(prevState: BikeFormState, formData: FormData): Promise<BikeFormState> {
+    const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            success: false,
+            message: 'Error de validación. Por favor, revisa los campos.',
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    const { id, ...bikeData } = validatedFields.data;
+    if (!id) {
+        return { success: false, message: "Error: No se encontró el ID de la bicicleta para actualizar." };
+    }
+
+    try {
+        await updateBikeData(id, {
+            ...bikeData,
+            photos: [
+                bikeData.photoUrl,
+                bikeData.serialNumberPhotoUrl,
+                bikeData.additionalPhoto1Url,
+                bikeData.additionalPhoto2Url,
+            ].filter(Boolean) as string[],
+        });
+        revalidatePath('/dashboard');
+        revalidatePath(`/dashboard/bikes/${id}`);
+        return { success: true, message: 'Bicicleta actualizada correctamente.' };
+    } catch (error) {
+        console.error("Database error during bike update:", error);
+        return { success: false, message: 'Error en la base de datos: No se pudo actualizar la bicicleta.' };
+    }
 }
 
 export async function reportTheft(prevState: any, formData: FormData) {

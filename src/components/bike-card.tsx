@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useActionState, useEffect, useState, useCallback } from 'react';
+import { useActionState, useEffect, useState, useCallback, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { debounce } from 'lodash';
+import { useRouter } from 'next/navigation';
 
-import type { Bike } from '@/lib/types';
+import type { Bike, BikeFormState } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -143,8 +144,10 @@ function SubmitButton({ isEditing, isSerialInvalid }: { isEditing?: boolean, isS
 export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: string, bike?: Bike, onSuccess?: () => void }) {
     const isEditing = !!bike;
     const action = isEditing ? updateBike : registerBike;
-    const [state, formAction] = useActionState(action, null);
+    const initialState: BikeFormState = { success: false, message: '' };
+    const [state, formAction] = useActionState(action, initialState);
     const { toast } = useToast();
+    const router = useRouter();
 
     const [photoUrl, setPhotoUrl] = useState(bike?.photos?.[0] || '');
     const [serialNumberPhotoUrl, setSerialNumberPhotoUrl] = useState(bike?.photos?.[1] || '');
@@ -190,17 +193,24 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
     }, 500), [isEditing, bike?.serialNumber]);
 
     useEffect(() => {
-        if (state?.message) {
+        if (!state) return; // Guard clause to prevent accessing null state
+
+        if (state.message) {
             toast({
-                title: state.errors ? "Error" : "Éxito",
+                title: state.success ? "Éxito" : "Error",
                 description: state.message,
-                variant: state.errors ? "destructive" : "default",
+                variant: state.success ? "default" : "destructive",
             });
-            if (!state.errors && onSuccess) {
-                onSuccess();
+            if (state.success) {
+                if (onSuccess) {
+                    onSuccess();
+                } else {
+                    // Redirect to dashboard on successful registration
+                    router.push('/dashboard');
+                }
             }
         }
-    }, [state, toast, onSuccess]);
+    }, [state, toast, onSuccess, router]);
 
     return (
         <Form {...form}>
@@ -210,10 +220,10 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                         <CardTitle>{isEditing ? 'Editar Bicicleta' : 'Registrar una Nueva Bicicleta'}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {state?.message && !onSuccess && (
-                            <Alert variant={state.errors ? "destructive" : "default"}>
+                        {state && state.message && !onSuccess && (
+                            <Alert variant={state.success ? "default" : "destructive"}>
                                 <AlertCircle className="h-4 w-4" />
-                                <AlertTitle>{state.errors ? 'Error' : 'Éxito'}</AlertTitle>
+                                <AlertTitle>{state.success ? 'Éxito' : 'Error'}</AlertTitle>
                                 <AlertDescription>{state.message}</AlertDescription>
                             </Alert>
                         )}
@@ -401,6 +411,9 @@ export function TheftReportForm({ bike, onSuccess }: { bike: Bike, onSuccess?: (
     const { toast } = useToast();
     const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === 'México'));
     const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
+    const [isPending, startTransition] = useTransition();
+    const router = useRouter();
+
 
     const form = useForm<TheftReportValues>({
         resolver: zodResolver(theftReportSchema),
@@ -441,11 +454,20 @@ export function TheftReportForm({ bike, onSuccess }: { bike: Bike, onSuccess?: (
 
     if (bike.status === 'stolen') {
         return (
-            <form action={async () => {
-                await markAsRecovered(bike.id)
-                toast({ title: "Bicicleta Actualizada", description: "La bicicleta ha sido marcada como recuperada." })
-                if (onSuccess) onSuccess();
-            }} className="w-full">
+            <form action={() => startTransition(async () => {
+                await markAsRecovered(bike.id);
+                toast({ 
+                    title: "Bicicleta Actualizada", 
+                    description: "La bicicleta ha sido marcada como recuperada." 
+                });
+                
+                // Forzar una actualización completa para evitar el error de hidratación
+                router.refresh();
+
+                if (onSuccess) {
+                    onSuccess();
+                }
+            })} className="w-full">
                 <MarkRecoveredButton />
             </form>
         )

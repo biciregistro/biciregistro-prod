@@ -185,13 +185,14 @@ Para garantizar la estabilidad y un flujo de trabajo ordenado, seguimos una estr
 
 2.  **Desarrollar:** Trabaja y haz `commit` de tus cambios en tu rama `feature`.
 
-3.  **Fusionar a `develop`:** Cuando tu característica esté lista y probada localmente, fusiónala en `develop` para desplegarla en el entorno de pruebas.
+3.  **Fusionar a `develop`:** Cuando tu característica esté lista y probada localmente, fusiónala en `develop` para desplegarla en el entorno de pruebas. Para mantener un historial claro y reversible, **siempre** creamos un "merge commit".
     ```bash
     git checkout develop
     git pull origin develop
-    git merge feature/nombre-descriptivo
+    git merge --no-ff feature/nombre-descriptivo
     git push origin develop
     ```
+    **¿Por qué `--no-ff`?** Esta opción (`--no-fast-forward`) asegura que se cree un "merge commit" en `develop`. Esto preserva el historial de la rama de característica y permite revertir la característica completa en un solo paso si es necesario, haciendo el historial más seguro y legible.
 
 4.  **Verificar en `dev`:** Confirma que tus cambios funcionan como se espera en la URL del ambiente de desarrollo.
 
@@ -203,10 +204,10 @@ Este proceso se realiza únicamente cuando `develop` es estable y está listo pa
     ```bash
     git checkout main
     git pull origin main
-    git merge develop
+    git merge --no-ff develop
     git push origin main
     ```
-2.  **¡Lanzamiento!** El `push` a `main` activará el desplieggue a producción.
+2.  **¡Lanzamiento!** El `push` a `main` activará el despliegue a producción.
 
 ### Despliegue de Configuración de Firebase (Firestore y Storage)
 
@@ -251,7 +252,7 @@ Si encuentras un bug crítico en producción:
     ```bash
     # Haces el commit con el arreglo...
     git checkout main
-    git merge hotfix/descripcion-del-bug
+    git merge --no-ff hotfix/descripcion-del-bug
     git push origin main # <-- Despliega la corrección a producción
     ```
 3.  **¡IMPORTANTE! Fusiona también en `develop`:**
