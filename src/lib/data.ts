@@ -149,26 +149,63 @@ const convertDocTimestamps = (data: any): any => {
     return convertedData;
 };
   
-// --- Bike Management (Corrected for Nested Structure) ---
+// --- Bike Management (Corrected for Nested Structure with Backward Compatibility) ---
 
 export async function getBikes(userId: string): Promise<Bike[]> {
+    if (!userId) return [];
+
     const db = getFirestore();
-    const bikesRef = db.collection('users').doc(userId).collection('bikes');
-    const snapshot = await bikesRef.orderBy('createdAt', 'desc').get();
-    return snapshot.docs.map(doc => {
+    const bikesMap = new Map<string, Bike>();
+
+    // 1. Fetch from the new nested collection
+    const nestedBikesRef = db.collection('users').doc(userId).collection('bikes');
+    const nestedSnapshot = await nestedBikesRef.orderBy('createdAt', 'desc').get();
+    nestedSnapshot.forEach(doc => {
         const data = convertDocTimestamps(doc.data());
-        return { id: doc.id, ...data } as Bike;
+        bikesMap.set(doc.id, { id: doc.id, ...data } as Bike);
     });
+
+    // 2. Fetch from the old root collection (for backward compatibility)
+    const rootBikesRef = db.collection('bikes').where('userId', '==', userId);
+    const rootSnapshot = await rootBikesRef.get();
+    rootSnapshot.forEach(doc => {
+        // Avoid overwriting a (potentially updated) bike from the nested collection
+        if (!bikesMap.has(doc.id)) {
+            const data = convertDocTimestamps(doc.data());
+            bikesMap.set(doc.id, { id: doc.id, ...data } as Bike);
+        }
+    });
+
+    // Convert map to array and sort by creation date
+    const allBikes = Array.from(bikesMap.values());
+    allBikes.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+    });
+
+    return allBikes;
 }
+
 
 export async function getBike(userId: string, bikeId: string): Promise<Bike | null> {
     if (!userId || !bikeId) return null;
     try {
         const db = getFirestore();
-        const docSnap = await db.collection('users').doc(userId).collection('bikes').doc(bikeId).get();
+        // Try fetching from the new nested collection first
+        let docSnap = await db.collection('users').doc(userId).collection('bikes').doc(bikeId).get();
+
+        // If not found, try fetching from the old root collection for backward compatibility
+        if (!docSnap.exists) {
+            docSnap = await db.collection('bikes').doc(bikeId).get();
+        }
+        
         if (!docSnap.exists) return null;
         
         const data = convertDocTimestamps(docSnap.data());
+        // Final check to ensure the user owns this bike, especially for root collection fetches
+        if ((data as Bike).userId !== userId) return null;
+
         return { id: docSnap.id, ...data } as Bike;
     } catch (error) {
         console.error("Error fetching bike:", error);
@@ -179,10 +216,18 @@ export async function getBike(userId: string, bikeId: string): Promise<Bike | nu
 export async function getBikeBySerial(serial: string): Promise<Bike | null> {
     const normalizedSerial = normalizeSerialNumber(serial);
     const db = getFirestore();
-    const bikesRef = db.collectionGroup('bikes'); // Query across all subcollections
-    const query = bikesRef.where('serialNumber', '==', normalizedSerial);
     
-    const snapshot = await query.get();
+    // First, query the new collection group structure
+    const nestedBikesRef = db.collectionGroup('bikes');
+    const nestedQuery = nestedBikesRef.where('serialNumber', '==', normalizedSerial);
+    let snapshot = await nestedQuery.get();
+
+    // If not found, query the old root collection
+    if (snapshot.empty) {
+        const rootBikesRef = db.collection('bikes');
+        const rootQuery = rootBikesRef.where('serialNumber', '==', normalizedSerial);
+        snapshot = await rootQuery.get();
+    }
 
     if (snapshot.empty) return null;
 
@@ -191,6 +236,7 @@ export async function getBikeBySerial(serial: string): Promise<Bike | null> {
     return { id: doc.id, ...data } as Bike;
 }
 
+// Writes ONLY to the new nested collection structure
 export async function addBike(userId: string, bikeData: Omit<Bike, 'id' | 'createdAt' | 'status' | 'userId'>) {
     const db = getFirestore();
     const newBike = {
@@ -203,6 +249,7 @@ export async function addBike(userId: string, bikeData: Omit<Bike, 'id' | 'creat
     await db.collection('users').doc(userId).collection('bikes').add(newBike);
 }
 
+// Updates data in the correct location (new or old structure)
 export async function updateBikeData(userId: string, bikeId: string, data: Partial<Omit<Bike, 'id'>>) {
     const db = getFirestore();
     const dataToUpdate: { [key: string]: any } = { ...data };
@@ -217,7 +264,17 @@ export async function updateBikeData(userId: string, bikeId: string, data: Parti
         }
     }
 
-    await db.collection('users').doc(userId).collection('bikes').doc(bikeId).update(dataToUpdate);
+    // Check if the bike exists in the new nested structure
+    const nestedBikeRef = db.collection('users').doc(userId).collection('bikes').doc(bikeId);
+    const nestedDoc = await nestedBikeRef.get();
+
+    if (nestedDoc.exists) {
+        await nestedBikeRef.update(dataToUpdate);
+    } else {
+        // If not in the new structure, assume it's in the old one and update it there
+        const rootBikeRef = db.collection('bikes').doc(bikeId);
+        await rootBikeRef.update(dataToUpdate);
+    }
 }
 
 // --- Homepage Content Management ---

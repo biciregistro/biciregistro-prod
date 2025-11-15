@@ -76,7 +76,8 @@ export default async function DashboardPage() {
     }
 
     const profileIsComplete = isProfileComplete(user);
-    const bikes = profileIsComplete ? await getBikes({ userId: user.id }) : [];
+    // Corrected the call to getBikes to pass user.id directly as a string.
+    const bikes = profileIsComplete ? await getBikes(user.id) : [];
 
     return (
         <div className="container max-w-5xl mx-auto py-6 md:py-8 px-4">

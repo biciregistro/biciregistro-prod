@@ -13,6 +13,7 @@ export type Bike = {
   photos: string[]; // URLs to images
   ownershipProof?: string; // URL to a single ownership document/proof
   appraisedValue?: number; // Approximate value of the bike
+  createdAt?: string; // ISO string format of the creation date
   theftReport?: {
     date: string;
     time?: string;
