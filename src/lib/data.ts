@@ -1,53 +1,43 @@
 import 'server-only';
-import { getFirestore, FieldValue, Filter, Timestamp } from 'firebase-admin/firestore';
-import { firebaseConfig } from './firebase/config';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import type { User, Bike, BikeStatus, HomepageSection } from './types';
 import { getDecodedSession } from '@/lib/auth';
-import { adminAuth } from './firebase/server';
-import { defaultHomepageData } from './homepage-data'; // Import the default data
+// Corrected import: Use the initialized adminDb and adminAuth instances
+import { adminDb, adminAuth } from './firebase/server'; 
+import { defaultHomepageData } from './homepage-data';
+import { firebaseConfig } from './firebase/config';
 
 // --- Helper Functions ---
 
-// Normalizes a serial number for consistent storage and lookup.
 const normalizeSerialNumber = (serial: string): string => {
     return serial.replace(/[\s-]+/g, '').toUpperCase();
 };
 
-// Checks if a serial number is unique across all bikes, in both old and new data structures.
+// SIMPLIFIED AND CORRECTED IMPLEMENTATION
 export async function isSerialNumberUnique(serial: string, excludeBikeId?: string): Promise<boolean> {
     const normalizedSerial = normalizeSerialNumber(serial);
-    const db = getFirestore();
+    const db = adminDb; // Use the initialized database instance
 
-    // Query 1: New nested collection structure
-    const nestedBikesRef = db.collectionGroup('bikes');
-    const nestedQuery = nestedBikesRef.where('serialNumber', '==', normalizedSerial);
-    const nestedSnapshot = await nestedQuery.get();
-    
-    // Query 2: Old root collection structure
-    const rootBikesRef = db.collection('bikes');
-    const rootQuery = rootBikesRef.where('serialNumber', '==', normalizedSerial);
-    const rootSnapshot = await rootQuery.get();
+    // Perform a single, simple query on the root 'bikes' collection.
+    // This is robust and avoids the need for complex composite indexes.
+    const bikesRef = db.collection('bikes');
+    const query = bikesRef.where('serialNumber', '==', normalizedSerial);
+    const snapshot = await query.get();
 
-    // Combine results
-    const allMatchingDocs = [...nestedSnapshot.docs, ...rootSnapshot.docs];
-
-    // Filter out duplicates by doc.id in case a bike exists in both locations
-    const uniqueDocs = allMatchingDocs.filter((doc, index, self) => 
-        index === self.findIndex((d) => d.id === doc.id)
-    );
-
-    if (uniqueDocs.length === 0) {
-        return true; // No bike with this serial number found anywhere.
+    if (snapshot.empty) {
+        return true; // The serial number is unique.
     }
 
-    // If we need to exclude a bike ID (for updates), check if the only found bike is the one we're excluding.
+    // If we are updating an existing bike, we need to allow its own serial number.
     if (excludeBikeId) {
-        return uniqueDocs.length === 1 && uniqueDocs[0].id === excludeBikeId;
+        // Check if the only document found is the bike we are excluding.
+        return snapshot.docs.length === 1 && snapshot.docs[0].id === excludeBikeId;
     }
 
-    // If not excluding any ID, and we found docs, it's a duplicate.
+    // If we are not excluding any bike and documents were found, it's a duplicate.
     return false;
 }
+
 
 // Helper function to verify a user's password
 export async function verifyUserPassword(email: string, password_provided: string): Promise<boolean> {
@@ -77,7 +67,7 @@ export async function getAuthenticatedUser(): Promise<User | null> {
     if (!session?.uid) return null;
 
     try {
-        const db = getFirestore();
+        const db = adminDb;
         const userDoc = await db.collection('users').doc(session.uid).get();
 
         const isAdmin = session.admin === true;
@@ -114,7 +104,7 @@ export async function getAuthenticatedUser(): Promise<User | null> {
 export async function getUser(userId: string): Promise<User | null> {
     if (!userId) return null;
     try {
-        const db = getFirestore();
+        const db = adminDb;
         const docSnap = await db.collection('users').doc(userId).get();
         return docSnap.exists ? { id: docSnap.id, ...docSnap.data() } as User : null;
     } catch (error) {
@@ -126,7 +116,7 @@ export async function getUser(userId: string): Promise<User | null> {
 export async function getUserByEmail(email: string): Promise<User | null> {
     if (!email) return null;
     try {
-        const db = getFirestore();
+        const db = adminDb;
         const usersRef = db.collection('users');
         const q = usersRef.where('email', '==', email).limit(1);
         const querySnapshot = await q.get();
@@ -140,12 +130,12 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 }
 
 export async function createUser(user: User) {
-    const db = getFirestore();
+    const db = adminDb;
     await db.collection('users').doc(user.id).set(user);
 }
 
 export async function updateUserData(userId: string, data: Partial<Omit<User, 'id' | 'role' | 'email'>>) {
-    const db = getFirestore();
+    const db = adminDb;
     const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
     if (Object.keys(cleanData).length > 0) {
         await db.collection('users').doc(userId).update(cleanData);
@@ -170,7 +160,7 @@ const convertDocTimestamps = (data: any): any => {
 export async function getBikes(userId: string): Promise<Bike[]> {
     if (!userId) return [];
 
-    const db = getFirestore();
+    const db = adminDb;
     const bikesMap = new Map<string, Bike>();
 
     // 1. Fetch from the new nested collection
@@ -207,7 +197,7 @@ export async function getBikes(userId: string): Promise<Bike[]> {
 export async function getBike(userId: string, bikeId: string): Promise<Bike | null> {
     if (!userId || !bikeId) return null;
     try {
-        const db = getFirestore();
+        const db = adminDb;
         // Try fetching from the new nested collection first
         let docSnap = await db.collection('users').doc(userId).collection('bikes').doc(bikeId).get();
 
@@ -231,7 +221,7 @@ export async function getBike(userId: string, bikeId: string): Promise<Bike | nu
 
 export async function getBikeBySerial(serial: string): Promise<Bike | null> {
     const normalizedSerial = normalizeSerialNumber(serial);
-    const db = getFirestore();
+    const db = adminDb;
     
     // First, query the new collection group structure
     const nestedBikesRef = db.collectionGroup('bikes');
@@ -254,7 +244,7 @@ export async function getBikeBySerial(serial: string): Promise<Bike | null> {
 
 // Writes ONLY to the new nested collection structure
 export async function addBike(userId: string, bikeData: Omit<Bike, 'id' | 'createdAt' | 'status' | 'userId'>) {
-    const db = getFirestore();
+    const db = adminDb;
     const newBike = {
         ...bikeData,
         userId: userId, // Ensure userId is set
@@ -267,7 +257,7 @@ export async function addBike(userId: string, bikeData: Omit<Bike, 'id' | 'creat
 
 // Updates data in the correct location (new or old structure)
 export async function updateBikeData(userId: string, bikeId: string, data: Partial<Omit<Bike, 'id'>>) {
-    const db = getFirestore();
+    const db = adminDb;
     const dataToUpdate: { [key: string]: any } = { ...data };
 
     if (data.serialNumber) {
@@ -295,7 +285,7 @@ export async function updateBikeData(userId: string, bikeId: string, data: Parti
 
 // --- Homepage Content Management ---
 export async function getHomepageData(): Promise<{ [key: string]: HomepageSection }> {
-    const db = getFirestore();
+    const db = adminDb;
     const snapshot = await db.collection('homepage').get();
     
     const firestoreData: { [key: string]: HomepageSection } = {};
@@ -313,7 +303,7 @@ export async function getHomepageData(): Promise<{ [key: string]: HomepageSectio
 
 
 export async function updateHomepageSectionData(data: HomepageSection) {
-    const db = getFirestore();
+    const db = adminDb;
     const { id, ...sectionData } = data;
     await db.collection('homepage').doc(id).set(sectionData, { merge: true });
 }
