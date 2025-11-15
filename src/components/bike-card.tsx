@@ -194,14 +194,23 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ serialNumber: serial }),
             });
+            if (!response.ok) {
+                throw new Error('La respuesta de la red no fue correcta');
+            }
             const data = await response.json();
             setSerialExists(!data.isUnique);
         } catch (error) {
             console.error("Error checking serial number:", error);
+            setSerialExists(false);
+            toast({
+                title: "Error de Validación",
+                description: "No se pudo verificar el número de serie. Inténtalo de nuevo.",
+                variant: "destructive",
+            });
         } finally {
             setIsCheckingSerial(false);
         }
-    }, 500), [isEditing, bike?.serialNumber]);
+    }, 500), [isEditing, bike?.serialNumber, toast]);
 
     useEffect(() => {
         if (!state) return;
