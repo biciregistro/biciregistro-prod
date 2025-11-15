@@ -223,19 +223,14 @@ export async function getBikeBySerial(serial: string): Promise<Bike | null> {
     const normalizedSerial = normalizeSerialNumber(serial);
     const db = adminDb;
     
-    // First, query the new collection group structure
-    const nestedBikesRef = db.collectionGroup('bikes');
-    const nestedQuery = nestedBikesRef.where('serialNumber', '==', normalizedSerial);
-    let snapshot = await nestedQuery.get();
+    // Use a single, robust query on the root collection, consistent with isSerialNumberUnique.
+    const bikesRef = db.collection('bikes');
+    const query = bikesRef.where('serialNumber', '==', normalizedSerial).limit(1);
+    const snapshot = await query.get();
 
-    // If not found, query the old root collection
     if (snapshot.empty) {
-        const rootBikesRef = db.collection('bikes');
-        const rootQuery = rootBikesRef.where('serialNumber', '==', normalizedSerial);
-        snapshot = await rootQuery.get();
+        return null;
     }
-
-    if (snapshot.empty) return null;
 
     const doc = snapshot.docs[0];
     const data = convertDocTimestamps(doc.data());
