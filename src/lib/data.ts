@@ -13,23 +13,39 @@ const normalizeSerialNumber = (serial: string): string => {
     return serial.replace(/[\s-]+/g, '').toUpperCase();
 };
 
-// Checks if a serial number is unique across all bikes.
+// Checks if a serial number is unique across all bikes, in both old and new data structures.
 export async function isSerialNumberUnique(serial: string, excludeBikeId?: string): Promise<boolean> {
     const normalizedSerial = normalizeSerialNumber(serial);
     const db = getFirestore();
-    const bikesRef = db.collectionGroup('bikes'); // Query across all users' bikes subcollections
-    const query = bikesRef.where('serialNumber', '==', normalizedSerial);
+
+    // Query 1: New nested collection structure
+    const nestedBikesRef = db.collectionGroup('bikes');
+    const nestedQuery = nestedBikesRef.where('serialNumber', '==', normalizedSerial);
+    const nestedSnapshot = await nestedQuery.get();
     
-    const snapshot = await query.get();
+    // Query 2: Old root collection structure
+    const rootBikesRef = db.collection('bikes');
+    const rootQuery = rootBikesRef.where('serialNumber', '==', normalizedSerial);
+    const rootSnapshot = await rootQuery.get();
 
-    if (snapshot.empty) {
-        return true;
+    // Combine results
+    const allMatchingDocs = [...nestedSnapshot.docs, ...rootSnapshot.docs];
+
+    // Filter out duplicates by doc.id in case a bike exists in both locations
+    const uniqueDocs = allMatchingDocs.filter((doc, index, self) => 
+        index === self.findIndex((d) => d.id === doc.id)
+    );
+
+    if (uniqueDocs.length === 0) {
+        return true; // No bike with this serial number found anywhere.
     }
 
+    // If we need to exclude a bike ID (for updates), check if the only found bike is the one we're excluding.
     if (excludeBikeId) {
-        return snapshot.docs.length === 1 && snapshot.docs[0].id === excludeBikeId;
+        return uniqueDocs.length === 1 && uniqueDocs[0].id === excludeBikeId;
     }
 
+    // If not excluding any ID, and we found docs, it's a duplicate.
     return false;
 }
 
