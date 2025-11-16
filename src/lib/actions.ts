@@ -221,6 +221,7 @@ export async function registerBike(prevState: BikeFormState, formData: FormData)
     const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
+        // Align the error response with the client's expectation
         return {
             success: false,
             message: 'Error de validación. Por favor, revisa los campos.',
