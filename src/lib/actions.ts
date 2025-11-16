@@ -401,12 +401,6 @@ export async function transferOwnership(prevState: { error: string }, formData: 
     const currentUserId = session.uid;
 
     try {
-        // This is complex with nested collections. A full implementation would require a Cloud Function
-        // to move the bike document and its subcollections atomically.
-        // For now, we'll just update the ownerId, which will break access for the original owner.
-        // This is a simplification and should be addressed with a more robust backend process.
-        console.warn("Performing a non-atomic ownership transfer. This is a simplified implementation.");
-
         const newOwner = await getUserByEmail(newOwnerEmail);
         if (!newOwner) {
             return { error: 'El usuario con ese correo electrónico no fue encontrado.' };
@@ -416,8 +410,9 @@ export async function transferOwnership(prevState: { error: string }, formData: 
             return { error: 'No puedes transferirte la bicicleta a ti mismo.' };
         }
         
-        const bike = await getBike(bikeId);
-        if (bike?.userId !== currentUserId) {
+        // Corrected call to getBike with both userId and bikeId
+        const bike = await getBike(currentUserId, bikeId);
+        if (!bike) { // getBike now returns null if the user is not the owner
             return { error: 'No estás autorizado para transferir esta bicicleta.' };
         }
 

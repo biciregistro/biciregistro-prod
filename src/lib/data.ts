@@ -136,13 +136,26 @@ export async function getBikes(userId: string): Promise<Bike[]> {
     return snapshot.docs.map(doc => ({ id: doc.id, ...convertDocTimestamps(doc.data()) } as Bike));
 }
 
-export async function getBike(bikeId: string): Promise<Bike | null> {
-    if (!bikeId) return null;
+// Corrected getBike function to accept userId and perform security check
+export async function getBike(userId: string, bikeId: string): Promise<Bike | null> {
+    if (!userId || !bikeId) return null;
     try {
         const db = adminDb;
         const docSnap = await db.collection('bikes').doc(bikeId).get();
-        if (!docSnap.exists) return null;
-        return { id: docSnap.id, ...convertDocTimestamps(docSnap.data()) } as Bike;
+
+        if (!docSnap.exists) {
+            return null;
+        }
+
+        const bikeData = docSnap.data() as Bike;
+
+        // Security check: Ensure the bike belongs to the requesting user.
+        if (bikeData.userId !== userId) {
+            console.warn(`Security warning: User ${userId} attempted to access bike ${bikeId} owned by ${bikeData.userId}.`);
+            return null;
+        }
+
+        return { id: docSnap.id, ...convertDocTimestamps(bikeData) } as Bike;
     } catch (error) {
         console.error("Error fetching bike:", error);
         return null;
