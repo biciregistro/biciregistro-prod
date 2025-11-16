@@ -14,6 +14,7 @@ import {
     getHomepageData,
     getUserByEmail,
     getBike,
+    isSerialNumberUnique, // Ensure isSerialNumberUnique is imported
 } from './data';
 import { deleteSession, getDecodedSession } from './auth';
 import { ActionFormState, HomepageSection, Feature, BikeFormState } from './types';
@@ -227,12 +228,23 @@ export async function registerBike(prevState: BikeFormState, formData: FormData)
         };
     }
 
-    const { photoUrl, serialNumberPhotoUrl, additionalPhoto1Url, additionalPhoto2Url, ownershipProofUrl, ...bikeData } = validatedFields.data;
+    const { photoUrl, serialNumberPhotoUrl, additionalPhoto1Url, additionalPhoto2Url, ownershipProofUrl, serialNumber, ...bikeData } = validatedFields.data;
+    
+    const isUnique = await isSerialNumberUnique(serialNumber);
+    if (!isUnique) {
+        return {
+            success: false,
+            message: `Error: El número de serie '${serialNumber}' ya se encuentra registrado.`,
+            errors: { serialNumber: ["Este número de serie ya está registrado."] },
+        };
+    }
 
     try {
-        await addBike(session.uid, {
+        await addBike({
             ...bikeData,
-            ownershipProof: ownershipProofUrl,
+            userId: session.uid,
+            serialNumber,
+            ownershipProof: ownershipProofUrl || '', // Restore the safe guard
             photos: [
                 photoUrl,
                 serialNumberPhotoUrl,
@@ -250,6 +262,7 @@ export async function registerBike(prevState: BikeFormState, formData: FormData)
     }
 }
 
+
 export async function updateBike(prevState: BikeFormState, formData: FormData): Promise<BikeFormState> {
     const session = await getDecodedSession();
     if (!session?.uid) {
@@ -266,15 +279,25 @@ export async function updateBike(prevState: BikeFormState, formData: FormData): 
         };
     }
 
-    const { id, photoUrl, serialNumberPhotoUrl, additionalPhoto1Url, additionalPhoto2Url, ownershipProofUrl, ...bikeData } = validatedFields.data;
+    const { id, photoUrl, serialNumberPhotoUrl, additionalPhoto1Url, additionalPhoto2Url, ownershipProofUrl, serialNumber, ...bikeData } = validatedFields.data;
     if (!id) {
         return { success: false, message: "Error: No se encontró el ID de la bicicleta para actualizar." };
     }
+    
+    const isUnique = await isSerialNumberUnique(serialNumber, id);
+    if (!isUnique) {
+        return {
+            success: false,
+            message: `Error: El número de serie '${serialNumber}' ya se encuentra registrado.`,
+            errors: { serialNumber: ["Este número de serie ya está registrado."] },
+        };
+    }
 
     try {
-        await updateBikeData(session.uid, id, {
+        await updateBikeData(id, {
             ...bikeData,
-            ownershipProof: ownershipProofUrl,
+            serialNumber,
+            ownershipProof: ownershipProofUrl || '', // Restore the safe guard
             photos: [
                 photoUrl,
                 serialNumberPhotoUrl,
@@ -291,6 +314,7 @@ export async function updateBike(prevState: BikeFormState, formData: FormData): 
     }
 }
 
+
 export async function reportTheft(prevState: any, formData: FormData) {
     const session = await getDecodedSession();
     if (!session?.uid) {
@@ -306,7 +330,7 @@ export async function reportTheft(prevState: any, formData: FormData) {
     const { bikeId, ...theftData } = validatedFields.data;
 
     try {
-        await updateBikeData(session.uid, bikeId, {
+        await updateBikeData(bikeId, {
             status: 'stolen',
             theftReport: theftData,
         });
@@ -325,7 +349,7 @@ export async function markAsRecovered(bikeId: string) {
         return;
     }
     try {
-        await updateBikeData(session.uid, bikeId, {
+        await updateBikeData(bikeId, {
             status: 'safe',
             theftReport: undefined, // Remove theft details
         });
@@ -342,7 +366,7 @@ export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
         throw new Error("User not authenticated.");
     }
     try {
-        await updateBikeData(session.uid, bikeId, {
+        await updateBikeData(bikeId, {
             ownershipProof: proofUrl,
         });
         revalidatePath(`/dashboard/bikes/${bikeId}`);
@@ -390,12 +414,17 @@ export async function transferOwnership(prevState: { error: string }, formData: 
         if (newOwner.id === currentUserId) {
             return { error: 'No puedes transferirte la bicicleta a ti mismo.' };
         }
+        
+        const bike = await getBike(bikeId);
+        if (bike?.userId !== currentUserId) {
+            return { error: 'No estás autorizado para transferir esta bicicleta.' };
+        }
 
-        // This is where a Cloud Function would be triggered to move the document.
-        // The client-side action can only do so much.
-        // For now, we cannot implement this securely and correctly without backend changes.
-        return { error: 'La transferencia de propiedad está temporalmente deshabilitada. Contacta a soporte.' };
-
+        await updateBikeData(bikeId, { userId: newOwner.id });
+        
+        revalidatePath('/dashboard');
+        revalidatePath(`/dashboard/bikes/${bikeId}`);
+        redirect('/dashboard');
 
     } catch (error) {
         console.error('Error al transferir la propiedad:', error);
