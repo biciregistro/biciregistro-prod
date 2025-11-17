@@ -25,7 +25,7 @@ export default async function AdminPage() {
   });
 
   return (
-    <div className="container py-8">
+    <div className="container py-8 px-4 md:px-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
