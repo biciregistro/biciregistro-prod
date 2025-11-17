@@ -7,14 +7,22 @@ export default async function AdminPage() {
   const user = await getAuthenticatedUser();
 
   if (!user || user.role !== 'admin') {
-    // In a real app, you might want to show an "Unauthorized" page
-    // or just redirect to the main dashboard.
     redirect('/dashboard');
   }
 
   const homepageData = await getHomepageData();
-  // Convert the object of sections into an array for the component
-  const homepageSections: HomepageSection[] = Object.values(homepageData);
+  
+  // Correctly transform the object into an array, preserving the ID and satisfying TypeScript.
+  const homepageSections: HomepageSection[] = Object.entries(homepageData).map(([id, sectionData]) => {
+    // Assert the type of 'id' to match the discriminated union.
+    const typedId = id as HomepageSection['id'];
+    
+    // Return the full section object with the correctly typed id.
+    return {
+      ...sectionData,
+      id: typedId,
+    } as HomepageSection; // Assert the final object shape for safety.
+  });
 
   return (
     <div className="container py-8">
