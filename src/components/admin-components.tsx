@@ -13,6 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { ImageUpload } from './shared/image-upload';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Terminal } from 'lucide-react';
+
 
 function SubmitButton({ text = "Guardar Cambios" }: { text?: string }) {
     const { pending } = useFormStatus();
@@ -125,11 +128,25 @@ function FeatureItemEditForm({ feature, featureId }: { feature: Feature, feature
     )
 }
 
+function MissingSectionWarning({ sectionName }: { sectionName: string }) {
+    return (
+        <Alert variant="destructive">
+            <Terminal className="h-4 w-4" />
+            <AlertTitle>Error de Datos</AlertTitle>
+            <AlertDescription>
+                La sección &quot;{sectionName}&quot; no se pudo encontrar.
+                Es posible que los datos no existan en la base de datos o que haya un problema al cargarlos.
+                Contacta a un administrador para verificar la colección <code className="font-mono bg-muted px-1 rounded-sm">homepage</code> en Firestore.
+            </AlertDescription>
+        </Alert>
+    );
+}
+
 // Main component orchestrating the tabs and forms
 export function HomepageEditor({ sections }: { sections: HomepageSection[] }) {
-    const heroSection = sections.find(s => s.id === 'hero')!;
-    const featuresSection = sections.find(s => s.id === 'features')!;
-    const ctaSection = sections.find(s => s.id === 'cta')!;
+    const heroSection = sections.find(s => s.id === 'hero');
+    const featuresSection = sections.find(s => s.id === 'features');
+    const ctaSection = sections.find(s => s.id === 'cta');
     
     return (
         <Card>
@@ -148,24 +165,28 @@ export function HomepageEditor({ sections }: { sections: HomepageSection[] }) {
                     </TabsList>
 
                     <TabsContent value="hero" className="pt-6">
-                        <SectionEditForm section={heroSection} />
+                        {heroSection ? <SectionEditForm section={heroSection} /> : <MissingSectionWarning sectionName="Hero" />}
                     </TabsContent>
 
                     <TabsContent value="features" className="pt-6">
-                        <SectionEditForm section={featuresSection} />
-                        <div className="my-6 border-t" />
-                        <div className="space-y-6">
-                            <h3 className="text-lg font-semibold tracking-tight">
-                                Características Individuales
-                            </h3>
-                            {featuresSection.features?.map((feature: any, index: number) => (
-                               <FeatureItemEditForm key={feature.id || index} feature={feature} featureId={feature.id} />
-                            ))}
-                        </div>
+                        {featuresSection ? (
+                            <>
+                                <SectionEditForm section={featuresSection} />
+                                <div className="my-6 border-t" />
+                                <div className="space-y-6">
+                                    <h3 className="text-lg font-semibold tracking-tight">
+                                        Características Individuales
+                                    </h3>
+                                    {featuresSection.features?.map((feature: any, index: number) => (
+                                       <FeatureItemEditForm key={feature.id || index} feature={feature} featureId={feature.id} />
+                                    ))}
+                                </div>
+                            </>
+                        ) : <MissingSectionWarning sectionName="Features" />}
                     </TabsContent>
 
                     <TabsContent value="cta" className="pt-6">
-                        <SectionEditForm section={ctaSection} />
+                         {ctaSection ? <SectionEditForm section={ctaSection} /> : <MissingSectionWarning sectionName="Call to Action (CTA)" />}
                     </TabsContent>
                 </Tabs>
             </CardContent>
