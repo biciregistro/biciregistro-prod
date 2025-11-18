@@ -5,11 +5,28 @@ import { getDecodedSession } from '@/lib/auth';
 import { adminDb, adminAuth } from './firebase/server';
 import { defaultHomepageData } from './homepage-data';
 import { firebaseConfig } from './firebase/config';
+import { UserRecord } from 'firebase-admin/auth';
 
 // --- Helper Functions ---
 
 const normalizeSerialNumber = (serial: string): string => {
     return serial.replace(/[\s-]+/g, '').toUpperCase();
+};
+
+const formatUserRecord = (userRecord: UserRecord): User => {
+    const isAdmin = userRecord.customClaims?.admin === true;
+    const displayName = userRecord.displayName || "";
+    const nameParts = displayName.split(" ");
+    const name = nameParts.shift() || userRecord.email?.split("@")[0] || "N/A";
+    const lastName = nameParts.join(" ");
+
+    return {
+        id: userRecord.uid,
+        email: userRecord.email || "No email",
+        name,
+        lastName,
+        role: isAdmin ? "admin" : "ciclista",
+    };
 };
 
 export async function isSerialNumberUnique(serial: string, excludeBikeId?: string): Promise<boolean> {
@@ -100,31 +117,34 @@ export async function updateUserData(userId: string, data: Partial<Omit<User, 'i
 }
 
 // --- Admin User Management ---
-export async function getUsers(
+export async function getUsers({
+  query,
   maxResults = 100,
-  pageToken?: string
-): Promise<{ users: User[]; nextPageToken?: string }> {
+  pageToken,
+}: {
+  query?: string;
+  maxResults?: number;
+  pageToken?: string;
+}): Promise<{ users: User[]; nextPageToken?: string }> {
   try {
-    const userRecords = await adminAuth.listUsers(maxResults, pageToken);
-        const users: User[] = userRecords.users.map((userRecord) => {
-      const isAdmin = userRecord.customClaims?.admin === true;
-      const displayName = userRecord.displayName || "";
-      const nameParts = displayName.split(" ");
-      const name = nameParts.shift() || userRecord.email?.split("@")[0] || "N/A";
-      const lastName = nameParts.join(" ");
-
+    if (query) {
+      try {
+        const userRecord = await adminAuth.getUserByEmail(query);
+        return { users: [formatUserRecord(userRecord)] };
+      } catch (error: any) {
+        if (error.code === 'auth/user-not-found') {
+          return { users: [] }; // Return empty if no user is found
+        }
+        throw error; // Re-throw other errors
+      }
+    } else {
+      const userRecords = await adminAuth.listUsers(maxResults, pageToken);
+      const users = userRecords.users.map(formatUserRecord);
       return {
-        id: userRecord.uid,
-        email: userRecord.email || "No email",
-        name,
-        lastName,
-        role: isAdmin ? "admin" : "ciclista",
+        users,
+        nextPageToken: userRecords.pageToken,
       };
-    });
-    return {
-      users,
-      nextPageToken: userRecords.pageToken,
-    };
+    }
   } catch (error) {
     console.error("Error listing users:", error);
     return { users: [] };

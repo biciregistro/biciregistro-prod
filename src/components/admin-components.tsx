@@ -2,6 +2,8 @@
 
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { updateHomepageSection, updateFeatureItem } from '@/lib/actions';
 import type { HomepageSection, Feature, User, ActionFormState } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -14,7 +16,7 @@ import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { ImageUpload } from './shared/image-upload';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal } from 'lucide-react';
+import { Terminal, Search, X } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -202,6 +204,35 @@ export function HomepageEditor({ sections }: { sections: HomepageSection[] }) {
     );
 }
 
+function UserSearch() {
+  const searchParams = useSearchParams();
+  const currentQuery = searchParams.get('query') || '';
+
+  return (
+    <form method="GET" className="flex items-center gap-2 mb-6">
+      <Input
+        type="search"
+        name="query"
+        placeholder="Buscar por email..."
+        defaultValue={currentQuery}
+        className="flex-grow"
+      />
+      <Button type="submit">
+        <Search className="h-4 w-4 mr-2" />
+        Buscar
+      </Button>
+      {currentQuery && (
+        <Link href="/admin/users">
+          <Button variant="outline">
+            <X className="h-4 w-4 mr-2" />
+            Limpiar
+          </Button>
+        </Link>
+      )}
+    </form>
+  );
+}
+
 export function UsersTable({ users, nextPageToken }: { users: User[], nextPageToken?: string }) {
   return (
     <Card>
@@ -212,26 +243,37 @@ export function UsersTable({ users, nextPageToken }: { users: User[], nextPageTo
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Apellidos</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Rol</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>{user.name}</TableCell>
-                <TableCell>{user.lastName}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>{user.role}</TableCell>
+        <UserSearch />
+        <div className="border rounded-md">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Apellidos</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Rol</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {users.length > 0 ? (
+                users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>{user.name}</TableCell>
+                    <TableCell>{user.lastName}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.role}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-24 text-center">
+                    No se encontraron usuarios.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   );

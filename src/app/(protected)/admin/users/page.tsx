@@ -16,8 +16,10 @@ export default async function AdminUsersPage({
     redirect('/dashboard');
   }
 
-  const pageToken = typeof searchParams.pageToken === 'string' ? searchParams.pageToken : undefined;
-  const { users, nextPageToken } = await getUsers(100, pageToken);
+  const query = typeof searchParams['query'] === 'string' ? searchParams['query'] : undefined;
+  const pageToken = typeof searchParams['pageToken'] === 'string' ? searchParams['pageToken'] : undefined;
+  
+  const { users, nextPageToken } = await getUsers({ query, pageToken });
 
   return (
     <div className="container py-8 px-4 md:px-6">
