@@ -101,12 +101,51 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
     }
 }
 
-export async function updateHomepageSection(prevState: any, formData: FormData) {
-    // ... (implementation remains the same)
+export async function updateHomepageSection(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
+    const validatedFields = homepageEditSchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) {
+        return { error: "Datos inválidos.", errors: validatedFields.error.flatten().fieldErrors };
+    }
+    try {
+        await updateHomepageSectionData(validatedFields.data as HomepageSection);
+        revalidatePath('/');
+        return { success: true, message: `Sección '${validatedFields.data.id}' actualizada.` };
+    } catch (error) {
+        console.error("Error updating homepage section:", error);
+        return { error: "No se pudo actualizar la sección." };
+    }
 }
 
-export async function updateFeatureItem(prevState: any, formData: FormData) {
-    // ... (implementation remains the same)
+export async function updateFeatureItem(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
+    const validatedFields = featureItemSchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) {
+        return { error: "Datos de característica inválidos.", errors: validatedFields.error.flatten().fieldErrors };
+    }
+
+    const { featureId, ...featureData } = validatedFields.data;
+
+    try {
+        const homepageData = await getHomepageData();
+        const featuresSection = homepageData.features as Extract<HomepageSection, { id: 'features' }>;
+
+        if (!featuresSection || !featuresSection.features) {
+            return { error: "La sección de características no existe." };
+        }
+
+        const featureIndex = featuresSection.features.findIndex((f: any) => f.id === featureId);
+        if (featureIndex === -1) {
+            return { error: "La característica no fue encontrada." };
+        }
+
+        featuresSection.features[featureIndex] = { ...featuresSection.features[featureIndex], ...featureData };
+        await updateHomepageSectionData(featuresSection);
+
+        revalidatePath('/');
+        return { success: true, message: "Característica actualizada correctamente." };
+    } catch (error) {
+        console.error("Error updating feature item:", error);
+        return { error: "No se pudo actualizar la característica." };
+    }
 }
 
 export async function updateProfile(prevState: any, formData: FormData): Promise<ActionFormState> {

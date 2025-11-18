@@ -99,6 +99,38 @@ export async function updateUserData(userId: string, data: Partial<Omit<User, 'i
     }
 }
 
+// --- Admin User Management ---
+export async function getUsers(
+  maxResults = 100,
+  pageToken?: string
+): Promise<{ users: User[]; nextPageToken?: string }> {
+  try {
+    const userRecords = await adminAuth.listUsers(maxResults, pageToken);
+        const users: User[] = userRecords.users.map((userRecord) => {
+      const isAdmin = userRecord.customClaims?.admin === true;
+      const displayName = userRecord.displayName || "";
+      const nameParts = displayName.split(" ");
+      const name = nameParts.shift() || userRecord.email?.split("@")[0] || "N/A";
+      const lastName = nameParts.join(" ");
+
+      return {
+        id: userRecord.uid,
+        email: userRecord.email || "No email",
+        name,
+        lastName,
+        role: isAdmin ? "admin" : "ciclista",
+      };
+    });
+    return {
+      users,
+      nextPageToken: userRecords.pageToken,
+    };
+  } catch (error) {
+    console.error("Error listing users:", error);
+    return { users: [] };
+  }
+}
+
 // --- Data Serialization Helper ---
 const convertDocTimestamps = (data: any): any => {
     if (!data) return data;

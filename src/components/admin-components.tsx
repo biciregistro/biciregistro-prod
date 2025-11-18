@@ -3,7 +3,7 @@
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { updateHomepageSection, updateFeatureItem } from '@/lib/actions';
-import type { HomepageSection, Feature } from '@/lib/types';
+import type { HomepageSection, Feature, User, ActionFormState } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,14 @@ import { useToast } from '@/hooks/use-toast';
 import { ImageUpload } from './shared/image-upload';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 
 function SubmitButton({ text = "Guardar Cambios" }: { text?: string }) {
@@ -24,7 +32,7 @@ function SubmitButton({ text = "Guardar Cambios" }: { text?: string }) {
 
 // Universal form for sections like Hero and CTA
 function SectionEditForm({ section }: { section: HomepageSection }) {
-    const [state, formAction] = useActionState(updateHomepageSection, null);
+    const [state, formAction] = useActionState(updateHomepageSection, null as ActionFormState);
     const { toast } = useToast();
     
     // Safely access imageUrl only if it exists on the section type
@@ -87,7 +95,7 @@ function SectionEditForm({ section }: { section: HomepageSection }) {
 
 // Specific form for a single feature item
 function FeatureItemEditForm({ feature, featureId }: { feature: Feature, featureId: string }) {
-    const [state, formAction] = useActionState(updateFeatureItem, null);
+    const [state, formAction] = useActionState(updateFeatureItem, null as ActionFormState);
     const { toast } = useToast();
     const [imageUrl, setImageUrl] = useState(feature.imageUrl || '');
 
@@ -192,4 +200,39 @@ export function HomepageEditor({ sections }: { sections: HomepageSection[] }) {
             </CardContent>
         </Card>
     );
+}
+
+export function UsersTable({ users, nextPageToken }: { users: User[], nextPageToken?: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Usuarios Registrados</CardTitle>
+        <CardDescription>
+          Lista de todos los usuarios registrados en la plataforma.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nombre</TableHead>
+              <TableHead>Apellidos</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Rol</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {users.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell>{user.name}</TableCell>
+                <TableCell>{user.lastName}</TableCell>
+                <TableCell>{user.email}</TableCell>
+                <TableCell>{user.role}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
 }
