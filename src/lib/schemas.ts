@@ -123,6 +123,6 @@ export const BikeRegistrationSchema = z.object({
   color: z.string().min(1, "El color es obligatorio."),
   modelYear: z.string().optional(),
   modality: z.string().optional(),
-  appraisedValue: z.coerce.number().positive("El valor debe ser un número positivo.").optional(),
+  appraisedValue: z.coerce.number().nonnegative("El valor debe ser un número positivo.").optional(),
   photos: z.array(z.string()).optional(),
 });
