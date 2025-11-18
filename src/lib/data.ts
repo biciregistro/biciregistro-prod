@@ -31,21 +31,6 @@ export async function isSerialNumberUnique(serial: string, excludeBikeId?: strin
     return false;
 }
 
-export async function verifyUserPassword(email: string, password_provided: string): Promise<boolean> {
-    const signInUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseConfig.apiKey}`;
-    try {
-        const response = await fetch(signInUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password: password_provided, returnSecureToken: false }),
-        });
-        return response.ok;
-    } catch (error) {
-        console.error("Error verifying password:", error);
-        return false;
-    }
-}
-
 // --- User Management ---
 
 export async function getAuthenticatedUser(): Promise<User | null> {

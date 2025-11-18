@@ -78,6 +78,7 @@ export type ActionFormState = {
   success?: boolean;
   message?: string;
   customToken?: string;
+  passwordChanged?: boolean;
 } | null;
 
 // Standardized type for bike registration/update form state

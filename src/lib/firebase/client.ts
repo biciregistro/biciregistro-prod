@@ -39,11 +39,9 @@ function initializeClientApp() {
 
     // Initialize App Check only on the client
     if (typeof window !== "undefined") {
-      // Set the debug token in development to allow local testing
-      // IMPORTANT: This is intended for LOCAL DEVELOPMENT ONLY.
       if (process.env.NODE_ENV === "development") {
-        // @ts-ignore
-        self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+        // Use the global variable for older SDK versions to enable debug mode.
+        (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
       }
 
       initializeAppCheck(app, {
@@ -83,7 +81,7 @@ export const signInWithToken = async (token: string): Promise<{ success: boolean
         return { success: true, idToken };
     } catch (error) {
         const authError = error as AuthError;
-        console.error("Client sign-in error:", authError);
+        console.error("Client sign-in error:", error);
         return { success: false, error: "No se pudo iniciar sesión. Por favor, intenta de nuevo." };
     }
 };
