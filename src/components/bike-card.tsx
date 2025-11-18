@@ -46,6 +46,13 @@ const bikeStatusStyles: { [key in Bike['status']]: string } = {
   in_transfer: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700',
 };
 
+// Reusable component for the required field indicator
+const RequiredLabel = ({ children }: { children: React.ReactNode }) => (
+  <FormLabel>
+    {children} <span className="text-red-500">*</span>
+  </FormLabel>
+);
+
 // Reusable component for displaying a bike detail item
 function BikeDetailItem({ label, value }: { label: string; value: string | undefined | null }) {
     if (!value) return null;
@@ -252,7 +259,7 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                             name="serialNumber"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Número de Serie</FormLabel>
+                                    <RequiredLabel>Número de Serie</RequiredLabel>
                                     <FormControl>
                                         <Input 
                                             placeholder="Ubicado en la parte inferior del cuadro de tu bicicleta" 
@@ -274,7 +281,7 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                                 name="make"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Marca</FormLabel>
+                                        <RequiredLabel>Marca</RequiredLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value} name={field.name}>
                                             <FormControl>
                                                 <SelectTrigger>
@@ -292,7 +299,7 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                                 )}
                             />
                             <FormField control={form.control} name="model" render={({ field }) => (
-                                <FormItem><FormLabel>Modelo</FormLabel><FormControl><Input placeholder="ej., Marlin 5" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><RequiredLabel>Modelo</RequiredLabel><FormControl><Input placeholder="ej., Marlin 5" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -300,7 +307,7 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                                 <FormItem><FormLabel>Año Modelo</FormLabel><FormControl><Input placeholder="ej., 2023" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                              <FormField control={form.control} name="color" render={({ field }) => (
-                                <FormItem><FormLabel>Color Principal</FormLabel><FormControl><Input placeholder="ej., Azul" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><RequiredLabel>Color Principal</RequiredLabel><FormControl><Input placeholder="ej., Azul" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
                         
@@ -344,7 +351,7 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                         <div className="space-y-6 pt-4">
                             <h4 className="font-medium text-base border-b pb-2">Fotografías</h4>
                             <div className="space-y-2">
-                                <Label>Foto Lateral (*Obligatoria)</Label>
+                                <Label>Foto Lateral <span className="text-red-500">*</span></Label>
                                 <ImageUpload onUploadSuccess={setPhotoUrl} storagePath="bike-photos" disabled={!authUser} />
                                 <p className="text-xs text-muted-foreground">Toma una foto completa del costado de tu bicicleta.</p>
                                 {state?.errors?.photoUrl && (
@@ -354,7 +361,7 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                                 )}
                             </div>
                             <div className="space-y-2">
-                                <Label>Foto de Número de Serie (*Obligatoria)</Label>
+                                <Label>Foto de Número de Serie <span className="text-red-500">*</span></Label>
                                 <ImageUpload onUploadSuccess={setSerialNumberPhotoUrl} storagePath="serial-photos" disabled={!authUser} />
                                 <p className="text-xs text-muted-foreground">Toma una foto clara y legible del número de serie.</p>
                                 {state?.errors?.serialNumberPhotoUrl && (
