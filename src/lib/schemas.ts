@@ -116,6 +116,21 @@ export const userFormSchema = z.object({
     // If no password fields are filled, superRefine does nothing, and validation passes for them.
 });
 
+export const ongUserFormSchema = z.object({
+  email: z.string().email("El correo electrónico no es válido."),
+  password: passwordSchema,
+  organizationName: z.string().min(3, "El nombre de la organización es obligatorio."),
+  contactPerson: z.string().min(3, "El nombre de la persona de contacto es obligatorio."),
+  organizationWhatsapp: z.string().min(10, "El número de WhatsApp de la organización es obligatorio."),
+  contactWhatsapp: z.string().min(10, "El número de WhatsApp del contacto es obligatorio."),
+  websiteUrl: z.string().url("El enlace a la página web no es válido.").optional().or(z.literal('')),
+  instagramUrl: z.string().url("El enlace a Instagram no es válido.").optional().or(z.literal('')),
+  facebookUrl: z.string().url("El enlace a Facebook no es válido.").optional().or(z.literal('')),
+  country: z.string().min(1, "El país es obligatorio."),
+  state: z.string().min(1, "El estado es obligatorio."),
+});
+
+
 export const BikeRegistrationSchema = z.object({
   serialNumber: z.string().min(1, "El número de serie es obligatorio."),
   make: z.string().min(1, "La marca es obligatoria."),
