@@ -123,6 +123,11 @@ export async function createOngUser(prevState: ActionFormState, formData: FormDa
     };
 
     const uid = generateUid(organizationName);
+    
+    // Asumiendo que la web está en una variable de entorno, o hardcodeada si es estática.
+    // Usar una variable de entorno es la mejor práctica.
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const invitationLink = `${baseUrl}/join/${uid}`;
 
     try {
         const userRecord = await adminAuth.createUser({
@@ -137,6 +142,7 @@ export async function createOngUser(prevState: ActionFormState, formData: FormDa
         await createOngFirestoreProfile({
             id: userRecord.uid,
             organizationName,
+            invitationLink, // Guardar el link generado
             ...ongData,
         });
 

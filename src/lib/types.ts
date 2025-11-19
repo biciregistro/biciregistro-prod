@@ -55,6 +55,7 @@ export type OngUser = {
   country: string;
   state: string;
   avatarUrl?: string;
+  invitationLink: string; // The unique invitation link for the ONG
 };
 
 
