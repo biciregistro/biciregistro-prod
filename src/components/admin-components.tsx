@@ -1,18 +1,21 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+
 import { updateHomepageSection, updateFeatureItem, createOngUser } from '@/lib/actions';
 import type { HomepageSection, Feature, User, OngUser, ActionFormState } from '@/lib/types';
+import { countries, type Country } from '@/lib/countries';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { ImageUpload } from './shared/image-upload';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -282,6 +285,11 @@ export function UsersTable({ users, nextPageToken }: { users: User[], nextPageTo
 export function OngCreationForm() {
   const [state, formAction] = useActionState(createOngUser, null);
   const { toast } = useToast();
+  
+  const [selectedCountry, setSelectedCountry] = useState<Country | undefined>();
+  const [states, setStates] = useState<string[]>([]);
+  const [selectedState, setSelectedState] = useState<string>('');
+
 
   useEffect(() => {
     if (state?.error) {
@@ -289,8 +297,17 @@ export function OngCreationForm() {
     }
   }, [state, toast]);
 
+  const handleCountryChange = (countryName: string) => {
+    const country = countries.find(c => c.name === countryName);
+    setSelectedCountry(country);
+    setStates(country?.states || []);
+    setSelectedState(''); // Reset state selection
+  };
+
   return (
     <form action={formAction} className="space-y-6">
+      <input type="hidden" name="country" value={selectedCountry?.name || ''} />
+      <input type="hidden" name="state" value={selectedState} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="organizationName">Nombre de la Organización</Label>
@@ -322,14 +339,32 @@ export function OngCreationForm() {
           <Input id="contactWhatsapp" name="contactWhatsapp" type="tel" required />
            {state?.errors?.contactWhatsapp && <p className="text-destructive text-sm">{state.errors.contactWhatsapp[0]}</p>}
         </div>
-         <div className="space-y-2">
-          <Label htmlFor="country">País</Label>
-          <Input id="country" name="country" required />
+        <div className="space-y-2">
+          <Label>País</Label>
+          <Select onValueChange={handleCountryChange} required>
+              <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un país" />
+              </SelectTrigger>
+              <SelectContent>
+                  {countries.map(country => (
+                      <SelectItem key={country.code} value={country.name}>{country.name}</SelectItem>
+                  ))}
+              </SelectContent>
+          </Select>
            {state?.errors?.country && <p className="text-destructive text-sm">{state.errors.country[0]}</p>}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="state">Estado/Provincia</Label>
-          <Input id="state" name="state" required />
+          <Label>Estado/Provincia</Label>
+           <Select value={selectedState} onValueChange={setSelectedState} disabled={!selectedCountry} required>
+              <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un estado/provincia" />
+              </SelectTrigger>
+              <SelectContent>
+                  {states.map(state => (
+                      <SelectItem key={state} value={state}>{state}</SelectItem>
+                  ))}
+              </SelectContent>
+          </Select>
            {state?.errors?.state && <p className="text-destructive text-sm">{state.errors.state[0]}</p>}
         </div>
         <div className="space-y-2">
