@@ -12,6 +12,11 @@ run:
 # Environment variables are defined in a single block.
 # The 'availability' key controls where they are accessible.
 env:
+  # Base URL, accessible client and server side.
+  - variable: NEXT_PUBLIC_BASE_URL
+    value: 'http://localhost:3000' # Default for local, overridden by env files.
+    availability: [BUILD, RUNTIME]
+
   # Server-side variables (needed for build and runtime)
   - variable: FIREBASE_PROJECT_ID
     secret: firebase-project-id

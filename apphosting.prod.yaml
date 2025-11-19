@@ -3,6 +3,8 @@
 # The structure and availability are inherited from apphosting.yaml.
 
 env:
+  - variable: NEXT_PUBLIC_BASE_URL
+    value: 'https://biciregistro.mx'
   - variable: FIREBASE_PROJECT_ID
     secret: firebase-project-id
   - variable: FIREBASE_CLIENT_EMAIL
