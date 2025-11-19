@@ -104,7 +104,7 @@ export function PasswordStrengthIndicator({ password = "" }: { password?: string
     );
 }
 
-export function ProfileForm({ user }: { user?: User }) {
+export function ProfileForm({ user, communityId }: { user?: User, communityId?: string }) {
     const router = useRouter();
     const formRef = useRef<HTMLFormElement>(null);
     const [isPending, startTransition] = useTransition();
@@ -289,6 +289,7 @@ export function ProfileForm({ user }: { user?: User }) {
                 onSubmit={form.handleSubmit(handleFormSubmit)} 
                 className="space-y-8 max-w-2xl mx-auto"
             >
+                {!isEditing && communityId && <input type="hidden" name="communityId" value={communityId} />}
                 {/* Form content remains the same */}
                 <Card>
                     <CardHeader>

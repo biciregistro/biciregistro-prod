@@ -39,6 +39,7 @@ export type User = {
   gender?: 'masculino' | 'femenino' | 'otro';
   postalCode?: string;
   whatsapp?: string;
+  communityId?: string; // ID of the ONG the user is affiliated with
 };
 
 export type OngUser = {

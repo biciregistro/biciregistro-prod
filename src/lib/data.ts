@@ -122,6 +122,22 @@ export async function updateUserData(userId: string, data: Partial<Omit<User, 'i
     }
 }
 
+// --- ONG / Community Management ---
+export async function getOngProfile(id: string): Promise<Omit<OngUser, 'email' | 'role'> | null> {
+    try {
+        const db = adminDb;
+        const docSnap = await db.collection('ong-profiles').doc(id).get();
+        if (!docSnap.exists) {
+            return null;
+        }
+        return docSnap.data() as Omit<OngUser, 'email' | 'role'>;
+    } catch (error) {
+        console.error("Error fetching ONG profile:", error);
+        return null;
+    }
+}
+
+
 // --- Admin User Management ---
 export async function getUsers({
   query,

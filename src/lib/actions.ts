@@ -60,7 +60,8 @@ const theftReportSchema = z.object({
 
 
 export async function signup(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
-    const validatedFields = userFormSchema.safeParse(Object.fromEntries(formData.entries()));
+    const data = Object.fromEntries(formData.entries());
+    const validatedFields = userFormSchema.safeParse(data);
 
     if (!validatedFields.success) {
         return {
@@ -74,6 +75,7 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
     }
 
     const { email, password, name, lastName } = validatedFields.data;
+    const communityId = data.communityId as string | undefined;
 
     try {
         const userRecord = await adminAuth.createUser({
@@ -88,7 +90,8 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
             id: userRecord.uid,
             ...validatedFields.data,
             email: email, 
-            role: 'ciclista', 
+            role: 'ciclista',
+            communityId,
         });
         
         return { success: true, customToken: customToken };
