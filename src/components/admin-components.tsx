@@ -19,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { ImageUpload } from './shared/image-upload';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Search, X } from 'lucide-react';
+import { Terminal, Search, X, Copy, Check } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -388,6 +388,29 @@ export function OngCreationForm() {
   );
 }
 
+function CopyButton({ textToCopy }: { textToCopy: string }) {
+    const [isCopied, setIsCopied] = useState(false);
+    const { toast } = useToast();
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            setIsCopied(true);
+            toast({ title: "¡Copiado!", description: "El link de invitación ha sido copiado al portapapeles." });
+            setTimeout(() => setIsCopied(false), 2000); // Reset after 2 seconds
+        }, (err) => {
+            console.error('Could not copy text: ', err);
+            toast({ variant: 'destructive', title: "Error", description: "No se pudo copiar el link." });
+        });
+    };
+
+    return (
+        <Button variant="outline" size="icon" onClick={handleCopy} className="h-8 w-8">
+            {isCopied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+        </Button>
+    );
+}
+
+
 export function OngUsersTable({ ongs }: { ongs: OngUser[] }) {
   return (
     <Card>
@@ -404,8 +427,8 @@ export function OngUsersTable({ ongs }: { ongs: OngUser[] }) {
               <TableRow>
                 <TableHead>Nombre de la Organización</TableHead>
                 <TableHead>Persona de Contacto</TableHead>
-                <TableHead>Email</TableHead>
                 <TableHead>Ubicación</TableHead>
+                <TableHead>Link de Invitación</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -414,8 +437,13 @@ export function OngUsersTable({ ongs }: { ongs: OngUser[] }) {
                   <TableRow key={ong.id}>
                     <TableCell className="font-medium">{ong.organizationName}</TableCell>
                     <TableCell>{ong.contactPerson}</TableCell>
-                    <TableCell>{ong.email}</TableCell>
                     <TableCell>{ong.state}, {ong.country}</TableCell>
+                    <TableCell>
+                        <div className="flex items-center gap-2">
+                            <Input value={ong.invitationLink} readOnly className="flex-1 h-8 text-xs bg-muted/50" />
+                            <CopyButton textToCopy={ong.invitationLink} />
+                        </div>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
