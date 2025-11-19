@@ -227,11 +227,11 @@ export function ProfileForm({ user, communityId }: { user?: User, communityId?: 
     }, [state, toast, form, isEditing, router]);
 
     const handleCountryChange = (countryName: string) => {
-        // ... (implementation remains the same)
-    };
-
-    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // ... (implementation remains the same)
+        const country = countries.find(c => c.name === countryName);
+        setSelectedCountry(country);
+        setStates(country?.states || []);
+        form.setValue('country', countryName);
+        form.setValue('state', ''); // Reset state when country changes
     };
 
     const handleFormSubmit = async (values: FormValues) => {
@@ -364,7 +364,6 @@ export function ProfileForm({ user, communityId }: { user?: User, communityId?: 
                                                     placeholder="DD/MM/AAAA" 
                                                     {...field}
                                                     value={field.value || ''}
-                                                    onChange={handleDateChange}
                                                 />
                                             </FormControl>
                                             <FormMessage />
