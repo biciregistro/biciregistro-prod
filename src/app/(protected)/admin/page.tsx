@@ -4,7 +4,7 @@ import { HomepageEditor } from '@/components/admin-components';
 import type { HomepageSection } from '@/lib/types';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { UserPlus, Users, Building } from 'lucide-react';
+import { Users, Building } from 'lucide-react';
 
 export default async function AdminPage() {
   const user = await getAuthenticatedUser();
@@ -36,16 +36,10 @@ export default async function AdminPage() {
               <p className="text-muted-foreground">Gestiona la configuración de tu aplicación.</p>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/admin/ong/create">
-              <Button variant="outline" size="sm">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Crear ONG
-              </Button>
-            </Link>
             <Link href="/admin/ong">
               <Button variant="outline" size="sm">
                 <Building className="mr-2 h-4 w-4" />
-                Ver ONGs
+                Gestionar ONGs
               </Button>
             </Link>
             <Link href="/admin/users">
