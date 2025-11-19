@@ -10,6 +10,7 @@ import {
     updateHomepageSectionData,
     updateUserData,
     createUser as createFirestoreUser,
+    createOngFirestoreProfile,
     getHomepageData,
     getUserByEmail,
     getBike,
@@ -17,7 +18,7 @@ import {
 } from './data';
 import { deleteSession, getDecodedSession } from './auth';
 import { ActionFormState, HomepageSection, Feature, BikeFormState } from './types';
-import { userFormSchema, BikeRegistrationSchema } from './schemas';
+import { userFormSchema, ongUserFormSchema, BikeRegistrationSchema } from './schemas';
 import { adminAuth } from './firebase/server';
 
 const optionalString = (schema: z.ZodString) =>
@@ -99,6 +100,59 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         console.error("Signup error:", error);
         return { error: 'Ocurrió un error inesperado durante la creación de la cuenta.' };
     }
+}
+
+export async function createOngUser(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
+    const validatedFields = ongUserFormSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            error: 'Datos proporcionados no válidos. Por favor, revisa todos los campos.',
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    const { email, password, organizationName, ...ongData } = validatedFields.data;
+
+    const generateUid = (name: string) => {
+        return name
+            .toLowerCase()
+            .replace(/\s+/g, '-')
+            .replace(/[^a-z0-9-]/g, '')
+            .slice(0, 50);
+    };
+
+    const uid = generateUid(organizationName);
+
+    try {
+        const userRecord = await adminAuth.createUser({
+            uid,
+            email,
+            password,
+            displayName: organizationName,
+        });
+
+        await adminAuth.setCustomUserClaims(userRecord.uid, { role: 'ong' });
+
+        await createOngFirestoreProfile({
+            id: userRecord.uid,
+            organizationName,
+            ...ongData,
+        });
+
+    } catch (error: any) {
+        if (error.code === 'auth/uid-already-exists') {
+            return { error: `El nombre de la organización '${organizationName}' ya está en uso. Por favor, elige uno diferente.` };
+        }
+        if (error.code === 'auth/email-already-exists') {
+            return { error: 'Este correo electrónico ya está en uso.' };
+        }
+        console.error("ONG creation error:", error);
+        return { error: 'Ocurrió un error inesperado durante la creación de la cuenta.' };
+    }
+    
+    revalidatePath('/admin/ong'); // Assuming this will be the list page
+    redirect('/admin/ong');
 }
 
 export async function updateHomepageSection(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {

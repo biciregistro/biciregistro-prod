@@ -24,12 +24,14 @@ export type Bike = {
   };
 };
 
+export type UserRole = 'ciclista' | 'admin' | 'ong';
+
 export type User = {
   id: string;
   name: string;
   lastName?: string;
   email: string;
-  role: 'ciclista' | 'admin';
+  role: UserRole;
   avatarUrl?: string;
   country?: string;
   state?: string;
@@ -38,6 +40,23 @@ export type User = {
   postalCode?: string;
   whatsapp?: string;
 };
+
+export type OngUser = {
+  id: string; // Custom UID based on organization name
+  role: 'ong';
+  email: string;
+  organizationName: string;
+  contactPerson: string;
+  organizationWhatsapp: string;
+  contactWhatsapp: string;
+  websiteUrl?: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  country: string;
+  state: string;
+  avatarUrl?: string;
+};
+
 
 // --- Homepage Content Types (Corrected) ---
 

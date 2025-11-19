@@ -1,6 +1,6 @@
 import 'server-only';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import type { User, Bike, BikeStatus, HomepageSection } from './types';
+import type { User, OngUser, Bike, BikeStatus, HomepageSection } from './types';
 import { getDecodedSession } from '@/lib/auth';
 import { adminDb, adminAuth } from './firebase/server';
 import { defaultHomepageData } from './homepage-data';
@@ -108,6 +108,12 @@ export async function createUser(user: User) {
     await db.collection('users').doc(user.id).set(user);
 }
 
+export async function createOngFirestoreProfile(ongData: Omit<OngUser, 'role' | 'email'>) {
+    const db = adminDb;
+    await db.collection('ong-profiles').doc(ongData.id).set(ongData);
+}
+
+
 export async function updateUserData(userId: string, data: Partial<Omit<User, 'id' | 'role' | 'email'>>) {
     const db = adminDb;
     const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
@@ -149,6 +155,33 @@ export async function getUsers({
     console.error("Error listing users:", error);
     return { users: [] };
   }
+}
+
+export async function getOngUsers(): Promise<OngUser[]> {
+    try {
+        const db = adminDb;
+        const snapshot = await db.collection('ong-profiles').get();
+        if (snapshot.empty) {
+            return [];
+        }
+        // We need to fetch the email for each ONG user from Firebase Auth
+        const ongProfiles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<OngUser, 'email' | 'role'>));
+        
+        const ongUsersWithEmails: OngUser[] = await Promise.all(
+            ongProfiles.map(async (profile) => {
+                const userRecord = await adminAuth.getUser(profile.id);
+                return {
+                    ...profile,
+                    email: userRecord.email || 'No email provided',
+                    role: 'ong',
+                };
+            })
+        );
+        return ongUsersWithEmails;
+    } catch (error) {
+        console.error("Error fetching ONG users:", error);
+        return [];
+    }
 }
 
 // --- Data Serialization Helper ---

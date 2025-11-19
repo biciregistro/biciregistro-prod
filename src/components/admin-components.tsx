@@ -4,8 +4,8 @@ import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { updateHomepageSection, updateFeatureItem } from '@/lib/actions';
-import type { HomepageSection, Feature, User, ActionFormState } from '@/lib/types';
+import { updateHomepageSection, updateFeatureItem, createOngUser } from '@/lib/actions';
+import type { HomepageSection, Feature, User, OngUser, ActionFormState } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -268,6 +268,125 @@ export function UsersTable({ users, nextPageToken }: { users: User[], nextPageTo
                 <TableRow>
                   <TableCell colSpan={4} className="h-24 text-center">
                     No se encontraron usuarios.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function OngCreationForm() {
+  const [state, formAction] = useActionState(createOngUser, null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (state?.error) {
+      toast({ variant: 'destructive', title: 'Error', description: state.error });
+    }
+  }, [state, toast]);
+
+  return (
+    <form action={formAction} className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="organizationName">Nombre de la Organización</Label>
+          <Input id="organizationName" name="organizationName" required />
+          {state?.errors?.organizationName && <p className="text-destructive text-sm">{state.errors.organizationName[0]}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="contactPerson">Persona de Contacto</Label>
+          <Input id="contactPerson" name="contactPerson" required />
+          {state?.errors?.contactPerson && <p className="text-destructive text-sm">{state.errors.contactPerson[0]}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email de la Organización</Label>
+          <Input id="email" name="email" type="email" required />
+           {state?.errors?.email && <p className="text-destructive text-sm">{state.errors.email[0]}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Contraseña Inicial</Label>
+          <Input id="password" name="password" type="password" required />
+           {state?.errors?.password && <p className="text-destructive text-sm">{state.errors.password[0]}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="organizationWhatsapp">WhatsApp de la Organización</Label>
+          <Input id="organizationWhatsapp" name="organizationWhatsapp" type="tel" required />
+           {state?.errors?.organizationWhatsapp && <p className="text-destructive text-sm">{state.errors.organizationWhatsapp[0]}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="contactWhatsapp">WhatsApp del Contacto</Label>
+          <Input id="contactWhatsapp" name="contactWhatsapp" type="tel" required />
+           {state?.errors?.contactWhatsapp && <p className="text-destructive text-sm">{state.errors.contactWhatsapp[0]}</p>}
+        </div>
+         <div className="space-y-2">
+          <Label htmlFor="country">País</Label>
+          <Input id="country" name="country" required />
+           {state?.errors?.country && <p className="text-destructive text-sm">{state.errors.country[0]}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="state">Estado/Provincia</Label>
+          <Input id="state" name="state" required />
+           {state?.errors?.state && <p className="text-destructive text-sm">{state.errors.state[0]}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="websiteUrl">Página Web (Opcional)</Label>
+          <Input id="websiteUrl" name="websiteUrl" />
+           {state?.errors?.websiteUrl && <p className="text-destructive text-sm">{state.errors.websiteUrl[0]}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="instagramUrl">Instagram (Opcional)</Label>
+          <Input id="instagramUrl" name="instagramUrl" />
+           {state?.errors?.instagramUrl && <p className="text-destructive text-sm">{state.errors.instagramUrl[0]}</p>}
+        </div>
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="facebookUrl">Facebook (Opcional)</Label>
+          <Input id="facebookUrl" name="facebookUrl" />
+           {state?.errors?.facebookUrl && <p className="text-destructive text-sm">{state.errors.facebookUrl[0]}</p>}
+        </div>
+      </div>
+      <SubmitButton text="Crear Usuario ONG" />
+    </form>
+  );
+}
+
+export function OngUsersTable({ ongs }: { ongs: OngUser[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>ONGs / Colectivos Registrados</CardTitle>
+        <CardDescription>
+          Lista de todas las organizaciones registradas en la plataforma.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="border rounded-md">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nombre de la Organización</TableHead>
+                <TableHead>Persona de Contacto</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Ubicación</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {ongs.length > 0 ? (
+                ongs.map((ong) => (
+                  <TableRow key={ong.id}>
+                    <TableCell className="font-medium">{ong.organizationName}</TableCell>
+                    <TableCell>{ong.contactPerson}</TableCell>
+                    <TableCell>{ong.email}</TableCell>
+                    <TableCell>{ong.state}, {ong.country}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-24 text-center">
+                    No se encontraron ONGs.
                   </TableCell>
                 </TableRow>
               )}
