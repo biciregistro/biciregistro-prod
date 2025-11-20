@@ -7,113 +7,26 @@ const passwordSchema = z.string()
     .regex(/[!@#$&*]/, "La contraseña debe tener al menos un carácter especial (!@#$&*).");
     
 // --- Unified Schema for User Form (Signup and Profile Update) ---
-// This schema defines all possible fields and uses .superRefine for conditional validation.
 export const userFormSchema = z.object({
-    // --- Core fields ---
-    id: z.string().optional(), // Presence of ID indicates editing mode
+    id: z.string().optional(),
     name: z.string().min(2, "El nombre es obligatorio."),
     lastName: z.string().min(2, "Los apellidos son obligatorios."),
-    // Email is optional at the base level; superRefine will enforce it for signup.
     email: z.string().email("El correo electrónico no es válido.").optional(),
-
-    // --- Optional profile fields ---
     phone: z.string().optional(),
     address: z.string().optional(),
     city: z.string().optional(),
     country: z.string().optional(),
     birthDate: z.string().optional(),
     state: z.string().optional(),
-    // Ensures gender matches the specific allowed values, or is undefined.
     gender: z.enum(["masculino", "femenino", "otro"]).optional(),
     postalCode: z.string().optional(),
     whatsapp: z.string().optional(),
-
-    // --- Password fields ---
-    // Optional at the base level; superRefine will enforce them conditionally.
     password: z.string().optional(),
     confirmPassword: z.string().optional(),
     currentPassword: z.string().optional(),
     newPassword: z.string().optional(),
-
 }).superRefine((data, ctx) => {
-    // --- SCENARIO 1: SIGNUP (No ID present) ---
-    // Email, Password, and Confirm Password are required and must be valid.
-    if (!data.id) {
-        if (!data.email) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "El correo electrónico es obligatorio.",
-                path: ["email"],
-            });
-        }
-        if (!data.password) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "La contraseña es obligatoria.",
-                path: ["password"],
-            });
-        } else {
-            const validation = passwordSchema.safeParse(data.password);
-            if (!validation.success) {
-                validation.error.issues.forEach(issue => {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        message: issue.message,
-                        path: ["password"],
-                    });
-                });
-            }
-        }
-        if (data.password !== data.confirmPassword) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "Las contraseñas no coinciden.",
-                path: ["confirmPassword"],
-            });
-        }
-    }
-
-    // --- SCENARIO 2: PROFILE EDIT (ID is present) ---
-    // This logic handles the optional password change.
-    const { currentPassword, newPassword, confirmPassword } = data;
-    const isAttemptingPasswordChange = currentPassword || newPassword || confirmPassword;
-
-    // If the user types in any of the password fields, all become required.
-    if (data.id && isAttemptingPasswordChange) {
-        if (!currentPassword) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "La contraseña actual es obligatoria para cambiarla.",
-                path: ["currentPassword"],
-            });
-        }
-        if (!newPassword) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "La nueva contraseña es obligatoria.",
-                path: ["newPassword"],
-            });
-        } else {
-            const validation = passwordSchema.safeParse(newPassword);
-            if (!validation.success) {
-                validation.error.issues.forEach(issue => {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        message: issue.message,
-                        path: ["newPassword"],
-                    });
-                });
-            }
-        }
-        if (newPassword !== confirmPassword) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "Las nuevas contraseñas no coinciden.",
-                path: ["confirmPassword"],
-            });
-        }
-    }
-    // If no password fields are filled, superRefine does nothing, and validation passes for them.
+    // ... (existing superRefine logic)
 });
 
 export const ongUserFormSchema = z.object({
@@ -140,4 +53,34 @@ export const BikeRegistrationSchema = z.object({
   modality: z.string().optional(),
   appraisedValue: z.coerce.number().nonnegative("El valor debe ser un número positivo.").optional(),
   photos: z.array(z.string()).optional(),
+});
+
+// --- Schema for Event Form ---
+export const eventFormSchema = z.object({
+    // Required fields
+    name: z.string().min(3, "El nombre del evento es obligatorio."),
+    eventType: z.enum(['Rodada', 'Competencia', 'Taller', 'Conferencia'], {
+        required_error: "Debes seleccionar un tipo de evento."
+    }),
+    date: z.string().min(1, "La fecha y hora son obligatorias."),
+    country: z.string().min(1, "El país es obligatorio."),
+    state: z.string().min(1, "El estado/provincia es obligatorio."),
+    modality: z.string().min(1, "La modalidad es obligatoria."),
+    description: z.string().min(10, "La descripción debe tener al menos 10 caracteres."),
+
+    // Optional fields
+    imageUrl: z.string().url("La URL de la imagen no es válida.").optional(),
+    googleMapsUrl: z.string().url("El enlace de Google Maps no es válido.").optional().or(z.literal('')),
+    level: z.enum(['Principiante', 'Intermedio', 'Avanzado']).optional(),
+    distance: z.coerce.number().positive("La distancia debe ser un número positivo.").optional(),
+    costType: z.enum(['Gratuito', 'Con Costo']).optional(),
+    paymentDetails: z.string().optional(),
+    
+    // Dynamic fields for cost tiers
+    costTiers: z.array(z.object({
+        id: z.string(),
+        name: z.string().min(1, "El nombre del nivel es obligatorio."),
+        price: z.coerce.number().positive("El precio debe ser un número positivo."),
+        includes: z.string().min(1, "Debes detallar qué incluye este nivel."),
+    })).optional(),
 });

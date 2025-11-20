@@ -313,6 +313,17 @@ export async function updateBikeData(bikeId: string, data: Partial<Omit<Bike, 'i
     await db.collection('bikes').doc(bikeId).update(cleanData);
 }
 
+export async function updateBikeStatus(bikeId: string, status: BikeStatus, theftDetails?: Bike['theftReport']) {
+    const db = adminDb;
+    const updateData: any = { status };
+    if (status === 'stolen') {
+        updateData.theftReport = theftDetails;
+    } else {
+        updateData.theftReport = FieldValue.delete();
+    }
+    await db.collection('bikes').doc(bikeId).update(updateData);
+}
+
 // --- Event Management ---
 export async function getEventsByOngId(ongId: string): Promise<Event[]> {
     if (!ongId) return [];
@@ -320,6 +331,29 @@ export async function getEventsByOngId(ongId: string): Promise<Event[]> {
     const query = db.collection('events').where('ongId', '==', ongId);
     const snapshot = await query.orderBy('date', 'desc').get();
     return snapshot.docs.map(doc => ({ id: doc.id, ...convertEventTimestamps(doc.data()) } as Event));
+}
+
+export async function createEvent(eventData: Omit<Event, 'id'>): Promise<string> {
+    const db = adminDb;
+    const docRef = await db.collection('events').add({
+        ...eventData,
+        date: Timestamp.fromDate(new Date(eventData.date)),
+    });
+    return docRef.id;
+}
+
+export async function updateEvent(eventId: string, eventData: Partial<Omit<Event, 'id' | 'ongId'>>) {
+    const db = adminDb;
+    const dataToUpdate = { ...eventData };
+
+    if (eventData.date) {
+        dataToUpdate.date = Timestamp.fromDate(new Date(eventData.date)) as any;
+    }
+
+    // Filter out undefined values
+    const cleanData = Object.fromEntries(Object.entries(dataToUpdate).filter(([_, v]) => v !== undefined));
+
+    await db.collection('events').doc(eventId).update(cleanData);
 }
 
 // --- Homepage Content Management ---

@@ -62,14 +62,40 @@ export type OngUser = {
 // --- Event Types ---
 
 export type EventStatus = 'draft' | 'published';
+export type EventType = 'Rodada' | 'Competencia' | 'Taller' | 'Conferencia';
+export type EventLevel = 'Principiante' | 'Intermedio' | 'Avanzado';
+
+export type CostTier = {
+  id: string; // for React key prop
+  name: string;
+  price: number;
+  includes: string;
+};
 
 export type Event = {
   id: string;
   ongId: string;
-  name: string;
-  date: string; // ISO string
-  imageUrl: string;
   status: EventStatus;
+  
+  // Required fields
+  name: string;
+  eventType: EventType;
+  date: string; // ISO string for date and time
+  country: string;
+  state: string; // 'state' is used in the codebase for state/province
+  modality: string;
+  description: string;
+
+  // Optional fields
+  imageUrl?: string;
+  googleMapsUrl?: string;
+  level?: EventLevel;
+  distance?: number;
+  costType?: 'Gratuito' | 'Con Costo';
+  costTiers?: CostTier[];
+  paymentDetails?: string;
+  organizerName?: string;
+  organizerFollowers?: number;
 };
 
 
