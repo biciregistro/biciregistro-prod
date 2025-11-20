@@ -1,6 +1,6 @@
 import 'server-only';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import type { User, OngUser, Bike, BikeStatus, HomepageSection } from './types';
+import type { User, OngUser, Bike, BikeStatus, HomepageSection, UserRole } from './types';
 import { getDecodedSession } from '@/lib/auth';
 import { adminDb, adminAuth } from './firebase/server';
 import { defaultHomepageData } from './homepage-data';
@@ -56,19 +56,42 @@ export async function getAuthenticatedUser(): Promise<User | null> {
     try {
         const db = adminDb;
         const userDoc = await db.collection('users').doc(session.uid).get();
-        if (!userDoc.exists) {
-            const firebaseUser = await adminAuth.getUser(session.uid);
-            const newUser: User = {
+
+        // If a user document exists in 'users' collection, return it directly.
+        // This handles all ciclistas and any admins/ongs that might have a doc for other reasons.
+        if (userDoc.exists) {
+            return { id: userDoc.id, ...userDoc.data() } as User;
+        }
+
+        // If no user document exists, handle different user roles based on session claims.
+        const firebaseUser = await adminAuth.getUser(session.uid);
+        const userRole = (session.role as UserRole) || 'ciclista';
+
+        // For 'ong' or 'admin' roles that don't have a user document,
+        // we construct a user object in memory without writing to the 'users' collection.
+        if (userRole === 'ong' || userRole === 'admin') {
+            const tempUser: User = {
                 id: firebaseUser.uid,
                 email: firebaseUser.email!,
                 name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
                 lastName: '',
-                role: 'ciclista',
+                role: userRole,
             };
-            await db.collection('users').doc(newUser.id).set(newUser);
-            return newUser;
+            return tempUser;
         }
-        return { id: userDoc.id, ...userDoc.data() } as User;
+
+        // For any other role (implicitly 'ciclista'), create a default user document
+        // This maintains the original "self-healing" functionality for ciclistas.
+        const newUser: User = {
+            id: firebaseUser.uid,
+            email: firebaseUser.email!,
+            name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
+            lastName: '',
+            role: 'ciclista',
+        };
+        await db.collection('users').doc(newUser.id).set(newUser);
+        return newUser;
+
     } catch (error) {
         console.error("Failed to fetch authenticated user:", error);
         return null;
