@@ -17,14 +17,15 @@ export async function POST(request: NextRequest) {
     // Verify the ID token and decode it to get user claims.
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const isAdmin = decodedToken.admin === true;
+    const isOng = decodedToken.role === 'ong';
 
     const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
     const sessionCookie = await adminAuth.createSessionCookie(idToken, {
       expiresIn,
     });
     
-    // Include isAdmin status in the response
-    const response = NextResponse.json({ status: "success", isAdmin }, { status: 200 });
+    // Include isAdmin and isOng status in the response
+    const response = NextResponse.json({ status: "success", isAdmin, isOng }, { status: 200 });
 
     response.cookies.set(SESSION_COOKIE_NAME, sessionCookie, {
       maxAge: expiresIn,

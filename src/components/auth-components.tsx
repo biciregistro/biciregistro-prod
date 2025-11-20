@@ -59,7 +59,10 @@ export function LoginForm() {
 
             if (sessionData.isAdmin) {
                 router.push('/admin');
-            } else {
+            } else if (sessionData.isOng) {
+                router.push('/dashboard/ong');
+            }
+            else {
                 router.push('/dashboard');
             }
 
