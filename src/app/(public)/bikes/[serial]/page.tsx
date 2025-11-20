@@ -1,12 +1,33 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { getBikeBySerial } from '@/lib/data';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { Bike } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
+import type { Metadata } from 'next';
+
+// This function generates dynamic metadata for each bike page
+export async function generateMetadata({ params }: { params: { serial: string } }): Promise<Metadata> {
+  const bike = await getBikeBySerial(params.serial);
+
+  if (!bike) {
+    return {
+      title: 'Bicicleta no encontrada | BiciRegistro',
+      description: 'No se encontró una bicicleta con este número de serie en nuestra base de datos.',
+    };
+  }
+
+  const statusText = bike.status === 'stolen' ? 'Reportada como ROBADA' : 'Marcada como Segura';
+
+  return {
+    title: `Bicicleta ${bike.make} ${bike.model} - Serie: ${bike.serialNumber} | BiciRegistro`,
+    description: `Verifica el estado de la bicicleta ${bike.make} ${bike.model} con número de serie ${bike.serialNumber}. Estado actual: ${statusText}. Consulta nuestra base de datos pública.`,
+    keywords: ['bicicleta', 'registro', 'robo', 'verificar', 'seguridad', bike.make, bike.model, bike.serialNumber],
+  };
+}
 
 
 const bikeStatusStyles: { [key in Bike['status']]: string } = {
@@ -14,15 +35,6 @@ const bikeStatusStyles: { [key in Bike['status']]: string } = {
     stolen: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700',
     in_transfer: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700',
 };
-
-function DetailItem({ label, value }: { label: string; value: React.ReactNode }) {
-    return (
-        <div>
-            <p className="text-sm font-medium text-muted-foreground">{label}</p>
-            <p className="text-lg font-semibold">{value}</p>
-        </div>
-    );
-}
 
 export default async function PublicBikePage({ params }: { params: { serial: string } }) {
   const bike = await getBikeBySerial(params.serial);
@@ -80,7 +92,7 @@ export default async function PublicBikePage({ params }: { params: { serial: str
                     <AlertTitle className="text-green-800">Esta bicicleta está marcada como segura.</AlertTitle>
                     <AlertDescription className="text-green-700">
                         Actualmente, esta bicicleta no está reportada como robada en la base de datos de Biciregistro.
-                    </AlertDescription>
+                    </Aler-tDescription>
                 </Alert>
             )}
         </div>
