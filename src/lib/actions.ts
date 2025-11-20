@@ -86,13 +86,26 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         
         const customToken = await adminAuth.createCustomToken(userRecord.uid);
         
-        await createFirestoreUser({
+        // 1. Exclude password fields (security/schema hygiene)
+        const { password: p, confirmPassword: cp, ...userProfileData } = validatedFields.data;
+        
+        // 2. Construct the raw data object for Firestore
+        const rawUserData = {
             id: userRecord.uid,
-            ...validatedFields.data,
+            ...userProfileData,
             email: email, 
-            role: 'ciclista',
+            role: 'ciclista' as const,
             communityId,
-        });
+        };
+
+        // 3. Clean the object: Remove any keys with undefined values to prevent Firestore errors
+        // This is critical because 'communityId' is undefined for standard signups.
+        const cleanUserData = Object.fromEntries(
+            Object.entries(rawUserData).filter(([_, value]) => value !== undefined)
+        );
+
+        // 4. Save the cleaned data
+        await createFirestoreUser(cleanUserData as any);
         
         return { success: true, customToken: customToken };
         

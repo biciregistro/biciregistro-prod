@@ -1,46 +1,83 @@
 // src/lib/firebase/server.ts
-import { initializeApp, getApps, cert, getApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps, cert, getApp, App } from 'firebase-admin/app';
+import { getAuth, Auth } from 'firebase-admin/auth';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { firebaseAdminConfig } from './config';
 
-// A more robust way to initialize the Firebase Admin SDK.
-// This pattern prevents re-initialization in hot-reload environments.
-const getAdminApp = () => {
-  // If the app is already initialized, return it.
-  if (getApps().length > 0) {
-    return getApp();
+// --- Type-safe global declaration ---
+declare global {
+  var _firebaseAdminApp: App | undefined;
+  var _firebaseAdminDb: Firestore | undefined;
+  var _firebaseAdminAuth: Auth | undefined;
+}
+
+// --- App Singleton ---
+const getAdminApp = (): App => {
+  if (globalThis._firebaseAdminApp) {
+    return globalThis._firebaseAdminApp;
   }
-
-  // Otherwise, initialize it.
+  
   const { projectId, clientEmail, privateKey } = firebaseAdminConfig;
-
-  // ==================== DIAGNOSTIC LOG ====================
-  // This will print the Project ID to your server terminal when the app starts.
-  // It helps verify that the environment variables are being loaded correctly.
-  console.log("--- Firebase Admin SDK Initialization ---");
-  console.log("Attempting to initialize with Project ID:", projectId);
-  console.log("-----------------------------------------");
-  // ======================================================
-
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error('Missing Firebase Admin SDK credentials. Check your .env.local file.');
   }
 
-  const app = initializeApp({
-    credential: cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
-  });
+  const app = getApps().length > 0 
+    ? getApp() 
+    : initializeApp({
+        credential: cert({
+          projectId,
+          clientEmail,
+          privateKey,
+        }),
+      });
 
-  console.log('Firebase Admin SDK initialized successfully.');
+  globalThis._firebaseAdminApp = app;
   return app;
 };
 
-const adminApp = getAdminApp();
-const adminAuth = getAuth(adminApp);
-const adminDb = getFirestore(adminApp);
+
+// --- Firestore Singleton with Settings ---
+const getAdminDb = (): Firestore => {
+    if (globalThis._firebaseAdminDb) {
+        return globalThis._firebaseAdminDb;
+    }
+
+    const db = getFirestore(getAdminApp());
+    
+    // Apply settings with a safety try-catch block.
+    // This handles edge cases in development where the module reloads but the
+    // internal Firebase SDK instance persists and retains its settings.
+    try {
+        db.settings({
+            ignoreUndefinedProperties: true,
+        });
+    } catch (error: any) {
+        // Only ignore the specific error about double initialization.
+        // Re-throw any other configuration errors.
+        if (!error.message.includes('Firestore has already been initialized')) {
+            throw error;
+        }
+        // If we get here, it means the DB was already configured, which is fine.
+    }
+    
+    globalThis._firebaseAdminDb = db;
+    return db;
+};
+
+// --- Auth Singleton ---
+const getAdminAuth = (): Auth => {
+    if (globalThis._firebaseAdminAuth) {
+        return globalThis._firebaseAdminAuth;
+    }
+    const auth = getAuth(getAdminApp());
+    globalThis._firebaseAdminAuth = auth;
+    return auth;
+}
+
+
+// --- Exports ---
+const adminAuth = getAdminAuth();
+const adminDb = getAdminDb();
 
 export { adminAuth, adminDb };
