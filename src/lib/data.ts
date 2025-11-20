@@ -259,6 +259,19 @@ export async function getBikeBySerial(serial: string): Promise<Bike | null> {
     return { id: doc.id, ...convertDocTimestamps(doc.data()) } as Bike;
 }
 
+export async function getAllBikeSerials(): Promise<string[]> {
+    const db = adminDb;
+    const bikesRef = db.collection('bikes');
+    // Select only the serialNumber field for efficiency
+    const snapshot = await bikesRef.select('serialNumber').get();
+    if (snapshot.empty) {
+        return [];
+    }
+    // Use a Set to automatically handle any potential duplicates, then convert to array
+    const serials = new Set(snapshot.docs.map(doc => doc.data().serialNumber as string));
+    return Array.from(serials);
+}
+
 export async function addBike(bikeData: Omit<Bike, 'id' | 'createdAt' | 'status'>) {
     const db = adminDb;
     const newBike = {
