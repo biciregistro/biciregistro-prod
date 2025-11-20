@@ -92,7 +92,7 @@ export default async function PublicBikePage({ params }: { params: { serial: str
                     <AlertTitle className="text-green-800">Esta bicicleta está marcada como segura.</AlertTitle>
                     <AlertDescription className="text-green-700">
                         Actualmente, esta bicicleta no está reportada como robada en la base de datos de Biciregistro.
-                    </Aler-tDescription>
+                    </AlertDescription>
                 </Alert>
             )}
         </div>
