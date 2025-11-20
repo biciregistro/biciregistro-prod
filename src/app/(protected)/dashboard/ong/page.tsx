@@ -15,14 +15,7 @@ export default async function OngDashboardPage() {
     redirect('/dashboard');
   }
 
-  // For now, we'll use mock data. In the future, this will come from Firestore.
-  // const events = await getEventsByOngId(user.id);
-  const events = [
-    { id: '1', ongId: user.id, name: 'Rodada Nocturna de Aniversario', date: '2024-08-15T19:00:00.000Z', imageUrl: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b', status: 'published' as const },
-    { id: '2', ongId: user.id, name: 'Taller de Mecánica Básica', date: '2024-09-01T10:00:00.000Z', imageUrl: 'https://images.unsplash.com/photo-1621447289568-232128b9a1a3', status: 'published' as const },
-    { id: '3', ongId: user.id, name: 'Gran Fondo - Reto Montaña', date: '2024-09-20T07:00:00.000Z', imageUrl: 'https://images.unsplash.com/photo-1598586959969-9e8a15b4928b', status: 'draft' as const },
-  ];
-
+  const events = await getEventsByOngId(user.id);
 
   return (
     <div className="container py-8 px-4 md:px-6">
