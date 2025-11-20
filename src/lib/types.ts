@@ -59,6 +59,19 @@ export type OngUser = {
   invitationLink: string; // The unique invitation link for the ONG
 };
 
+// --- Event Types ---
+
+export type EventStatus = 'draft' | 'published';
+
+export type Event = {
+  id: string;
+  ongId: string;
+  name: string;
+  date: string; // ISO string
+  imageUrl: string;
+  status: EventStatus;
+};
+
 
 // --- Homepage Content Types (Corrected) ---
 

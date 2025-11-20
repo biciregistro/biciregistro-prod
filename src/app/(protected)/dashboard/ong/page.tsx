@@ -1,129 +1,64 @@
 import { redirect } from 'next/navigation';
-import { getAuthenticatedUser } from '@/lib/data';
-import { getOngProfile } from '@/lib/data';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from '@/components/ui/badge';
-import { Globe, Instagram, Facebook } from 'lucide-react';
+import { getAuthenticatedUser, getEventsByOngId } from '@/lib/data';
+import { Button } from '@/components/ui/button';
+import { PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import { CopyButton } from '@/components/ong-components';
-
+import { EventCard } from '@/components/ong/event-card';
 
 export default async function OngDashboardPage() {
   const user = await getAuthenticatedUser();
 
-  // Security check: This should be redundant due to layout checks, but it's good practice.
   if (!user) {
     redirect('/login');
   }
-
-  // Role-specific security check
   if (user.role !== 'ong') {
-    redirect('/dashboard'); // Redirect non-ong users to the standard dashboard
+    redirect('/dashboard');
   }
 
-  const ongProfile = await getOngProfile(user.id);
+  // For now, we'll use mock data. In the future, this will come from Firestore.
+  // const events = await getEventsByOngId(user.id);
+  const events = [
+    { id: '1', ongId: user.id, name: 'Rodada Nocturna de Aniversario', date: '2024-08-15T19:00:00.000Z', imageUrl: 'https://images.unsplash.com/photo-1559181567-c3190ca9959b', status: 'published' as const },
+    { id: '2', ongId: user.id, name: 'Taller de Mecánica Básica', date: '2024-09-01T10:00:00.000Z', imageUrl: 'https://images.unsplash.com/photo-1621447289568-232128b9a1a3', status: 'published' as const },
+    { id: '3', ongId: user.id, name: 'Gran Fondo - Reto Montaña', date: '2024-09-20T07:00:00.000Z', imageUrl: 'https://images.unsplash.com/photo-1598586959969-9e8a15b4928b', status: 'draft' as const },
+  ];
 
-  if (!ongProfile) {
-    return (
-      <div className="container py-8 px-4 md:px-6">
-        <div className="max-w-4xl mx-auto">
-          <Card>
-            <CardHeader>
-              <CardTitle>Error</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>No se pudo cargar el perfil de la organización. Por favor, contacta a soporte.</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="container py-8 px-4 md:px-6">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Bienvenido, {ongProfile.organizationName}</h1>
-          <p className="text-muted-foreground">Este es tu centro de control para gestionar tu comunidad.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Mis Eventos</h1>
+          <p className="text-muted-foreground">Crea y administra los eventos de tu comunidad.</p>
         </div>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Enlace de Invitación</CardTitle>
-            <CardDescription>
-              Comparte este enlace único con tus miembros para que se unan a tu comunidad en BiciRegistro.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center gap-4">
-              <input 
-                type="text" 
-                readOnly 
-                value={ongProfile.invitationLink}
-                className="flex-1 p-2 border rounded-md bg-muted text-sm"
-              />
-              <CopyButton textToCopy={ongProfile.invitationLink} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Información de la Organización</CardTitle>
-            <CardDescription>
-              Detalles y datos de contacto de {ongProfile.organizationName}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">Nombre de Contacto</TableCell>
-                  <TableCell>{ongProfile.contactPerson}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Ubicación</TableCell>
-                  <TableCell>{ongProfile.state}, {ongProfile.country}</TableCell>
-                </TableRow>
-                 <TableRow>
-                  <TableCell className="font-medium">WhatsApp de Contacto</TableCell>
-                  <TableCell>{ongProfile.contactWhatsapp}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Redes Sociales</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-4">
-                      {ongProfile.websiteUrl && (
-                        <Link href={ongProfile.websiteUrl} target="_blank" rel="noopener noreferrer">
-                          <Globe className="h-5 w-5 hover:text-primary transition-colors" />
-                        </Link>
-                      )}
-                      {ongProfile.instagramUrl && (
-                        <Link href={ongProfile.instagramUrl} target="_blank" rel="noopener noreferrer">
-                          <Instagram className="h-5 w-5 hover:text-primary transition-colors" />
-                        </Link>
-                      )}
-                      {ongProfile.facebookUrl && (
-                        <Link href={ongProfile.facebookUrl} target="_blank" rel="noopener noreferrer">
-                          <Facebook className="h-5 w-5 hover:text-primary transition-colors" />
-                        </Link>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
+        <Link href="/dashboard/ong/events/create">
+          <Button>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Crear Nuevo Evento
+          </Button>
+        </Link>
       </div>
+
+      {events.length > 0 ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {events.map((event) => (
+             <EventCard key={event.id} event={event} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-16 border-dashed border-2 rounded-lg">
+          <h2 className="text-xl font-semibold">Aún no has creado ningún evento.</h2>
+          <p className="text-muted-foreground mt-2">
+            ¡Comienza a planificar tu próxima rodada, taller o competencia!
+          </p>
+          <Link href="/dashboard/ong/events/create" className="mt-6 inline-block">
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Crear mi Primer Evento
+            </Button>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

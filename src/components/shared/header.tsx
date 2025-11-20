@@ -29,8 +29,39 @@ const navLinks = [
   { href: '/search', label: 'Buscar Bicis', auth: false },
 ];
 
+function UserNavLinks({ user }: { user: UserType }) {
+    const dashboardHome = user.role === 'ong' ? '/dashboard/ong' : '/dashboard';
+    const profilePath = user.role === 'ong' ? '/dashboard/ong/profile' : '/dashboard/profile';
+
+    return (
+        <>
+            <DropdownMenuItem asChild>
+                <Link href={dashboardHome}>Panel de Control</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+                <Link href={profilePath}>
+                    {user.role === 'ong' ? 'Perfil de la Organización' : 'Mi Perfil'}
+                </Link>
+            </DropdownMenuItem>
+
+            {user.role === 'ciclista' && (
+                <DropdownMenuItem asChild>
+                    <Link href="/dashboard/register">Registrar Bici</Link>
+                </DropdownMenuItem>
+            )}
+
+            {user.role === 'admin' && (
+                <DropdownMenuItem asChild>
+                    <Link href="/admin">Panel de Administrador</Link>
+                </DropdownMenuItem>
+            )}
+        </>
+    );
+}
+
 export function Header({ user }: { user: UserType | null }) {
   const pathname = usePathname();
+  const dashboardHome = user?.role === 'ong' ? '/dashboard/ong' : '/dashboard';
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -60,7 +91,7 @@ export function Header({ user }: { user: UserType | null }) {
             {user ? (
                 <div className="flex items-center gap-4">
                 <Button asChild>
-                    <Link href="/dashboard">Panel</Link>
+                    <Link href={dashboardHome}>Panel</Link>
                 </Button>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -81,17 +112,7 @@ export function Header({ user }: { user: UserType | null }) {
                         </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                        <Link href="/dashboard">Panel</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                        <Link href="/dashboard/profile">Perfil</Link>
-                    </DropdownMenuItem>
-                    {user.role === 'admin' && (
-                        <DropdownMenuItem asChild>
-                        <Link href="/admin">Admin</Link>
-                        </DropdownMenuItem>
-                    )}
+                    <UserNavLinks user={user} />
                     <DropdownMenuSeparator />
                     <form action={logout}>
                         <DropdownMenuItem asChild>

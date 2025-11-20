@@ -1,6 +1,6 @@
 import 'server-only';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import type { User, OngUser, Bike, BikeStatus, HomepageSection, UserRole } from './types';
+import type { User, OngUser, Bike, BikeStatus, HomepageSection, UserRole, Event } from './types';
 import { getDecodedSession } from '@/lib/auth';
 import { adminDb, adminAuth } from './firebase/server';
 import { defaultHomepageData } from './homepage-data';
@@ -57,18 +57,13 @@ export async function getAuthenticatedUser(): Promise<User | null> {
         const db = adminDb;
         const userDoc = await db.collection('users').doc(session.uid).get();
 
-        // If a user document exists in 'users' collection, return it directly.
-        // This handles all ciclistas and any admins/ongs that might have a doc for other reasons.
         if (userDoc.exists) {
             return { id: userDoc.id, ...userDoc.data() } as User;
         }
 
-        // If no user document exists, handle different user roles based on session claims.
         const firebaseUser = await adminAuth.getUser(session.uid);
         const userRole = (session.role as UserRole) || 'ciclista';
 
-        // For 'ong' or 'admin' roles that don't have a user document,
-        // we construct a user object in memory without writing to the 'users' collection.
         if (userRole === 'ong' || userRole === 'admin') {
             const tempUser: User = {
                 id: firebaseUser.uid,
@@ -80,8 +75,6 @@ export async function getAuthenticatedUser(): Promise<User | null> {
             return tempUser;
         }
 
-        // For any other role (implicitly 'ciclista'), create a default user document
-        // This maintains the original "self-healing" functionality for ciclistas.
         const newUser: User = {
             id: firebaseUser.uid,
             email: firebaseUser.email!,
@@ -178,9 +171,9 @@ export async function getUsers({
         return { users: [formatUserRecord(userRecord)] };
       } catch (error: any) {
         if (error.code === 'auth/user-not-found') {
-          return { users: [] }; // Return empty if no user is found
+          return { users: [] };
         }
-        throw error; // Re-throw other errors
+        throw error;
       }
     } else {
       const userRecords = await adminAuth.listUsers(maxResults, pageToken);
@@ -203,7 +196,6 @@ export async function getOngUsers(): Promise<OngUser[]> {
         if (snapshot.empty) {
             return [];
         }
-        // We need to fetch the email for each ONG user from Firebase Auth
         const ongProfiles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<OngUser, 'email' | 'role'>));
         
         const ongUsersWithEmails: OngUser[] = await Promise.all(
@@ -224,7 +216,7 @@ export async function getOngUsers(): Promise<OngUser[]> {
 }
 
 // --- Data Serialization Helper ---
-const convertDocTimestamps = (data: any): any => {
+const convertBikeTimestamps = (data: any): any => {
     if (!data) return data;
     const convertedData = { ...data };
     if (convertedData.createdAt instanceof Timestamp) {
@@ -236,16 +228,24 @@ const convertDocTimestamps = (data: any): any => {
     return convertedData;
 };
 
+const convertEventTimestamps = (data: any): any => {
+    if (!data) return data;
+    const convertedData = { ...data };
+    if (convertedData.date instanceof Timestamp) {
+        convertedData.date = convertedData.date.toDate().toISOString();
+    }
+    return convertedData;
+};
+
 // --- Bike Management ---
 export async function getBikes(userId: string): Promise<Bike[]> {
     if (!userId) return [];
     const db = adminDb;
     let query = db.collection('bikes').where('userId', '==', userId);
     const snapshot = await query.orderBy('createdAt', 'desc').get();
-    return snapshot.docs.map(doc => ({ id: doc.id, ...convertDocTimestamps(doc.data()) } as Bike));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...convertBikeTimestamps(doc.data()) } as Bike));
 }
 
-// Corrected getBike function to accept userId and perform security check
 export async function getBike(userId: string, bikeId: string): Promise<Bike | null> {
     if (!userId || !bikeId) return null;
     try {
@@ -258,13 +258,12 @@ export async function getBike(userId: string, bikeId: string): Promise<Bike | nu
 
         const bikeData = docSnap.data() as Bike;
 
-        // Security check: Ensure the bike belongs to the requesting user.
         if (bikeData.userId !== userId) {
             console.warn(`Security warning: User ${userId} attempted to access bike ${bikeId} owned by ${bikeData.userId}.`);
             return null;
         }
 
-        return { id: docSnap.id, ...convertDocTimestamps(bikeData) } as Bike;
+        return { id: docSnap.id, ...convertBikeTimestamps(bikeData) } as Bike;
     } catch (error) {
         console.error("Error fetching bike:", error);
         return null;
@@ -279,18 +278,16 @@ export async function getBikeBySerial(serial: string): Promise<Bike | null> {
     const snapshot = await query.get();
     if (snapshot.empty) return null;
     const doc = snapshot.docs[0];
-    return { id: doc.id, ...convertDocTimestamps(doc.data()) } as Bike;
+    return { id: doc.id, ...convertBikeTimestamps(doc.data()) } as Bike;
 }
 
 export async function getAllBikeSerials(): Promise<string[]> {
     const db = adminDb;
     const bikesRef = db.collection('bikes');
-    // Select only the serialNumber field for efficiency
     const snapshot = await bikesRef.select('serialNumber').get();
     if (snapshot.empty) {
         return [];
     }
-    // Use a Set to automatically handle any potential duplicates, then convert to array
     const serials = new Set(snapshot.docs.map(doc => doc.data().serialNumber as string));
     return Array.from(serials);
 }
@@ -312,20 +309,17 @@ export async function updateBikeData(bikeId: string, data: Partial<Omit<Bike, 'i
     if (data.serialNumber) {
         dataToUpdate.serialNumber = normalizeSerialNumber(data.serialNumber);
     }
-    // Filter out undefined values before updating
     const cleanData = Object.fromEntries(Object.entries(dataToUpdate).filter(([_, v]) => v !== undefined));
     await db.collection('bikes').doc(bikeId).update(cleanData);
 }
 
-export async function updateBikeStatus(bikeId: string, status: BikeStatus, theftDetails?: Bike['theftReport']) {
+// --- Event Management ---
+export async function getEventsByOngId(ongId: string): Promise<Event[]> {
+    if (!ongId) return [];
     const db = adminDb;
-    const updateData: any = { status };
-    if (status === 'stolen') {
-        updateData.theftReport = theftDetails;
-    } else {
-        updateData.theftReport = FieldValue.delete();
-    }
-    await db.collection('bikes').doc(bikeId).update(updateData);
+    const query = db.collection('events').where('ongId', '==', ongId);
+    const snapshot = await query.orderBy('date', 'desc').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...convertEventTimestamps(doc.data()) } as Event));
 }
 
 // --- Homepage Content Management ---
