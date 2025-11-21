@@ -20,22 +20,26 @@ export function EventCard({ event }: { event: Event }) {
   const eventDate = new Date(event.date);
 
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-lg w-full flex flex-col">
+    <Card className="overflow-hidden transition-all hover:shadow-lg w-full flex flex-col group">
       <CardHeader className="p-0">
-        <AspectRatio ratio={16 / 9}>
-          <Image
-            src={eventImage}
-            alt={event.name}
-            fill
-            className="object-cover"
-          />
-        </AspectRatio>
+        <Link href={`/dashboard/ong/events/${event.id}`} className="block cursor-pointer">
+            <AspectRatio ratio={16 / 9}>
+            <Image
+                src={eventImage}
+                alt={event.name}
+                fill
+                className="object-cover transition-transform group-hover:scale-105"
+            />
+            </AspectRatio>
+        </Link>
       </CardHeader>
       
       <div className="p-4 flex flex-col flex-grow">
         <div className="flex-grow">
             <div className="flex justify-between items-start mb-2">
-                <CardTitle className="text-xl leading-tight line-clamp-2">{event.name}</CardTitle>
+                <Link href={`/dashboard/ong/events/${event.id}`} className="hover:underline decoration-primary">
+                    <CardTitle className="text-xl leading-tight line-clamp-2">{event.name}</CardTitle>
+                </Link>
                  <Badge className={cn("text-xs capitalize shrink-0 ml-2", statusStyles[event.status])}>
                     {event.status === 'draft' ? 'Borrador' : 'Publicado'}
                 </Badge>
@@ -55,9 +59,9 @@ export function EventCard({ event }: { event: Event }) {
             </Link>
           </Button>
           <Button asChild size="sm" className="w-full">
-            <Link href={`/dashboard/ong/events/${event.id}/edit`}> 
+            <Link href={`/dashboard/ong/events/${event.id}`}> 
               <Settings className="mr-2 h-4 w-4" />
-              Editar
+              Gestionar
             </Link>
           </Button>
         </CardFooter>
