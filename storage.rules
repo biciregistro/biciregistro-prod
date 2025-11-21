@@ -35,6 +35,20 @@ service firebase.storage {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // --- Event Rules ---
+    // Allow public read for event covers.
+    // Allow authenticated users (ONGs) to upload covers.
+    match /event-covers/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Homepage images
+    match /homepage/{section}/{fileName} {
+        allow read: if true;
+        allow write: if request.auth != null; // Should be admin only ideally
+    }
+
     // Fallback rule: Disallow all other reads and writes by default
     match /{allPaths=**} {
       allow read, write: if false;

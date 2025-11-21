@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useTransition } from 'react';
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,6 +19,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { countries, type Country } from '@/lib/countries';
 import { PlusCircle, Trash2, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 
 // Required label helper
 const RequiredLabel = ({ children }: { children: React.ReactNode }) => (
@@ -37,7 +38,6 @@ export function EventForm() {
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
     const router = useRouter();
-    const [imageUrl, setImageUrl] = useState("");
     
     // State for location selectors
     const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === 'México'));
@@ -81,10 +81,8 @@ export function EventForm() {
 
     const onSubmit = async (data: EventFormValues, isDraft: boolean) => {
         startTransition(async () => {
-            // Add the image URL to the data
-            const submitData = { ...data, imageUrl };
-            
-            const result = await saveEvent(submitData, isDraft);
+            // Data is already synced with the form state
+            const result = await saveEvent(data, isDraft);
 
             if (result?.success) {
                 toast({
@@ -102,6 +100,15 @@ export function EventForm() {
         });
     };
 
+    const onError = (errors: any) => {
+        console.log("Errores de validación:", errors);
+        toast({
+            variant: "destructive",
+            title: "Faltan campos obligatorios",
+            description: "Por favor, revisa el formulario y completa los campos marcados en rojo.",
+        });
+    };
+
     return (
         <Form {...form}>
             <form className="space-y-8">
@@ -109,7 +116,10 @@ export function EventForm() {
                 <div className="space-y-2">
                     <FormLabel>Imagen de Portada (Opcional)</FormLabel>
                     <div className="p-4 border rounded-md bg-muted/10">
-                        <ImageUpload onUploadSuccess={setImageUrl} storagePath="event-covers" />
+                        <ImageUpload 
+                            onUploadSuccess={(url) => form.setValue('imageUrl', url)} 
+                            storagePath="event-covers" 
+                        />
                     </div>
                 </div>
 
@@ -430,7 +440,7 @@ export function EventForm() {
                         type="button" 
                         variant="outline" 
                         className="w-full sm:w-auto"
-                        onClick={form.handleSubmit((data) => onSubmit(data, true))}
+                        onClick={form.handleSubmit((data) => onSubmit(data, true), onError)}
                         disabled={isPending}
                     >
                         {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -439,7 +449,7 @@ export function EventForm() {
                     <Button 
                         type="button" 
                         className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
-                        onClick={form.handleSubmit((data) => onSubmit(data, false))}
+                        onClick={form.handleSubmit((data) => onSubmit(data, false), onError)}
                         disabled={isPending}
                     >
                         {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

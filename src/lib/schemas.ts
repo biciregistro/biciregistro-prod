@@ -69,7 +69,7 @@ export const eventFormSchema = z.object({
     description: z.string().min(10, "La descripción debe tener al menos 10 caracteres."),
 
     // Optional fields
-    imageUrl: z.string().url("La URL de la imagen no es válida.").optional(),
+    imageUrl: z.string().url("La URL de la imagen no es válida.").optional().or(z.literal('')),
     googleMapsUrl: z.string().url("El enlace de Google Maps no es válido.").optional().or(z.literal('')),
     level: z.enum(['Principiante', 'Intermedio', 'Avanzado']).optional(),
     distance: z.coerce.number().positive("La distancia debe ser un número positivo.").optional(),

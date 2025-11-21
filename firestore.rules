@@ -49,7 +49,15 @@ service cloud.firestore {
       * @description Checks if the authenticated user is an admin.
       */
     function isAdmin() {
-      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) || 
+             (request.auth.token.admin == true);
+    }
+    
+    /**
+     * @description Checks if the authenticated user has the 'ong' role.
+     */
+    function isOng() {
+        return request.auth.token.role == 'ong';
     }
 
     /**
@@ -148,6 +156,38 @@ service cloud.firestore {
         allow list: if false;
         allow update: if false;
         allow delete: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // --- NEW RULES BELOW THIS LINE ---
+
+    // Root-level bikes collection (used by current app logic)
+    match /bikes/{bikeId} {
+      allow read: if resource.data.userId == request.auth.uid || isAdmin() || resource.data.status == 'stolen';
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if (resource.data.userId == request.auth.uid) || isAdmin();
+      allow delete: if (resource.data.userId == request.auth.uid) || isAdmin();
+    }
+
+    // ONG Profiles
+    match /ong-profiles/{ongId} {
+      allow read: if true;
+      allow write: if isOwner(ongId) && isOng();
+    }
+
+    // Events
+    match /events/{eventId} {
+      allow read: if resource.data.status == 'published' || 
+                     (isSignedIn() && resource.data.ongId == request.auth.uid);
+      
+      allow create: if isSignedIn() && isOng() && request.resource.data.ongId == request.auth.uid;
+      allow update: if isSignedIn() && isOng() && resource.data.ongId == request.auth.uid;
+      allow delete: if isSignedIn() && isOng() && resource.data.ongId == request.auth.uid;
+    }
+
+    // Homepage content (used by current app logic)
+    match /homepage/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }
