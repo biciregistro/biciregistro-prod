@@ -168,9 +168,31 @@ export default async function EventPage({ params }: EventPageProps) {
                     </CardContent>
                 </Card>
 
+                {/* Categories Section */}
+                {event.hasCategories && event.categories && event.categories.length > 0 && (
+                    <div className="space-y-4 mt-8">
+                        <div className="flex items-center gap-2">
+                            <Trophy className="h-6 w-6 text-primary" />
+                            <h2 className="text-2xl font-semibold">Categorías</h2>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                            {event.categories.map((cat, idx) => (
+                                <Card key={idx} className="bg-card hover:bg-accent/5 transition-colors border-muted-foreground/20">
+                                    <CardContent className="p-4">
+                                        <h3 className="font-bold text-lg mb-1 text-primary">{cat.name}</h3>
+                                        {cat.description && (
+                                            <p className="text-sm text-muted-foreground">{cat.description}</p>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Cost Tiers */}
                 {event.costTiers && event.costTiers.length > 0 && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 mt-8">
                         <h2 className="text-2xl font-semibold px-2">Niveles de Acceso</h2>
                         <div className="grid gap-4 sm:grid-cols-2">
                             {event.costTiers.map((tier, idx) => (
@@ -196,7 +218,7 @@ export default async function EventPage({ params }: EventPageProps) {
 
                 {/* Organizer Card - Moved to main column bottom */}
                 {ongProfile && (
-                    <Card className="shadow-md bg-muted/30 border-none">
+                    <Card className="shadow-md bg-muted/30 border-none mt-8">
                         <CardContent className="p-6 sm:p-8">
                             <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
                                 <Avatar className="h-20 w-20 border-4 border-background shadow-sm">
