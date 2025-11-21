@@ -17,6 +17,7 @@ import {
     getUserByEmail,
     getBike,
     isSerialNumberUnique,
+    registerUserToEvent,
 } from './data';
 import { deleteSession, getDecodedSession } from './auth';
 import { ActionFormState, HomepageSection, Feature, BikeFormState, Event } from './types';
@@ -561,4 +562,29 @@ export async function saveEvent(eventData: any, isDraft: boolean): Promise<Actio
         console.error("Save event error:", error);
         return { error: 'Ocurrió un error al guardar el evento.' };
     }
+}
+
+export async function registerForEventAction(
+    eventId: string, 
+    tierId?: string, 
+    categoryId?: string
+): Promise<{ success: boolean; error?: string; message?: string }> {
+    const session = await getDecodedSession();
+    
+    if (!session?.uid) {
+        return { success: false, error: "Debes iniciar sesión para registrarte." };
+    }
+
+    const result = await registerUserToEvent({
+        eventId,
+        userId: session.uid,
+        tierId,
+        categoryId,
+    });
+
+    if (result.success) {
+        revalidatePath(`/events/${eventId}`);
+    }
+
+    return result;
 }

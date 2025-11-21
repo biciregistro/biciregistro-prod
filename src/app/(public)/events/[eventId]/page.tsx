@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { getEvent, getAuthenticatedUser, getOngProfile, getOngFollowersCount } from '@/lib/data';
+import { getEvent, getAuthenticatedUser, getOngProfile, getOngFollowersCount, getUserRegistrationForEvent } from '@/lib/data';
+import { EventRegistrationCard } from '@/components/event-registration-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -49,14 +50,10 @@ export default async function EventPage({ params }: EventPageProps) {
 
   const ongProfile = await getOngProfile(event.ongId);
   const followersCount = await getOngFollowersCount(event.ongId);
+  const registration = user ? await getUserRegistrationForEvent(user.id, event.id) : null;
+  const isRegistered = !!registration;
 
   const eventDate = new Date(event.date);
-
-  // Construct callback URLs for auth flow
-  const eventUrl = `/events/${params.eventId}`;
-  const loginUrl = `/login?callbackUrl=${encodeURIComponent(eventUrl)}`;
-  // If we want to link the user to the community on signup, we could add communityId logic here if supported by signup page via params
-  const signupUrl = `/signup?callbackUrl=${encodeURIComponent(eventUrl)}`;
 
   return (
     <div className="min-h-screen bg-muted/5 pb-12">
@@ -258,58 +255,7 @@ export default async function EventPage({ params }: EventPageProps) {
 
             {/* Right Column: Sticky Sidebar for Actions */}
             <div className="space-y-6">
-                <Card className="shadow-lg sticky top-24 z-10 border-t-4 border-t-secondary">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-xl">Inscripción</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6 pt-4">
-                        <div className="flex items-center justify-between pb-4 border-b last:border-0 last:pb-0">
-                            <div className="flex items-center gap-3 text-muted-foreground">
-                                <Tag className="h-5 w-5" />
-                                <span>Costo</span>
-                            </div>
-                            <span className="font-bold text-xl">{event.costType || 'Gratuito'}</span>
-                        </div>
-
-                        {event.googleMapsUrl && (
-                            <div className="pt-2">
-                                <Button variant="outline" className="w-full group border-dashed" asChild>
-                                    <Link href={event.googleMapsUrl} target="_blank" rel="noopener noreferrer">
-                                        <MapPin className="mr-2 h-4 w-4 group-hover:text-red-500 transition-colors" />
-                                        Ver Mapa
-                                    </Link>
-                                </Button>
-                            </div>
-                        )}
-
-                        <div className="pt-2">
-                            {user ? (
-                                <>
-                                    <Button size="lg" className="w-full text-lg font-bold shadow-lg shadow-primary/20 h-12" disabled={event.status === 'draft'}>
-                                        {event.status === 'draft' ? 'No disponible' : 'Registrarme Ahora'}
-                                    </Button>
-                                    {event.status !== 'draft' && (
-                                        <p className="text-xs text-center text-muted-foreground mt-3">
-                                            * Confirmarás tus datos en el siguiente paso.
-                                        </p>
-                                    )}
-                                </>
-                            ) : (
-                                <div className="space-y-3">
-                                    <Button size="lg" variant="outline" className="w-full font-semibold border-primary/50 hover:bg-primary/5" asChild>
-                                        <Link href={loginUrl}>Iniciar Sesión</Link>
-                                    </Button>
-                                    <Button size="lg" className="w-full font-bold shadow-md" asChild>
-                                        <Link href={signupUrl}>Crear Cuenta</Link>
-                                    </Button>
-                                    <p className="text-xs text-center text-muted-foreground mt-2">
-                                        Para inscribirte al evento necesitas una cuenta en BiciRegistro.
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
+                <EventRegistrationCard event={event} user={user} isRegistered={isRegistered} />
             </div>
         </div>
       </div>

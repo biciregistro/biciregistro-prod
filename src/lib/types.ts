@@ -107,6 +107,20 @@ export type Event = {
   hasCategories?: boolean;
   categories?: EventCategory[];
   maxParticipants?: number;
+  currentParticipants?: number;
+};
+
+export type EventRegistration = {
+    id: string;
+    eventId: string;
+    userId: string;
+    registrationDate: string; // ISO String
+    status: 'confirmed' | 'cancelled';
+    tierId?: string;
+    tierName?: string;
+    price?: number;
+    categoryId?: string;
+    categoryName?: string;
 };
 
 

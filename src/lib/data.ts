@@ -1,6 +1,6 @@
 import 'server-only';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import type { User, OngUser, Bike, BikeStatus, HomepageSection, UserRole, Event } from './types';
+import type { User, OngUser, Bike, BikeStatus, HomepageSection, UserRole, Event, EventRegistration } from './types';
 import { getDecodedSession } from '@/lib/auth';
 import { adminDb, adminAuth } from './firebase/server';
 import { defaultHomepageData } from './homepage-data';
@@ -402,4 +402,86 @@ export async function updateHomepageSectionData(data: HomepageSection) {
     const db = adminDb;
     const { id, ...sectionData } = data;
     await db.collection('homepage').doc(id).set(sectionData, { merge: true });
+}
+
+// --- Event Registration ---
+
+export async function getUserRegistrationForEvent(userId: string, eventId: string): Promise<any | null> {
+    if (!userId || !eventId) return null;
+    try {
+        const db = adminDb;
+        const query = db.collection('event-registrations')
+            .where('userId', '==', userId)
+            .where('eventId', '==', eventId)
+            .limit(1);
+        
+        const snapshot = await query.get();
+        if (snapshot.empty) return null;
+        
+        const doc = snapshot.docs[0];
+        return { id: doc.id, ...doc.data() };
+    } catch (error) {
+        console.error("Error fetching registration:", error);
+        return null;
+    }
+}
+
+export async function registerUserToEvent(
+    registrationData: Omit<EventRegistration, 'id' | 'registrationDate' | 'status'>
+): Promise<{ success: boolean; message?: string; error?: string }> {
+    const db = adminDb;
+    const { eventId, userId } = registrationData;
+
+    try {
+        return await db.runTransaction(async (transaction) => {
+            // 1. Get Event Doc to check limits
+            const eventRef = db.collection('events').doc(eventId);
+            const eventDoc = await transaction.get(eventRef);
+
+            if (!eventDoc.exists) {
+                return { success: false, error: "El evento no existe." };
+            }
+
+            const eventData = eventDoc.data() as Event;
+            
+            // Check capacity
+            const maxParticipants = eventData.maxParticipants || 0;
+            const currentParticipants = eventData.currentParticipants || 0;
+
+            if (maxParticipants > 0 && currentParticipants >= maxParticipants) {
+                return { success: false, error: "Lo sentimos, el cupo para este evento está lleno." };
+            }
+
+            // 2. Check if user is already registered
+            const regQuery = db.collection('event-registrations')
+                .where('userId', '==', userId)
+                .where('eventId', '==', eventId)
+                .limit(1);
+            
+            const regSnapshot = await transaction.get(regQuery);
+            if (!regSnapshot.empty) {
+                 return { success: false, error: "Ya te encuentras registrado en este evento." };
+            }
+
+            // 3. Create Registration
+            const newRegRef = db.collection('event-registrations').doc();
+            const newRegistration = {
+                ...registrationData,
+                registrationDate: new Date().toISOString(),
+                status: 'confirmed',
+            };
+
+            transaction.set(newRegRef, newRegistration);
+
+            // 4. Increment participant count
+            transaction.update(eventRef, {
+                currentParticipants: currentParticipants + 1
+            });
+
+            return { success: true, message: "¡Registro exitoso!" };
+        });
+    } catch (error) {
+        console.error("Transaction failure:", error);
+        return { success: false, error: "Ocurrió un error al procesar tu registro. Inténtalo de nuevo." };
+    }
 }
