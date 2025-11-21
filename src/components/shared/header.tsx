@@ -45,9 +45,14 @@ function UserNavLinks({ user }: { user: UserType }) {
             </DropdownMenuItem>
 
             {user.role === 'ciclista' && (
-                <DropdownMenuItem asChild>
-                    <Link href="/dashboard/register">Registrar Bici</Link>
-                </DropdownMenuItem>
+                <>
+                    <DropdownMenuItem asChild>
+                        <Link href="/dashboard?tab=events">Mis Eventos</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link href="/dashboard/register">Registrar Bici</Link>
+                    </DropdownMenuItem>
+                </>
             )}
 
             {user.role === 'admin' && (

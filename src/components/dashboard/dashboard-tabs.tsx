@@ -1,0 +1,138 @@
+'use client';
+
+import { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { BikeCard } from '@/components/bike-card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Calendar, MapPin, ArrowRight } from 'lucide-react';
+import type { Bike, UserEventRegistration, User } from '@/lib/types';
+
+interface DashboardTabsProps {
+    bikes: Bike[];
+    registrations: UserEventRegistration[];
+    user: User;
+    isProfileComplete: boolean;
+}
+
+function DashboardTabsContent({ bikes, registrations, isProfileComplete }: DashboardTabsProps) {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+    
+    const defaultTab = searchParams.get('tab') === 'events' ? 'events' : 'garage';
+    const [activeTab, setActiveTab] = useState(defaultTab);
+
+    // Sync state with URL params
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (tab === 'events' || tab === 'garage') {
+            setActiveTab(tab);
+        }
+    }, [searchParams]);
+
+    const onTabChange = (value: string) => {
+        setActiveTab(value);
+        // Update URL without full reload
+        router.push(`${pathname}?tab=${value}`, { scroll: false });
+    };
+
+    return (
+        <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-8">
+                <TabsTrigger value="garage">Mi Garaje ({bikes.length})</TabsTrigger>
+                <TabsTrigger value="events">Mis Eventos ({registrations.length})</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="garage" className="space-y-4">
+                {bikes.length === 0 ? (
+                     <Alert>
+                        <AlertTitle>No tienes bicicletas registradas</AlertTitle>
+                        <AlertDescription>
+                            {isProfileComplete
+                                ? 'Usa el botón "Registrar Bici" para añadir tu primera bicicleta y empezar a protegerla.'
+                                : 'Completa tu perfil para poder registrar tu primera bicicleta.'
+                            }
+                        </AlertDescription>
+                    </Alert>
+                ) : (
+                    <div className="space-y-4">
+                        {bikes.map((bike: Bike) => (
+                            <BikeCard key={bike.id} bike={bike} />
+                        ))}
+                    </div>
+                )}
+            </TabsContent>
+            
+            <TabsContent value="events" className="space-y-4">
+                {registrations.length === 0 ? (
+                    <Alert>
+                        <AlertTitle>No tienes eventos próximos</AlertTitle>
+                        <AlertDescription>
+                            Explora los eventos disponibles y regístrate para participar.
+                        </AlertDescription>
+                    </Alert>
+                ) : (
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {registrations.map((reg) => (
+                            <Card key={reg.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                                <CardContent className="p-0">
+                                    <div className="flex flex-col sm:flex-row">
+                                        <div className="w-full sm:w-32 h-32 bg-muted flex-shrink-0 relative">
+                                             {reg.event.imageUrl ? (
+                                                <img src={reg.event.imageUrl} alt={reg.event.name} className="w-full h-full object-cover" />
+                                             ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                                    <Calendar className="h-8 w-8" />
+                                                </div>
+                                             )}
+                                        </div>
+                                        <div className="p-4 flex-1 flex flex-col justify-between">
+                                            <div>
+                                                <div className="flex justify-between items-start gap-2">
+                                                    <h3 className="font-bold text-lg line-clamp-1">{reg.event.name}</h3>
+                                                    <Badge variant="secondary" className="text-xs shrink-0">
+                                                        {reg.status === 'confirmed' ? 'Confirmado' : reg.status}
+                                                    </Badge>
+                                                </div>
+                                                <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                                                    <div className="flex items-center gap-1">
+                                                        <Calendar className="h-3 w-3" />
+                                                        <span>{new Date(reg.event.date).toLocaleDateString()}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <MapPin className="h-3 w-3" />
+                                                        <span className="line-clamp-1">{reg.event.state}, {reg.event.country}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="mt-3 flex justify-end">
+                                                <Button variant="ghost" size="sm" asChild className="text-primary hover:text-primary/80 p-0 h-auto">
+                                                    <Link href={`/dashboard/events/${reg.eventId}`} className="flex items-center gap-1">
+                                                        Ver Detalles <ArrowRight className="h-3 w-3" />
+                                                    </Link>
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                )}
+            </TabsContent>
+        </Tabs>
+    );
+}
+
+export function DashboardTabs(props: DashboardTabsProps) {
+    return (
+        <Suspense fallback={<div>Cargando...</div>}>
+            <DashboardTabsContent {...props} />
+        </Suspense>
+    );
+}
