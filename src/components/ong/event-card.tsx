@@ -55,8 +55,7 @@ export function EventCard({ event }: { event: Event }) {
             </Link>
           </Button>
           <Button asChild size="sm" className="w-full">
-            {/* TODO: Update link to edit page once implemented, currently points to create new which is empty */}
-            <Link href={`/dashboard/ong/events/create?edit=${event.id}`}> 
+            <Link href={`/dashboard/ong/events/${event.id}/edit`}> 
               <Settings className="mr-2 h-4 w-4" />
               Editar
             </Link>

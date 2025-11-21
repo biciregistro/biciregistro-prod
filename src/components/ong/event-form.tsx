@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useTransition, useState, useEffect } from 'react';
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,7 +19,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { countries, type Country } from '@/lib/countries';
 import { PlusCircle, Trash2, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import type { Event } from '@/lib/types';
 
 // Required label helper
 const RequiredLabel = ({ children }: { children: React.ReactNode }) => (
@@ -34,35 +34,43 @@ const modalityOptions = ["Urbana", "Gravel", "Pista", "XC", "Enduro", "Downhill"
 const eventTypes = ['Rodada', 'Competencia', 'Taller', 'Conferencia'];
 const levels = ['Principiante', 'Intermedio', 'Avanzado'];
 
-export function EventForm() {
+interface EventFormProps {
+    initialData?: Event;
+}
+
+export function EventForm({ initialData }: EventFormProps) {
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
     const router = useRouter();
     
-    // State for location selectors
-    const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === 'México'));
-    const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
+    // Initialize location state based on initial data or default
+    const defaultCountryName = initialData?.country || 'México';
+    const defaultCountry = countries.find(c => c.name === defaultCountryName);
+    
+    const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(defaultCountry);
+    const [states, setStates] = useState<string[]>(defaultCountry?.states || []);
 
     // Cost toggle state
-    const [isCostEnabled, setIsCostEnabled] = useState(false);
+    const [isCostEnabled, setIsCostEnabled] = useState(initialData?.costType === 'Con Costo');
 
     const form = useForm<EventFormValues>({
         resolver: zodResolver(eventFormSchema),
         defaultValues: {
-            name: "",
-            eventType: undefined,
-            date: "",
-            country: "México",
-            state: "",
-            modality: "",
-            description: "",
-            imageUrl: "",
-            googleMapsUrl: "",
-            level: undefined,
-            distance: 0,
-            costType: "Gratuito",
-            paymentDetails: "",
-            costTiers: [],
+            name: initialData?.name || "",
+            eventType: initialData?.eventType as any || undefined,
+            // Format date for datetime-local input (YYYY-MM-DDTHH:mm)
+            date: initialData?.date ? new Date(initialData.date).toISOString().slice(0, 16) : "",
+            country: initialData?.country || "México",
+            state: initialData?.state || "",
+            modality: initialData?.modality || "",
+            description: initialData?.description || "",
+            imageUrl: initialData?.imageUrl || "",
+            googleMapsUrl: initialData?.googleMapsUrl || "",
+            level: initialData?.level as any || undefined,
+            distance: initialData?.distance || 0,
+            costType: initialData?.costType as any || "Gratuito",
+            paymentDetails: initialData?.paymentDetails || "",
+            costTiers: initialData?.costTiers || [],
         },
     });
 
@@ -70,6 +78,13 @@ export function EventForm() {
         control: form.control,
         name: "costTiers",
     });
+
+    // Ensure image URL is synced if initialData provided (for the ImageUpload component visual, if we had a way to pass it back)
+    // Since ImageUpload doesn't accept initial value prop in its current simple form, 
+    // we rely on the form state having the URL.
+    // However, ImageUpload might show "empty" even if form has value. 
+    // For this iteration, we assume the user knows an image is there if they see it on the public page,
+    // or they upload a new one to replace it. Ideally ImageUpload should accept a previewUrl prop.
 
     const handleCountryChange = (countryName: string) => {
         const country = countries.find(c => c.name === countryName);
@@ -81,8 +96,13 @@ export function EventForm() {
 
     const onSubmit = async (data: EventFormValues, isDraft: boolean) => {
         startTransition(async () => {
-            // Data is already synced with the form state
-            const result = await saveEvent(data, isDraft);
+            // Merge form data with ID if editing
+            const submitData = { 
+                ...data, 
+                id: initialData?.id 
+            };
+            
+            const result = await saveEvent(submitData, isDraft);
 
             if (result?.success) {
                 toast({
@@ -116,6 +136,9 @@ export function EventForm() {
                 <div className="space-y-2">
                     <FormLabel>Imagen de Portada (Opcional)</FormLabel>
                     <div className="p-4 border rounded-md bg-muted/10">
+                        {initialData?.imageUrl && (
+                            <p className="text-xs text-muted-foreground mb-2">Imagen actual guardada. Sube una nueva para reemplazarla.</p>
+                        )}
                         <ImageUpload 
                             onUploadSuccess={(url) => form.setValue('imageUrl', url)} 
                             storagePath="event-covers" 
