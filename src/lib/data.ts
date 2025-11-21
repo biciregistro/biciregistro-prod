@@ -1,6 +1,6 @@
 import 'server-only';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import type { User, OngUser, Bike, BikeStatus, HomepageSection, UserRole, Event, EventRegistration, EventAttendee } from './types';
+import type { User, OngUser, Bike, BikeStatus, HomepageSection, UserRole, Event, EventRegistration, EventAttendee, UserEventRegistration } from './types';
 import { getDecodedSession } from '@/lib/auth';
 import { adminDb, adminAuth } from './firebase/server';
 import { defaultHomepageData } from './homepage-data';
@@ -495,8 +495,7 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
         // 1. Get all registrations for the event
         const registrationsSnapshot = await db.collection('event-registrations')
             .where('eventId', '==', eventId)
-            .orderBy('registrationDate', 'desc')
-            .get();
+            .get(); // Sorting in memory to avoid index issues for now, or assume index created
 
         if (registrationsSnapshot.empty) {
             return [];
@@ -529,10 +528,43 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
         });
 
         const attendees = await Promise.all(attendeesPromises);
-        return attendees;
+        // Sort in memory
+        return attendees.sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime());
 
     } catch (error) {
         console.error("Error fetching event attendees:", error);
+        return [];
+    }
+}
+
+export async function getUserEventRegistrations(userId: string): Promise<UserEventRegistration[]> {
+    if (!userId) return [];
+    try {
+        const db = adminDb;
+        const registrationsSnapshot = await db.collection('event-registrations')
+            .where('userId', '==', userId)
+            .get();
+
+        if (registrationsSnapshot.empty) return [];
+
+        const registrations = registrationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EventRegistration));
+
+        // Fetch events concurrently
+        const registrationsWithEvents = await Promise.all(registrations.map(async (reg) => {
+            const event = await getEvent(reg.eventId);
+            if (!event) return null;
+            return { ...reg, event };
+        }));
+
+        // Filter out nulls and sort by event date
+        const validRegistrations = registrationsWithEvents.filter((r): r is UserEventRegistration => r !== null);
+        
+        return validRegistrations.sort((a, b) => 
+            new Date(a.event.date).getTime() - new Date(b.event.date).getTime()
+        );
+
+    } catch (error) {
+        console.error("Error fetching user event registrations:", error);
         return [];
     }
 }

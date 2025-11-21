@@ -136,6 +136,10 @@ export type EventAttendee = {
     status: 'confirmed' | 'cancelled';
 };
 
+export type UserEventRegistration = EventRegistration & {
+    event: Event;
+};
+
 
 // --- Homepage Content Types (Corrected) ---
 

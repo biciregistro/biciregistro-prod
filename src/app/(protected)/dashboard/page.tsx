@@ -1,15 +1,17 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-import { getAuthenticatedUser, getBikes } from '@/lib/data';
+import { getAuthenticatedUser, getBikes, getUserEventRegistrations } from '@/lib/data';
 import type { Bike, User } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { BikeCard } from '@/components/bike-card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
-import { PlusCircle, Edit } from 'lucide-react';
+import { PlusCircle, Edit, Calendar, MapPin, ArrowRight } from 'lucide-react';
 
 // --- Helper function to check if the user profile is complete ---
 const isProfileComplete = (user: User): boolean => {
@@ -76,8 +78,8 @@ export default async function DashboardPage() {
     }
 
     const profileIsComplete = isProfileComplete(user);
-    // Corrected the call to getBikes to pass user.id directly as a string.
     const bikes = profileIsComplete ? await getBikes(user.id) : [];
+    const registrations = await getUserEventRegistrations(user.id);
 
     return (
         <div className="container max-w-5xl mx-auto py-6 md:py-8 px-4">
@@ -88,7 +90,7 @@ export default async function DashboardPage() {
             
             {/* Bikes List */}
             {bikes.length === 0 ? (
-                 <Alert>
+                 <Alert className="mb-10">
                     <AlertTitle>No tienes bicicletas registradas</AlertTitle>
                     <AlertDescription>
                         {profileIsComplete
@@ -98,9 +100,66 @@ export default async function DashboardPage() {
                     </AlertDescription>
                 </Alert>
             ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 mb-10">
                     {bikes.map((bike: Bike) => (
                         <BikeCard key={bike.id} bike={bike} />
+                    ))}
+                </div>
+            )}
+
+            <h2 className="text-2xl font-bold mb-6 mt-12 pt-6 border-t">Mis Eventos</h2>
+            {registrations.length === 0 ? (
+                <Alert>
+                    <AlertTitle>No tienes eventos próximos</AlertTitle>
+                    <AlertDescription>
+                        Explora los eventos disponibles y regístrate para participar.
+                    </AlertDescription>
+                </Alert>
+            ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                    {registrations.map((reg) => (
+                        <Card key={reg.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                            <CardContent className="p-0">
+                                <div className="flex flex-col sm:flex-row">
+                                    <div className="w-full sm:w-32 h-32 bg-muted flex-shrink-0 relative">
+                                         {reg.event.imageUrl ? (
+                                            <img src={reg.event.imageUrl} alt={reg.event.name} className="w-full h-full object-cover" />
+                                         ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                                <Calendar className="h-8 w-8" />
+                                            </div>
+                                         )}
+                                    </div>
+                                    <div className="p-4 flex-1 flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex justify-between items-start gap-2">
+                                                <h3 className="font-bold text-lg line-clamp-1">{reg.event.name}</h3>
+                                                <Badge variant="secondary" className="text-xs shrink-0">
+                                                    {reg.status === 'confirmed' ? 'Confirmado' : reg.status}
+                                                </Badge>
+                                            </div>
+                                            <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                                                <div className="flex items-center gap-1">
+                                                    <Calendar className="h-3 w-3" />
+                                                    <span>{new Date(reg.event.date).toLocaleDateString()}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <MapPin className="h-3 w-3" />
+                                                    <span className="line-clamp-1">{reg.event.state}, {reg.event.country}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 flex justify-end">
+                                            <Button variant="ghost" size="sm" asChild className="text-primary hover:text-primary/80 p-0 h-auto">
+                                                <Link href={`/dashboard/events/${reg.eventId}`} className="flex items-center gap-1">
+                                                    Ver Detalles <ArrowRight className="h-3 w-3" />
+                                                </Link>
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
                     ))}
                 </div>
             )}
