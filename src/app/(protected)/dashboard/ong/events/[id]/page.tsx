@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Edit, Eye, Users, Calendar, MapPin, Share2 } from 'lucide-react';
 import { CopyButton } from '@/components/ong-components';
+import { EventStatusButton } from '@/components/ong/event-status-button';
 
 export default async function EventDetailsPage({ params }: { params: { id: string } }) {
   const user = await getAuthenticatedUser();
@@ -43,7 +44,9 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
             </div>
         </div>
         
-        <div className="flex gap-2 w-full md:w-auto">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
+            <EventStatusButton eventId={event.id} currentStatus={event.status} />
+            
             <Button variant="outline" asChild className="flex-1 md:flex-none">
                 <Link href={`/events/${event.id}`} target="_blank">
                     <Eye className="mr-2 h-4 w-4" />
@@ -53,7 +56,7 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
             <Button asChild className="flex-1 md:flex-none">
                 <Link href={`/dashboard/ong/events/${event.id}/edit`}>
                     <Edit className="mr-2 h-4 w-4" />
-                    Editar Evento
+                    Editar
                 </Link>
             </Button>
         </div>
@@ -67,7 +70,7 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{event.currentParticipants || 0}</div>
             <p className="text-xs text-muted-foreground">Participantes confirmados</p>
           </CardContent>
         </Card>

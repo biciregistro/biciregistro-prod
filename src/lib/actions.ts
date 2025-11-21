@@ -16,6 +16,7 @@ import {
     getHomepageData,
     getUserByEmail,
     getBike,
+    getEvent,
     isSerialNumberUnique,
     registerUserToEvent,
 } from './data';
@@ -587,4 +588,31 @@ export async function registerForEventAction(
     }
 
     return result;
+}
+
+export async function toggleEventStatusAction(eventId: string, newStatus: 'draft' | 'published'): Promise<{ success: boolean; error?: string }> {
+    const session = await getDecodedSession();
+    
+    if (!session?.uid || session.role !== 'ong') {
+        return { success: false, error: "No tienes permisos para realizar esta acción." };
+    }
+
+    try {
+        const event = await getEvent(eventId);
+        if (!event) {
+            return { success: false, error: "El evento no existe." };
+        }
+
+        if (event.ongId !== session.uid) {
+            return { success: false, error: "No tienes permiso para modificar este evento." };
+        }
+
+        await updateEvent(eventId, { status: newStatus });
+        revalidatePath(`/dashboard/ong/events/${eventId}`);
+        
+        return { success: true };
+    } catch (error) {
+        console.error("Error toggling event status:", error);
+        return { success: false, error: "Ocurrió un error al actualizar el estado del evento." };
+    }
 }
