@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, Tag } from 'lucide-react';
+import { Calendar, Eye, Settings } from 'lucide-react';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 
 const statusStyles: { [key in Event['status']]: string } = {
@@ -35,8 +35,8 @@ export function EventCard({ event }: { event: Event }) {
       <div className="p-4 flex flex-col flex-grow">
         <div className="flex-grow">
             <div className="flex justify-between items-start mb-2">
-                <CardTitle className="text-xl leading-tight">{event.name}</CardTitle>
-                 <Badge className={cn("text-xs capitalize", statusStyles[event.status])}>
+                <CardTitle className="text-xl leading-tight line-clamp-2">{event.name}</CardTitle>
+                 <Badge className={cn("text-xs capitalize shrink-0 ml-2", statusStyles[event.status])}>
                     {event.status === 'draft' ? 'Borrador' : 'Publicado'}
                 </Badge>
             </div>
@@ -47,10 +47,18 @@ export function EventCard({ event }: { event: Event }) {
             </div>
         </div>
 
-        <CardFooter className="p-0 pt-4 mt-4 border-t">
-          <Button asChild variant="outline" className="w-full">
-            <Link href={`/dashboard/ong/events/${event.id}`}>
-              Administrar Evento
+        <CardFooter className="p-0 pt-4 mt-4 border-t grid grid-cols-2 gap-3">
+          <Button asChild variant="outline" size="sm" className="w-full">
+            <Link href={`/events/${event.id}`} target="_blank" title="Ver página pública">
+                <Eye className="mr-2 h-4 w-4" />
+                Ver
+            </Link>
+          </Button>
+          <Button asChild size="sm" className="w-full">
+            {/* TODO: Update link to edit page once implemented, currently points to create new which is empty */}
+            <Link href={`/dashboard/ong/events/create?edit=${event.id}`}> 
+              <Settings className="mr-2 h-4 w-4" />
+              Editar
             </Link>
           </Button>
         </CardFooter>

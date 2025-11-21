@@ -153,6 +153,19 @@ export async function getOngProfile(id: string): Promise<Omit<OngUser, 'email' |
     }
 }
 
+export async function getOngFollowersCount(ongId: string): Promise<number> {
+    if (!ongId) return 0;
+    try {
+        const db = adminDb;
+        const query = db.collection('users').where('communityId', '==', ongId);
+        const snapshot = await query.count().get();
+        return snapshot.data().count;
+    } catch (error) {
+        console.error("Error counting ONG followers:", error);
+        return 0;
+    }
+}
+
 
 // --- Admin User Management ---
 export async function getUsers({
@@ -325,6 +338,21 @@ export async function updateBikeStatus(bikeId: string, status: BikeStatus, theft
 }
 
 // --- Event Management ---
+export async function getEvent(eventId: string): Promise<Event | null> {
+    if (!eventId) return null;
+    try {
+        const db = adminDb;
+        const docSnap = await db.collection('events').doc(eventId).get();
+        if (!docSnap.exists) {
+            return null;
+        }
+        return { id: docSnap.id, ...convertEventTimestamps(docSnap.data()) } as Event;
+    } catch (error) {
+        console.error("Error fetching event:", error);
+        return null;
+    }
+}
+
 export async function getEventsByOngId(ongId: string): Promise<Event[]> {
     if (!ongId) return [];
     const db = adminDb;
