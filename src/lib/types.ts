@@ -123,6 +123,19 @@ export type EventRegistration = {
     categoryName?: string;
 };
 
+export type EventAttendee = {
+    id: string; // Registration ID
+    userId: string;
+    name: string;
+    lastName: string;
+    email: string;
+    whatsapp?: string;
+    registrationDate: string;
+    tierName: string;
+    categoryName: string;
+    status: 'confirmed' | 'cancelled';
+};
+
 
 // --- Homepage Content Types (Corrected) ---
 

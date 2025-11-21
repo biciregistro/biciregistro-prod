@@ -1,6 +1,6 @@
 import 'server-only';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import type { User, OngUser, Bike, BikeStatus, HomepageSection, UserRole, Event, EventRegistration } from './types';
+import type { User, OngUser, Bike, BikeStatus, HomepageSection, UserRole, Event, EventRegistration, EventAttendee } from './types';
 import { getDecodedSession } from '@/lib/auth';
 import { adminDb, adminAuth } from './firebase/server';
 import { defaultHomepageData } from './homepage-data';
@@ -483,5 +483,56 @@ export async function registerUserToEvent(
     } catch (error) {
         console.error("Transaction failure:", error);
         return { success: false, error: "Ocurrió un error al procesar tu registro. Inténtalo de nuevo." };
+    }
+}
+
+export async function getEventAttendees(eventId: string): Promise<EventAttendee[]> {
+    if (!eventId) return [];
+    
+    try {
+        const db = adminDb;
+        
+        // 1. Get all registrations for the event
+        const registrationsSnapshot = await db.collection('event-registrations')
+            .where('eventId', '==', eventId)
+            .orderBy('registrationDate', 'desc')
+            .get();
+
+        if (registrationsSnapshot.empty) {
+            return [];
+        }
+
+        // 2. Get Event details for mapping IDs to Names
+        const event = await getEvent(eventId);
+        if (!event) return []; 
+
+        const tiersMap = new Map(event.costTiers?.map(t => [t.id, t.name]));
+        const categoriesMap = new Map(event.categories?.map(c => [c.id, c.name]));
+
+        // 3. Fetch user details for each registration
+        const attendeesPromises = registrationsSnapshot.docs.map(async (doc) => {
+            const regData = doc.data() as EventRegistration;
+            const user = await getUser(regData.userId);
+            
+            return {
+                id: doc.id,
+                userId: regData.userId,
+                name: user?.name || 'Usuario',
+                lastName: user?.lastName || 'Eliminado',
+                email: user?.email || '',
+                whatsapp: user?.whatsapp,
+                registrationDate: regData.registrationDate,
+                tierName: regData.tierId ? tiersMap.get(regData.tierId) || 'N/A' : (event.costType === 'Gratuito' ? 'Gratuito' : 'N/A'),
+                categoryName: regData.categoryId ? categoriesMap.get(regData.categoryId) || 'N/A' : 'N/A',
+                status: regData.status,
+            };
+        });
+
+        const attendees = await Promise.all(attendeesPromises);
+        return attendees;
+
+    } catch (error) {
+        console.error("Error fetching event attendees:", error);
+        return [];
     }
 }

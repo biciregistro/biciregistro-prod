@@ -1,11 +1,11 @@
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getAuthenticatedUser, getEvent } from '@/lib/data';
+import { getAuthenticatedUser, getEvent, getEventAttendees } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Edit, Eye, Users, Calendar, MapPin, Share2 } from 'lucide-react';
+import { ArrowLeft, Edit, Eye, Users, Calendar, MapPin, Share2, MessageCircle } from 'lucide-react';
 import { CopyButton } from '@/components/ong-components';
 import { EventStatusButton } from '@/components/ong/event-status-button';
 
@@ -19,6 +19,8 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
 
   if (!event) notFound();
   if (event.ongId !== user.id) redirect('/dashboard/ong');
+
+  const attendees = await getEventAttendees(params.id);
 
   const eventDate = new Date(event.date);
   const publicUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx'}/events/${event.id}`;
@@ -103,11 +105,11 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
         </Card>
       </div>
 
-      {/* Attendees List (Placeholder) */}
+      {/* Attendees List */}
       <Card>
         <CardHeader>
           <CardTitle>Lista de Asistentes</CardTitle>
-          <CardDescription>Gestioan a los ciclistas registrados en tu evento.</CardDescription>
+          <CardDescription>Gestiona a los ciclistas registrados en tu evento.</CardDescription>
         </CardHeader>
         <CardContent>
             <div className="rounded-md border">
@@ -116,18 +118,51 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
                         <TableRow>
                             <TableHead>Nombre</TableHead>
                             <TableHead>Correo Electrónico</TableHead>
+                            <TableHead>Whatsapp</TableHead>
                             <TableHead>Fecha Registro</TableHead>
-                            <TableHead>Bicicleta</TableHead>
+                            <TableHead>Nivel</TableHead>
+                            <TableHead>Categoría</TableHead>
                             <TableHead className="text-right">Estado</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {/* Empty State */}
-                        <TableRow>
-                            <TableCell colSpan={5} className="h-24 text-center">
-                                No hay participantes registrados aún.
-                            </TableCell>
-                        </TableRow>
+                        {attendees.length > 0 ? (
+                            attendees.map((attendee) => (
+                                <TableRow key={attendee.id}>
+                                    <TableCell className="font-medium">{attendee.name} {attendee.lastName}</TableCell>
+                                    <TableCell>{attendee.email}</TableCell>
+                                    <TableCell>
+                                        {attendee.whatsapp ? (
+                                            <a 
+                                                href={`https://wa.me/${attendee.whatsapp.replace(/\D/g, '')}`} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-1 text-green-600 hover:underline"
+                                            >
+                                                <MessageCircle className="h-4 w-4" />
+                                                {attendee.whatsapp}
+                                            </a>
+                                        ) : (
+                                            <span className="text-muted-foreground text-sm">N/A</span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>{new Date(attendee.registrationDate).toLocaleDateString()}</TableCell>
+                                    <TableCell>{attendee.tierName}</TableCell>
+                                    <TableCell>{attendee.categoryName}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Badge variant="outline" className="capitalize">
+                                            {attendee.status === 'confirmed' ? 'Confirmado' : attendee.status}
+                                        </Badge>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={7} className="h-24 text-center">
+                                    No hay participantes registrados aún.
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </div>
