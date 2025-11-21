@@ -72,6 +72,12 @@ export type CostTier = {
   includes: string;
 };
 
+export type EventCategory = {
+    id: string; // for React key prop
+    name: string;
+    description?: string;
+};
+
 export type Event = {
   id: string;
   ongId: string;
@@ -96,6 +102,11 @@ export type Event = {
   paymentDetails?: string;
   organizerName?: string;
   organizerFollowers?: number;
+  
+  // New fields for categories and limits
+  hasCategories?: boolean;
+  categories?: EventCategory[];
+  maxParticipants?: number;
 };
 
 

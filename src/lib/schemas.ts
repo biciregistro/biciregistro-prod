@@ -76,6 +76,9 @@ export const eventFormSchema = z.object({
     costType: z.enum(['Gratuito', 'Con Costo']).optional(),
     paymentDetails: z.string().optional(),
     
+    // Max Participants
+    maxParticipants: z.coerce.number().int().positive("El cupo debe ser un número entero positivo.").optional().or(z.literal(0)),
+
     // Dynamic fields for cost tiers
     costTiers: z.array(z.object({
         id: z.string(),
@@ -83,4 +86,28 @@ export const eventFormSchema = z.object({
         price: z.coerce.number().positive("El precio debe ser un número positivo."),
         includes: z.string().min(1, "Debes detallar qué incluye este nivel."),
     })).optional(),
+    
+    // Categories
+    hasCategories: z.boolean().optional(),
+    categories: z.array(z.object({
+        id: z.string(),
+        name: z.string().min(1, "El nombre de la categoría es obligatorio."),
+        description: z.string().optional(),
+    })).optional(),
+}).superRefine((data, ctx) => {
+    if (data.costType === 'Con Costo' && (!data.costTiers || data.costTiers.length === 0)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Debes agregar al menos un nivel de costo si el evento no es gratuito.",
+            path: ["costTiers"],
+        });
+    }
+    
+    if (data.hasCategories && (!data.categories || data.categories.length === 0)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Debes agregar al menos una categoría si habilitaste las categorías.",
+            path: ["categories"],
+        });
+    }
 });

@@ -52,6 +52,8 @@ export function EventForm({ initialData }: EventFormProps) {
 
     // Cost toggle state
     const [isCostEnabled, setIsCostEnabled] = useState(initialData?.costType === 'Con Costo');
+    // Categories toggle state
+    const [hasCategories, setHasCategories] = useState(initialData?.hasCategories || false);
 
     const form = useForm<EventFormValues>({
         resolver: zodResolver(eventFormSchema),
@@ -71,20 +73,21 @@ export function EventForm({ initialData }: EventFormProps) {
             costType: initialData?.costType as any || "Gratuito",
             paymentDetails: initialData?.paymentDetails || "",
             costTiers: initialData?.costTiers || [],
+            maxParticipants: initialData?.maxParticipants || 0,
+            hasCategories: initialData?.hasCategories || false,
+            categories: initialData?.categories || [],
         },
     });
 
-    const { fields, append, remove } = useFieldArray({
+    const { fields: costFields, append: appendCost, remove: removeCost } = useFieldArray({
         control: form.control,
         name: "costTiers",
     });
 
-    // Ensure image URL is synced if initialData provided (for the ImageUpload component visual, if we had a way to pass it back)
-    // Since ImageUpload doesn't accept initial value prop in its current simple form, 
-    // we rely on the form state having the URL.
-    // However, ImageUpload might show "empty" even if form has value. 
-    // For this iteration, we assume the user knows an image is there if they see it on the public page,
-    // or they upload a new one to replace it. Ideally ImageUpload should accept a previewUrl prop.
+    const { fields: categoryFields, append: appendCategory, remove: removeCategory } = useFieldArray({
+        control: form.control,
+        name: "categories",
+    });
 
     const handleCountryChange = (countryName: string) => {
         const country = countries.find(c => c.name === countryName);
@@ -101,6 +104,18 @@ export function EventForm({ initialData }: EventFormProps) {
                 ...data, 
                 id: initialData?.id 
             };
+            
+            // Cleanup data based on toggles before sending
+            if (!isCostEnabled) {
+                submitData.costTiers = [];
+                submitData.paymentDetails = undefined;
+                submitData.costType = 'Gratuito';
+            }
+
+            if (!hasCategories) {
+                submitData.categories = [];
+                submitData.hasCategories = false;
+            }
             
             const result = await saveEvent(submitData, isDraft);
 
@@ -306,7 +321,7 @@ export function EventForm({ initialData }: EventFormProps) {
                 />
 
                 {/* Technical Details (Optional) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <FormField
                         control={form.control}
                         name="level"
@@ -342,6 +357,116 @@ export function EventForm({ initialData }: EventFormProps) {
                             </FormItem>
                         )}
                     />
+                    <FormField
+                        control={form.control}
+                        name="maxParticipants"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Cupo Máximo</FormLabel>
+                                <FormControl>
+                                    <Input 
+                                        type="number" 
+                                        placeholder="0 para ilimitado" 
+                                        {...field} 
+                                        onChange={e => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value))}
+                                    />
+                                </FormControl>
+                                <FormDescription>Dejar en 0 o vacío para cupo ilimitado.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+
+                {/* Categories Configuration */}
+                <div className="space-y-4 border rounded-lg p-4 bg-muted/5">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-medium">Configuración de Categorías</h3>
+                            <p className="text-sm text-muted-foreground">¿El evento se divide por categorías (ej. Elite, Master)?</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <FormLabel className="font-normal cursor-pointer" htmlFor="categories-toggle">
+                                {hasCategories ? "Sí" : "No"}
+                            </FormLabel>
+                            <Switch
+                                id="categories-toggle"
+                                checked={hasCategories}
+                                onCheckedChange={(checked) => {
+                                    setHasCategories(checked);
+                                    form.setValue('hasCategories', checked);
+                                    if (!checked) {
+                                        form.setValue('categories', []);
+                                    }
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    {hasCategories && (
+                        <div className="space-y-4 mt-4 animate-in fade-in slide-in-from-top-2">
+                            <div className="flex items-center justify-between">
+                                <FormLabel>Lista de Categorías</FormLabel>
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => appendCategory({ id: crypto.randomUUID(), name: '', description: '' })}
+                                >
+                                    <PlusCircle className="mr-2 h-3 w-3" /> Agregar Categoría
+                                </Button>
+                            </div>
+                            
+                            {categoryFields.map((field, index) => (
+                                <Card key={field.id}>
+                                    <CardContent className="p-4 space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <h4 className="text-sm font-semibold">Categoría {index + 1}</h4>
+                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeCategory(index)}>
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                            </Button>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <FormField
+                                                control={form.control}
+                                                name={`categories.${index}.name`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-xs">Nombre (Ej. Elite Varonil)</FormLabel>
+                                                        <FormControl><Input {...field} /></FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`categories.${index}.description`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-xs">Descripción / Requisitos (Opcional)</FormLabel>
+                                                        <FormControl><Input placeholder="Ej. 18-35 años" {...field} /></FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                            
+                            {categoryFields.length === 0 && (
+                                <p className="text-sm text-destructive text-center py-4">
+                                    Debes agregar al menos una categoría si la opción está habilitada.
+                                </p>
+                            )}
+                            
+                            {form.formState.errors.categories && (
+                                <p className="text-sm font-medium text-destructive">
+                                    {form.formState.errors.categories.message}
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Costs & Tiers */}
@@ -394,18 +519,18 @@ export function EventForm({ initialData }: EventFormProps) {
                                         type="button" 
                                         variant="outline" 
                                         size="sm" 
-                                        onClick={() => append({ id: crypto.randomUUID(), name: '', price: 0, includes: '' })}
+                                        onClick={() => appendCost({ id: crypto.randomUUID(), name: '', price: 0, includes: '' })}
                                     >
                                         <PlusCircle className="mr-2 h-3 w-3" /> Agregar Nivel
                                     </Button>
                                 </div>
                                 
-                                {fields.map((field, index) => (
+                                {costFields.map((field, index) => (
                                     <Card key={field.id}>
                                         <CardContent className="p-4 space-y-4">
                                             <div className="flex justify-between items-center">
                                                 <h4 className="text-sm font-semibold">Nivel {index + 1}</h4>
-                                                <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeCost(index)}>
                                                     <Trash2 className="h-4 w-4 text-destructive" />
                                                 </Button>
                                             </div>
@@ -447,7 +572,7 @@ export function EventForm({ initialData }: EventFormProps) {
                                         </CardContent>
                                     </Card>
                                 ))}
-                                {fields.length === 0 && (
+                                {costFields.length === 0 && (
                                     <p className="text-sm text-muted-foreground text-center py-4">
                                         Agrega al menos un nivel de precio si el evento tiene costo.
                                     </p>
