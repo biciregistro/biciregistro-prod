@@ -108,17 +108,6 @@ export function EventRegistrationCard({ event, user, isRegistered = false }: Eve
                         {isFree ? 'Gratuito' : (selectedTier ? `$${selectedTier.price} MXN` : 'Desde...')}
                     </span>
                 </div>
-
-                {event.googleMapsUrl && (
-                    <div className="pt-2">
-                        <Button variant="outline" className="w-full group border-dashed" asChild>
-                            <Link href={event.googleMapsUrl} target="_blank" rel="noopener noreferrer">
-                                <MapPin className="mr-2 h-4 w-4 group-hover:text-red-500 transition-colors" />
-                                Ver Mapa
-                            </Link>
-                        </Button>
-                    </div>
-                )}
                 
                 {/* Selection Logic (Only for logged in users not yet registered) */}
                 {user && !isRegistered && !isSoldOut && (

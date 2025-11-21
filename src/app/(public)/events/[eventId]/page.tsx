@@ -144,6 +144,21 @@ export default async function EventPage({ params }: EventPageProps) {
                                         <p className="font-medium text-foreground text-lg">{event.state}, {event.country}</p>
                                     </div>
                                 </div>
+                                
+                                {event.googleMapsUrl && (
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                            <MapPin className="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold uppercase tracking-wider text-foreground/70">Punto de Partida</p>
+                                            <Link href={event.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline text-lg flex items-center gap-1">
+                                                Ver Mapa
+                                            </Link>
+                                        </div>
+                                    </div>
+                                )}
+
                                  {/* Distance moved here */}
                                  {event.distance && event.distance > 0 && (
                                     <div className="flex items-center gap-3">
