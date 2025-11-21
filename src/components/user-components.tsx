@@ -1,12 +1,12 @@
 'use client';
 
-import { useActionState, useEffect, useState, useRef, useTransition } from 'react';
+import { useActionState, useEffect, useState, useRef, useTransition, Suspense } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { EmailAuthProvider, reauthenticateWithCredential, onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 
 import type { User, ActionFormState } from '@/lib/types';
@@ -104,8 +104,10 @@ export function PasswordStrengthIndicator({ password = "" }: { password?: string
     );
 }
 
-export function ProfileForm({ user, communityId }: { user?: User, communityId?: string }) {
+function ProfileFormContent({ user, communityId }: { user?: User, communityId?: string }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const callbackUrl = searchParams.get('callbackUrl');
     const formRef = useRef<HTMLFormElement>(null);
     const [isPending, startTransition] = useTransition();
     const isEditing = !!user;
@@ -186,7 +188,12 @@ export function ProfileForm({ user, communityId }: { user?: User, communityId?: 
                         });
                         if (!response.ok) throw new Error('La creación de la sesión en el servidor falló.');
                         toast({ title: '¡Éxito!', description: 'Por favor, completa tu perfil para continuar.' });
-                        router.push('/dashboard/profile');
+                        
+                        if (callbackUrl) {
+                            router.push(callbackUrl);
+                        } else {
+                            router.push('/dashboard/profile');
+                        }
                     } catch (sessionError) {
                         toast({ title: 'Error de Sesión', description: 'No pudimos sincronizar tu sesión. Por favor, intenta iniciar sesión manualmente.', variant: 'destructive' });
                         setIsSigningIn(false);
@@ -224,7 +231,7 @@ export function ProfileForm({ user, communityId }: { user?: User, communityId?: 
                 description: state.error,
             });
         }
-    }, [state, toast, form, isEditing, router]);
+    }, [state, toast, form, isEditing, router, callbackUrl]);
 
     const handleCountryChange = (countryName: string) => {
         const country = countries.find(c => c.name === countryName);
@@ -281,6 +288,8 @@ export function ProfileForm({ user, communityId }: { user?: User, communityId?: 
             });
         }
     };
+
+    const loginLink = callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login";
 
     return (
         <Form {...form}>
@@ -586,7 +595,7 @@ export function ProfileForm({ user, communityId }: { user?: User, communityId?: 
                             {!isEditing && (
                                  <div className="text-sm text-center text-muted-foreground">
                                     ¿Ya tienes una cuenta?{' '}
-                                    <Link href="/login" className="underline hover:text-primary">
+                                    <Link href={loginLink} className="underline hover:text-primary">
                                         Inicia Sesión
                                     </Link>
                                 </div>
@@ -596,5 +605,13 @@ export function ProfileForm({ user, communityId }: { user?: User, communityId?: 
                 </Card>
             </form>
         </Form>
+    );
+}
+
+export function ProfileForm({ user, communityId }: { user?: User, communityId?: string }) {
+    return (
+        <Suspense fallback={<div>Cargando formulario...</div>}>
+            <ProfileFormContent user={user} communityId={communityId} />
+        </Suspense>
     );
 }

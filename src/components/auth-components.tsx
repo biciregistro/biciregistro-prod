@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { signInWithEmailAndPassword, sendPasswordResetEmail, confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -15,15 +15,17 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Logo } from './icons/logo';
 import { PasswordStrengthIndicator } from './user-components';
 
-// LoginForm Component (existing component with added forgot password link)
-export function LoginForm() {
+function LoginFormContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { toast } = useToast();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+
+    const callbackUrl = searchParams.get('callbackUrl');
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -57,7 +59,9 @@ export function LoginForm() {
 
             toast({ title: "¡Éxito!", description: "Has iniciado sesión correctamente." });
 
-            if (sessionData.isAdmin) {
+            if (callbackUrl) {
+                router.push(callbackUrl);
+            } else if (sessionData.isAdmin) {
                 router.push('/admin');
             } else if (sessionData.isOng) {
                 router.push('/dashboard/ong');
@@ -135,9 +139,17 @@ export function LoginForm() {
                 </form>
             </CardContent>
             <CardFooter className="text-center text-sm">
-                <p>¿No tienes una cuenta? <Link href="/signup" className="underline">Regístrate</Link></p>
+                <p>¿No tienes una cuenta? <Link href={callbackUrl ? `/signup?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/signup"} className="underline">Regístrate</Link></p>
             </CardFooter>
         </Card>
+    );
+}
+
+export function LoginForm() {
+    return (
+        <Suspense fallback={<div>Cargando...</div>}>
+            <LoginFormContent />
+        </Suspense>
     );
 }
 
@@ -236,8 +248,7 @@ export function ForgotPasswordForm() {
     );
 }
 
-// New ResetPasswordForm Component
-export function ResetPasswordForm() {
+function ResetPasswordFormContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
@@ -402,5 +413,13 @@ export function ResetPasswordForm() {
                 </form>
             </CardContent>
         </Card>
+    );
+}
+
+export function ResetPasswordForm() {
+    return (
+        <Suspense fallback={<div>Cargando...</div>}>
+            <ResetPasswordFormContent />
+        </Suspense>
     );
 }

@@ -52,6 +52,12 @@ export default async function EventPage({ params }: EventPageProps) {
 
   const eventDate = new Date(event.date);
 
+  // Construct callback URLs for auth flow
+  const eventUrl = `/events/${params.eventId}`;
+  const loginUrl = `/login?callbackUrl=${encodeURIComponent(eventUrl)}`;
+  // If we want to link the user to the community on signup, we could add communityId logic here if supported by signup page via params
+  const signupUrl = `/signup?callbackUrl=${encodeURIComponent(eventUrl)}`;
+
   return (
     <div className="min-h-screen bg-muted/5 pb-12">
       {/* Draft Warning Banner */}
@@ -277,13 +283,29 @@ export default async function EventPage({ params }: EventPageProps) {
                         )}
 
                         <div className="pt-2">
-                            <Button size="lg" className="w-full text-lg font-bold shadow-lg shadow-primary/20 h-12" disabled={event.status === 'draft'}>
-                                {event.status === 'draft' ? 'No disponible' : 'Registrarme Ahora'}
-                            </Button>
-                            {event.status !== 'draft' && (
-                                <p className="text-xs text-center text-muted-foreground mt-3">
-                                    * Se requiere cuenta en Biciregistro
-                                </p>
+                            {user ? (
+                                <>
+                                    <Button size="lg" className="w-full text-lg font-bold shadow-lg shadow-primary/20 h-12" disabled={event.status === 'draft'}>
+                                        {event.status === 'draft' ? 'No disponible' : 'Registrarme Ahora'}
+                                    </Button>
+                                    {event.status !== 'draft' && (
+                                        <p className="text-xs text-center text-muted-foreground mt-3">
+                                            * Confirmarás tus datos en el siguiente paso.
+                                        </p>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="space-y-3">
+                                    <Button size="lg" variant="outline" className="w-full font-semibold border-primary/50 hover:bg-primary/5" asChild>
+                                        <Link href={loginUrl}>Iniciar Sesión</Link>
+                                    </Button>
+                                    <Button size="lg" className="w-full font-bold shadow-md" asChild>
+                                        <Link href={signupUrl}>Crear Cuenta</Link>
+                                    </Button>
+                                    <p className="text-xs text-center text-muted-foreground mt-2">
+                                        Para inscribirte al evento necesitas una cuenta en BiciRegistro.
+                                    </p>
+                                </div>
                             )}
                         </div>
                     </CardContent>
