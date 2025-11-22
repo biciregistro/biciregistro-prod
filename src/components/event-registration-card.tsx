@@ -74,7 +74,8 @@ export function EventRegistrationCard({ event, user, isRegistered = false }: Eve
                     description: "Te has registrado correctamente al evento.",
                 });
                 setIsModalOpen(false);
-                router.refresh(); // Update UI state
+                // Redirect to the dashboard events tab
+                router.push('/dashboard?tab=events');
             } else {
                 toast({
                     variant: "destructive",
