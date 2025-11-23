@@ -486,6 +486,51 @@ export async function registerUserToEvent(
     }
 }
 
+export async function cancelEventRegistration(eventId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+    const db = adminDb;
+    try {
+        return await db.runTransaction(async (transaction) => {
+            const eventRef = db.collection('events').doc(eventId);
+            
+            const query = db.collection('event-registrations')
+                .where('userId', '==', userId)
+                .where('eventId', '==', eventId)
+                .limit(1);
+            
+            const snapshot = await transaction.get(query);
+            if (snapshot.empty) {
+                return { success: false, error: "No se encontró el registro." };
+            }
+            
+            const regDoc = snapshot.docs[0];
+            const registration = regDoc.data() as EventRegistration;
+
+            if (registration.status === 'cancelled') {
+                return { success: false, error: "La inscripción ya está cancelada." };
+            }
+
+            // Get event to check participant count integrity
+            const eventDoc = await transaction.get(eventRef);
+            if (!eventDoc.exists) {
+                 return { success: false, error: "El evento no existe." };
+            }
+            const currentParticipants = eventDoc.data()?.currentParticipants || 0;
+
+            // Update registration status
+            transaction.update(regDoc.ref, { status: 'cancelled' });
+
+            // Decrement participant count
+            const newCount = Math.max(0, currentParticipants - 1);
+            transaction.update(eventRef, { currentParticipants: newCount });
+
+            return { success: true };
+        });
+    } catch (error) {
+        console.error("Error cancelling registration:", error);
+        return { success: false, error: "Error al cancelar la inscripción." };
+    }
+}
+
 export async function getEventAttendees(eventId: string): Promise<EventAttendee[]> {
     if (!eventId) return [];
     

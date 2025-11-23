@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, MapPin, Clock, ArrowLeft, MessageCircle, CreditCard, Tag, Trophy } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy } from 'lucide-react';
+import { EventActionCard } from '@/components/dashboard/event-action-card';
 
 export default async function EventRegistrationDetailsPage({ params }: { params: { id: string } }) {
   const user = await getAuthenticatedUser();
@@ -49,7 +50,7 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
         </Link>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h1 className="text-3xl font-bold">{event.name}</h1>
-            <Badge variant={registration.status === 'confirmed' ? 'default' : 'secondary'} className="text-base px-3 py-1">
+            <Badge variant={registration.status === 'confirmed' ? 'default' : 'secondary'} className="text-base px-3 py-1 capitalize">
                 {registration.status === 'confirmed' ? 'Registro Confirmado' : registration.status}
             </Badge>
         </div>
@@ -133,33 +134,12 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
 
         {/* Actions Sidebar */}
         <div className="space-y-6">
-            <Card className="border-primary/20 shadow-md">
-                <CardHeader>
-                    <CardTitle className="text-lg">Acciones</CardTitle>
-                    <CardDescription>Gestiona tu participación</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {ongProfile?.contactWhatsapp && (
-                        <Button className="w-full bg-green-600 hover:bg-green-700 text-white" asChild>
-                            <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-                                <MessageCircle className="mr-2 h-4 w-4" />
-                                Enviar Comprobante
-                            </Link>
-                        </Button>
-                    )}
-                    
-                    <Button variant="outline" className="w-full" disabled>
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Pagar en Línea (Próximamente)
-                    </Button>
-
-                    <Button variant="ghost" className="w-full" asChild>
-                        <Link href={`/events/${event.id}`}>
-                            Ver Página Pública
-                        </Link>
-                    </Button>
-                </CardContent>
-            </Card>
+            <EventActionCard 
+                event={event} 
+                registration={registration} 
+                ongProfile={ongProfile} 
+                whatsappUrl={whatsappUrl} 
+            />
         </div>
       </div>
     </div>

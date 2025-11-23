@@ -19,6 +19,7 @@ import {
     getEvent,
     isSerialNumberUnique,
     registerUserToEvent,
+    cancelEventRegistration,
 } from './data';
 import { deleteSession, getDecodedSession } from './auth';
 import { ActionFormState, HomepageSection, Feature, BikeFormState, Event } from './types';
@@ -615,4 +616,22 @@ export async function toggleEventStatusAction(eventId: string, newStatus: 'draft
         console.error("Error toggling event status:", error);
         return { success: false, error: "Ocurrió un error al actualizar el estado del evento." };
     }
+}
+
+export async function cancelRegistrationAction(eventId: string): Promise<{ success: boolean; error?: string }> {
+    const session = await getDecodedSession();
+    
+    if (!session?.uid) {
+        return { success: false, error: "Debes iniciar sesión." };
+    }
+
+    const result = await cancelEventRegistration(eventId, session.uid);
+
+    if (result.success) {
+        revalidatePath(`/dashboard/events/${eventId}`);
+        revalidatePath('/dashboard');
+        revalidatePath(`/events/${eventId}`);
+    }
+
+    return result;
 }
