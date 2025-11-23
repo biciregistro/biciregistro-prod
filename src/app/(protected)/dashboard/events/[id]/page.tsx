@@ -94,6 +94,20 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                                 <p className="font-medium">{event.state}, {event.country}</p>
                             </div>
                         </div>
+                        
+                        {event.googleMapsUrl && (
+                            <div className="flex items-center gap-3 sm:col-span-2">
+                                <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                    <MapPin className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold uppercase text-muted-foreground">Punto de Partida</p>
+                                    <Link href={event.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
+                                        Ver en Google Maps
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </CardContent>
             </Card>
@@ -109,10 +123,24 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                             <p className="text-sm text-muted-foreground mb-1 flex items-center gap-1"><Tag className="h-3 w-3" /> Nivel de Acceso</p>
                             <p className="text-lg font-semibold">{tierName}</p>
                             {price > 0 && <p className="text-sm font-medium text-primary">${price} MXN</p>}
+                            
+                            {tier?.includes && (
+                                <div className="mt-2 p-2 bg-muted rounded-md">
+                                    <p className="text-xs font-semibold mb-1">Incluye (Kit):</p>
+                                    <p className="text-xs text-muted-foreground">{tier.includes}</p>
+                                </div>
+                            )}
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground mb-1 flex items-center gap-1"><Trophy className="h-3 w-3" /> Categoría</p>
                             <p className="text-lg font-semibold">{categoryName}</p>
+                            
+                            {category?.description && (
+                                <div className="mt-2 p-2 bg-muted rounded-md">
+                                    <p className="text-xs font-semibold mb-1">Detalles:</p>
+                                    <p className="text-xs text-muted-foreground">{category.description}</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                     
