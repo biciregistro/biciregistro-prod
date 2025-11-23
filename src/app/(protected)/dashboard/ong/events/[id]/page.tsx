@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ArrowLeft, Edit, Eye, Users, Calendar, MapPin, Share2, MessageCircle } from 'lucide-react';
 import { CopyButton } from '@/components/ong-components';
 import { EventStatusButton } from '@/components/ong/event-status-button';
+import { cn } from '@/lib/utils';
 
 export default async function EventDetailsPage({ params }: { params: { id: string } }) {
   const user = await getAuthenticatedUser();
@@ -128,7 +129,7 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
                     <TableBody>
                         {attendees.length > 0 ? (
                             attendees.map((attendee) => (
-                                <TableRow key={attendee.id}>
+                                <TableRow key={attendee.id} className={cn(attendee.status === 'cancelled' && "bg-muted/50 opacity-60")}>
                                     <TableCell className="font-medium">{attendee.name} {attendee.lastName}</TableCell>
                                     <TableCell>{attendee.email}</TableCell>
                                     <TableCell>
@@ -150,8 +151,12 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
                                     <TableCell>{attendee.tierName}</TableCell>
                                     <TableCell>{attendee.categoryName}</TableCell>
                                     <TableCell className="text-right">
-                                        <Badge variant="outline" className="capitalize">
-                                            {attendee.status === 'confirmed' ? 'Confirmado' : attendee.status}
+                                        <Badge 
+                                            variant={attendee.status === 'cancelled' ? 'destructive' : 'outline'} 
+                                            className="capitalize"
+                                        >
+                                            {attendee.status === 'confirmed' ? 'Confirmado' : 
+                                             attendee.status === 'cancelled' ? 'Cancelado' : attendee.status}
                                         </Badge>
                                     </TableCell>
                                 </TableRow>
