@@ -120,6 +120,8 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
                             <TableHead>Nombre</TableHead>
                             <TableHead>Correo Electrónico</TableHead>
                             <TableHead>Whatsapp</TableHead>
+                            <TableHead>Bicicleta</TableHead>
+                            <TableHead>Serie</TableHead>
                             <TableHead>Fecha Registro</TableHead>
                             <TableHead>Nivel</TableHead>
                             <TableHead>Categoría</TableHead>
@@ -147,6 +149,23 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
                                             <span className="text-muted-foreground text-sm">N/A</span>
                                         )}
                                     </TableCell>
+                                    <TableCell>
+                                        {attendee.bike ? (
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-sm">{attendee.bike.make}</span>
+                                                <span className="text-xs text-muted-foreground">{attendee.bike.model}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-muted-foreground">-</span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>
+                                        {attendee.bike ? (
+                                            <span className="font-mono text-xs">{attendee.bike.serialNumber}</span>
+                                        ) : (
+                                            <span className="text-muted-foreground">-</span>
+                                        )}
+                                    </TableCell>
                                     <TableCell>{new Date(attendee.registrationDate).toLocaleDateString()}</TableCell>
                                     <TableCell>{attendee.tierName}</TableCell>
                                     <TableCell>{attendee.categoryName}</TableCell>
@@ -163,7 +182,7 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={7} className="h-24 text-center">
+                                <TableCell colSpan={9} className="h-24 text-center">
                                     No hay participantes registrados aún.
                                 </TableCell>
                             </TableRow>

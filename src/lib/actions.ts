@@ -20,6 +20,7 @@ import {
     isSerialNumberUnique,
     registerUserToEvent,
     cancelEventRegistration,
+    updateEventRegistrationBike,
 } from './data';
 import { deleteSession, getDecodedSession } from './auth';
 import { ActionFormState, HomepageSection, Feature, BikeFormState, Event } from './types';
@@ -631,6 +632,23 @@ export async function cancelRegistrationAction(eventId: string): Promise<{ succe
         revalidatePath(`/dashboard/events/${eventId}`);
         revalidatePath('/dashboard');
         revalidatePath(`/events/${eventId}`);
+    }
+
+    return result;
+}
+
+export async function selectEventBikeAction(eventId: string, bikeId: string): Promise<{ success: boolean; error?: string }> {
+    const session = await getDecodedSession();
+    
+    if (!session?.uid) {
+        return { success: false, error: "Debes iniciar sesión." };
+    }
+
+    const result = await updateEventRegistrationBike(eventId, session.uid, bikeId);
+
+    if (result.success) {
+        revalidatePath(`/dashboard/events/${eventId}`);
+        revalidatePath(`/dashboard/ong/events/${eventId}`); 
     }
 
     return result;

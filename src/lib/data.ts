@@ -426,6 +426,29 @@ export async function getUserRegistrationForEvent(userId: string, eventId: strin
     }
 }
 
+export async function updateEventRegistrationBike(eventId: string, userId: string, bikeId: string): Promise<{ success: boolean; error?: string }> {
+    const db = adminDb;
+    try {
+        const query = db.collection('event-registrations')
+            .where('userId', '==', userId)
+            .where('eventId', '==', eventId)
+            .limit(1);
+        
+        const snapshot = await query.get();
+        if (snapshot.empty) {
+            return { success: false, error: "No se encontró el registro." };
+        }
+        
+        const regDoc = snapshot.docs[0];
+        await regDoc.ref.update({ bikeId });
+        
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating registration bike:", error);
+        return { success: false, error: "No se pudo vincular la bicicleta." };
+    }
+}
+
 export async function registerUserToEvent(
     registrationData: Omit<EventRegistration, 'id' | 'registrationDate' | 'status'>
 ): Promise<{ success: boolean; message?: string; error?: string }> {
@@ -558,6 +581,19 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
             const regData = doc.data() as EventRegistration;
             const user = await getUser(regData.userId);
             
+            let bikeData = undefined;
+            if (regData.bikeId) {
+                const bike = await getBike(regData.userId, regData.bikeId);
+                if (bike) {
+                    bikeData = {
+                        id: bike.id,
+                        make: bike.make,
+                        model: bike.model,
+                        serialNumber: bike.serialNumber
+                    };
+                }
+            }
+            
             return {
                 id: doc.id,
                 userId: regData.userId,
@@ -569,6 +605,7 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 tierName: regData.tierId ? tiersMap.get(regData.tierId) || 'N/A' : (event.costType === 'Gratuito' ? 'Gratuito' : 'N/A'),
                 categoryName: regData.categoryId ? categoriesMap.get(regData.categoryId) || 'N/A' : 'N/A',
                 status: regData.status,
+                bike: bikeData,
             };
         });
 

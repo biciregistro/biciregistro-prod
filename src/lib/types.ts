@@ -121,6 +121,7 @@ export type EventRegistration = {
     price?: number;
     categoryId?: string;
     categoryName?: string;
+    bikeId?: string;
 };
 
 export type EventAttendee = {
@@ -134,6 +135,12 @@ export type EventAttendee = {
     tierName: string;
     categoryName: string;
     status: 'confirmed' | 'cancelled';
+    bike?: {
+        id: string;
+        make: string;
+        model: string;
+        serialNumber: string;
+    };
 };
 
 export type UserEventRegistration = EventRegistration & {

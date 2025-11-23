@@ -1,12 +1,13 @@
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getAuthenticatedUser, getEvent, getUserRegistrationForEvent, getOngProfile } from '@/lib/data';
+import { getAuthenticatedUser, getEvent, getUserRegistrationForEvent, getOngProfile, getBikes } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy } from 'lucide-react';
 import { EventActionCard } from '@/components/dashboard/event-action-card';
+import { EventBikeSelector } from '@/components/dashboard/event-bike-selector';
 
 export default async function EventRegistrationDetailsPage({ params }: { params: { id: string } }) {
   const user = await getAuthenticatedUser();
@@ -27,6 +28,7 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
 
   const ongProfile = await getOngProfile(event.ongId);
   const eventDate = new Date(event.date);
+  const userBikes = await getBikes(user.id);
 
   // Resolve names from IDs if they are not stored in registration (which they currently aren't fully reliable)
   // But for now we use what we have or map from event
@@ -111,6 +113,9 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Bike Selector Card */}
+            <EventBikeSelector userBikes={userBikes} registration={registration} eventId={event.id} />
 
             {/* Registration Details Card */}
             <Card>
