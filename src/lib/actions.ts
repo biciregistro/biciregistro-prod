@@ -27,7 +27,8 @@ import { ActionFormState, HomepageSection, Feature, BikeFormState, Event } from 
 import { userFormSchema, ongUserFormSchema, BikeRegistrationSchema, eventFormSchema } from './schemas';
 import { adminAuth } from './firebase/server';
 
-// ... (Rest of imports and schema definitions remain unchanged)
+// ... (rest of the file content remains the same until saveEvent) ...
+
 const optionalString = (schema: z.ZodString) =>
     z.preprocess((val) => (val === '' ? undefined : val), schema.optional());
 
@@ -541,7 +542,7 @@ export async function saveEvent(eventData: any, isDraft: boolean): Promise<Actio
         }
 
         // Dynamic revalidation based on role
-        if (session.role === 'admin') {
+        if (session.admin === true) {
              revalidatePath('/admin');
         } else {
              revalidatePath('/dashboard/ong');
@@ -583,7 +584,7 @@ export async function registerForEventAction(
 export async function toggleEventStatusAction(eventId: string, newStatus: 'draft' | 'published'): Promise<{ success: boolean; error?: string }> {
     const session = await getDecodedSession();
     
-    if (!session?.uid || (session.role !== 'ong' && session.role !== 'admin')) {
+    if (!session?.uid || (session.role !== 'ong' && session.admin !== true)) {
         return { success: false, error: "No tienes permisos para realizar esta acción." };
     }
 
@@ -599,7 +600,7 @@ export async function toggleEventStatusAction(eventId: string, newStatus: 'draft
 
         await updateEvent(eventId, { status: newStatus });
         revalidatePath(`/dashboard/ong/events/${eventId}`);
-        if (session.role === 'admin') {
+        if (session.admin === true) {
              revalidatePath('/admin');
         }
         
