@@ -210,9 +210,11 @@ export function HomepageEditor({ sections }: { sections: HomepageSection[] }) {
 function UserSearch() {
   const searchParams = useSearchParams();
   const currentQuery = searchParams.get('query') || '';
+  const currentTab = searchParams.get('tab');
 
   return (
     <form method="GET" className="flex items-center gap-2 mb-6">
+      {currentTab && <input type="hidden" name="tab" value={currentTab} />}
       <Input
         type="search"
         name="query"
@@ -225,7 +227,7 @@ function UserSearch() {
         Buscar
       </Button>
       {currentQuery && (
-        <Link href="/admin/users">
+        <Link href={currentTab ? `/admin?tab=${currentTab}` : '/admin'}>
           <Button variant="outline">
             <X className="h-4 w-4 mr-2" />
             Limpiar
