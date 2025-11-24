@@ -1,5 +1,5 @@
 import 'server-only';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp, FieldPath } from 'firebase-admin/firestore';
 import type { User, OngUser, Bike, BikeStatus, HomepageSection, UserRole, Event, EventRegistration, EventAttendee, UserEventRegistration } from './types';
 import { getDecodedSession } from '@/lib/auth';
 import { adminDb, adminAuth } from './firebase/server';
@@ -647,6 +647,78 @@ export async function getUserEventRegistrations(userId: string): Promise<UserEve
 
     } catch (error) {
         console.error("Error fetching user event registrations:", error);
+        return [];
+    }
+}
+
+// NEW FUNCTION
+export async function getOngCommunityMembers(ongId: string): Promise<any[]> {
+    if (!ongId) return [];
+    try {
+        const db = adminDb;
+        const userIds = new Set<string>();
+
+        // 1. Get direct users
+        const directUsersSnapshot = await db.collection('users')
+            .where('communityId', '==', ongId)
+            .get();
+        
+        directUsersSnapshot.forEach(doc => userIds.add(doc.id));
+
+        // 2. Get event attendees (optimized batch)
+        const events = await getEventsByOngId(ongId);
+        const eventIds = events.map(e => e.id);
+
+        if (eventIds.length > 0) {
+             // Firestore 'in' query limit is 10
+             for (let i = 0; i < eventIds.length; i += 10) {
+                 const chunk = eventIds.slice(i, i + 10);
+                 const registrationsSnapshot = await db.collection('event-registrations')
+                    .where('eventId', 'in', chunk)
+                    .get();
+                 registrationsSnapshot.forEach(doc => {
+                     const data = doc.data();
+                     if (data.userId) userIds.add(data.userId);
+                 });
+             }
+        }
+
+        if (userIds.size === 0) return [];
+
+        // 3. Fetch user details efficiently (without bikes)
+        const userIdsArray = Array.from(userIds);
+        const members: any[] = [];
+
+        // Fetch users in batches of 10
+        for (let i = 0; i < userIdsArray.length; i += 10) {
+            const chunk = userIdsArray.slice(i, i + 10);
+            
+            if (chunk.length === 0) continue;
+
+            const usersSnapshot = await db.collection('users')
+                .where(FieldPath.documentId(), 'in', chunk)
+                .get();
+            
+            const chunkMembers = usersSnapshot.docs.map(doc => {
+                const userData = doc.data();
+                return {
+                    id: doc.id,
+                    name: userData.name,
+                    lastName: userData.lastName,
+                    email: userData.email,
+                    whatsapp: userData.whatsapp,
+                    country: userData.country,
+                    state: userData.state,
+                };
+            });
+
+            members.push(...chunkMembers);
+        }
+
+        return members;
+
+    } catch (error) {
+        console.error("Error fetching community members:", error);
         return [];
     }
 }
