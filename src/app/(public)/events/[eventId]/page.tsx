@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { getEvent, getAuthenticatedUser, getOngProfile, getOngFollowersCount, getUserRegistrationForEvent } from '@/lib/data';
+import { getEvent, getAuthenticatedUser, getOngProfile, getOngCommunityCount, getUserRegistrationForEvent } from '@/lib/data';
 import { EventRegistrationCard } from '@/components/event-registration-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,7 +49,9 @@ export default async function EventPage({ params }: EventPageProps) {
   }
 
   const ongProfile = await getOngProfile(event.ongId);
-  const followersCount = await getOngFollowersCount(event.ongId);
+  // Updated to use the comprehensive community count (cached)
+  const followersCount = await getOngCommunityCount(event.ongId);
+  
   const registration = user ? await getUserRegistrationForEvent(user.id, event.id) : null;
   const isRegistered = !!registration;
 

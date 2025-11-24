@@ -1,11 +1,14 @@
 import 'server-only';
 import { FieldValue, Timestamp, FieldPath } from 'firebase-admin/firestore';
+import { unstable_cache } from 'next/cache';
 import type { User, OngUser, Bike, BikeStatus, HomepageSection, UserRole, Event, EventRegistration, EventAttendee, UserEventRegistration } from './types';
 import { getDecodedSession } from '@/lib/auth';
 import { adminDb, adminAuth } from './firebase/server';
 import { defaultHomepageData } from './homepage-data';
 import { firebaseConfig } from './firebase/config';
 import { UserRecord } from 'firebase-admin/auth';
+
+// ... (rest of the file content unchanged until getOngCommunityCount)
 
 // --- Helper Functions ---
 
@@ -651,7 +654,7 @@ export async function getUserEventRegistrations(userId: string): Promise<UserEve
     }
 }
 
-// NEW FUNCTION
+// Optimized function for displaying community list
 export async function getOngCommunityMembers(ongId: string): Promise<any[]> {
     if (!ongId) return [];
     try {
@@ -722,3 +725,51 @@ export async function getOngCommunityMembers(ongId: string): Promise<any[]> {
         return [];
     }
 }
+
+// INTERNAL LOGIC FOR COUNTING
+async function _getOngCommunityCountLogic(ongId: string): Promise<number> {
+    if (!ongId) return 0;
+    try {
+        const db = adminDb;
+        const userIds = new Set<string>();
+
+        // 1. Get direct users (projection only ID)
+        const directUsersSnapshot = await db.collection('users')
+            .where('communityId', '==', ongId)
+            .select() 
+            .get();
+        
+        directUsersSnapshot.forEach(doc => userIds.add(doc.id));
+
+        // 2. Get event attendees
+        const events = await getEventsByOngId(ongId);
+        const eventIds = events.map(e => e.id);
+
+        if (eventIds.length > 0) {
+             for (let i = 0; i < eventIds.length; i += 10) {
+                 const chunk = eventIds.slice(i, i + 10);
+                 const registrationsSnapshot = await db.collection('event-registrations')
+                    .where('eventId', 'in', chunk)
+                    .select('userId')
+                    .get();
+                 registrationsSnapshot.forEach(doc => {
+                     const data = doc.data();
+                     if (data.userId) userIds.add(data.userId);
+                 });
+             }
+        }
+
+        return userIds.size;
+
+    } catch (error) {
+        console.error("Error counting community members:", error);
+        return 0;
+    }
+}
+
+// CACHED EXPORTED FUNCTION
+export const getOngCommunityCount = unstable_cache(
+    async (ongId: string) => _getOngCommunityCountLogic(ongId),
+    ['ong-community-count'],
+    { revalidate: 3600, tags: ['community-count'] }
+);
