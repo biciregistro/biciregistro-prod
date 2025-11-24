@@ -27,8 +27,7 @@ import { ActionFormState, HomepageSection, Feature, BikeFormState, Event } from 
 import { userFormSchema, ongUserFormSchema, BikeRegistrationSchema, eventFormSchema } from './schemas';
 import { adminAuth } from './firebase/server';
 
-// ... (resto del código existente sin cambios hasta logout) ...
-
+// ... (Rest of imports and schema definitions remain unchanged)
 const optionalString = (schema: z.ZodString) =>
     z.preprocess((val) => (val === '' ? undefined : val), schema.optional());
 
@@ -535,11 +534,18 @@ export async function saveEvent(eventData: any, isDraft: boolean): Promise<Actio
         if (eventId) {
             await updateEvent(eventId, payload);
             revalidatePath(`/dashboard/ong/events/${eventId}`);
+            // If editing, we revalidate the specific path
+            // For admins, we might want to revalidate admin paths too if we had a detail view
         } else {
             await createEvent(payload);
         }
 
-        revalidatePath('/dashboard/ong');
+        // Dynamic revalidation based on role
+        if (session.role === 'admin') {
+             revalidatePath('/admin');
+        } else {
+             revalidatePath('/dashboard/ong');
+        }
         
         return { success: true, message: isDraft ? 'Borrador guardado exitosamente.' : 'Evento publicado exitosamente.' };
 
@@ -577,7 +583,7 @@ export async function registerForEventAction(
 export async function toggleEventStatusAction(eventId: string, newStatus: 'draft' | 'published'): Promise<{ success: boolean; error?: string }> {
     const session = await getDecodedSession();
     
-    if (!session?.uid || session.role !== 'ong') {
+    if (!session?.uid || (session.role !== 'ong' && session.role !== 'admin')) {
         return { success: false, error: "No tienes permisos para realizar esta acción." };
     }
 
@@ -593,6 +599,9 @@ export async function toggleEventStatusAction(eventId: string, newStatus: 'draft
 
         await updateEvent(eventId, { status: newStatus });
         revalidatePath(`/dashboard/ong/events/${eventId}`);
+        if (session.role === 'admin') {
+             revalidatePath('/admin');
+        }
         
         return { success: true };
     } catch (error) {

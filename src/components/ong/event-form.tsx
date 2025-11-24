@@ -4,7 +4,7 @@ import { useTransition, useState, useEffect } from 'react';
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 import { eventFormSchema } from '@/lib/schemas';
 import { saveEvent } from '@/lib/actions';
@@ -42,6 +42,7 @@ export function EventForm({ initialData }: EventFormProps) {
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
     const router = useRouter();
+    const pathname = usePathname();
     
     // Initialize location state based on initial data or default
     const defaultCountryName = initialData?.country || 'México';
@@ -124,7 +125,13 @@ export function EventForm({ initialData }: EventFormProps) {
                     title: isDraft ? "Borrador Guardado" : "Evento Publicado",
                     description: result.message,
                 });
-                router.push('/dashboard/ong');
+                
+                // Dynamic redirection based on user role/path
+                if (pathname.startsWith('/admin')) {
+                    router.push('/admin?tab=events');
+                } else {
+                    router.push('/dashboard/ong');
+                }
             } else {
                 toast({
                     variant: "destructive",

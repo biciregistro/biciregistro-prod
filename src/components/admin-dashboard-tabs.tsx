@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HomepageEditor, UsersTable, OngUsersTable } from '@/components/admin-components';
-import { HomepageSection, User, OngUser } from '@/lib/types';
+import { HomepageSection, User, OngUser, Event } from '@/lib/types';
+import { EventCard } from '@/components/ong/event-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info, UserPlus } from 'lucide-react';
+import { Info, UserPlus, CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface AdminDashboardTabsProps {
@@ -15,9 +16,10 @@ interface AdminDashboardTabsProps {
   users: User[];
   nextPageToken?: string;
   ongs: OngUser[];
+  events: Event[];
 }
 
-function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ongs }: AdminDashboardTabsProps) {
+function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ongs, events }: AdminDashboardTabsProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -47,11 +49,12 @@ function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ong
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-      <TabsList className="grid w-full grid-cols-4 mb-8">
+      <TabsList className="grid w-full grid-cols-5 mb-8">
         <TabsTrigger value="stats">Indicadores</TabsTrigger>
         <TabsTrigger value="content">Gestión de Contenido</TabsTrigger>
         <TabsTrigger value="users">Gestión de Usuarios</TabsTrigger>
         <TabsTrigger value="ongs">Gestión de ONGs</TabsTrigger>
+        <TabsTrigger value="events">Gestión de Eventos</TabsTrigger>
       </TabsList>
 
       <TabsContent value="stats" className="space-y-4">
@@ -82,6 +85,34 @@ function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ong
             </Link>
          </div>
         <OngUsersTable ongs={ongs} />
+      </TabsContent>
+
+      <TabsContent value="events" className="space-y-4">
+        <div className="flex justify-end mb-4">
+            <Link href="/admin/events/create">
+              <Button>
+                  <CalendarPlus className="mr-2 h-4 w-4" />
+                  Crear Nuevo Evento
+              </Button>
+            </Link>
+        </div>
+        
+        {events.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {events.map((event) => (
+              <EventCard key={event.id} event={event} basePath="/admin/events" />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 border rounded-lg bg-muted/10">
+            <p className="text-muted-foreground mb-4">No has creado ningún evento aún.</p>
+            <Link href="/admin/events/create">
+                <Button variant="outline">
+                    Crear mi primer evento
+                </Button>
+            </Link>
+          </div>
+        )}
       </TabsContent>
     </Tabs>
   );

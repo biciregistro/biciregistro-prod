@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getAuthenticatedUser, getHomepageData, getUsers, getOngUsers } from '@/lib/data';
+import { getAuthenticatedUser, getHomepageData, getUsers, getOngUsers, getEventsByOngId } from '@/lib/data';
 import type { HomepageSection } from '@/lib/types';
 import { AdminDashboardTabs } from '@/components/admin-dashboard-tabs';
 
@@ -18,10 +18,11 @@ export default async function AdminPage({
   const pageToken = typeof searchParams['pageToken'] === 'string' ? searchParams['pageToken'] : undefined;
 
   // Parallel data fetching for performance
-  const [homepageData, usersData, ongs] = await Promise.all([
+  const [homepageData, usersData, ongs, adminEvents] = await Promise.all([
     getHomepageData(),
     getUsers({ query, pageToken }),
-    getOngUsers()
+    getOngUsers(),
+    getEventsByOngId(user.id)
   ]);
 
   const { users, nextPageToken } = usersData;
@@ -49,7 +50,8 @@ export default async function AdminPage({
           homepageSections={homepageSections} 
           users={users} 
           nextPageToken={nextPageToken} 
-          ongs={ongs} 
+          ongs={ongs}
+          events={adminEvents}
         />
       </div>
     </div>

@@ -15,14 +15,19 @@ const statusStyles: { [key in Event['status']]: string } = {
   published: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700',
 };
 
-export function EventCard({ event }: { event: Event }) {
+interface EventCardProps {
+    event: Event;
+    basePath?: string;
+}
+
+export function EventCard({ event, basePath = '/dashboard/ong/events' }: EventCardProps) {
   const eventImage = event.imageUrl || '/placeholder.svg'; // Provide a default placeholder
   const eventDate = new Date(event.date);
 
   return (
     <Card className="overflow-hidden transition-all hover:shadow-lg w-full flex flex-col group">
       <CardHeader className="p-0">
-        <Link href={`/dashboard/ong/events/${event.id}`} className="block cursor-pointer">
+        <Link href={`${basePath}/${event.id}`} className="block cursor-pointer">
             <AspectRatio ratio={16 / 9}>
             <Image
                 src={eventImage}
@@ -37,7 +42,7 @@ export function EventCard({ event }: { event: Event }) {
       <div className="p-4 flex flex-col flex-grow">
         <div className="flex-grow">
             <div className="flex justify-between items-start mb-2">
-                <Link href={`/dashboard/ong/events/${event.id}`} className="hover:underline decoration-primary">
+                <Link href={`${basePath}/${event.id}`} className="hover:underline decoration-primary">
                     <CardTitle className="text-xl leading-tight line-clamp-2">{event.name}</CardTitle>
                 </Link>
                  <Badge className={cn("text-xs capitalize shrink-0 ml-2", statusStyles[event.status])}>
@@ -59,7 +64,7 @@ export function EventCard({ event }: { event: Event }) {
             </Link>
           </Button>
           <Button asChild size="sm" className="w-full">
-            <Link href={`/dashboard/ong/events/${event.id}`}> 
+            <Link href={`${basePath}/${event.id}`}> 
               <Settings className="mr-2 h-4 w-4" />
               Gestionar
             </Link>
