@@ -220,7 +220,13 @@ export async function updateFeatureItem(prevState: ActionFormState, formData: Fo
         }
 
         featuresSection.features[featureIndex] = { ...featuresSection.features[featureIndex], ...featureData };
-        await updateHomepageSectionData(featuresSection);
+        
+        const updatedFeaturesSection: HomepageSection = {
+            ...featuresSection,
+            id: 'features', 
+        };
+
+        await updateHomepageSectionData(updatedFeaturesSection);
 
         revalidatePath('/');
         return { success: true, message: "Característica actualizada correctamente." };
@@ -255,7 +261,6 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         let passwordChanged = false;
         if (newPassword) {
             await adminAuth.updateUser(session.uid, { password: newPassword });
-            // After changing the password, immediately delete the session cookie.
             await deleteSession();
             passwordChanged = true;
         }
@@ -277,7 +282,6 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
     }
 }
 
-// ... (rest of the file remains the same)
 export async function registerBike(prevState: BikeFormState, formData: FormData): Promise<BikeFormState> {
     const session = await getDecodedSession();
     if (!session?.uid) {
@@ -500,27 +504,12 @@ export async function forceLogout() {
     await deleteSession();
 }
 
-// --- Event Server Action ---
-
-// We receive raw JSON instead of FormData because we use a complex nested structure (costTiers array)
-// which is easier to handle as JSON than parsing form data keys.
-// However, to stick to the pattern of other actions if preferred, we could use FormData and careful parsing.
-// Given the complexity of costTiers, JSON is safer here. BUT, Server Actions usually take FormData.
-// Let's adapt to take the object directly since we'll call it from a client component using `useActionState` which might expect FormData
-// OR we can just make it an async function that we call from the client component's event handler.
-//
-// For consistency with other forms (and useActionState support), we'll use the pattern where the client prepares the data.
-// But `useActionState` works best with FormData.
-// Given the requirement for "costTiers" array, handling that via FormData is tricky.
-// We will create a server action that accepts the raw object, and we will call it directly from the client component's `onSubmit`.
-
 export async function saveEvent(eventData: any, isDraft: boolean): Promise<ActionFormState> {
     const session = await getDecodedSession();
     if (!session?.uid) {
         return { error: 'No estás autenticado.' };
     }
 
-    // Validate data using the Zod schema
     const validatedFields = eventFormSchema.safeParse(eventData);
 
     if (!validatedFields.success) {
@@ -534,19 +523,12 @@ export async function saveEvent(eventData: any, isDraft: boolean): Promise<Actio
     const status = isDraft ? 'draft' : 'published';
 
     try {
-        // If it has an ID, update. Otherwise, create.
-        // We need to check if 'id' was passed in eventData, although it's not in the schema (it's optional there)
-        // We'll assume if we are editing, the ID is handled separately or we create a separate update action.
-        // For now, let's assume creation or we handle ID logic if provided.
-        
-        // Since the schema doesn't have ID, let's see if it was passed in the raw object
         const eventId = eventData.id;
 
         const payload: Omit<Event, 'id'> = {
             ongId: session.uid,
             status: status,
             ...data,
-            // Ensure optional fields are undefined if missing to match type
             costTiers: data.costTiers || [],
         };
 
