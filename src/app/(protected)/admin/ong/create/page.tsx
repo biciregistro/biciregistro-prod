@@ -17,7 +17,7 @@ export default async function CreateOngPage() {
     <div className="container py-8 px-4 md:px-6">
       <div className="max-w-3xl mx-auto">
          <div className="mb-8">
-          <Link href="/admin/ong">
+          <Link href="/admin?tab=ongs">
             <Button variant="outline">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Regresar a Gestión de ONGs

@@ -179,8 +179,8 @@ export async function createOngUser(prevState: ActionFormState, formData: FormDa
         return { error: 'Ocurrió un error inesperado durante la creación de la cuenta.' };
     }
     
-    revalidatePath('/admin/ong'); // Assuming this will be the list page
-    redirect('/admin/ong');
+    revalidatePath('/admin');
+    redirect('/admin?tab=ongs');
 }
 
 export async function updateHomepageSection(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
