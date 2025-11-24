@@ -13,8 +13,11 @@ export default async function BikeDetailsPage({ params }: { params: { id: string
 
   // Call getBike with both userId and bikeId for security and correctness
   const bike = await getBike(user.id, id);
-  if (!bike) { // The getBike function will now handle the ownership check
-    notFound();
+  
+  // If the bike is not found (e.g., wrong ID or user does not have access),
+  // redirect them to the main dashboard page instead of showing a 404.
+  if (!bike) {
+    redirect('/dashboard');
   }
 
   return <BikeDetailsPageClient user={user} bike={bike} />;

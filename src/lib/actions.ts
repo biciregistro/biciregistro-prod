@@ -486,7 +486,6 @@ export async function transferOwnership(prevState: { error?: string; success?: b
         await updateBikeData(bikeId, { userId: newOwner.id });
         
         revalidatePath('/dashboard');
-        revalidatePath(`/dashboard/bikes/${bikeId}`);
         
         return { success: true };
 
