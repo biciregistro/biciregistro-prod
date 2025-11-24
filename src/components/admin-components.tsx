@@ -40,7 +40,6 @@ function SectionEditForm({ section }: { section: HomepageSection }) {
     const [state, formAction] = useActionState(updateHomepageSection, null as ActionFormState);
     const { toast } = useToast();
     
-    // Safely access imageUrl only if it exists on the section type
     const initialImageUrl = 'imageUrl' in section ? section.imageUrl : '';
     const [imageUrl, setImageUrl] = useState(initialImageUrl || '');
 
@@ -54,7 +53,8 @@ function SectionEditForm({ section }: { section: HomepageSection }) {
     }, [state, toast]);
 
     const hasButtonText = 'buttonText' in section;
-    const hasImage = 'imageUrl' in section;
+    // CORRECCIÓN: Permitir imagen explícitamente para 'hero' y 'cta'
+    const hasImage = section.id === 'hero' || section.id === 'cta';
 
     const getImageGuidelines = () => {
         if (section.id === 'hero') return "Recomendado: 1920x1080px";
