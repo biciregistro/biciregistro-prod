@@ -1,7 +1,8 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useState, useEffect } from 'react';
 import { useFormStatus } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import { transferOwnership } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,9 +37,18 @@ function SubmitButton() {
 }
 
 export function TransferOwnershipForm({ bikeId, bikeName }: TransferOwnershipFormProps) {
-    const initialState = { error: '' };
+    const initialState = { error: '', success: false };
     const [state, dispatch] = useActionState(transferOwnership, initialState);
     const [open, setOpen] = useState(false);
+    const router = useRouter();
+
+    useEffect(() => {
+        if (state.success) {
+            setOpen(false); // Cierra el dialogo
+            router.push('/dashboard'); // Redirige al dashboard
+        }
+    }, [state.success, router]);
+
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -46,14 +56,7 @@ export function TransferOwnershipForm({ bikeId, bikeName }: TransferOwnershipFor
                 <Button variant="outline">Transferir Propiedad</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
-                <form action={(formData) => {
-                    dispatch(formData);
-                    // This is optimistic. A better approach might involve checking `state`
-                    // in a useEffect hook before closing the dialog.
-                    if (!state.error) {
-                        // setOpen(false);
-                    }
-                }}>
+                <form action={dispatch}>
                     <DialogHeader>
                         <DialogTitle>Transferir Propiedad</DialogTitle>
                         <DialogDescription>

@@ -445,7 +445,7 @@ export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
     }
 }
 
-export async function transferOwnership(prevState: { error: string }, formData: FormData): Promise<{ error: string }> {
+export async function transferOwnership(prevState: { error?: string; success?: boolean }, formData: FormData): Promise<{ error?: string; success?: boolean }> {
     const session = await getDecodedSession();
     if (!session?.uid) {
         return { error: 'Debes iniciar sesión para transferir la propiedad.' };
@@ -487,7 +487,8 @@ export async function transferOwnership(prevState: { error: string }, formData: 
         
         revalidatePath('/dashboard');
         revalidatePath(`/dashboard/bikes/${bikeId}`);
-        redirect('/dashboard');
+        
+        return { success: true };
 
     } catch (error) {
         console.error('Error al transferir la propiedad:', error);
