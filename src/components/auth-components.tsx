@@ -1,10 +1,10 @@
 'use client';
 import { useState, useEffect, useMemo, Suspense } from 'react';
-import { signInWithEmailAndPassword, sendPasswordResetEmail, confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail, confirmPasswordReset, verifyPasswordResetCode, type Auth } from 'firebase/auth';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/firebase/client';
+import { getFirebaseServices } from '@/lib/firebase/client';
 import { Eye, EyeOff } from 'lucide-react';
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -32,13 +32,8 @@ function LoginFormContent() {
         setIsLoading(true);
         setError(null);
 
-        if (!auth) {
-            setError("Firebase Auth no está inicializado.");
-            setIsLoading(false);
-            return;
-        }
-
         try {
+            const { auth } = await getFirebaseServices();
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const idToken = await userCredential.user.getIdToken();
             
@@ -76,6 +71,7 @@ function LoginFormContent() {
                 ? 'Credenciales no válidas. Por favor, revisa tu correo y contraseña.'
                 : error.message || 'Ocurrió un error inesperado.';
             setError(errorMessage);
+        } finally {
             setIsLoading(false);
         }
     };
@@ -153,7 +149,6 @@ export function LoginForm() {
     );
 }
 
-// New ForgotPasswordForm Component
 export function ForgotPasswordForm() {
     const { toast } = useToast();
     const [email, setEmail] = useState('');
@@ -166,13 +161,8 @@ export function ForgotPasswordForm() {
         setIsLoading(true);
         setError(null);
 
-        if (!auth) {
-            setError("Firebase Auth no está inicializado.");
-            setIsLoading(false);
-            return;
-        }
-
         try {
+            const { auth } = await getFirebaseServices();
             const actionCodeSettings = {
                 url: `${window.location.origin}/reset-password`,
                 handleCodeInApp: true,
@@ -181,8 +171,7 @@ export function ForgotPasswordForm() {
             setIsSent(true);
         } catch (error: any) {
             console.error("Password reset request failed:", error);
-            // Show a generic message to avoid user enumeration attacks
-            setError("Si tu correo está en nuestra base de datos, recibirás un enlace para restablecer tu contraseña. Si no lo recibes, revisa tu carpeta de spam.");
+            setError("Si tu correo está en nuestra base de datos, recibirás un enlace. Si no, revisa tu carpeta de spam.");
         } finally {
             setIsLoading(false);
         }
@@ -198,7 +187,7 @@ export function ForgotPasswordForm() {
                     <CardTitle>Revisa tu Correo</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-center">Se han enviado las instrucciones para restablecer tu contraseña a <strong>{email}</strong>. Por favor, revisa tu bandeja de entrada y la carpeta de spam.</p>
+                    <p className="text-center">Se han enviado las instrucciones a <strong>{email}</strong>. Por favor, revisa tu bandeja de entrada y spam.</p>
                 </CardContent>
                 <CardFooter className="flex justify-center">
                     <Link href="/login" className="underline">Volver a Iniciar Sesión</Link>
@@ -258,18 +247,17 @@ function ResetPasswordFormContent() {
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isVerified, setIsVerified] = useState(false);
+    const [authInstance, setAuthInstance] = useState<Auth | null>(null);
     const [showPassword, setShowPassword] = useState(false);
     const oobCode = searchParams.get('oobCode');
 
-    const passwordChecks = useMemo(() => {
-        return {
-            length: password.length >= 6,
-            uppercase: /[A-Z]/.test(password),
-            lowercase: /[a-z]/.test(password),
-            number: /[0-9]/.test(password),
-            special: /[!@#$&*]/.test(password),
-        };
-    }, [password]);
+    const passwordChecks = useMemo(() => ({
+        length: password.length >= 6,
+        uppercase: /[A-Z]/.test(password),
+        lowercase: /[a-z]/.test(password),
+        number: /[0-9]/.test(password),
+        special: /[!@#$&*]/.test(password),
+    }), [password]);
 
     const isPasswordStrong = Object.values(passwordChecks).every(Boolean);
 
@@ -279,9 +267,9 @@ function ResetPasswordFormContent() {
                 setError("El código de restablecimiento no se encontró en la URL.");
                 return;
             }
-            if (!auth) return;
-
             try {
+                const { auth } = await getFirebaseServices();
+                setAuthInstance(auth); // Save auth instance for later use
                 await verifyPasswordResetCode(auth, oobCode);
                 setIsVerified(true);
             } catch (error) {
@@ -300,25 +288,18 @@ function ResetPasswordFormContent() {
             setError("Las contraseñas no coinciden.");
             return;
         }
-
         if (!isPasswordStrong) {
             setError("La contraseña no cumple con todos los criterios de seguridad.");
             return;
         }
-
-        if (!oobCode) {
-            setError("Falta el código de restablecimiento.");
+        if (!oobCode || !authInstance) {
+            setError("Falta el código de restablecimiento o la autenticación no está lista.");
             return;
         }
-        if (!auth) {
-            setError("Firebase Auth no está inicializado.");
-            return;
-        }
-
+        
         setIsLoading(true);
-
         try {
-            await confirmPasswordReset(auth, oobCode, password);
+            await confirmPasswordReset(authInstance, oobCode, password);
             toast({
                 title: "¡Éxito!",
                 description: "Tu contraseña ha sido actualizada. Ahora puedes iniciar sesión.",
@@ -327,6 +308,7 @@ function ResetPasswordFormContent() {
         } catch (error: any) {
             console.error("Password reset failed:", error);
             setError("No se pudo restablecer la contraseña. El enlace puede haber expirado.");
+        } finally {
             setIsLoading(false);
         }
     };
