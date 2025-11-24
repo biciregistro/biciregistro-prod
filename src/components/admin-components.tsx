@@ -19,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { ImageUpload } from './shared/image-upload';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal, Search, X, Copy, Check } from 'lucide-react';
+import { Terminal, Search, X, Copy, Check, Eye, EyeOff } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -28,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PasswordStrengthIndicator } from './user-components';
 
 
 function SubmitButton({ text = "Guardar Cambios" }: { text?: string }) {
@@ -291,6 +292,10 @@ export function OngCreationForm() {
   const [selectedCountry, setSelectedCountry] = useState<Country | undefined>();
   const [states, setStates] = useState<string[]>([]);
   const [selectedState, setSelectedState] = useState<string>('');
+  
+  // Password state for UI feedback
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
 
   useEffect(() => {
@@ -326,11 +331,34 @@ export function OngCreationForm() {
           <Input id="email" name="email" type="email" required />
            {state?.errors?.email && <p className="text-destructive text-sm">{state.errors.email[0]}</p>}
         </div>
+        
+        {/* Improved Password Field */}
         <div className="space-y-2">
           <Label htmlFor="password">Contraseña Inicial</Label>
-          <Input id="password" name="password" type="password" required />
+          <div className="relative">
+              <Input 
+                id="password" 
+                name="password" 
+                type={showPassword ? 'text' : 'password'} 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pr-10"
+              />
+              <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+              >
+                  {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+              </Button>
+          </div>
+          <PasswordStrengthIndicator password={password} />
            {state?.errors?.password && <p className="text-destructive text-sm">{state.errors.password[0]}</p>}
         </div>
+
         <div className="space-y-2">
           <Label htmlFor="organizationWhatsapp">WhatsApp de la Organización</Label>
           <Input id="organizationWhatsapp" name="organizationWhatsapp" type="tel" required />
