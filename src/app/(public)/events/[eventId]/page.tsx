@@ -161,15 +161,17 @@ export default async function EventPage({ params }: EventPageProps) {
                                     </div>
                                 )}
 
-                                 {/* Distance moved here */}
-                                 {event.distance && event.distance > 0 && (
+                                 {/* Distance - now handles 0 value */}
+                                 {(event.distance !== undefined && event.distance !== null) && (
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-primary/10 rounded-lg text-primary">
                                             <Route className="h-5 w-5" />
                                         </div>
                                         <div>
                                             <p className="text-xs font-semibold uppercase tracking-wider text-foreground/70">Distancia</p>
-                                            <p className="font-medium text-foreground text-lg">{event.distance} km</p>
+                                            <p className="font-medium text-foreground text-lg">
+                                                {event.distance > 0 ? `${event.distance} km` : 'N/A'}
+                                            </p>
                                         </div>
                                     </div>
                                 )}

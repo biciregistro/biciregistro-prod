@@ -31,6 +31,10 @@ export const bikeBrands = [
     "Ghost",
     "Felt",
     "Diamondback",
+    // Popular in Mexico/Latam
+    "Mercurio",
+    "Alubike",
+    "Turbo",
     // Add an option for other brands
     "Otra"
 ];

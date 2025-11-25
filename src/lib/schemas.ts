@@ -72,7 +72,7 @@ export const eventFormSchema = z.object({
     imageUrl: z.string().url("La URL de la imagen no es válida.").optional().or(z.literal('')),
     googleMapsUrl: z.string().url("El enlace de Google Maps no es válido.").optional().or(z.literal('')),
     level: z.enum(['Principiante', 'Intermedio', 'Avanzado']).optional(),
-    distance: z.coerce.number().positive("La distancia debe ser un número positivo.").optional(),
+    distance: z.coerce.number().nonnegative("La distancia debe ser un número positivo o cero.").optional(),
     costType: z.enum(['Gratuito', 'Con Costo']).optional(),
     paymentDetails: z.string().optional(),
     

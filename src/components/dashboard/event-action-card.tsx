@@ -56,7 +56,7 @@ export function EventActionCard({ event, registration, ongProfile, whatsappUrl }
                         <Button className="w-full bg-green-600 hover:bg-green-700 text-white" asChild>
                             <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
                                 <MessageCircle className="mr-2 h-4 w-4" />
-                                Enviar Comprobante
+                                Enviar Comprobante de Pago
                             </Link>
                         </Button>
                     )}
