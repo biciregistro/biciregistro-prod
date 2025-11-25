@@ -26,7 +26,7 @@ export const userFormSchema = z.object({
     currentPassword: z.string().optional(),
     newPassword: z.string().optional(),
 }).superRefine((data, ctx) => {
-    // ... (existing superRefine logic)
+    // ... existing superRefine logic (if any, currently empty in original)
 });
 
 export const ongUserFormSchema = z.object({
@@ -94,6 +94,10 @@ export const eventFormSchema = z.object({
         name: z.string().min(1, "El nombre de la categoría es obligatorio."),
         description: z.string().optional(),
     })).optional(),
+
+    // Registration Deadline
+    hasRegistrationDeadline: z.boolean().optional(),
+    registrationDeadline: z.string().optional(),
 }).superRefine((data, ctx) => {
     if (data.costType === 'Con Costo' && (!data.costTiers || data.costTiers.length === 0)) {
         ctx.addIssue({
@@ -109,5 +113,21 @@ export const eventFormSchema = z.object({
             message: "Debes agregar al menos una categoría si habilitaste las categorías.",
             path: ["categories"],
         });
+    }
+
+    if (data.hasRegistrationDeadline) {
+        if (!data.registrationDeadline) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Debes especificar una fecha límite si la opción está habilitada.",
+                path: ["registrationDeadline"],
+            });
+        } else if (data.date && new Date(data.registrationDeadline) >= new Date(data.date)) {
+             ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "La fecha límite debe ser anterior a la fecha del evento.",
+                path: ["registrationDeadline"],
+            });
+        }
     }
 });

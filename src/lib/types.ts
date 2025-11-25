@@ -108,6 +108,10 @@ export type Event = {
   categories?: EventCategory[];
   maxParticipants?: number;
   currentParticipants?: number;
+
+  // Registration Deadline Fields
+  hasRegistrationDeadline?: boolean;
+  registrationDeadline?: string; // ISO string for date and time
 };
 
 export type EventRegistration = {

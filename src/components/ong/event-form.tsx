@@ -51,10 +51,10 @@ export function EventForm({ initialData }: EventFormProps) {
     const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(defaultCountry);
     const [states, setStates] = useState<string[]>(defaultCountry?.states || []);
 
-    // Cost toggle state
+    // Toggles state
     const [isCostEnabled, setIsCostEnabled] = useState(initialData?.costType === 'Con Costo');
-    // Categories toggle state
     const [hasCategories, setHasCategories] = useState(initialData?.hasCategories || false);
+    const [hasDeadline, setHasDeadline] = useState(initialData?.hasRegistrationDeadline || false);
 
     const form = useForm<EventFormValues>({
         resolver: zodResolver(eventFormSchema),
@@ -77,6 +77,8 @@ export function EventForm({ initialData }: EventFormProps) {
             maxParticipants: initialData?.maxParticipants || 0,
             hasCategories: initialData?.hasCategories || false,
             categories: initialData?.categories || [],
+            hasRegistrationDeadline: initialData?.hasRegistrationDeadline || false,
+            registrationDeadline: initialData?.registrationDeadline ? new Date(initialData.registrationDeadline).toISOString().slice(0, 16) : "",
         },
     });
 
@@ -116,6 +118,11 @@ export function EventForm({ initialData }: EventFormProps) {
             if (!hasCategories) {
                 submitData.categories = [];
                 submitData.hasCategories = false;
+            }
+
+            if (!hasDeadline) {
+                submitData.registrationDeadline = undefined;
+                submitData.hasRegistrationDeadline = false;
             }
             
             const result = await saveEvent(submitData, isDraft);
@@ -383,6 +390,53 @@ export function EventForm({ initialData }: EventFormProps) {
                             </FormItem>
                         )}
                     />
+                </div>
+
+                {/* Registration Deadline Config */}
+                <div className="space-y-4 border rounded-lg p-4 bg-muted/5">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-medium">Cierre de Inscripciones</h3>
+                            <p className="text-sm text-muted-foreground">¿Este evento tiene una fecha límite para inscribirse?</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <FormLabel className="font-normal cursor-pointer" htmlFor="deadline-toggle">
+                                {hasDeadline ? "Sí" : "No"}
+                            </FormLabel>
+                            <Switch
+                                id="deadline-toggle"
+                                checked={hasDeadline}
+                                onCheckedChange={(checked) => {
+                                    setHasDeadline(checked);
+                                    form.setValue('hasRegistrationDeadline', checked);
+                                    if (!checked) {
+                                        form.setValue('registrationDeadline', '');
+                                    }
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    {hasDeadline && (
+                        <div className="mt-4 animate-in fade-in slide-in-from-top-2">
+                            <FormField
+                                control={form.control}
+                                name="registrationDeadline"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel><RequiredLabel>Fecha y Hora Límite</RequiredLabel></FormLabel>
+                                        <FormControl>
+                                            <Input type="datetime-local" {...field} />
+                                        </FormControl>
+                                        <FormDescription>
+                                            Después de esta fecha, el botón de registro se deshabilitará automáticamente.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Categories Configuration */}

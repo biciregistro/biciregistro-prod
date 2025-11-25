@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +33,21 @@ export function EventRegistrationCard({ event, user, isRegistered = false }: Eve
     
     // Calculate sold out status
     const isSoldOut = (event.maxParticipants || 0) > 0 && (event.currentParticipants || 0) >= (event.maxParticipants || 0);
+    
+    // Date-dependent status (Calculated on client to avoid hydration mismatch)
+    const [isFinished, setIsFinished] = useState(false);
+    const [isRegistrationClosed, setIsRegistrationClosed] = useState(false);
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+        const now = new Date();
+        setIsFinished(new Date(event.date) < now);
+        
+        if (event.hasRegistrationDeadline && event.registrationDeadline) {
+            setIsRegistrationClosed(new Date(event.registrationDeadline) < now);
+        }
+    }, [event.date, event.hasRegistrationDeadline, event.registrationDeadline]);
     
     // Selected Data for Modal
     const selectedTier = tiers.find(t => t.id === selectedTierId);
@@ -111,7 +126,7 @@ export function EventRegistrationCard({ event, user, isRegistered = false }: Eve
                 </div>
                 
                 {/* Selection Logic (Only for logged in users not yet registered) */}
-                {user && !isRegistered && !isSoldOut && (
+                {user && !isRegistered && !isSoldOut && !isFinished && !isRegistrationClosed && (
                     <div className="space-y-4 animate-in fade-in">
                         {!isFree && tiers.length > 0 && (
                             <div className="space-y-2">
@@ -152,7 +167,15 @@ export function EventRegistrationCard({ event, user, isRegistered = false }: Eve
                 )}
 
                 <div className="pt-2">
-                    {user ? (
+                    {isClient && isFinished ? (
+                        <Button size="lg" variant="secondary" className="w-full text-lg font-bold h-12 bg-gray-100 text-gray-600" disabled>
+                            Evento Finalizado
+                        </Button>
+                    ) : isClient && isRegistrationClosed ? (
+                         <Button size="lg" variant="secondary" className="w-full text-lg font-bold h-12 bg-orange-100 text-orange-800" disabled>
+                            Inscripciones Cerradas
+                        </Button>
+                    ) : user ? (
                         isRegistered ? (
                              <Button size="lg" variant="secondary" className="w-full text-lg font-bold h-12 bg-green-100 text-green-800 hover:bg-green-200" disabled>
                                 ¡Ya estás inscrito!
