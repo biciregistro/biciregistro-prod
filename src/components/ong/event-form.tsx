@@ -56,6 +56,8 @@ export function EventForm({ initialData }: EventFormProps) {
     const [hasCategories, setHasCategories] = useState(initialData?.hasCategories || false);
     const [hasDeadline, setHasDeadline] = useState(initialData?.hasRegistrationDeadline || false);
     const [requiresEmergency, setRequiresEmergency] = useState(initialData?.requiresEmergencyContact || false);
+    // Default to true if undefined, as most events are bike-related
+    const [requiresBike, setRequiresBike] = useState(initialData?.requiresBike !== false);
 
     const form = useForm<EventFormValues>({
         resolver: zodResolver(eventFormSchema),
@@ -81,6 +83,7 @@ export function EventForm({ initialData }: EventFormProps) {
             hasRegistrationDeadline: initialData?.hasRegistrationDeadline || false,
             registrationDeadline: initialData?.registrationDeadline ? new Date(initialData.registrationDeadline).toISOString().slice(0, 16) : "",
             requiresEmergencyContact: initialData?.requiresEmergencyContact || false,
+            requiresBike: initialData?.requiresBike !== false,
         },
     });
 
@@ -130,6 +133,9 @@ export function EventForm({ initialData }: EventFormProps) {
             if (!requiresEmergency) {
                 submitData.requiresEmergencyContact = false;
             }
+
+            // Explicitly set requiresBike based on state
+            submitData.requiresBike = requiresBike;
             
             const result = await saveEvent(submitData, isDraft);
 
@@ -445,12 +451,34 @@ export function EventForm({ initialData }: EventFormProps) {
                     )}
                 </div>
 
-                {/* Emergency Contact Config */}
-                <div className="space-y-4 border rounded-lg p-4 bg-muted/5">
-                    <div className="flex items-center justify-between">
+                {/* Bike & Emergency Configs Container */}
+                <div className="space-y-4">
+                    {/* Bike Requirement Config */}
+                    <div className="flex items-center justify-between border rounded-lg p-4 bg-muted/5">
+                        <div>
+                            <h3 className="text-lg font-medium">Requisitos de Bicicleta</h3>
+                            <p className="text-sm text-muted-foreground">¿Es necesario que los participantes lleven bicicleta?</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <FormLabel className="font-normal cursor-pointer" htmlFor="bike-toggle">
+                                {requiresBike ? "Sí" : "No"}
+                            </FormLabel>
+                            <Switch
+                                id="bike-toggle"
+                                checked={requiresBike}
+                                onCheckedChange={(checked) => {
+                                    setRequiresBike(checked);
+                                    form.setValue('requiresBike', checked);
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Emergency Contact Config */}
+                    <div className="flex items-center justify-between border rounded-lg p-4 bg-muted/5">
                         <div>
                             <h3 className="text-lg font-medium">Contacto de Emergencia</h3>
-                            <p className="text-sm text-muted-foreground">¿Solicitar obligatoriamente un contacto de emergencia a los participantes?</p>
+                            <p className="text-sm text-muted-foreground">¿Solicitar obligatoriamente un contacto de emergencia?</p>
                         </div>
                         <div className="flex items-center space-x-2">
                             <FormLabel className="font-normal cursor-pointer" htmlFor="emergency-toggle">
@@ -469,7 +497,7 @@ export function EventForm({ initialData }: EventFormProps) {
                 </div>
 
                 {/* Categories Configuration */}
-                <div className="space-y-4 border rounded-lg p-4 bg-muted/5">
+                <div className="space-y-4 border rounded-lg p-4 bg-muted/5 mt-6">
                     <div className="flex items-center justify-between">
                         <div>
                             <h3 className="text-lg font-medium">Configuración de Categorías</h3>

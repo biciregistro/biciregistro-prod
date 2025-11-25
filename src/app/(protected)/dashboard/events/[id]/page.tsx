@@ -114,8 +114,10 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                 </CardContent>
             </Card>
 
-            {/* Bike Selector Card */}
-            <EventBikeSelector userBikes={userBikes} registration={registration} eventId={event.id} />
+            {/* Bike Selector Card - Conditionally Rendered */}
+            {event.requiresBike !== false && (
+                <EventBikeSelector userBikes={userBikes} registration={registration} eventId={event.id} />
+            )}
 
             {/* Registration Details Card */}
             <Card>

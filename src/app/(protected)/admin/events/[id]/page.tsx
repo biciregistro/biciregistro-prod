@@ -22,11 +22,16 @@ export default async function AdminEventDetailsPage({ params }: { params: { id: 
 
   if (!event) notFound();
   
+  // Optional: Check ownership. If admin can see all events, remove this.
+  // For now, adhering to "Admin creates events" -> Admin manages their own events.
+  // if (event.ongId !== user.id) redirect('/admin?tab=events'); 
+
   const attendees = await getEventAttendees(params.id);
   const publicUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx'}/events/${event.id}`;
   const eventDate = new Date(event.date);
   const isFinished = eventDate < new Date();
   const showEmergencyContact = event.requiresEmergencyContact;
+  const showBikeInfo = event.requiresBike !== false;
 
   return (
     <div className="container py-8 px-4 md:px-6 space-y-8">
@@ -123,8 +128,12 @@ export default async function AdminEventDetailsPage({ params }: { params: { id: 
                                     <TableHead>Tel. Emergencia</TableHead>
                                 </>
                             )}
-                            <TableHead>Bicicleta</TableHead>
-                            <TableHead>Serie</TableHead>
+                            {showBikeInfo && (
+                                <>
+                                    <TableHead>Bicicleta</TableHead>
+                                    <TableHead>Serie</TableHead>
+                                </>
+                            )}
                             <TableHead>Fecha Registro</TableHead>
                             <TableHead>Nivel</TableHead>
                             <TableHead>Categoría</TableHead>
@@ -158,23 +167,27 @@ export default async function AdminEventDetailsPage({ params }: { params: { id: 
                                             <TableCell className="text-sm">{attendee.emergencyContactPhone || 'N/A'}</TableCell>
                                         </>
                                     )}
-                                    <TableCell>
-                                        {attendee.bike ? (
-                                            <div className="flex flex-col">
-                                                <span className="font-medium text-sm">{attendee.bike.make}</span>
-                                                <span className="text-xs text-muted-foreground">{attendee.bike.model}</span>
-                                            </div>
-                                        ) : (
-                                            <span className="text-muted-foreground">-</span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        {attendee.bike ? (
-                                            <span className="font-mono text-xs">{attendee.bike.serialNumber}</span>
-                                        ) : (
-                                            <span className="text-muted-foreground">-</span>
-                                        )}
-                                    </TableCell>
+                                    {showBikeInfo && (
+                                        <>
+                                            <TableCell>
+                                                {attendee.bike ? (
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium text-sm">{attendee.bike.make}</span>
+                                                        <span className="text-xs text-muted-foreground">{attendee.bike.model}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-muted-foreground">-</span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                {attendee.bike ? (
+                                                    <span className="font-mono text-xs">{attendee.bike.serialNumber}</span>
+                                                ) : (
+                                                    <span className="text-muted-foreground">-</span>
+                                                )}
+                                            </TableCell>
+                                        </>
+                                    )}
                                     <TableCell>{new Date(attendee.registrationDate).toLocaleDateString()}</TableCell>
                                     <TableCell>{attendee.tierName}</TableCell>
                                     <TableCell>{attendee.categoryName}</TableCell>
@@ -191,7 +204,7 @@ export default async function AdminEventDetailsPage({ params }: { params: { id: 
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={showEmergencyContact ? 11 : 9} className="h-24 text-center">
+                                <TableCell colSpan={11} className="h-24 text-center">
                                     No hay participantes registrados aún.
                                 </TableCell>
                             </TableRow>

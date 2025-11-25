@@ -115,6 +115,9 @@ export type Event = {
 
   // Emergency Contact Configuration
   requiresEmergencyContact?: boolean;
+
+  // Bike Requirement
+  requiresBike?: boolean; // Defaults to true if undefined
 };
 
 export type EventRegistration = {
