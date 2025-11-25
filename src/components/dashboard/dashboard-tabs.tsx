@@ -45,7 +45,9 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete }: Dashb
         <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-8">
                 <TabsTrigger value="garage">Mi Garaje ({bikes.length})</TabsTrigger>
-                <TabsTrigger value="events">Mis Eventos ({registrations.length})</TabsTrigger>
+                <TabsTrigger value="events">
+                    Mis Eventos ({isProfileComplete ? registrations.length : '?'})
+                </TabsTrigger>
             </TabsList>
             
             <TabsContent value="garage" className="space-y-4">
@@ -69,7 +71,19 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete }: Dashb
             </TabsContent>
             
             <TabsContent value="events" className="space-y-4">
-                {registrations.length === 0 ? (
+                {!isProfileComplete ? (
+                    <Alert className="bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-200">
+                        <AlertTitle className="text-lg font-semibold mb-2">Perfil Incompleto</AlertTitle>
+                        <AlertDescription className="space-y-4">
+                            <p>Para acceder a tus eventos y gestionar tus inscripciones, es necesario que completes tu perfil.</p>
+                            <Button asChild variant="outline" className="bg-background text-foreground border-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50">
+                                <Link href="/dashboard/profile">
+                                    Completar Perfil Ahora
+                                </Link>
+                            </Button>
+                        </AlertDescription>
+                    </Alert>
+                ) : registrations.length === 0 ? (
                     <Alert>
                         <AlertTitle>No tienes eventos próximos</AlertTitle>
                         <AlertDescription>
