@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ArrowLeft, Edit, Eye, Users, Calendar, MapPin, Share2, MessageCircle } from 'lucide-react';
 import { CopyButton } from '@/components/ong-components';
 import { EventStatusButton } from '@/components/ong/event-status-button';
+import { EventStatusBadge } from '@/components/ong/event-status-badge';
 import { cn } from '@/lib/utils';
 
 export default async function EventDetailsPage({ params }: { params: { id: string } }) {
@@ -22,8 +23,6 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
   if (event.ongId !== user.id) redirect('/dashboard/ong');
 
   const attendees = await getEventAttendees(params.id);
-
-  const eventDate = new Date(event.date);
   const publicUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx'}/events/${event.id}`;
 
   return (
@@ -37,17 +36,14 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
             </Link>
             <h1 className="text-3xl font-bold tracking-tight">{event.name}</h1>
             <div className="flex items-center gap-2 mt-2">
-                <Badge variant={event.status === 'published' ? 'default' : 'secondary'}>
-                    {event.status === 'published' ? 'Publicado' : 'Borrador'}
-                </Badge>
-                <span className="text-muted-foreground text-sm flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {eventDate.toLocaleDateString()}
-                </span>
+                <EventStatusBadge status={event.status} date={event.date} />
             </div>
         </div>
         
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
+            {/* Note: EventStatusButton internal logic handles actions, 
+                but we might want to hide it on client side if finished.
+                For now, keeping it visible as per server logic, but ideally should be wrapped too. */}
             <EventStatusButton eventId={event.id} currentStatus={event.status} />
             
             <Button variant="outline" asChild className="flex-1 md:flex-none">
