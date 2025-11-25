@@ -23,7 +23,12 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
   if (event.ongId !== user.id) redirect('/dashboard/ong');
 
   const attendees = await getEventAttendees(params.id);
+
+  const eventDate = new Date(event.date);
+  const isFinished = eventDate < new Date();
   const publicUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx'}/events/${event.id}`;
+  
+  const showEmergencyContact = event.requiresEmergencyContact;
 
   return (
     <div className="container py-8 px-4 md:px-6 space-y-8">
@@ -41,10 +46,9 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
         </div>
         
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
-            {/* Note: EventStatusButton internal logic handles actions, 
-                but we might want to hide it on client side if finished.
-                For now, keeping it visible as per server logic, but ideally should be wrapped too. */}
-            <EventStatusButton eventId={event.id} currentStatus={event.status} />
+            {!isFinished && (
+                <EventStatusButton eventId={event.id} currentStatus={event.status} />
+            )}
             
             <Button variant="outline" asChild className="flex-1 md:flex-none">
                 <Link href={`/events/${event.id}`} target="_blank">
@@ -89,7 +93,6 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
             </CardContent>
         </Card>
 
-        {/* Future KPI: Revenue or other stats */}
          <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Estado</CardTitle>
@@ -109,13 +112,19 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
           <CardDescription>Gestiona a los ciclistas registrados en tu evento.</CardDescription>
         </CardHeader>
         <CardContent>
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
                 <Table>
                     <TableHeader>
                         <TableRow>
                             <TableHead>Nombre</TableHead>
                             <TableHead>Correo Electrónico</TableHead>
                             <TableHead>Whatsapp</TableHead>
+                            {showEmergencyContact && (
+                                <>
+                                    <TableHead>Contacto Emergencia</TableHead>
+                                    <TableHead>Tel. Emergencia</TableHead>
+                                </>
+                            )}
                             <TableHead>Bicicleta</TableHead>
                             <TableHead>Serie</TableHead>
                             <TableHead>Fecha Registro</TableHead>
@@ -145,6 +154,12 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
                                             <span className="text-muted-foreground text-sm">N/A</span>
                                         )}
                                     </TableCell>
+                                    {showEmergencyContact && (
+                                        <>
+                                            <TableCell className="text-sm">{attendee.emergencyContactName || 'N/A'}</TableCell>
+                                            <TableCell className="text-sm">{attendee.emergencyContactPhone || 'N/A'}</TableCell>
+                                        </>
+                                    )}
                                     <TableCell>
                                         {attendee.bike ? (
                                             <div className="flex flex-col">
@@ -178,7 +193,7 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={9} className="h-24 text-center">
+                                <TableCell colSpan={showEmergencyContact ? 11 : 9} className="h-24 text-center">
                                     No hay participantes registrados aún.
                                 </TableCell>
                             </TableRow>

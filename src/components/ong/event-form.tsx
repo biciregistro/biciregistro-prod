@@ -55,6 +55,7 @@ export function EventForm({ initialData }: EventFormProps) {
     const [isCostEnabled, setIsCostEnabled] = useState(initialData?.costType === 'Con Costo');
     const [hasCategories, setHasCategories] = useState(initialData?.hasCategories || false);
     const [hasDeadline, setHasDeadline] = useState(initialData?.hasRegistrationDeadline || false);
+    const [requiresEmergency, setRequiresEmergency] = useState(initialData?.requiresEmergencyContact || false);
 
     const form = useForm<EventFormValues>({
         resolver: zodResolver(eventFormSchema),
@@ -79,6 +80,7 @@ export function EventForm({ initialData }: EventFormProps) {
             categories: initialData?.categories || [],
             hasRegistrationDeadline: initialData?.hasRegistrationDeadline || false,
             registrationDeadline: initialData?.registrationDeadline ? new Date(initialData.registrationDeadline).toISOString().slice(0, 16) : "",
+            requiresEmergencyContact: initialData?.requiresEmergencyContact || false,
         },
     });
 
@@ -123,6 +125,10 @@ export function EventForm({ initialData }: EventFormProps) {
             if (!hasDeadline) {
                 submitData.registrationDeadline = undefined;
                 submitData.hasRegistrationDeadline = false;
+            }
+
+            if (!requiresEmergency) {
+                submitData.requiresEmergencyContact = false;
             }
             
             const result = await saveEvent(submitData, isDraft);
@@ -437,6 +443,29 @@ export function EventForm({ initialData }: EventFormProps) {
                             />
                         </div>
                     )}
+                </div>
+
+                {/* Emergency Contact Config */}
+                <div className="space-y-4 border rounded-lg p-4 bg-muted/5">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-medium">Contacto de Emergencia</h3>
+                            <p className="text-sm text-muted-foreground">¿Solicitar obligatoriamente un contacto de emergencia a los participantes?</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <FormLabel className="font-normal cursor-pointer" htmlFor="emergency-toggle">
+                                {requiresEmergency ? "Sí" : "No"}
+                            </FormLabel>
+                            <Switch
+                                id="emergency-toggle"
+                                checked={requiresEmergency}
+                                onCheckedChange={(checked) => {
+                                    setRequiresEmergency(checked);
+                                    form.setValue('requiresEmergencyContact', checked);
+                                }}
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 {/* Categories Configuration */}

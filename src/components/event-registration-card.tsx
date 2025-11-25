@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Tag, MapPin, Loader2 } from 'lucide-react';
 import type { Event, User } from '@/lib/types';
 
@@ -27,6 +28,10 @@ export function EventRegistrationCard({ event, user, isRegistered = false }: Eve
     
     const [selectedTierId, setSelectedTierId] = useState<string | undefined>(undefined);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
+
+    // Emergency Contact State
+    const [emergencyName, setEmergencyName] = useState('');
+    const [emergencyPhone, setEmergencyPhone] = useState('');
 
     const tiers = event.costTiers || [];
     const categories = event.categories || [];
@@ -80,8 +85,25 @@ export function EventRegistrationCard({ event, user, isRegistered = false }: Eve
     };
 
     const handleConfirmRegistration = async () => {
+        if (event.requiresEmergencyContact) {
+            if (!emergencyName.trim() || !emergencyPhone.trim()) {
+                toast({
+                    variant: "destructive",
+                    title: "Datos incompletos",
+                    description: "Debes completar la información de contacto de emergencia.",
+                });
+                return;
+            }
+        }
+
         startTransition(async () => {
-            const result = await registerForEventAction(event.id, selectedTierId, selectedCategoryId);
+            const result = await registerForEventAction(
+                event.id, 
+                selectedTierId, 
+                selectedCategoryId,
+                emergencyName,
+                emergencyPhone
+            );
             
             if (result.success) {
                 toast({
@@ -213,7 +235,7 @@ export function EventRegistrationCard({ event, user, isRegistered = false }: Eve
         </Card>
 
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Confirmar Inscripción</DialogTitle>
                     <DialogDescription>
@@ -241,6 +263,37 @@ export function EventRegistrationCard({ event, user, isRegistered = false }: Eve
                             <span className="col-span-2 font-medium">{selectedCategory.name}</span>
                         </div>
                     )}
+
+                    {/* Emergency Contact Form Section */}
+                    {event.requiresEmergencyContact && (
+                        <div className="space-y-3 pt-3 border-t mt-2">
+                            <h4 className="font-semibold text-sm flex items-center gap-2 text-destructive">
+                                Contacto de Emergencia (Obligatorio)
+                            </h4>
+                            <div className="grid gap-2">
+                                <Label htmlFor="e-name">Nombre Completo</Label>
+                                <Input 
+                                    id="e-name" 
+                                    value={emergencyName} 
+                                    onChange={(e) => setEmergencyName(e.target.value)} 
+                                    placeholder="Nombre de familiar o amigo"
+                                    className="h-9"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="e-phone">Teléfono</Label>
+                                <Input 
+                                    id="e-phone" 
+                                    type="tel"
+                                    value={emergencyPhone} 
+                                    onChange={(e) => setEmergencyPhone(e.target.value)} 
+                                    placeholder="10 dígitos"
+                                    className="h-9"
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     <div className="border-t pt-4 mt-2 flex justify-between items-center">
                         <span className="font-bold text-lg">Total a Pagar:</span>
                         <span className="font-bold text-xl text-primary">

@@ -27,7 +27,7 @@ import { ActionFormState, HomepageSection, Feature, BikeFormState, Event } from 
 import { userFormSchema, ongUserFormSchema, BikeRegistrationSchema, eventFormSchema } from './schemas';
 import { adminAuth } from './firebase/server';
 
-// ... (rest of the file content remains the same until saveEvent) ...
+// ... (rest of the file until registerForEventAction)
 
 const optionalString = (schema: z.ZodString) =>
     z.preprocess((val) => (val === '' ? undefined : val), schema.optional());
@@ -559,7 +559,9 @@ export async function saveEvent(eventData: any, isDraft: boolean): Promise<Actio
 export async function registerForEventAction(
     eventId: string, 
     tierId?: string, 
-    categoryId?: string
+    categoryId?: string,
+    emergencyContactName?: string,
+    emergencyContactPhone?: string
 ): Promise<{ success: boolean; error?: string; message?: string }> {
     const session = await getDecodedSession();
     
@@ -567,11 +569,26 @@ export async function registerForEventAction(
         return { success: false, error: "Debes iniciar sesión para registrarte." };
     }
 
+    // Validation logic for emergency fields
+    const event = await getEvent(eventId);
+    if (!event) return { success: false, error: "Evento no encontrado." };
+
+    if (event.requiresEmergencyContact) {
+        if (!emergencyContactName || !emergencyContactName.trim()) {
+             return { success: false, error: "El nombre del contacto de emergencia es obligatorio." };
+        }
+        if (!emergencyContactPhone || !emergencyContactPhone.trim()) {
+             return { success: false, error: "El teléfono del contacto de emergencia es obligatorio." };
+        }
+    }
+
     const result = await registerUserToEvent({
         eventId,
         userId: session.uid,
         tierId,
         categoryId,
+        emergencyContactName,
+        emergencyContactPhone,
     });
 
     if (result.success) {

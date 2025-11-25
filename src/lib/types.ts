@@ -112,6 +112,9 @@ export type Event = {
   // Registration Deadline Fields
   hasRegistrationDeadline?: boolean;
   registrationDeadline?: string; // ISO string for date and time
+
+  // Emergency Contact Configuration
+  requiresEmergencyContact?: boolean;
 };
 
 export type EventRegistration = {
@@ -126,6 +129,10 @@ export type EventRegistration = {
     categoryId?: string;
     categoryName?: string;
     bikeId?: string;
+    
+    // Emergency Contact Data
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
 };
 
 export type EventAttendee = {
@@ -145,6 +152,9 @@ export type EventAttendee = {
         model: string;
         serialNumber: string;
     };
+    // Emergency Contact Data
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
 };
 
 export type UserEventRegistration = EventRegistration & {

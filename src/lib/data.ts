@@ -8,7 +8,7 @@ import { defaultHomepageData } from './homepage-data';
 import { firebaseConfig } from './firebase/config';
 import { UserRecord } from 'firebase-admin/auth';
 
-// ... (rest of the file content unchanged until getOngCommunityCount)
+// ... (rest of helper functions and user management unchanged)
 
 // --- Helper Functions ---
 
@@ -609,6 +609,9 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 categoryName: regData.categoryId ? categoriesMap.get(regData.categoryId) || 'N/A' : 'N/A',
                 status: regData.status,
                 bike: bikeData,
+                // New Emergency Fields
+                emergencyContactName: regData.emergencyContactName,
+                emergencyContactPhone: regData.emergencyContactPhone,
             };
         });
 

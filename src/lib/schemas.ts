@@ -98,6 +98,9 @@ export const eventFormSchema = z.object({
     // Registration Deadline
     hasRegistrationDeadline: z.boolean().optional(),
     registrationDeadline: z.string().optional(),
+
+    // Emergency Contact
+    requiresEmergencyContact: z.boolean().optional(),
 }).superRefine((data, ctx) => {
     if (data.costType === 'Con Costo' && (!data.costTiers || data.costTiers.length === 0)) {
         ctx.addIssue({

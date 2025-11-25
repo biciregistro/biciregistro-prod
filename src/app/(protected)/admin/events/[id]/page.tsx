@@ -22,12 +22,11 @@ export default async function AdminEventDetailsPage({ params }: { params: { id: 
 
   if (!event) notFound();
   
-  // Optional: Check ownership. If admin can see all events, remove this.
-  // For now, adhering to "Admin creates events" -> Admin manages their own events.
-  // if (event.ongId !== user.id) redirect('/admin?tab=events'); 
-
   const attendees = await getEventAttendees(params.id);
   const publicUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx'}/events/${event.id}`;
+  const eventDate = new Date(event.date);
+  const isFinished = eventDate < new Date();
+  const showEmergencyContact = event.requiresEmergencyContact;
 
   return (
     <div className="container py-8 px-4 md:px-6 space-y-8">
@@ -45,8 +44,9 @@ export default async function AdminEventDetailsPage({ params }: { params: { id: 
         </div>
         
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
-            {/* See note in ONG version about EventStatusButton visibility on client */}
-            <EventStatusButton eventId={event.id} currentStatus={event.status} />
+            {!isFinished && (
+                <EventStatusButton eventId={event.id} currentStatus={event.status} />
+            )}
             
             <Button variant="outline" asChild className="flex-1 md:flex-none">
                 <Link href={`/events/${event.id}`} target="_blank">
@@ -110,13 +110,19 @@ export default async function AdminEventDetailsPage({ params }: { params: { id: 
           <CardDescription>Gestiona a los ciclistas registrados en tu evento.</CardDescription>
         </CardHeader>
         <CardContent>
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
                 <Table>
                     <TableHeader>
                         <TableRow>
                             <TableHead>Nombre</TableHead>
                             <TableHead>Correo Electrónico</TableHead>
                             <TableHead>Whatsapp</TableHead>
+                            {showEmergencyContact && (
+                                <>
+                                    <TableHead>Contacto Emergencia</TableHead>
+                                    <TableHead>Tel. Emergencia</TableHead>
+                                </>
+                            )}
                             <TableHead>Bicicleta</TableHead>
                             <TableHead>Serie</TableHead>
                             <TableHead>Fecha Registro</TableHead>
@@ -146,6 +152,12 @@ export default async function AdminEventDetailsPage({ params }: { params: { id: 
                                             <span className="text-muted-foreground text-sm">N/A</span>
                                         )}
                                     </TableCell>
+                                    {showEmergencyContact && (
+                                        <>
+                                            <TableCell className="text-sm">{attendee.emergencyContactName || 'N/A'}</TableCell>
+                                            <TableCell className="text-sm">{attendee.emergencyContactPhone || 'N/A'}</TableCell>
+                                        </>
+                                    )}
                                     <TableCell>
                                         {attendee.bike ? (
                                             <div className="flex flex-col">
@@ -179,7 +191,7 @@ export default async function AdminEventDetailsPage({ params }: { params: { id: 
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={9} className="h-24 text-center">
+                                <TableCell colSpan={showEmergencyContact ? 11 : 9} className="h-24 text-center">
                                     No hay participantes registrados aún.
                                 </TableCell>
                             </TableRow>
