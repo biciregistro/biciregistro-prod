@@ -61,7 +61,7 @@ export function EventBikeSelector({ userBikes, registration, eventId }: EventBik
                             <AlertCircle className="h-8 w-8" />
                         </div>
                         <p className="text-sm text-muted-foreground px-4">
-                            Aun no has registrado tu bici, registrar tu bici te protege y ayuda al organizador a mejorar tu seguridad durante el evento.
+                            Aún no has registrado tu bici, registrar tu bici te protege. Por favor registra la bici con la que participarás para poder hacer check-in el día del evento.
                         </p>
                         <Button asChild variant="outline" className="w-full">
                             <Link href="/dashboard/register">Registrar Bicicleta</Link>
