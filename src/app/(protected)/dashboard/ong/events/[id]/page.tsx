@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { getAuthenticatedUser, getEvent, getEventAttendees } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Eye, Users, MapPin, Share2, DollarSign } from 'lucide-react';
+import { ArrowLeft, Edit, Eye, Users, MapPin, Share2, DollarSign, UserCheck } from 'lucide-react';
 import { CopyButton } from '@/components/ong-components';
 import { EventStatusButton } from '@/components/ong/event-status-button';
 import { EventStatusBadge } from '@/components/ong/event-status-badge';
@@ -31,13 +31,19 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
   const showBikeInfo = event.requiresBike !== false;
 
   // Calculate Revenue
-  // Sum price of all confirmed attendees who have paid or if the event implies payment on entry (simplification: sum 'paid' status)
+  // Sum price of all confirmed attendees who have paid
   const totalRevenue = attendees.reduce((acc, curr) => {
       if (curr.status === 'confirmed' && curr.paymentStatus === 'paid') {
           return acc + (curr.price || 0);
       }
       return acc;
   }, 0);
+
+  // Calculate Attendance (Check-in)
+  const totalCheckedIn = attendees.filter(a => a.checkedIn).length;
+  const attendancePercentage = event.currentParticipants && event.currentParticipants > 0 
+      ? Math.round((totalCheckedIn / event.currentParticipants) * 100) 
+      : 0;
 
   // Formatting currency
   const formattedRevenue = new Intl.NumberFormat('es-MX', {
@@ -81,32 +87,43 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Registrados</CardTitle>
+            <CardTitle className="text-sm font-medium">Registrados</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{event.currentParticipants || 0}</div>
-            <p className="text-xs text-muted-foreground">Participantes confirmados</p>
+            <p className="text-xs text-muted-foreground">Inscripciones confirmadas</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recaudación Total</CardTitle>
+            <CardTitle className="text-sm font-medium">Asistencia Real</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalCheckedIn}</div>
+            <p className="text-xs text-muted-foreground">{attendancePercentage}% de asistencia</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Recaudación</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{formattedRevenue}</div>
-            <p className="text-xs text-muted-foreground">Ingresos por inscripciones pagadas</p>
+            <p className="text-xs text-muted-foreground">Total pagado</p>
           </CardContent>
         </Card>
         
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Compartir Evento</CardTitle>
+                <CardTitle className="text-sm font-medium">Compartir</CardTitle>
                 <Share2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -125,8 +142,18 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
             <MapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-sm font-medium truncate">{event.state}, {event.country}</div>
-            <p className="text-xs text-muted-foreground capitalize">{event.eventType}</p>
+            <div className="text-sm font-medium truncate mb-2">{event.state}, {event.country}</div>
+            {event.googleMapsUrl && (
+                <Button variant="outline" size="sm" asChild className="w-full h-8 text-xs">
+                    <Link href={event.googleMapsUrl} target="_blank" rel="noopener noreferrer">
+                        <MapPin className="mr-2 h-3 w-3" />
+                        Ver Mapa
+                    </Link>
+                </Button>
+            )}
+            {!event.googleMapsUrl && (
+                <p className="text-xs text-muted-foreground italic">Sin mapa registrado</p>
+            )}
           </CardContent>
         </Card>
       </div>
