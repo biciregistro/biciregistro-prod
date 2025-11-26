@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar, MapPin, Clock, Trophy, Route, Tag, AlertTriangle, Users, MessageCircle } from 'lucide-react';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { cn } from '@/lib/utils';
+import { EventRegistration } from '@/lib/types';
 
 type EventPageProps = {
   params: {
@@ -52,8 +53,10 @@ export default async function EventPage({ params }: EventPageProps) {
   // Updated to use the comprehensive community count (cached)
   const followersCount = await getOngCommunityCount(event.ongId);
   
-  const registration = user ? await getUserRegistrationForEvent(user.id, event.id) : null;
-  const isRegistered = !!registration;
+  const registration = user ? await getUserRegistrationForEvent(user.id, event.id) as EventRegistration | null : null;
+  // User is considered registered ONLY if status is confirmed. 
+  // If cancelled, we want them to be able to register again.
+  const isRegistered = !!registration && registration.status !== 'cancelled';
 
   const eventDate = new Date(event.date);
 

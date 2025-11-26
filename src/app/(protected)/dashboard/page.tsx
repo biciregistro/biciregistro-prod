@@ -76,11 +76,10 @@ export default async function DashboardPage() {
 
     const profileIsComplete = isProfileComplete(user);
     const bikes = profileIsComplete ? await getBikes(user.id) : [];
-    // Optimization: Don't fetch registrations if profile is incomplete, or fetch them anyway?
-    // The requirement says "if incomplete... cannot visualize events".
-    // Fetching them anyway would allow us to show a count in the tab header (e.g. "Mis Eventos (3)"), 
-    // but block the view content. However, to be strict and save reads:
-    const registrations = profileIsComplete ? await getUserEventRegistrations(user.id) : [];
+    // Optimization: Don't fetch registrations if profile is incomplete
+    const allRegistrations = profileIsComplete ? await getUserEventRegistrations(user.id) : [];
+    // Filter out cancelled registrations so they don't clutter the dashboard
+    const registrations = allRegistrations.filter(reg => reg.status !== 'cancelled');
 
     return (
         <div className="container max-w-5xl mx-auto py-6 md:py-8 px-4">
