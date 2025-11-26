@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Logo } from '@/components/icons/logo';
 
 export function Footer() {
@@ -11,8 +12,8 @@ export function Footer() {
           </p>
         </div>
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <a href="#" className="hover:text-foreground">Política de Privacidad</a>
-          <a href="#" className="hover:text-foreground">Términos de Servicio</a>
+          <Link href="/privacy" className="hover:text-foreground">Política de Privacidad</Link>
+          <Link href="/terms" className="hover:text-foreground">Términos de Servicio</Link>
         </div>
       </div>
     </footer>
