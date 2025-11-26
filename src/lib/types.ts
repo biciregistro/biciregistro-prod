@@ -120,12 +120,20 @@ export type Event = {
   requiresBike?: boolean; // Defaults to true if undefined
 };
 
+export type PaymentStatus = 'pending' | 'paid' | 'not_applicable';
+
 export type EventRegistration = {
     id: string;
     eventId: string;
     userId: string;
     registrationDate: string; // ISO String
     status: 'confirmed' | 'cancelled';
+    
+    // Financial & Attendance Status
+    paymentStatus?: PaymentStatus;
+    checkedIn?: boolean;
+    checkedInAt?: string; // ISO String
+
     tierId?: string;
     tierName?: string;
     price?: number;
@@ -148,7 +156,13 @@ export type EventAttendee = {
     registrationDate: string;
     tierName: string;
     categoryName: string;
+    price?: number; // Added for revenue calculation
     status: 'confirmed' | 'cancelled';
+    
+    // Financial & Attendance Status
+    paymentStatus: PaymentStatus;
+    checkedIn: boolean;
+    
     bike?: {
         id: string;
         make: string;

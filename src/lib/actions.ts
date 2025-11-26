@@ -21,9 +21,11 @@ import {
     registerUserToEvent,
     cancelEventRegistration,
     updateEventRegistrationBike,
+    updateRegistrationStatusInternal,
+    cancelEventRegistrationById,
 } from './data';
 import { deleteSession, getDecodedSession } from './auth';
-import { ActionFormState, HomepageSection, Feature, BikeFormState, Event } from './types';
+import { ActionFormState, HomepageSection, Feature, BikeFormState, Event, PaymentStatus } from './types';
 import { userFormSchema, ongUserFormSchema, BikeRegistrationSchema, eventFormSchema } from './schemas';
 import { adminAuth } from './firebase/server';
 
@@ -661,4 +663,54 @@ export async function selectEventBikeAction(eventId: string, bikeId: string): Pr
     }
 
     return result;
+}
+
+export async function updateRegistrationPaymentStatus(registrationId: string, eventId: string, newStatus: PaymentStatus): Promise<{ success: boolean; error?: string }> {
+    const session = await getDecodedSession();
+    if (!session?.uid || (session.role !== 'ong' && session.admin !== true)) {
+        return { success: false, error: "No tienes permiso para realizar esta acción." };
+    }
+
+    try {
+        await updateRegistrationStatusInternal(registrationId, { paymentStatus: newStatus });
+        revalidatePath(`/dashboard/ong/events/${eventId}`);
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating payment status:", error);
+        return { success: false, error: "Error al actualizar el estado de pago." };
+    }
+}
+
+export async function toggleCheckInStatus(registrationId: string, eventId: string, newStatus: boolean): Promise<{ success: boolean; error?: string }> {
+    const session = await getDecodedSession();
+    if (!session?.uid || (session.role !== 'ong' && session.admin !== true)) {
+        return { success: false, error: "No tienes permiso para realizar esta acción." };
+    }
+
+    try {
+        await updateRegistrationStatusInternal(registrationId, { checkedIn: newStatus });
+        revalidatePath(`/dashboard/ong/events/${eventId}`);
+        return { success: true };
+    } catch (error) {
+        console.error("Error toggling check-in status:", error);
+        return { success: false, error: "Error al actualizar la asistencia." };
+    }
+}
+
+export async function cancelRegistrationManuallyAction(registrationId: string, eventId: string): Promise<{ success: boolean; error?: string }> {
+    const session = await getDecodedSession();
+    if (!session?.uid || (session.role !== 'ong' && session.admin !== true)) {
+        return { success: false, error: "No tienes permiso para realizar esta acción." };
+    }
+
+    try {
+        const result = await cancelEventRegistrationById(eventId, registrationId);
+        if (result.success) {
+            revalidatePath(`/dashboard/ong/events/${eventId}`);
+        }
+        return result;
+    } catch (error) {
+        console.error("Error cancelling registration manually:", error);
+        return { success: false, error: "Error al cancelar la inscripción." };
+    }
 }

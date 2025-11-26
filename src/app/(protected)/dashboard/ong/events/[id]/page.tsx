@@ -3,24 +3,23 @@ import Link from 'next/link';
 import { getAuthenticatedUser, getEvent, getEventAttendees } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Edit, Eye, Users, Calendar, MapPin, Share2, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Edit, Eye, Users, MapPin, Share2, DollarSign } from 'lucide-react';
 import { CopyButton } from '@/components/ong-components';
 import { EventStatusButton } from '@/components/ong/event-status-button';
 import { EventStatusBadge } from '@/components/ong/event-status-badge';
-import { cn } from '@/lib/utils';
+import { AttendeeManagement } from '@/components/ong/attendee-management';
 
 export default async function EventDetailsPage({ params }: { params: { id: string } }) {
   const user = await getAuthenticatedUser();
 
   if (!user) redirect('/login');
-  if (user.role !== 'ong') redirect('/dashboard');
+  if (user.role !== 'ong' && user.role !== 'admin') redirect('/dashboard');
 
   const event = await getEvent(params.id);
 
   if (!event) notFound();
-  if (event.ongId !== user.id) redirect('/dashboard/ong');
+  // Allow admins to view any event, but ONGs only their own
+  if (user.role === 'ong' && event.ongId !== user.id) redirect('/dashboard/ong');
 
   const attendees = await getEventAttendees(params.id);
 
@@ -30,6 +29,21 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
   
   const showEmergencyContact = event.requiresEmergencyContact;
   const showBikeInfo = event.requiresBike !== false;
+
+  // Calculate Revenue
+  // Sum price of all confirmed attendees who have paid or if the event implies payment on entry (simplification: sum 'paid' status)
+  const totalRevenue = attendees.reduce((acc, curr) => {
+      if (curr.status === 'confirmed' && curr.paymentStatus === 'paid') {
+          return acc + (curr.price || 0);
+      }
+      return acc;
+  }, 0);
+
+  // Formatting currency
+  const formattedRevenue = new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN'
+  }).format(totalRevenue);
 
   return (
     <div className="container py-8 px-4 md:px-6 space-y-8">
@@ -67,7 +81,7 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Registrados</CardTitle>
@@ -76,6 +90,17 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
           <CardContent>
             <div className="text-2xl font-bold">{event.currentParticipants || 0}</div>
             <p className="text-xs text-muted-foreground">Participantes confirmados</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Recaudación Total</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{formattedRevenue}</div>
+            <p className="text-xs text-muted-foreground">Ingresos por inscripciones pagadas</p>
           </CardContent>
         </Card>
         
@@ -96,7 +121,7 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
 
          <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Estado</CardTitle>
+            <CardTitle className="text-sm font-medium">Ubicación</CardTitle>
             <MapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -106,110 +131,21 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
         </Card>
       </div>
 
-      {/* Attendees List */}
+      {/* Attendees List Management */}
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Asistentes</CardTitle>
-          <CardDescription>Gestiona a los ciclistas registrados en tu evento.</CardDescription>
+          <CardTitle>Gestión de Asistencia y Pagos</CardTitle>
+          <CardDescription>
+            Controla quién ha pagado y quién asiste al evento en tiempo real.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-            <div className="rounded-md border overflow-x-auto">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Nombre</TableHead>
-                            <TableHead>Correo Electrónico</TableHead>
-                            <TableHead>Whatsapp</TableHead>
-                            {showEmergencyContact && (
-                                <>
-                                    <TableHead>Contacto Emergencia</TableHead>
-                                    <TableHead>Tel. Emergencia</TableHead>
-                                </>
-                            )}
-                            {showBikeInfo && (
-                                <>
-                                    <TableHead>Bicicleta</TableHead>
-                                    <TableHead>Serie</TableHead>
-                                </>
-                            )}
-                            <TableHead>Fecha Registro</TableHead>
-                            <TableHead>Nivel</TableHead>
-                            <TableHead>Categoría</TableHead>
-                            <TableHead className="text-right">Estado</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {attendees.length > 0 ? (
-                            attendees.map((attendee) => (
-                                <TableRow key={attendee.id} className={cn(attendee.status === 'cancelled' && "bg-muted/50 opacity-60")}>
-                                    <TableCell className="font-medium">{attendee.name} {attendee.lastName}</TableCell>
-                                    <TableCell>{attendee.email}</TableCell>
-                                    <TableCell>
-                                        {attendee.whatsapp ? (
-                                            <a 
-                                                href={`https://wa.me/${attendee.whatsapp.replace(/\D/g, '')}`} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer"
-                                                className="flex items-center gap-1 text-green-600 hover:underline"
-                                            >
-                                                <MessageCircle className="h-4 w-4" />
-                                                {attendee.whatsapp}
-                                            </a>
-                                        ) : (
-                                            <span className="text-muted-foreground text-sm">N/A</span>
-                                        )}
-                                    </TableCell>
-                                    {showEmergencyContact && (
-                                        <>
-                                            <TableCell className="text-sm">{attendee.emergencyContactName || 'N/A'}</TableCell>
-                                            <TableCell className="text-sm">{attendee.emergencyContactPhone || 'N/A'}</TableCell>
-                                        </>
-                                    )}
-                                    {showBikeInfo && (
-                                        <>
-                                            <TableCell>
-                                                {attendee.bike ? (
-                                                    <div className="flex flex-col">
-                                                        <span className="font-medium text-sm">{attendee.bike.make}</span>
-                                                        <span className="text-xs text-muted-foreground">{attendee.bike.model}</span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-muted-foreground">-</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                {attendee.bike ? (
-                                                    <span className="font-mono text-xs">{attendee.bike.serialNumber}</span>
-                                                ) : (
-                                                    <span className="text-muted-foreground">-</span>
-                                                )}
-                                            </TableCell>
-                                        </>
-                                    )}
-                                    <TableCell>{new Date(attendee.registrationDate).toLocaleDateString()}</TableCell>
-                                    <TableCell>{attendee.tierName}</TableCell>
-                                    <TableCell>{attendee.categoryName}</TableCell>
-                                    <TableCell className="text-right">
-                                        <Badge 
-                                            variant={attendee.status === 'cancelled' ? 'destructive' : 'outline'} 
-                                            className="capitalize"
-                                        >
-                                            {attendee.status === 'confirmed' ? 'Confirmado' : 
-                                             attendee.status === 'cancelled' ? 'Cancelado' : attendee.status}
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={11} className="h-24 text-center">
-                                    No hay participantes registrados aún.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
+            <AttendeeManagement 
+                attendees={attendees} 
+                eventId={event.id}
+                showEmergencyContact={showEmergencyContact}
+                showBikeInfo={showBikeInfo}
+            />
         </CardContent>
       </Card>
     </div>

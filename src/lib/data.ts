@@ -8,8 +8,6 @@ import { defaultHomepageData } from './homepage-data';
 import { firebaseConfig } from './firebase/config';
 import { UserRecord } from 'firebase-admin/auth';
 
-// ... (rest of helper functions and user management unchanged)
-
 // --- Helper Functions ---
 
 const normalizeSerialNumber = (serial: string): string => {
@@ -485,19 +483,43 @@ export async function registerUserToEvent(
                 .limit(1);
             
             const regSnapshot = await transaction.get(regQuery);
+            let existingRegDoc = null;
+            
             if (!regSnapshot.empty) {
-                 return { success: false, error: "Ya te encuentras registrado en este evento." };
+                const doc = regSnapshot.docs[0];
+                const data = doc.data() as EventRegistration;
+                if (data.status === 'cancelled') {
+                    // Allow re-registration
+                    existingRegDoc = doc;
+                } else {
+                     return { success: false, error: "Ya te encuentras registrado en este evento." };
+                }
             }
 
-            // 3. Create Registration
-            const newRegRef = db.collection('event-registrations').doc();
-            const newRegistration = {
+            // Default paymentStatus based on cost
+            let paymentStatus = 'pending';
+            if (eventData.costType === 'Gratuito') {
+                paymentStatus = 'not_applicable';
+            } else if (registrationData.price === 0) {
+                 paymentStatus = 'not_applicable'; 
+            }
+
+            const registrationPayload = {
                 ...registrationData,
-                registrationDate: new Date().toISOString(),
+                registrationDate: new Date().toISOString(), // Update date on re-registration
                 status: 'confirmed',
+                paymentStatus: paymentStatus,
+                checkedIn: false,
             };
 
-            transaction.set(newRegRef, newRegistration);
+            if (existingRegDoc) {
+                // 3a. Update existing Cancelled Registration
+                transaction.update(existingRegDoc.ref, registrationPayload);
+            } else {
+                // 3b. Create New Registration
+                const newRegRef = db.collection('event-registrations').doc();
+                transaction.set(newRegRef, registrationPayload);
+            }
 
             // 4. Increment participant count
             transaction.update(eventRef, {
@@ -557,6 +579,51 @@ export async function cancelEventRegistration(eventId: string, userId: string): 
     }
 }
 
+// Function for Organizer to cancel a specific registration by ID
+export async function cancelEventRegistrationById(eventId: string, registrationId: string): Promise<{ success: boolean; error?: string }> {
+    const db = adminDb;
+    try {
+        return await db.runTransaction(async (transaction) => {
+            const eventRef = db.collection('events').doc(eventId);
+            const regRef = db.collection('event-registrations').doc(registrationId);
+            
+            const regDoc = await transaction.get(regRef);
+            if (!regDoc.exists) {
+                return { success: false, error: "No se encontró el registro." };
+            }
+            
+            const registration = regDoc.data() as EventRegistration;
+
+            if (registration.eventId !== eventId) {
+                return { success: false, error: "El registro no pertenece a este evento." };
+            }
+
+            if (registration.status === 'cancelled') {
+                return { success: false, error: "La inscripción ya está cancelada." };
+            }
+
+            // Get event to check participant count integrity
+            const eventDoc = await transaction.get(eventRef);
+            if (!eventDoc.exists) {
+                 return { success: false, error: "El evento no existe." };
+            }
+            const currentParticipants = eventDoc.data()?.currentParticipants || 0;
+
+            // Update registration status
+            transaction.update(regRef, { status: 'cancelled' });
+
+            // Decrement participant count
+            const newCount = Math.max(0, currentParticipants - 1);
+            transaction.update(eventRef, { currentParticipants: newCount });
+
+            return { success: true };
+        });
+    } catch (error) {
+        console.error("Error cancelling registration by ID:", error);
+        return { success: false, error: "Error al cancelar la inscripción." };
+    }
+}
+
 export async function getEventAttendees(eventId: string): Promise<EventAttendee[]> {
     if (!eventId) return [];
     
@@ -577,6 +644,7 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
         if (!event) return []; 
 
         const tiersMap = new Map(event.costTiers?.map(t => [t.id, t.name]));
+        const tiersPriceMap = new Map(event.costTiers?.map(t => [t.id, t.price]));
         const categoriesMap = new Map(event.categories?.map(c => [c.id, c.name]));
 
         // 3. Fetch user details for each registration
@@ -597,6 +665,18 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 }
             }
             
+            // Determine price
+            let price = regData.price;
+            if (price === undefined && regData.tierId) {
+                price = tiersPriceMap.get(regData.tierId);
+            }
+            
+            // Determine payment status if missing (for legacy data compatibility)
+            let paymentStatus = regData.paymentStatus || 'pending';
+            if (event.costType === 'Gratuito') {
+                paymentStatus = 'not_applicable';
+            }
+
             return {
                 id: doc.id,
                 userId: regData.userId,
@@ -609,6 +689,10 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 categoryName: regData.categoryId ? categoriesMap.get(regData.categoryId) || 'N/A' : 'N/A',
                 status: regData.status,
                 bike: bikeData,
+                // New Fields Mapped
+                paymentStatus: paymentStatus as any,
+                checkedIn: regData.checkedIn || false,
+                price: price || 0,
                 // New Emergency Fields
                 emergencyContactName: regData.emergencyContactName,
                 emergencyContactPhone: regData.emergencyContactPhone,
@@ -623,6 +707,22 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
         console.error("Error fetching event attendees:", error);
         return [];
     }
+}
+
+// Function to update registration status (Internal use for Server Action)
+export async function updateRegistrationStatusInternal(
+    registrationId: string, 
+    data: { paymentStatus?: string, checkedIn?: boolean }
+) {
+    const db = adminDb;
+    const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
+    
+    if (data.checkedIn === true) {
+        // Add timestamp if checking in
+        (cleanData as any).checkedInAt = new Date().toISOString();
+    }
+    
+    await db.collection('event-registrations').doc(registrationId).update(cleanData);
 }
 
 export async function getUserEventRegistrations(userId: string): Promise<UserEventRegistration[]> {
