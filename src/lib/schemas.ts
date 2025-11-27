@@ -104,6 +104,9 @@ export const eventFormSchema = z.object({
 
     // Bike Requirement
     requiresBike: z.boolean().optional(),
+
+    // Sponsors
+    sponsors: z.array(z.string().url()).optional(),
 }).superRefine((data, ctx) => {
     if (data.costType === 'Con Costo' && (!data.costTiers || data.costTiers.length === 0)) {
         ctx.addIssue({

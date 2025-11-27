@@ -5,6 +5,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter, usePathname } from 'next/navigation';
+import Image from "next/image";
 
 import { eventFormSchema } from '@/lib/schemas';
 import { saveEvent } from '@/lib/actions';
@@ -18,7 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from '@/components/ui/card';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { countries, type Country } from '@/lib/countries';
-import { PlusCircle, Trash2, Loader2 } from 'lucide-react';
+import { PlusCircle, Trash2, Loader2, X } from 'lucide-react';
 import type { Event } from '@/lib/types';
 
 // Required label helper
@@ -58,6 +59,9 @@ export function EventForm({ initialData }: EventFormProps) {
     const [requiresEmergency, setRequiresEmergency] = useState(initialData?.requiresEmergencyContact || false);
     // Default to true if undefined, as most events are bike-related
     const [requiresBike, setRequiresBike] = useState(initialData?.requiresBike !== false);
+    
+    // Key to force re-render of upload component
+    const [uploadKey, setUploadKey] = useState(0);
 
     const form = useForm<EventFormValues>({
         resolver: zodResolver(eventFormSchema),
@@ -84,6 +88,7 @@ export function EventForm({ initialData }: EventFormProps) {
             registrationDeadline: initialData?.registrationDeadline ? new Date(initialData.registrationDeadline).toISOString().slice(0, 16) : "",
             requiresEmergencyContact: initialData?.requiresEmergencyContact || false,
             requiresBike: initialData?.requiresBike !== false,
+            sponsors: initialData?.sponsors || [],
         },
     });
 
@@ -103,6 +108,18 @@ export function EventForm({ initialData }: EventFormProps) {
         setStates(country?.states || []);
         form.setValue('country', countryName);
         form.setValue('state', ''); 
+    };
+
+    const handleSponsorUpload = (url: string) => {
+        const currentSponsors = form.getValues('sponsors') || [];
+        form.setValue('sponsors', [...currentSponsors, url]);
+        setUploadKey(prev => prev + 1);
+    };
+
+    const removeSponsor = (index: number) => {
+        const currentSponsors = form.getValues('sponsors') || [];
+        const newSponsors = currentSponsors.filter((_, i) => i !== index);
+        form.setValue('sponsors', newSponsors);
     };
 
     const onSubmit = async (data: EventFormValues, isDraft: boolean) => {
@@ -346,8 +363,52 @@ export function EventForm({ initialData }: EventFormProps) {
                     )}
                 />
 
+                {/* Sponsors Configuration */}
+                <div className="space-y-4 border rounded-lg p-4 bg-muted/5 mt-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-medium">Patrocinadores</h3>
+                            <p className="text-sm text-muted-foreground">Agrega los logotipos de las marcas que apoyan tu evento.</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 mt-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {form.watch('sponsors')?.map((url, index) => (
+                                <div key={index} className="relative group border rounded-md overflow-hidden bg-background">
+                                    <div className="relative aspect-square">
+                                        <Image
+                                            src={url}
+                                            alt={`Patrocinador ${index + 1}`}
+                                            fill
+                                            className="object-contain p-2"
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeSponsor(index)}
+                                        className="absolute top-1 right-1 p-1 bg-destructive/90 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="p-4 border border-dashed rounded-md bg-background/50">
+                            <FormLabel className="mb-2 block">Agregar Nuevo Patrocinador</FormLabel>
+                            <ImageUpload
+                                key={uploadKey}
+                                onUploadSuccess={handleSponsorUpload}
+                                storagePath="event-sponsors"
+                                guidelinesText="Recomendado: Imágenes cuadradas o apaisadas, fondo transparente, máx 2MB."
+                            />
+                        </div>
+                    </div>
+                </div>
+
                 {/* Technical Details (Optional) */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                     <FormField
                         control={form.control}
                         name="level"

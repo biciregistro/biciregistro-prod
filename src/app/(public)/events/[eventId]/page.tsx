@@ -254,6 +254,33 @@ export default async function EventPage({ params }: EventPageProps) {
                     </div>
                 )}
 
+                {/* Sponsors Section */}
+                {event.sponsors && event.sponsors.length > 0 && (
+                    <div className="space-y-6 mt-12 mb-8">
+                        <div className="flex items-center gap-4">
+                            <Separator className="flex-1" />
+                            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                                Evento Patrocinado Por
+                            </h3>
+                            <Separator className="flex-1" />
+                        </div>
+                        
+                        <div className="flex flex-wrap justify-center gap-8 md:gap-12 items-center">
+                            {event.sponsors.map((url, idx) => (
+                                <div key={idx} className="relative w-32 h-20 md:w-40 md:h-24 transition-all duration-300 filter grayscale hover:grayscale-0 opacity-70 hover:opacity-100 hover:scale-105">
+                                    <Image
+                                        src={url}
+                                        alt={`Patrocinador ${idx + 1}`}
+                                        fill
+                                        className="object-contain"
+                                        sizes="(max-width: 768px) 128px, 160px"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Organizer Card - Moved to main column bottom */}
                 {ongProfile && (
                     <Card className="shadow-md bg-muted/30 border-none mt-8">

@@ -118,6 +118,9 @@ export type Event = {
 
   // Bike Requirement
   requiresBike?: boolean; // Defaults to true if undefined
+
+  // Sponsors
+  sponsors?: string[]; // Array of image URLs
 };
 
 export type PaymentStatus = 'pending' | 'paid' | 'not_applicable';
