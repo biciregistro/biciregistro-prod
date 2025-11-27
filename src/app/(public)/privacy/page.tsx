@@ -18,7 +18,7 @@ export default function PrivacyPage() {
             
             <section className="space-y-4">
                 <p>
-                    <strong>"BICIREGISTRO"</strong>, con domicilio fiscal ubicado en <strong>Mirador de San Juan 9, El Mirador Queretaro</strong>, es el Responsable del uso y protección de sus datos personales, y al respecto le informa lo siguiente:
+                    <strong>Braulio Rivera Dominguez</strong>, quien opera comercialmente bajo la denominación "BICIREGISTRO", con domicilio fiscal ubicado en <strong>Mirador de San Juan 9, El Mirador, El Marques, Queretaro</strong>, es el Responsable del uso y protección de sus datos personales, y al respecto le informa lo siguiente:
                 </p>
             </section>
 

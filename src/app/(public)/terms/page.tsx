@@ -19,7 +19,7 @@ export default function TermsPage() {
             
             <section className="space-y-4">
                 <p>
-                    Bienvenido a <strong>Biciregistro</strong>. A continuación, se describen los términos y condiciones (en adelante los "Términos") que rigen el uso del sitio web, la aplicación móvil, la plataforma tecnológica y los servicios ofrecidos por "Biciregistro" (en adelante "LA PLATAFORMA" o "NOSOTROS").
+                    Bienvenido a <strong>Biciregistro</strong>. A continuación, se describen los términos y condiciones (en adelante los "Términos") que rigen el uso del sitio web, la aplicación móvil, la plataforma tecnológica y los servicios ofrecidos por <strong>Braulio Rivera Dominguez</strong>, quien opera comercialmente bajo la denominación "Biciregistro" (en adelante "LA PLATAFORMA" o "NOSOTROS").
                 </p>
                 <p>
                     Al crear una cuenta, registrar una bicicleta o inscribirse a un evento a través de nuestro sistema, usted (el "USUARIO") acepta someterse a estos Términos. <strong>Si no está de acuerdo con ellos, deberá abstenerse de utilizar nuestros servicios.</strong>
