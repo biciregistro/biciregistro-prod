@@ -24,9 +24,10 @@ type EventFormValues = z.infer<typeof eventFormSchema>;
 interface EventFormProps {
     initialData?: Event;
     financialSettings: FinancialSettings;
+    hasFinancialData: boolean;
 }
 
-export function EventForm({ initialData, financialSettings }: EventFormProps) {
+export function EventForm({ initialData, financialSettings, hasFinancialData }: EventFormProps) {
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
     const router = useRouter();
@@ -149,7 +150,7 @@ export function EventForm({ initialData, financialSettings }: EventFormProps) {
                 
                 <ConfigurationSection form={form} />
 
-                <CostSection form={form} financialSettings={financialSettings} />
+                <CostSection form={form} financialSettings={financialSettings} hasFinancialData={hasFinancialData} />
 
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t mt-8">

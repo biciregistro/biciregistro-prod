@@ -1,5 +1,5 @@
 import { redirect, notFound } from 'next/navigation';
-import { getAuthenticatedUser, getEvent } from '@/lib/data';
+import { getAuthenticatedUser, getEvent, getOngProfile } from '@/lib/data';
 import { getFinancialSettings } from '@/lib/financial-data';
 import { EventForm } from '@/components/ong/event-form';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -18,9 +18,10 @@ export default async function EditEventPage({ params }: { params: { id: string }
   }
 
   // Fetch data in parallel
-  const [event, financialSettings] = await Promise.all([
+  const [event, financialSettings, ongProfile] = await Promise.all([
     getEvent(params.id),
-    getFinancialSettings()
+    getFinancialSettings(),
+    getOngProfile(user.id)
   ]);
 
   if (!event) {
@@ -31,6 +32,8 @@ export default async function EditEventPage({ params }: { params: { id: string }
     // Prevent editing events that don't belong to the organization
     redirect('/dashboard/ong');
   }
+
+  const hasFinancialData = !!(ongProfile?.financialData?.clabe);
 
   return (
     <div className="container py-8 px-4 md:px-6">
@@ -52,7 +55,7 @@ export default async function EditEventPage({ params }: { params: { id: string }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <EventForm initialData={event} financialSettings={financialSettings} />
+            <EventForm initialData={event} financialSettings={financialSettings} hasFinancialData={hasFinancialData} />
           </CardContent>
         </Card>
       </div>

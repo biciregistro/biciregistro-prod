@@ -11,6 +11,7 @@ import {
 import { Globe, Instagram, Facebook } from 'lucide-react';
 import Link from 'next/link';
 import { CopyButton } from '@/components/ong-components';
+import { OngFinancialForm } from '@/components/ong/ong-financial-form';
 
 
 export default async function OngProfilePage() {
@@ -117,6 +118,9 @@ export default async function OngProfilePage() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Sección Financiera */}
+        <OngFinancialForm initialData={ongProfile.financialData} />
 
       </div>
     </div>

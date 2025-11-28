@@ -43,6 +43,14 @@ export const ongUserFormSchema = z.object({
   state: z.string().min(1, "El estado es obligatorio."),
 });
 
+// New Schema for Financial Data
+export const financialProfileSchema = z.object({
+    bankName: z.string().min(2, "El nombre del banco es obligatorio."),
+    accountHolder: z.string().min(3, "El nombre del beneficiario es obligatorio."),
+    clabe: z.string()
+        .length(18, "La CLABE debe tener exactamente 18 dígitos.")
+        .regex(/^\d+$/, "La CLABE debe contener solo números."),
+});
 
 export const BikeRegistrationSchema = z.object({
   serialNumber: z.string().min(1, "El número de serie es obligatorio."),

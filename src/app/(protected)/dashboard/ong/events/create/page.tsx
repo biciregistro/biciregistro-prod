@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getAuthenticatedUser } from '@/lib/data';
+import { getAuthenticatedUser, getOngProfile } from '@/lib/data';
 import { getFinancialSettings } from '@/lib/financial-data';
 import { EventForm } from '@/components/ong/event-form';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -17,7 +17,12 @@ export default async function CreateEventPage() {
     redirect('/dashboard');
   }
 
-  const financialSettings = await getFinancialSettings();
+  const [financialSettings, ongProfile] = await Promise.all([
+    getFinancialSettings(),
+    getOngProfile(user.id)
+  ]);
+
+  const hasFinancialData = !!(ongProfile?.financialData?.clabe);
 
   return (
     <div className="container py-8 px-4 md:px-6">
@@ -40,7 +45,7 @@ export default async function CreateEventPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <EventForm financialSettings={financialSettings} />
+            <EventForm financialSettings={financialSettings} hasFinancialData={hasFinancialData} />
           </CardContent>
         </Card>
       </div>

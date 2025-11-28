@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useFieldArray, useWatch, Control, UseFormReturn } from "react-hook-form";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -7,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from '@/components/ui/button';
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from '@/components/ui/card';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { PlusCircle, Trash2, Calculator } from 'lucide-react';
 import { calculateGrossUp, calculateFeeBreakdown } from '@/lib/utils';
 import type { FinancialSettings } from '@/lib/types';
@@ -18,6 +21,7 @@ type EventFormValues = z.infer<typeof eventFormSchema>;
 interface CostSectionProps {
     form: UseFormReturn<EventFormValues>;
     financialSettings: FinancialSettings;
+    hasFinancialData: boolean;
 }
 
 const CostTierCalculator = ({ index, control, settings }: { index: number, control: Control<EventFormValues>, settings: FinancialSettings }) => {
@@ -57,7 +61,10 @@ const CostTierCalculator = ({ index, control, settings }: { index: number, contr
     );
 };
 
-export function CostSection({ form, financialSettings }: CostSectionProps) {
+export function CostSection({ form, financialSettings, hasFinancialData }: CostSectionProps) {
+    const [showFinancialAlert, setShowFinancialAlert] = useState(false);
+    const router = useRouter();
+
     const { fields, append, remove } = useFieldArray({
         control: form.control,
         name: "costTiers",
@@ -69,6 +76,11 @@ export function CostSection({ form, financialSettings }: CostSectionProps) {
     }) === 'Con Costo';
 
     const handleToggle = (checked: boolean) => {
+        if (checked && !hasFinancialData) {
+            setShowFinancialAlert(true);
+            return;
+        }
+
         form.setValue('costType', checked ? 'Con Costo' : 'Gratuito');
         if (!checked) {
             form.setValue('costTiers', []);
@@ -78,6 +90,23 @@ export function CostSection({ form, financialSettings }: CostSectionProps) {
 
     return (
         <div className="space-y-4 border rounded-lg p-4 bg-muted/5">
+            <AlertDialog open={showFinancialAlert} onOpenChange={setShowFinancialAlert}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Datos Bancarios Requeridos</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Para crear eventos de pago, necesitas registrar una cuenta bancaria donde te depositaremos las ganancias.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => router.push('/dashboard/ong/profile')}>
+                            Registrar Cuenta
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <div className="flex items-center justify-between">
                 <div>
                     <h3 className="text-lg font-medium">Configuración de Costos</h3>

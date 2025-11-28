@@ -1,7 +1,7 @@
 import 'server-only';
 import { unstable_cache } from 'next/cache';
 import { adminDb } from './firebase/server';
-import type { FinancialSettings } from './types';
+import type { FinancialSettings, OngUser } from './types';
 
 const SETTINGS_COLLECTION = 'settings';
 const FINANCIAL_DOC_ID = 'financial';
@@ -44,5 +44,16 @@ export async function updateFinancialSettings(settings: FinancialSettings): Prom
     } catch (error) {
         console.error("Error updating financial settings:", error);
         throw new Error("No se pudo actualizar la configuración financiera.");
+    }
+}
+
+export async function updateOngFinancialData(ongId: string, financialData: NonNullable<OngUser['financialData']>) {
+    try {
+        await adminDb.collection('ong-profiles').doc(ongId).update({
+            financialData: financialData
+        });
+    } catch (error) {
+        console.error("Error updating ONG financial data:", error);
+        throw new Error("No se pudieron guardar los datos bancarios.");
     }
 }

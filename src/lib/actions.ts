@@ -24,10 +24,10 @@ import {
     updateRegistrationStatusInternal,
     cancelEventRegistrationById,
 } from './data';
-import { updateFinancialSettings } from './financial-data';
+import { updateFinancialSettings, updateOngFinancialData } from './financial-data';
 import { deleteSession, getDecodedSession } from './auth';
 import { ActionFormState, HomepageSection, Feature, BikeFormState, Event, PaymentStatus } from './types';
-import { userFormSchema, ongUserFormSchema, BikeRegistrationSchema, eventFormSchema, financialSettingsSchema } from './schemas';
+import { userFormSchema, ongUserFormSchema, BikeRegistrationSchema, eventFormSchema, financialSettingsSchema, financialProfileSchema } from './schemas';
 import { adminAuth } from './firebase/server';
 
 // ... (rest of the file until registerForEventAction)
@@ -738,5 +738,30 @@ export async function saveFinancialSettingsAction(prevState: ActionFormState, fo
     } catch (error) {
         console.error("Error saving financial settings:", error);
         return { error: 'Ocurrió un error al guardar la configuración.' };
+    }
+}
+
+export async function saveOngFinancialsAction(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
+    const session = await getDecodedSession();
+    if (!session?.uid || session.role !== 'ong') {
+        return { error: 'No tienes permisos para realizar esta acción.' };
+    }
+
+    const validatedFields = financialProfileSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            error: 'Datos inválidos. Verifica que la CLABE tenga 18 dígitos numéricos.',
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    try {
+        await updateOngFinancialData(session.uid, validatedFields.data);
+        revalidatePath('/dashboard/ong/profile');
+        return { success: true, message: 'Datos bancarios guardados correctamente.' };
+    } catch (error) {
+        console.error("Error saving ONG financials:", error);
+        return { error: 'Ocurrió un error al guardar los datos bancarios.' };
     }
 }

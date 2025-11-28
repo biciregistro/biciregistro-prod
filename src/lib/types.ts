@@ -57,6 +57,12 @@ export type OngUser = {
   state: string;
   avatarUrl?: string;
   invitationLink: string; // The unique invitation link for the ONG
+  // Financial Data for Payouts
+  financialData?: {
+    bankName: string;
+    accountHolder: string;
+    clabe: string; // 18 digits
+  };
 };
 
 // --- Event Types ---
