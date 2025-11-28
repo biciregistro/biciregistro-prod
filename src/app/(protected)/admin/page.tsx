@@ -1,12 +1,13 @@
 import { redirect } from 'next/navigation';
 import { getAuthenticatedUser, getHomepageData, getUsers, getOngUsers, getEventsByOngId } from '@/lib/data';
+import { getFinancialSettings } from '@/lib/financial-data';
 import type { HomepageSection } from '@/lib/types';
 import { AdminDashboardTabs } from '@/components/admin-dashboard-tabs';
 
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const user = await getAuthenticatedUser();
 
@@ -14,15 +15,18 @@ export default async function AdminPage({
     redirect('/dashboard');
   }
 
-  const query = typeof searchParams['query'] === 'string' ? searchParams['query'] : undefined;
-  const pageToken = typeof searchParams['pageToken'] === 'string' ? searchParams['pageToken'] : undefined;
+  const awaitedSearchParams = await searchParams;
+
+  const query = typeof awaitedSearchParams['query'] === 'string' ? awaitedSearchParams['query'] : undefined;
+  const pageToken = typeof awaitedSearchParams['pageToken'] === 'string' ? awaitedSearchParams['pageToken'] : undefined;
 
   // Parallel data fetching for performance
-  const [homepageData, usersData, ongs, adminEvents] = await Promise.all([
+  const [homepageData, usersData, ongs, adminEvents, financialSettings] = await Promise.all([
     getHomepageData(),
     getUsers({ query, pageToken }),
     getOngUsers(),
-    getEventsByOngId(user.id)
+    getEventsByOngId(user.id),
+    getFinancialSettings(),
   ]);
 
   const { users, nextPageToken } = usersData;
@@ -52,6 +56,7 @@ export default async function AdminPage({
           nextPageToken={nextPageToken} 
           ongs={ongs}
           events={adminEvents}
+          financialSettings={financialSettings}
         />
       </div>
     </div>

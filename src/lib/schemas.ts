@@ -84,6 +84,9 @@ export const eventFormSchema = z.object({
         id: z.string(),
         name: z.string().min(1, "El nombre del nivel es obligatorio."),
         price: z.coerce.number().positive("El precio debe ser un número positivo."),
+        // Nuevos campos opcionales para persistencia financiera
+        netPrice: z.coerce.number().optional(),
+        fee: z.coerce.number().optional(),
         includes: z.string().min(1, "Debes detallar qué incluye este nivel."),
     })).optional(),
     
@@ -139,4 +142,11 @@ export const eventFormSchema = z.object({
             });
         }
     }
+});
+
+export const financialSettingsSchema = z.object({
+    commissionRate: z.coerce.number().min(0).max(100, "El porcentaje debe estar entre 0 y 100."),
+    pasarelaRate: z.coerce.number().min(0).max(100, "El porcentaje debe estar entre 0 y 100."),
+    pasarelaFixed: z.coerce.number().min(0, "El monto fijo no puede ser negativo."),
+    ivaRate: z.coerce.number().min(0).max(100, "El porcentaje de IVA debe estar entre 0 y 100."),
 });

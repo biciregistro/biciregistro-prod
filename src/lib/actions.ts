@@ -24,9 +24,10 @@ import {
     updateRegistrationStatusInternal,
     cancelEventRegistrationById,
 } from './data';
+import { updateFinancialSettings } from './financial-data';
 import { deleteSession, getDecodedSession } from './auth';
 import { ActionFormState, HomepageSection, Feature, BikeFormState, Event, PaymentStatus } from './types';
-import { userFormSchema, ongUserFormSchema, BikeRegistrationSchema, eventFormSchema } from './schemas';
+import { userFormSchema, ongUserFormSchema, BikeRegistrationSchema, eventFormSchema, financialSettingsSchema } from './schemas';
 import { adminAuth } from './firebase/server';
 
 // ... (rest of the file until registerForEventAction)
@@ -712,5 +713,30 @@ export async function cancelRegistrationManuallyAction(registrationId: string, e
     } catch (error) {
         console.error("Error cancelling registration manually:", error);
         return { success: false, error: "Error al cancelar la inscripción." };
+    }
+}
+
+export async function saveFinancialSettingsAction(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
+    const session = await getDecodedSession();
+    if (!session?.uid || session.admin !== true) {
+        return { error: 'No tienes permisos para realizar esta acción.' };
+    }
+
+    const validatedFields = financialSettingsSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            error: 'Datos inválidos. Verifica los campos.',
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    try {
+        await updateFinancialSettings(validatedFields.data);
+        revalidatePath('/admin');
+        return { success: true, message: 'Configuración financiera actualizada correctamente.' };
+    } catch (error) {
+        console.error("Error saving financial settings:", error);
+        return { error: 'Ocurrió un error al guardar la configuración.' };
     }
 }

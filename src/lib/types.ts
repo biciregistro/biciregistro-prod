@@ -68,7 +68,9 @@ export type EventLevel = 'Principiante' | 'Intermedio' | 'Avanzado';
 export type CostTier = {
   id: string; // for React key prop
   name: string;
-  price: number;
+  price: number; // PRECIO TOTAL (Gross-up)
+  netPrice?: number; // PRECIO NETO (Lo que el organizador ingresó)
+  fee?: number; // Monto de la comisión total
   includes: string;
 };
 
@@ -230,3 +232,11 @@ export type BikeFormState = {
     message: string;
     errors?: Record<string, string[]>;
 } | null;
+
+// Financial Configuration Type
+export type FinancialSettings = {
+    commissionRate: number; // Porcentaje de comisión de BiciRegistro (Ej. 3.5)
+    pasarelaRate: number; // Porcentaje de comisión de la pasarela (Ej. 3.5)
+    pasarelaFixed: number; // Monto fijo de la pasarela (Ej. 4.50)
+    ivaRate: number; // Tasa de IVA (Ej. 16.0)
+};

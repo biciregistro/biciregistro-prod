@@ -261,3 +261,21 @@ Si encuentras un bug crítico en producción:
     git merge hotfix/descripcion-del-bug
     git push origin develop
     ```
+
+---
+
+## 6. Límites de Tamaño de Archivos y Modularización
+
+Para garantizar que el código sea mantenible, legible y pueda ser procesado eficientemente por herramientas de IA y revisión de código, hemos establecido límites estrictos sobre la complejidad de los archivos.
+
+#### Reglas:
+
+1.  **Límite de 600 Líneas:** Ningún archivo de código fuente (`.ts`, `.tsx`, `.js`) debe exceder las **600 líneas de código**.
+    *   Si un archivo se acerca a este límite, es un indicador claro de que está asumiendo demasiadas responsabilidades.
+    *   **Acción Requerida:** Refactoriza el archivo dividiéndolo en módulos o componentes más pequeños.
+
+2.  **Modularización Proactiva:** Si proyectas que una nueva funcionalidad hará que un archivo existente supere el límite, **no lo engordes**. Crea un nuevo archivo o subdirectorio desde el principio.
+    *   **Ejemplo:** En lugar de añadir más lógica a `data.ts`, crea `financial-data.ts`, `user-data.ts`, etc.
+    *   **Ejemplo:** En lugar de un `EventForm.tsx` gigante, crea una carpeta `event-form-sections/` y divide el formulario en `GeneralSection.tsx`, `ConfigSection.tsx`, etc.
+
+3.  **Separación de Responsabilidades (SoC):** Cada archivo debe tener un propósito único y claro. Evita los archivos "utils" o "helpers" monolíticos que contienen funciones no relacionadas entre sí.

@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HomepageEditor, UsersTable, OngUsersTable } from '@/components/admin-components';
-import { HomepageSection, User, OngUser, Event } from '@/lib/types';
+import { FinancialSettingsForm } from '@/components/admin/financial-settings-form';
+import { HomepageSection, User, OngUser, Event, FinancialSettings } from '@/lib/types';
 import { EventCard } from '@/components/ong/event-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info, UserPlus, CalendarPlus } from 'lucide-react';
+import { Info, UserPlus, CalendarPlus, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface AdminDashboardTabsProps {
@@ -17,9 +18,10 @@ interface AdminDashboardTabsProps {
   nextPageToken?: string;
   ongs: OngUser[];
   events: Event[];
+  financialSettings: FinancialSettings;
 }
 
-function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ongs, events }: AdminDashboardTabsProps) {
+function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ongs, events, financialSettings }: AdminDashboardTabsProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -49,12 +51,13 @@ function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ong
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-      <TabsList className="grid w-full grid-cols-5 mb-8">
+      <TabsList className="grid w-full grid-cols-6 mb-8">
         <TabsTrigger value="stats">Indicadores</TabsTrigger>
-        <TabsTrigger value="content">Gestión de Contenido</TabsTrigger>
-        <TabsTrigger value="users">Gestión de Usuarios</TabsTrigger>
-        <TabsTrigger value="ongs">Gestión de ONGs</TabsTrigger>
-        <TabsTrigger value="events">Gestión de Eventos</TabsTrigger>
+        <TabsTrigger value="content">Contenido</TabsTrigger>
+        <TabsTrigger value="users">Usuarios</TabsTrigger>
+        <TabsTrigger value="ongs">ONGs</TabsTrigger>
+        <TabsTrigger value="events">Eventos</TabsTrigger>
+        <TabsTrigger value="finance">Finanzas</TabsTrigger>
       </TabsList>
 
       <TabsContent value="stats" className="space-y-4">
@@ -113,6 +116,18 @@ function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ong
             </Link>
           </div>
         )}
+      </TabsContent>
+
+      <TabsContent value="finance" className="space-y-6">
+          <FinancialSettingsForm initialSettings={financialSettings} />
+          
+          <Alert variant="default" className="bg-muted/50 border-dashed">
+            <DollarSign className="h-4 w-4" />
+            <AlertTitle>Reportes Financieros y Dispersión</AlertTitle>
+            <AlertDescription>
+                La visualización de ingresos por evento y el reporte para dispersión a organizadores estará disponible en la próxima fase.
+            </AlertDescription>
+          </Alert>
       </TabsContent>
     </Tabs>
   );

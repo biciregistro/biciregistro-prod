@@ -25,3 +25,9 @@ env:
     secret: next-public-firebase-app-id
   - variable: NEXT_PUBLIC_RECAPTCHA_SITE_KEY
     secret: next-public-recaptcha-site-key
+  - variable: MP_ACCESS_TOKEN
+    secret: mp-access-token
+  - variable: NEXT_PUBLIC_MP_PUBLIC_KEY
+    value: 'APP_USR-af9db233-bd35-4cb8-97c2-b044fd1c3106'
+  - variable: MERCADOPAGO_WEBHOOK_SECRET
+    secret: mp-webhook-secret

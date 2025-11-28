@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getAuthenticatedUser } from '@/lib/data';
+import { getFinancialSettings } from '@/lib/financial-data';
 import { EventForm } from '@/components/ong/event-form';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,8 @@ export default async function CreateEventPage() {
   if (user.role !== 'ong') {
     redirect('/dashboard');
   }
+
+  const financialSettings = await getFinancialSettings();
 
   return (
     <div className="container py-8 px-4 md:px-6">
@@ -37,7 +40,7 @@ export default async function CreateEventPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <EventForm />
+            <EventForm financialSettings={financialSettings} />
           </CardContent>
         </Card>
       </div>
