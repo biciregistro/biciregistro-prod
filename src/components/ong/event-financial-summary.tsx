@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { DollarSign, CreditCard, Wallet, AlertTriangle, CheckCircle2, Calculator } from 'lucide-react';
+import { DollarSign, CreditCard, Wallet, AlertTriangle, CheckCircle2, Calculator, TrendingUp } from 'lucide-react';
 import type { DetailedFinancialSummary } from '@/lib/financial-data';
 
 export function EventFinancialSummary({ data }: { data: DetailedFinancialSummary }) {
@@ -16,45 +16,47 @@ export function EventFinancialSummary({ data }: { data: DetailedFinancialSummary
     const platformIncome = data.platform.gross;
     const platformFees = data.platform.fee;
     const manualFees = data.manual.fee;
+    const organizerNetIncome = data.total.gross - data.total.fee;
 
     return (
         <div className="space-y-8">
             
-            {/* Metrics Grid (Simplificado) */}
+            {/* Metrics Grid (Reorganizado) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                {/* 1. Ingresos Totales Brutos */}
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
+                        <CardTitle className="text-sm font-medium">Ingresos Totales Brutos</CardTitle>
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{f(data.total.gross)}</div>
-                        <p className="text-xs text-muted-foreground">Bruto acumulado</p>
+                        <p className="text-xs text-muted-foreground">Total recaudado</p>
                     </CardContent>
                 </Card>
                 
+                {/* 2. Desglose por Canal (Combinado) */}
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Ingresos por Plataforma</CardTitle>
+                        <CardTitle className="text-sm font-medium">Desglose por Canal</CardTitle>
                         <CreditCard className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{f(data.platform.gross)}</div>
-                        <p className="text-xs text-muted-foreground">Pagos procesados con tarjeta</p>
+                         <div className="space-y-2 mt-1">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground flex items-center gap-1">Plataforma:</span>
+                                <span className="font-medium">{f(data.platform.gross)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground flex items-center gap-1">Efectivo:</span>
+                                <span className="font-medium">{f(data.manual.gross)}</span>
+                            </div>
+                         </div>
                     </CardContent>
                 </Card>
                 
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Ingresos en Efectivo</CardTitle>
-                        <Wallet className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{f(data.manual.gross)}</div>
-                        <p className="text-xs text-muted-foreground">Efectivo y/o transferencias</p>
-                    </CardContent>
-                </Card>
-                
+                {/* 3. Cargos de Gestión Totales */}
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Cargos de Gestión Totales</CardTitle>
@@ -62,10 +64,23 @@ export function EventFinancialSummary({ data }: { data: DetailedFinancialSummary
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-amber-600">{f(data.total.fee)}</div>
-                        <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                            <span className="block">{f(data.manual.fee)} por Efectivo</span>
-                            <span className="block">{f(data.platform.fee)} por Plataforma</span>
+                        <div className="text-xs text-muted-foreground mt-1">
+                            <span className="block">({f(data.manual.fee)} Efvo + {f(data.platform.fee)} Plat)</span>
                         </div>
+                    </CardContent>
+                </Card>
+
+                {/* 4. Ingresos Netos del Organizador (Destacado) */}
+                <Card className="border-green-200 bg-green-50 dark:bg-green-900/10">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-green-800 dark:text-green-300">Ingresos Netos</CardTitle>
+                        <TrendingUp className="h-4 w-4 text-green-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-green-700 dark:text-green-400">{f(organizerNetIncome)}</div>
+                        <p className="text-xs text-green-600 dark:text-green-300 font-medium">
+                            Tu ganancia libre de comisiones
+                        </p>
                     </CardContent>
                 </Card>
             </div>
