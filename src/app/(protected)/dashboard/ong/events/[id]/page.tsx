@@ -1,13 +1,17 @@
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getAuthenticatedUser, getEvent, getEventAttendees } from '@/lib/data';
+import { getEventFinancialSummary } from '@/lib/financial-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Eye, Users, MapPin, Share2, DollarSign, UserCheck } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ArrowLeft, Edit, Eye, Users, MapPin, Share2, DollarSign, UserCheck, ShieldAlert } from 'lucide-react';
 import { CopyButton } from '@/components/ong-components';
 import { EventStatusButton } from '@/components/ong/event-status-button';
 import { EventStatusBadge } from '@/components/ong/event-status-badge';
 import { AttendeeManagement } from '@/components/ong/attendee-management';
+import { EventFinancialSummary } from '@/components/ong/event-financial-summary';
 
 export default async function EventDetailsPage({ params }: { params: { id: string } }) {
   const user = await getAuthenticatedUser();
@@ -18,10 +22,12 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
   const event = await getEvent(params.id);
 
   if (!event) notFound();
-  // Allow admins to view any event, but ONGs only their own
   if (user.role === 'ong' && event.ongId !== user.id) redirect('/dashboard/ong');
 
-  const attendees = await getEventAttendees(params.id);
+  const [attendees, financialSummary] = await Promise.all([
+    getEventAttendees(params.id),
+    getEventFinancialSummary(params.id)
+  ]);
 
   const eventDate = new Date(event.date);
   const isFinished = eventDate < new Date();
@@ -30,31 +36,19 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
   const showEmergencyContact = event.requiresEmergencyContact;
   const showBikeInfo = event.requiresBike !== false;
 
-  // Calculate Revenue
-  // Sum price of all confirmed attendees who have paid
-  const totalRevenue = attendees.reduce((acc, curr) => {
-      if (curr.status === 'confirmed' && curr.paymentStatus === 'paid') {
-          return acc + (curr.price || 0);
-      }
-      return acc;
-  }, 0);
-
-  // Calculate Attendance (Check-in)
   const totalCheckedIn = attendees.filter(a => a.checkedIn).length;
   const attendancePercentage = event.currentParticipants && event.currentParticipants > 0 
       ? Math.round((totalCheckedIn / event.currentParticipants) * 100) 
       : 0;
 
-  // Formatting currency
   const formattedRevenue = new Intl.NumberFormat('es-MX', {
       style: 'currency',
       currency: 'MXN'
-  }).format(totalRevenue);
+  }).format(financialSummary.total.gross);
 
   return (
     <div className="container py-8 px-4 md:px-6 space-y-8">
       
-      {/* Header & Navigation */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <Link href="/dashboard/ong" className="text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2 text-sm">
@@ -85,96 +79,115 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
             </Button>
         </div>
       </div>
+      
+      {event.isBlocked && (
+        <Alert variant="destructive" className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+            <ShieldAlert className="h-5 w-5 text-red-600" />
+            <AlertTitle className="text-red-800 dark:text-red-300 text-lg">Gestión Suspendida Temporalmente</AlertTitle>
+            <AlertDescription className="text-red-700 dark:text-red-400 mt-2">
+                La administración ha bloqueado las funciones de gestión para este evento. 
+                Por favor, revisa tu balance financiero o contacta a soporte para regularizar tu situación.
+            </AlertDescription>
+        </Alert>
+      )}
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Registrados</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{event.currentParticipants || 0}</div>
-            <p className="text-xs text-muted-foreground">Inscripciones confirmadas</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Asistencia Real</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalCheckedIn}</div>
-            <p className="text-xs text-muted-foreground">{attendancePercentage}% de asistencia</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recaudación</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formattedRevenue}</div>
-            <p className="text-xs text-muted-foreground">Total pagado</p>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="overview">Resumen y Asistentes</TabsTrigger>
+          <TabsTrigger value="finance">Finanzas y Balance</TabsTrigger>
+        </TabsList>
         
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Compartir</CardTitle>
-                <Share2 className="h-4 w-4 text-muted-foreground" />
+        <TabsContent value="overview" className="mt-6 space-y-6">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Registrados</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{event.currentParticipants || 0}</div>
+                  <p className="text-xs text-muted-foreground">Inscripciones confirmadas</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Asistencia Real</CardTitle>
+                  <UserCheck className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{totalCheckedIn}</div>
+                  <p className="text-xs text-muted-foreground">{attendancePercentage}% de asistencia</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Recaudación Total</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">{formattedRevenue}</div>
+                  <p className="text-xs text-muted-foreground">Total pagado (Plataforma + Efectivo)</p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Compartir</CardTitle>
+                      <Share2 className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                      <div className="flex items-center gap-2">
+                          <div className="text-xs text-muted-foreground truncate flex-1 bg-muted p-1 rounded">
+                              {publicUrl}
+                          </div>
+                          <CopyButton textToCopy={publicUrl} />
+                      </div>
+                  </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Ubicación</CardTitle>
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm font-medium truncate mb-2">{event.state}, {event.country}</div>
+                  {event.googleMapsUrl && (
+                      <Button variant="outline" size="sm" asChild className="w-full h-8 text-xs">
+                          <Link href={event.googleMapsUrl} target="_blank" rel="noopener noreferrer">
+                              <MapPin className="mr-2 h-3 w-3" />
+                              Ver Mapa
+                          </Link>
+                      </Button>
+                  )}
+                </CardContent>
+              </Card>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Gestión de Asistencia y Pagos</CardTitle>
+              <CardDescription>
+                Controla quién ha pagado y quién asiste al evento en tiempo real.
+              </CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="flex items-center gap-2">
-                    <div className="text-xs text-muted-foreground truncate flex-1 bg-muted p-1 rounded">
-                        {publicUrl}
-                    </div>
-                    <CopyButton textToCopy={publicUrl} />
-                </div>
+                <AttendeeManagement 
+                    attendees={attendees} 
+                    eventId={event.id}
+                    showEmergencyContact={showEmergencyContact}
+                    showBikeInfo={showBikeInfo}
+                    isBlocked={event.isBlocked}
+                />
             </CardContent>
-        </Card>
+          </Card>
+        </TabsContent>
 
-         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ubicación</CardTitle>
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm font-medium truncate mb-2">{event.state}, {event.country}</div>
-            {event.googleMapsUrl && (
-                <Button variant="outline" size="sm" asChild className="w-full h-8 text-xs">
-                    <Link href={event.googleMapsUrl} target="_blank" rel="noopener noreferrer">
-                        <MapPin className="mr-2 h-3 w-3" />
-                        Ver Mapa
-                    </Link>
-                </Button>
-            )}
-            {!event.googleMapsUrl && (
-                <p className="text-xs text-muted-foreground italic">Sin mapa registrado</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Attendees List Management */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Gestión de Asistencia y Pagos</CardTitle>
-          <CardDescription>
-            Controla quién ha pagado y quién asiste al evento en tiempo real.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <AttendeeManagement 
-                attendees={attendees} 
-                eventId={event.id}
-                showEmergencyContact={showEmergencyContact}
-                showBikeInfo={showBikeInfo}
-            />
-        </CardContent>
-      </Card>
+        <TabsContent value="finance" className="mt-6">
+          <EventFinancialSummary data={financialSummary} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -71,15 +71,21 @@ export async function getEventRegistration(registrationId: string): Promise<Even
     }
 }
 
-export async function updateRegistrationManualPayment(registrationId: string, feeAmount: number) {
+export async function updateRegistrationManualPayment(registrationId: string, feeAmount: number, priceAmount?: number) {
     try {
-        await adminDb.collection('event-registrations').doc(registrationId).update({
+        const updateData: any = {
             paymentStatus: 'paid',
             paymentMethod: 'manual',
             feeAmount: feeAmount,
             // Track when this happened
             manualPaymentAt: new Date().toISOString()
-        });
+        };
+
+        if (priceAmount !== undefined) {
+            updateData.price = priceAmount;
+        }
+
+        await adminDb.collection('event-registrations').doc(registrationId).update(updateData);
     } catch (error) {
         console.error("Error updating manual payment:", error);
         throw new Error("No se pudo registrar el pago manual.");
@@ -127,72 +133,99 @@ export async function getAllEventsForAdmin(): Promise<Event[]> {
 
 // --- Event Financial Summary (Aggregation) ---
 
-export async function getEventFinancialSummary(eventId: string) {
+export interface FinancialBreakdown {
+    gross: number;
+    net: number;
+    fee: number;
+}
+
+export interface DetailedFinancialSummary {
+    total: FinancialBreakdown;
+    platform: FinancialBreakdown;
+    manual: FinancialBreakdown;
+    balanceToDisperse: number;
+}
+
+export async function getEventFinancialSummary(eventId: string): Promise<DetailedFinancialSummary> {
     try {
+        const eventDoc = await adminDb.collection('events').doc(eventId).get();
+        const eventData = eventDoc.exists ? eventDoc.data() as Event : null;
+        const tiersMap = new Map<string, { price: number, fee?: number, netPrice?: number }>();
+        
+        if (eventData?.costTiers) {
+            eventData.costTiers.forEach(t => {
+                tiersMap.set(t.id, { price: t.price, fee: t.fee, netPrice: t.netPrice });
+            });
+        }
+
         const registrationsRef = adminDb.collection('event-registrations').where('eventId', '==', eventId);
         const snapshot = await registrationsRef.get();
         
-        let totalRevenue = 0;
-        let platformRevenue = 0;
-        let manualRevenue = 0;
-        let platformFees = 0;
-        let manualFeesDebt = 0;
-        let netRevenue = 0; 
+        const summary: DetailedFinancialSummary = {
+            total: { gross: 0, net: 0, fee: 0 },
+            platform: { gross: 0, net: 0, fee: 0 },
+            manual: { gross: 0, net: 0, fee: 0 },
+            balanceToDisperse: 0
+        };
 
         snapshot.forEach(doc => {
             const reg = doc.data() as EventRegistration;
-            // Only count confirmed & paid
             if (reg.status !== 'confirmed' || reg.paymentStatus !== 'paid') return;
 
-            const amount = reg.price || 0;
-            const fee = reg.feeAmount || 0;
-            // If netPrice is missing, fallback logic: net = amount - fee
-            const net = reg.netPrice !== undefined ? reg.netPrice : (amount - fee);
+            let amount = reg.price;
+            let fee = reg.feeAmount;
+            let net = reg.netPrice;
 
-            totalRevenue += amount;
-            netRevenue += net;
+            if ((amount === undefined || amount === 0) && reg.tierId && tiersMap.has(reg.tierId)) {
+                const tier = tiersMap.get(reg.tierId)!;
+                amount = tier.price;
+                if (fee === undefined) fee = tier.fee;
+                if (net === undefined) net = tier.netPrice;
+            }
+
+            amount = amount || 0;
+            fee = fee || 0;
+            net = net !== undefined ? net : (amount - fee);
+
+            summary.total.gross += amount;
+            summary.total.net += net;
+            summary.total.fee += fee;
 
             if (reg.paymentMethod === 'manual') {
-                manualRevenue += amount;
-                manualFeesDebt += fee;
+                summary.manual.gross += amount;
+                summary.manual.net += net;
+                summary.manual.fee += fee;
             } else {
-                // Default is platform (card)
-                platformRevenue += amount;
-                platformFees += fee;
+                summary.platform.gross += amount;
+                summary.platform.net += net;
+                summary.platform.fee += fee;
             }
         });
 
-        // The money platform holds = Platform Revenue
-        // The money platform keeps = Platform Fees + Manual Fees Debt
-        // Money to disperse = Platform Revenue - (Platform Fees + Manual Fees Debt)
-        // Which simplifies to: (PlatformRevenue - PlatformFees) - ManualFeesDebt
-        
-        // Example: 
-        // 1 Card (1000 + 100 fee) -> Platform has 1100. Platform keeps 100. Owe Org 1000.
-        // 1 Cash (1000 + 100 fee) -> Org has 1100. Platform keeps 0. Org owes Platform 100.
-        // Net: 1000 (from card) - 100 (debt from cash) = 900 to disperse.
-        
-        const balanceToDisperse = (platformRevenue - platformFees) - manualFeesDebt;
+        summary.balanceToDisperse = (summary.platform.gross - summary.platform.fee) - summary.manual.fee;
 
-        return {
-            totalRevenue,
-            platformRevenue,
-            manualRevenue,
-            platformFees,
-            manualFeesDebt,
-            netRevenue,
-            balanceToDisperse
-        };
+        return summary;
     } catch (error) {
         console.error("Error calculating event financial summary:", error);
         return {
-            totalRevenue: 0,
-            platformRevenue: 0,
-            manualRevenue: 0,
-            platformFees: 0,
-            manualFeesDebt: 0,
-            netRevenue: 0,
+            total: { gross: 0, net: 0, fee: 0 },
+            platform: { gross: 0, net: 0, fee: 0 },
+            manual: { gross: 0, net: 0, fee: 0 },
             balanceToDisperse: 0
         };
     }
+}
+
+// Helper to update registration status
+export async function updateRegistrationStatusInternal(
+    registrationId: string, 
+    data: { paymentStatus?: string, checkedIn?: boolean, paymentMethod?: string | null }
+) {
+    const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
+    
+    if (data.checkedIn === true) {
+        (cleanData as any).checkedInAt = new Date().toISOString();
+    }
+    
+    await adminDb.collection('event-registrations').doc(registrationId).update(cleanData);
 }

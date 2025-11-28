@@ -25,8 +25,8 @@ import { useToast } from '@/hooks/use-toast';
 import { MessageCircle, MoreHorizontal, Check, AlertCircle, CreditCard, UserCheck, Bike, XCircle, Wallet } from 'lucide-react';
 import { EventAttendee, PaymentStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { updateRegistrationPaymentStatus, toggleCheckInStatus, cancelRegistrationManuallyAction } from '@/lib/actions';
-import { registerManualPaymentAction } from '@/lib/actions/financial-actions';
+import { toggleCheckInStatus, cancelRegistrationManuallyAction } from '@/lib/actions';
+import { registerManualPaymentAction, updateRegistrationPaymentStatusAction } from '@/lib/actions/financial-actions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,7 +64,7 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
 
     const handlePaymentChange = async (registrationId: string, newStatus: PaymentStatus) => {
         setIsUpdating(registrationId);
-        const result = await updateRegistrationPaymentStatus(registrationId, eventId, newStatus);
+        const result = await updateRegistrationPaymentStatusAction(registrationId, eventId, newStatus);
         
         if (result.success) {
             toast({
@@ -150,19 +150,23 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
     };
 
     const getPaymentBadge = (attendee: EventAttendee) => {
-        if (attendee.paymentStatus === 'paid') {
-            if (attendee.paymentMethod === 'manual') {
-                return <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">Efectivo</Badge>;
-            }
-            return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Pagado</Badge>;
-        }
-        if (attendee.paymentStatus === 'pending') {
-            return <Badge variant="outline" className="text-yellow-600 border-yellow-600">Pendiente</Badge>;
-        }
-        if (attendee.paymentStatus === 'not_applicable') {
-            return <Badge variant="secondary">Gratis/N.A</Badge>;
-        }
-        return <Badge variant="outline">Desc.</Badge>;
+        const statusMap = {
+            paid: <Badge variant="default" className="bg-green-600 hover:bg-green-700 w-fit">Pagado</Badge>,
+            pending: <Badge variant="outline" className="text-yellow-600 border-yellow-600 w-fit">Pendiente</Badge>,
+            not_applicable: <Badge variant="secondary" className="w-fit">Gratis/N.A</Badge>,
+        };
+
+        const methodMap = {
+            manual: <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1"><Wallet className="h-3 w-3" /> Efectivo</span>,
+            platform: <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1"><CreditCard className="h-3 w-3" /> Plataforma</span>,
+        };
+
+        return (
+            <div className="flex flex-col gap-1">
+                {statusMap[attendee.paymentStatus] || <Badge variant="outline">Desc.</Badge>}
+                {attendee.paymentStatus === 'paid' && attendee.paymentMethod && methodMap[attendee.paymentMethod]}
+            </div>
+        );
     };
 
     return (
