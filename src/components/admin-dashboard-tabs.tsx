@@ -6,6 +6,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HomepageEditor, UsersTable, OngUsersTable } from '@/components/admin-components';
 import { FinancialSettingsForm } from '@/components/admin/financial-settings-form';
+import { AdminEventFinancialList } from '@/components/admin/admin-event-financial-list';
 import { HomepageSection, User, OngUser, Event, FinancialSettings } from '@/lib/types';
 import { EventCard } from '@/components/ong/event-card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -19,9 +20,10 @@ interface AdminDashboardTabsProps {
   ongs: OngUser[];
   events: Event[];
   financialSettings: FinancialSettings;
+  allEvents: Event[];
 }
 
-function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ongs, events, financialSettings }: AdminDashboardTabsProps) {
+function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ongs, events, financialSettings, allEvents }: AdminDashboardTabsProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -30,7 +32,6 @@ function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ong
   const currentTab = searchParams.get('tab') || defaultTab;
   const [activeTab, setActiveTab] = useState(currentTab);
 
-  // Sync state with URL params
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab) {
@@ -41,11 +42,9 @@ function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ong
   const onTabChange = (value: string) => {
     setActiveTab(value);
     
-    // Create new URLSearchParams object to avoid direct mutation issues
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', value);
     
-    // Update URL without full reload
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
@@ -121,13 +120,7 @@ function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ong
       <TabsContent value="finance" className="space-y-6">
           <FinancialSettingsForm initialSettings={financialSettings} />
           
-          <Alert variant="default" className="bg-muted/50 border-dashed">
-            <DollarSign className="h-4 w-4" />
-            <AlertTitle>Reportes Financieros y Dispersión</AlertTitle>
-            <AlertDescription>
-                La visualización de ingresos por evento y el reporte para dispersión a organizadores estará disponible en la próxima fase.
-            </AlertDescription>
-          </Alert>
+          <AdminEventFinancialList events={allEvents} />
       </TabsContent>
     </Tabs>
   );

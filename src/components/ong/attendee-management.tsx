@@ -22,10 +22,11 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, MoreHorizontal, Check, AlertCircle, CreditCard, UserCheck, Bike, XCircle } from 'lucide-react';
+import { MessageCircle, MoreHorizontal, Check, AlertCircle, CreditCard, UserCheck, Bike, XCircle, Wallet } from 'lucide-react';
 import { EventAttendee, PaymentStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { updateRegistrationPaymentStatus, toggleCheckInStatus, cancelRegistrationManuallyAction } from '@/lib/actions';
+import { registerManualPaymentAction } from '@/lib/actions/financial-actions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,9 +43,10 @@ interface AttendeeManagementProps {
     eventId: string;
     showEmergencyContact?: boolean;
     showBikeInfo?: boolean;
+    isBlocked?: boolean; // Bloqueo administrativo
 }
 
-export function AttendeeManagement({ attendees, eventId, showEmergencyContact, showBikeInfo }: AttendeeManagementProps) {
+export function AttendeeManagement({ attendees, eventId, showEmergencyContact, showBikeInfo, isBlocked }: AttendeeManagementProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -73,6 +75,25 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
             toast({
                 title: "Error",
                 description: result.error || "No se pudo actualizar el estado.",
+                variant: "destructive"
+            });
+        }
+        setIsUpdating(null);
+    };
+
+    const handleManualPayment = async (registrationId: string) => {
+        setIsUpdating(registrationId);
+        const result = await registerManualPaymentAction(registrationId, eventId);
+        
+        if (result.success) {
+            toast({
+                title: "Pago registrado",
+                description: "Se ha marcado como pagado en efectivo. La comisión se sumará a tu balance.",
+            });
+        } else {
+            toast({
+                title: "Error",
+                description: result.error || "No se pudo registrar el pago.",
                 variant: "destructive"
             });
         }
@@ -128,17 +149,20 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
         setSelectedAttendeeId(null);
     };
 
-    const getPaymentBadge = (status: PaymentStatus) => {
-        switch (status) {
-            case 'paid':
-                return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Pagado</Badge>;
-            case 'pending':
-                return <Badge variant="outline" className="text-yellow-600 border-yellow-600">Pendiente</Badge>;
-            case 'not_applicable':
-                return <Badge variant="secondary">Gratis/N.A</Badge>;
-            default:
-                return <Badge variant="outline">Desc.</Badge>;
+    const getPaymentBadge = (attendee: EventAttendee) => {
+        if (attendee.paymentStatus === 'paid') {
+            if (attendee.paymentMethod === 'manual') {
+                return <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">Efectivo</Badge>;
+            }
+            return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Pagado</Badge>;
         }
+        if (attendee.paymentStatus === 'pending') {
+            return <Badge variant="outline" className="text-yellow-600 border-yellow-600">Pendiente</Badge>;
+        }
+        if (attendee.paymentStatus === 'not_applicable') {
+            return <Badge variant="secondary">Gratis/N.A</Badge>;
+        }
+        return <Badge variant="outline">Desc.</Badge>;
     };
 
     return (
@@ -183,7 +207,7 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
                                         <Switch
                                             checked={attendee.checkedIn}
                                             onCheckedChange={() => handleCheckInToggle(attendee.id, attendee.checkedIn)}
-                                            disabled={isUpdating === attendee.id || attendee.status === 'cancelled'}
+                                            disabled={isUpdating === attendee.id || attendee.status === 'cancelled' || isBlocked}
                                         />
                                     </TableCell>
                                     <TableCell>
@@ -242,34 +266,35 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
                                         {attendee.status === 'cancelled' ? (
                                             <span className="text-xs text-muted-foreground italic">Cancelado</span>
                                         ) : (
-                                            getPaymentBadge(attendee.paymentStatus)
+                                            getPaymentBadge(attendee)
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0" disabled={attendee.status === 'cancelled'}>
+                                                <Button variant="ghost" className="h-8 w-8 p-0" disabled={attendee.status === 'cancelled' || isBlocked}>
                                                     <span className="sr-only">Abrir menú</span>
                                                     <MoreHorizontal className="h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuItem 
+                                                    onClick={() => handleManualPayment(attendee.id)}
+                                                    disabled={attendee.paymentStatus === 'paid'}
+                                                >
+                                                    <Wallet className="mr-2 h-4 w-4" /> Pago en Efectivo
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem 
                                                     onClick={() => handlePaymentChange(attendee.id, 'paid')}
                                                     disabled={attendee.paymentStatus === 'paid'}
                                                 >
-                                                    <Check className="mr-2 h-4 w-4" /> Marcar como Pagado
+                                                    <CreditCard className="mr-2 h-4 w-4" /> Pago en Plataforma
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem 
                                                     onClick={() => handlePaymentChange(attendee.id, 'pending')}
                                                     disabled={attendee.paymentStatus === 'pending'}
                                                 >
-                                                    <AlertCircle className="mr-2 h-4 w-4" /> Marcar como Pendiente
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem 
-                                                    onClick={() => handlePaymentChange(attendee.id, 'not_applicable')}
-                                                >
-                                                    <CreditCard className="mr-2 h-4 w-4" /> Marcar como N/A (Gratis)
+                                                    <AlertCircle className="mr-2 h-4 w-4" /> Marcar Pendiente
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem 

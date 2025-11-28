@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getAuthenticatedUser, getHomepageData, getUsers, getOngUsers, getEventsByOngId } from '@/lib/data';
-import { getFinancialSettings } from '@/lib/financial-data';
+import { getFinancialSettings, getAllEventsForAdmin } from '@/lib/financial-data';
 import type { HomepageSection } from '@/lib/types';
 import { AdminDashboardTabs } from '@/components/admin-dashboard-tabs';
 
@@ -21,17 +21,17 @@ export default async function AdminPage({
   const pageToken = typeof awaitedSearchParams['pageToken'] === 'string' ? awaitedSearchParams['pageToken'] : undefined;
 
   // Parallel data fetching for performance
-  const [homepageData, usersData, ongs, adminEvents, financialSettings] = await Promise.all([
+  const [homepageData, usersData, ongs, adminEvents, financialSettings, allEvents] = await Promise.all([
     getHomepageData(),
     getUsers({ query, pageToken }),
     getOngUsers(),
     getEventsByOngId(user.id),
     getFinancialSettings(),
+    getAllEventsForAdmin(),
   ]);
 
   const { users, nextPageToken } = usersData;
 
-  // Correctly transform the homepage object into an array
   const homepageSections: HomepageSection[] = Object.entries(homepageData).map(([id, sectionData]) => {
     const typedId = id as HomepageSection['id'];
     return {
@@ -57,6 +57,7 @@ export default async function AdminPage({
           ongs={ongs}
           events={adminEvents}
           financialSettings={financialSettings}
+          allEvents={allEvents}
         />
       </div>
     </div>

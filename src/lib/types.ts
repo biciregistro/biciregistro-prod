@@ -129,6 +129,9 @@ export type Event = {
 
   // Sponsors
   sponsors?: string[]; // Array of image URLs
+
+  // Administrative Control
+  isBlocked?: boolean; // Bloqueo manual por administrador
 };
 
 export type PaymentStatus = 'pending' | 'paid' | 'not_applicable';
@@ -142,6 +145,11 @@ export type EventRegistration = {
     
     // Financial & Attendance Status
     paymentStatus?: PaymentStatus;
+    // Hybrid Payment Support
+    paymentMethod?: 'platform' | 'manual'; 
+    feeAmount?: number; 
+    netPrice?: number;
+
     checkedIn?: boolean;
     checkedInAt?: string; // ISO String
 
@@ -172,6 +180,9 @@ export type EventAttendee = {
     
     // Financial & Attendance Status
     paymentStatus: PaymentStatus;
+    paymentMethod?: 'platform' | 'manual';
+    feeAmount?: number;
+
     checkedIn: boolean;
     
     bike?: {
