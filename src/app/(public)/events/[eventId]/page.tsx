@@ -12,6 +12,7 @@ import { Calendar, MapPin, Clock, Trophy, Route, Tag, AlertTriangle, Users, Mess
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { cn } from '@/lib/utils';
 import { EventRegistration } from '@/lib/types';
+import { PricingTierCard } from '@/components/pricing-tier-card';
 
 type EventPageProps = {
   params: {
@@ -228,27 +229,13 @@ export default async function EventPage({ params }: EventPageProps) {
                     </div>
                 )}
 
-                {/* Cost Tiers */}
+                {/* Cost Tiers - Replaced with PricingTierCard */}
                 {event.costTiers && event.costTiers.length > 0 && (
                     <div className="space-y-4 mt-8">
                         <h2 className="text-2xl font-semibold px-2">Niveles de Acceso</h2>
                         <div className="grid gap-4 sm:grid-cols-2">
                             {event.costTiers.map((tier, idx) => (
-                                <Card key={idx} className="border-primary/20 shadow-sm hover:shadow-md transition-shadow">
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="text-lg font-bold text-primary">{tier.name}</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="mb-4">
-                                            <span className="text-3xl font-bold">${tier.price}</span>
-                                            <span className="text-muted-foreground text-sm font-medium"> MXN</span>
-                                        </div>
-                                        <div className="flex gap-2 items-start text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                                            <Tag className="h-4 w-4 mt-0.5 shrink-0" />
-                                            <span>{tier.includes}</span>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <PricingTierCard key={idx} tier={tier} />
                             ))}
                         </div>
                     </div>
