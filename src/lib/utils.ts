@@ -52,8 +52,10 @@ export function calculateGrossUp(netAmount: number, settings: FinancialSettings)
         return 0;
     }
 
-    // Redondeo estándar financiero a 2 decimales
-    return Number((Math.round((numerator / denominator) * 100) / 100).toFixed(2));
+    const exactTotal = numerator / denominator;
+
+    // Redondea el total al siguiente número entero
+    return Math.ceil(exactTotal);
 }
 
 export function calculateFeeBreakdown(totalAmount: number, netAmount: number) {
