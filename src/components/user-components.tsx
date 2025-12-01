@@ -20,10 +20,11 @@ import { signInWithToken, auth } from '@/lib/firebase/client';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from "@/components/ui/input"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, XCircle, BellRing, Info } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Logo } from './icons/logo';
 import { cn } from '@/lib/utils';
@@ -147,6 +148,13 @@ function ProfileFormContent({ user, communityId }: { user?: User, communityId?: 
             gender: user?.gender || undefined,
             postalCode: user?.postalCode || "",
             whatsapp: user?.whatsapp || "",
+            
+            // Notification Preferences Defaults
+            // If editing, use existing prefs or default to false/true
+            // If signing up, default safety=true, marketing=false
+            notificationsSafety: isEditing ? (user?.notificationPreferences?.safety ?? true) : true,
+            notificationsMarketing: isEditing ? (user?.notificationPreferences?.marketing ?? false) : false,
+
             password: "",
             confirmPassword: "",
             currentPassword: "",
@@ -554,6 +562,62 @@ function ProfileFormContent({ user, communityId }: { user?: User, communityId?: 
                                 />
                             </>
                         )}
+                        
+                        {/* Seccion de Preferencias de Notificacion (Visible en Registro y Edición) */}
+                         <div className="space-y-4 pt-4 border-t">
+                            <h3 className="text-lg font-medium flex items-center gap-2">
+                                <BellRing className="h-5 w-5" />
+                                Preferencias de Notificación
+                            </h3>
+                            <div className="bg-muted/50 p-4 rounded-lg space-y-4">
+                                <FormField
+                                    control={form.control}
+                                    name="notificationsSafety"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-background">
+                                            <FormControl>
+                                                <Checkbox
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                    name={field.name}
+                                                />
+                                            </FormControl>
+                                            <div className="space-y-1 leading-none">
+                                                <FormLabel>
+                                                    Seguridad y Comunidad
+                                                </FormLabel>
+                                                <FormDescription>
+                                                    Recibe alertas sobre el estado de tu bicicleta (Robo, indicios, mantenimiento) y avisos importantes de la comunidad.
+                                                </FormDescription>
+                                            </div>
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="notificationsMarketing"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-background">
+                                            <FormControl>
+                                                <Checkbox
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                    name={field.name}
+                                                />
+                                            </FormControl>
+                                            <div className="space-y-1 leading-none">
+                                                <FormLabel>
+                                                    Eventos y Promociones
+                                                </FormLabel>
+                                                <FormDescription>
+                                                    Entérate de nuevos eventos, talleres y ofertas exclusivas para ciclistas.
+                                                </FormDescription>
+                                            </div>
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                        </div>
                        
                         {user && <input type="hidden" {...form.register('id')} />}
                     </CardContent>

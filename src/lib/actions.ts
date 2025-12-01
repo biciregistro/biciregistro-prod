@@ -65,10 +65,10 @@ const theftReportSchema = z.object({
     time: z.string().optional(),
     country: z.string().min(1, "El país es obligatorio."),
     state: z.string().min(1, "El estado/provincia es obligatorio."),
-    city: z.string().min(1, "El municipio/ciudad es obligatorio."), // Nuevo campo obligatorio
-    zipCode: z.string().optional(), // Nuevo campo opcional
-    lat: z.coerce.number().optional(), // Coordenada opcional
-    lng: z.coerce.number().optional(), // Coordenada opcional
+    city: z.string().min(1, "El municipio/ciudad es obligatorio."),
+    zipCode: z.string().optional(),
+    lat: z.coerce.number().optional(),
+    lng: z.coerce.number().optional(),
     location: z.string().min(1, "La ubicación es obligatoria."),
     details: z.string().min(1, "Los detalles son obligatorios."),
 });
@@ -101,25 +101,31 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         
         const customToken = await adminAuth.createCustomToken(userRecord.uid);
         
-        // 1. Exclude password fields (security/schema hygiene)
-        const { password: p, confirmPassword: cp, ...userProfileData } = validatedFields.data;
+        // 1. Exclude password fields and temp notification fields
+        const { password: p, confirmPassword: cp, notificationsSafety, notificationsMarketing, ...userProfileData } = validatedFields.data;
         
-        // 2. Construct the raw data object for Firestore
+        // 2. Construct notification preferences object
+        const notificationPreferences = {
+            safety: !!notificationsSafety,
+            marketing: !!notificationsMarketing
+        };
+
+        // 3. Construct the raw data object for Firestore
         const rawUserData = {
             id: userRecord.uid,
             ...userProfileData,
             email: email, 
             role: 'ciclista' as const,
             communityId,
+            notificationPreferences,
         };
 
-        // 3. Clean the object: Remove any keys with undefined values to prevent Firestore errors
-        // This is critical because 'communityId' is undefined for standard signups.
+        // 4. Clean the object: Remove any keys with undefined values to prevent Firestore errors
         const cleanUserData = Object.fromEntries(
             Object.entries(rawUserData).filter(([_, value]) => value !== undefined)
         );
 
-        // 4. Save the cleaned data
+        // 5. Save the cleaned data
         await createFirestoreUser(cleanUserData as any);
         
         return { success: true, customToken: customToken };
@@ -258,7 +264,8 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         };
     }
 
-    const { id, currentPassword, newPassword, email, ...userData } = validatedFields.data;
+    // Extract temporary notification fields
+    const { id, currentPassword, newPassword, email, notificationsSafety, notificationsMarketing, ...userData } = validatedFields.data;
 
     if (id !== session.uid) {
         return { error: 'No tienes permiso para actualizar este perfil.' };
@@ -272,7 +279,16 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
             passwordChanged = true;
         }
 
-        await updateUserData(session.uid, userData);
+        // Construct update payload with notification preferences
+        const updatePayload = {
+            ...userData,
+            notificationPreferences: {
+                safety: !!notificationsSafety,
+                marketing: !!notificationsMarketing
+            }
+        };
+
+        await updateUserData(session.uid, updatePayload);
 
         revalidatePath('/dashboard/profile');
         return { 

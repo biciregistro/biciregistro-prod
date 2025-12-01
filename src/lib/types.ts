@@ -30,6 +30,11 @@ export type Bike = {
 
 export type UserRole = 'ciclista' | 'admin' | 'ong';
 
+export type NotificationPreferences = {
+    safety: boolean;
+    marketing: boolean;
+};
+
 export type User = {
   id: string;
   name: string;
@@ -45,6 +50,7 @@ export type User = {
   postalCode?: string;
   whatsapp?: string;
   communityId?: string; // ID of the ONG the user is affiliated with
+  notificationPreferences?: NotificationPreferences;
 };
 
 export type OngUser = {
