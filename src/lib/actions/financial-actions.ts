@@ -186,3 +186,61 @@ export async function createPaymentPreferenceAction(eventId: string, registratio
         return { success: false, error: "Ocurrió un error inesperado al iniciar el pago." };
     }
 }
+
+/**
+ * Verifica activamente el estado de un pago en Mercado Pago y actualiza la DB
+ * Se usa como fallback cuando los webhooks fallan.
+ */
+export async function verifyPaymentAction(paymentId: string): Promise<{ success: boolean; error?: string }> {
+    // No requerimos sesión obligatoria estricta, cualquier usuario con el ID de pago válido
+    // debería poder gatillar la actualización si el pago es real y aprobado.
+    
+    try {
+        const accessToken = process.env.MP_ACCESS_TOKEN;
+        if (!accessToken) {
+             throw new Error("MP_ACCESS_TOKEN faltante");
+        }
+
+        const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            },
+            cache: 'no-store'
+        });
+
+        if (!res.ok) {
+            console.error("Error verificando pago en MP:", await res.text());
+            return { success: false, error: "No se pudo verificar el pago." };
+        }
+
+        const paymentData = await res.json();
+        
+        if (paymentData.status === 'approved') {
+            const metadata = paymentData.metadata;
+            const registrationId = metadata?.registration_id;
+
+            if (registrationId) {
+                // Actualizar DB
+                await updateRegistrationStatusInternal(registrationId, {
+                    paymentStatus: 'paid',
+                    paymentMethod: 'platform'
+                });
+                
+                // Revalidar path del dashboard y admin
+                const eventId = metadata?.event_id;
+                if (eventId) {
+                    revalidatePath(`/dashboard/events/${eventId}`);
+                    revalidatePath(`/dashboard/ong/events/${eventId}`);
+                }
+                
+                return { success: true };
+            }
+        }
+        
+        return { success: false, error: "El pago no está aprobado o no corresponde." };
+
+    } catch (error) {
+        console.error("Error en verifyPaymentAction:", error);
+        return { success: false, error: "Error interno al verificar pago." };
+    }
+}
