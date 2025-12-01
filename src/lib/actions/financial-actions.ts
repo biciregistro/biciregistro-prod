@@ -150,7 +150,8 @@ export async function createPaymentPreferenceAction(eventId: string, registratio
         // NOTA: Se usa una URL base por defecto si la variable de entorno no está definida
         // Es crucial configurar NEXT_PUBLIC_BASE_URL en producción
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx'; 
-        const backUrl = `${baseUrl}/events/${eventId}`;
+        // CORRECCIÓN: Apuntar al Dashboard
+        const backUrl = `${baseUrl}/dashboard/events/${eventId}`;
 
         // 5. Crear Preferencia en Mercado Pago
         const initPoint = await createPreference({

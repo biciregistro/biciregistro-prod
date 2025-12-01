@@ -7,8 +7,6 @@ export async function POST(req: NextRequest) {
     const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
     if (!secret) {
         console.error('MERCADOPAGO_WEBHOOK_SECRET no configurado');
-        // No devolvemos error 500 para no reintentar infinitamente si es config error,
-        // pero logueamos fuerte.
         return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 });
     }
 
@@ -16,12 +14,13 @@ export async function POST(req: NextRequest) {
     const xSignature = req.headers.get('x-signature');
     const xRequestId = req.headers.get('x-request-id');
 
-    // Leer el cuerpo crudo para validación y procesamiento
+    // Leer el cuerpo crudo
     const bodyText = await req.text(); 
     let body;
     try {
         body = JSON.parse(bodyText);
     } catch (e) {
+        console.error('Webhook con JSON inválido');
         return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
 
@@ -37,7 +36,6 @@ export async function POST(req: NextRequest) {
              if (key === 'v1') v1 = value;
         });
 
-        // El ID del evento suele venir en data.id
         const id = body.data?.id;
         
         if (id && ts && v1) {
@@ -48,9 +46,10 @@ export async function POST(req: NextRequest) {
                 .digest('hex');
 
             if (cyphedSignature !== v1) {
-                console.warn('Firma de Webhook inválida. Posible intento de spoofing.');
-                // En producción, descomentar la siguiente línea para rechazar peticiones no firmadas
+                console.warn(`Firma de Webhook inválida. Esperada: ${cyphedSignature}, Recibida: ${v1}`);
                 // return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+            } else {
+                console.log('Firma de Webhook válida.');
             }
         }
     }
@@ -58,7 +57,6 @@ export async function POST(req: NextRequest) {
     // 3. Procesar Evento
     const { action, type, data } = body;
     
-    // Mercado Pago envía notificaciones con type "payment" o action "payment.created/updated"
     if (type === 'payment' || action === 'payment.created' || action === 'payment.updated') {
         const paymentId = data?.id;
 
@@ -67,8 +65,6 @@ export async function POST(req: NextRequest) {
         }
         
         try {
-            // Consultar el estado actual del pago a la API de Mercado Pago
-            // para obtener metadata confiable y estado actualizado.
             const accessToken = process.env.MP_ACCESS_TOKEN;
             if (!accessToken) {
                  throw new Error("MP_ACCESS_TOKEN faltante");
@@ -87,9 +83,10 @@ export async function POST(req: NextRequest) {
 
             const paymentData = await res.json();
             const status = paymentData.status;
-            // Mercado Pago devuelve metadata snake_case
             const metadata = paymentData.metadata; 
             
+            console.log(`Procesando pago ${paymentId}. Estado: ${status}. Metadata:`, JSON.stringify(metadata));
+
             if (status === 'approved') {
                 const registrationId = metadata?.registration_id;
                 
@@ -102,8 +99,6 @@ export async function POST(req: NextRequest) {
                 } else {
                     console.warn(`Pago ${paymentId} aprobado pero sin registration_id en metadata.`);
                 }
-            } else {
-                 console.log(`Pago ${paymentId} procesado con estado: ${status}`);
             }
             
             return NextResponse.json({ status: 'ok' });

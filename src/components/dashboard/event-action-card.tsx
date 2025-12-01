@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { cancelRegistrationAction } from '@/lib/actions';
 import { createPaymentPreferenceAction } from '@/lib/actions/financial-actions';
 import { useToast } from '@/hooks/use-toast';
@@ -20,9 +21,17 @@ interface EventActionCardProps {
 
 export function EventActionCard({ event, registration, ongProfile, whatsappUrl }: EventActionCardProps) {
     const { toast } = useToast();
+    const searchParams = useSearchParams();
     const [isPending, startTransition] = useTransition();
     const [isPaymentPending, startPaymentTransition] = useTransition();
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [optimisticPaid, setOptimisticPaid] = useState(false);
+
+    useEffect(() => {
+        if (searchParams.get('collection_status') === 'approved') {
+            setOptimisticPaid(true);
+        }
+    }, [searchParams]);
 
     const handleCancel = () => {
         startTransition(async () => {
@@ -64,7 +73,7 @@ export function EventActionCard({ event, registration, ongProfile, whatsappUrl }
     };
 
     const isCancelled = registration.status === 'cancelled';
-    const isPaid = registration.paymentStatus === 'paid';
+    const isPaid = registration.paymentStatus === 'paid' || optimisticPaid;
     const hasCost = event.costType === 'Con Costo';
 
     return (
