@@ -13,6 +13,7 @@ import type { User, ActionFormState } from '@/lib/types';
 import { updateProfile, signup } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { countries, type Country } from '@/lib/countries';
+import { getCities } from '@/lib/cities';
 import { userFormSchema } from '@/lib/schemas';
 import { signInWithToken, auth } from '@/lib/firebase/client';
 
@@ -121,6 +122,7 @@ function ProfileFormContent({ user, communityId }: { user?: User, communityId?: 
     const { toast } = useToast();
     const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === (user?.country || 'México')));
     const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
+    const [cities, setCities] = useState<string[]>([]);
     const [showPassword, setShowPassword] = useState(false);
 
     useEffect(() => {
@@ -141,6 +143,7 @@ function ProfileFormContent({ user, communityId }: { user?: User, communityId?: 
             birthDate: user?.birthDate || "",
             country: user?.country || "México",
             state: user?.state || "",
+            city: user?.city || "",
             gender: user?.gender || undefined,
             postalCode: user?.postalCode || "",
             whatsapp: user?.whatsapp || "",
@@ -153,6 +156,17 @@ function ProfileFormContent({ user, communityId }: { user?: User, communityId?: 
     });
 
     const password = form.watch(isEditing ? "newPassword" : "password");
+
+    // Initialize cities if state is already selected (e.g. on load)
+    useEffect(() => {
+        const currentCountry = form.getValues('country');
+        const currentState = form.getValues('state');
+        if (currentCountry && currentState) {
+             const availableCities = getCities(currentCountry, currentState);
+             setCities(availableCities);
+        }
+    }, [user, form]);
+
 
     useEffect(() => {
         setIsSubmitting(false);
@@ -237,9 +251,25 @@ function ProfileFormContent({ user, communityId }: { user?: User, communityId?: 
         const country = countries.find(c => c.name === countryName);
         setSelectedCountry(country);
         setStates(country?.states || []);
+        setCities([]);
         form.setValue('country', countryName);
-        form.setValue('state', ''); // Reset state when country changes
+        form.setValue('state', ''); 
+        form.setValue('city', '');
     };
+
+    const handleStateChange = (stateName: string) => {
+        form.setValue('state', stateName);
+        form.setValue('city', ''); // Reset city when state changes
+        
+        const countryName = form.getValues('country');
+        if (countryName) {
+            const availableCities = getCities(countryName, stateName);
+            setCities(availableCities);
+        } else {
+            setCities([]);
+        }
+    };
+
 
     const handleFormSubmit = async (values: FormValues) => {
         const { currentPassword, newPassword } = values;
@@ -410,7 +440,7 @@ function ProfileFormContent({ user, communityId }: { user?: User, communityId?: 
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Estado / Provincia</FormLabel>
-                                                <Select onValueChange={field.onChange} value={field.value || ''} disabled={!selectedCountry} name={field.name}>
+                                                <Select onValueChange={handleStateChange} value={field.value || ''} disabled={!selectedCountry} name={field.name}>
                                                     <FormControl>
                                                         <SelectTrigger>
                                                             <SelectValue placeholder="Selecciona un estado/provincia" />
@@ -426,20 +456,49 @@ function ProfileFormContent({ user, communityId }: { user?: User, communityId?: 
                                             </FormItem>
                                         )}
                                     />
-                                    <FormField
+                                     <FormField
                                         control={form.control}
-                                        name="postalCode"
+                                        name="city"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Código Postal</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="Tu código postal" {...field} value={field.value || ''} />
-                                                </FormControl>
+                                                <FormLabel>Municipio / Ciudad</FormLabel>
+                                                {cities.length > 0 ? (
+                                                     <Select onValueChange={field.onChange} value={field.value || ''} disabled={!form.watch('state')} name={field.name}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Selecciona un municipio" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            {cities.map(city => (
+                                                                <SelectItem key={city} value={city}>{city}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                ) : (
+                                                    <FormControl>
+                                                        <Input placeholder="Escribe tu municipio" {...field} value={field.value || ''} />
+                                                    </FormControl>
+                                                )}
                                                 <FormMessage />
                                             </FormItem>
                                         )}
                                     />
                                 </div>
+                                
+                                <FormField
+                                    control={form.control}
+                                    name="postalCode"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Código Postal</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="Tu código postal" {...field} value={field.value || ''} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
 
                                 <FormField
                                     control={form.control}

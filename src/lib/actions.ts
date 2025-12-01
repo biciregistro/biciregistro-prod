@@ -65,6 +65,10 @@ const theftReportSchema = z.object({
     time: z.string().optional(),
     country: z.string().min(1, "El país es obligatorio."),
     state: z.string().min(1, "El estado/provincia es obligatorio."),
+    city: z.string().min(1, "El municipio/ciudad es obligatorio."), // Nuevo campo obligatorio
+    zipCode: z.string().optional(), // Nuevo campo opcional
+    lat: z.coerce.number().optional(), // Coordenada opcional
+    lng: z.coerce.number().optional(), // Coordenada opcional
     location: z.string().min(1, "La ubicación es obligatoria."),
     details: z.string().min(1, "Los detalles son obligatorios."),
 });

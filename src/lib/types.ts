@@ -21,6 +21,10 @@ export type Bike = {
     details: string;
     country?: string;
     state?: string;
+    city?: string; // Added field
+    zipCode?: string; // Added field (optional)
+    lat?: number; // Added field
+    lng?: number; // Added field
   };
 };
 
@@ -35,6 +39,7 @@ export type User = {
   avatarUrl?: string;
   country?: string;
   state?: string;
+  city?: string; // Added field
   birthDate?: string;
   gender?: 'masculino' | 'femenino' | 'otro';
   postalCode?: string;

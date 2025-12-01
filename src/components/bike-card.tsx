@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { countries, type Country } from '@/lib/countries';
+import { getCities } from '@/lib/cities';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { bikeBrands } from '@/lib/bike-brands';
 import {
@@ -425,6 +426,10 @@ const theftReportSchema = z.object({
     time: z.string().optional(),
     country: z.string().min(1, "El país es obligatorio."),
     state: z.string().min(1, "El estado/provincia es obligatorio."),
+    city: z.string().min(1, "El municipio es obligatorio."),
+    zipCode: z.string().optional(),
+    lat: z.coerce.number().optional(),
+    lng: z.coerce.number().optional(),
     location: z.string().min(1, "La ubicación es obligatoria."),
     details: z.string().min(1, "Los detalles son obligatorios."),
 });
@@ -436,6 +441,7 @@ export function TheftReportForm({ bike, onSuccess }: { bike: Bike, onSuccess?: (
     const { toast } = useToast();
     const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === 'México'));
     const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
+    const [cities, setCities] = useState<string[]>([]);
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
 
@@ -447,6 +453,10 @@ export function TheftReportForm({ bike, onSuccess }: { bike: Bike, onSuccess?: (
             time: new Date().toTimeString().slice(0,5),
             country: 'México',
             state: '',
+            city: '',
+            zipCode: '',
+            lat: undefined,
+            lng: undefined,
             location: "",
             details: ""
         },
@@ -472,8 +482,23 @@ export function TheftReportForm({ bike, onSuccess }: { bike: Bike, onSuccess?: (
         const country = countries.find(c => c.name === countryName);
         setSelectedCountry(country);
         setStates(country ? country.states : []);
+        setCities([]);
         form.setValue('country', countryName);
         form.setValue('state', '');
+        form.setValue('city', '');
+    };
+
+    const handleStateChange = (stateName: string) => {
+        form.setValue('state', stateName);
+        form.setValue('city', '');
+        
+        const countryName = form.getValues('country');
+        if (countryName) {
+            const availableCities = getCities(countryName, stateName);
+            setCities(availableCities);
+        } else {
+            setCities([]);
+        }
     };
 
 
@@ -564,24 +589,68 @@ export function TheftReportForm({ bike, onSuccess }: { bike: Bike, onSuccess?: (
                     )}
                 />
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                        control={form.control}
+                        name="state"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Estado / Provincia</FormLabel>
+                                <Select onValueChange={handleStateChange} value={field.value || ''} disabled={!selectedCountry} name={field.name}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Selecciona un estado" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {states.map(state => (
+                                            <SelectItem key={state} value={state}>{state}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="city"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Municipio / Ciudad</FormLabel>
+                                {cities.length > 0 ? (
+                                    <Select onValueChange={field.onChange} value={field.value || ''} disabled={!form.watch('state')} name={field.name}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Selecciona un municipio" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {cities.map(city => (
+                                                <SelectItem key={city} value={city}>{city}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <FormControl>
+                                        <Input placeholder="Escribe el municipio" {...field} value={field.value || ''} />
+                                    </FormControl>
+                                )}
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+
                 <FormField
                     control={form.control}
-                    name="state"
+                    name="zipCode"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Estado / Provincia</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedCountry} name={field.name}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecciona un estado/provincia" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {states.map(state => (
-                                        <SelectItem key={state} value={state}>{state}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <FormLabel>Código Postal (Opcional)</FormLabel>
+                            <FormControl>
+                                <Input placeholder="ej. 06500 (Si lo conoces)" {...field} />
+                            </FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -592,14 +661,18 @@ export function TheftReportForm({ bike, onSuccess }: { bike: Bike, onSuccess?: (
                     name="location"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Ubicación (Ciudad y/o dirección)</FormLabel>
+                            <FormLabel>Ubicación (Dirección o referencia)</FormLabel>
                             <FormControl>
-                                <Input placeholder="ej., Ciudad de México, cerca de la fuente del parque" {...field} />
+                                <Input placeholder="ej., Calle Madero esq. Reforma" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
                 />
+                
+                <input type="hidden" name="lat" value={form.watch('lat') || ''} />
+                <input type="hidden" name="lng" value={form.watch('lng') || ''} />
+
                 <FormField
                     control={form.control}
                     name="details"

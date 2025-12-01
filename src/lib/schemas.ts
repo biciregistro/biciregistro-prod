@@ -14,7 +14,7 @@ export const userFormSchema = z.object({
     email: z.string().email("El correo electrónico no es válido.").optional(),
     phone: z.string().optional(),
     address: z.string().optional(),
-    city: z.string().optional(),
+    city: z.string().min(1, "El municipio/ciudad es obligatorio.").optional(), // Made optional for backward compatibility during validation, but UI will enforce logic
     country: z.string().optional(),
     birthDate: z.string().optional(),
     state: z.string().optional(),
