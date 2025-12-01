@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, ArrowRight } from 'lucide-react';
 import type { Bike, UserEventRegistration, User } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 interface DashboardTabsProps {
     bikes: Bike[];
@@ -92,50 +93,72 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete }: Dashb
                     </Alert>
                 ) : (
                     <div className="grid gap-4 md:grid-cols-2">
-                        {registrations.map((reg) => (
-                            <Card key={reg.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                                <CardContent className="p-0">
-                                    <div className="flex flex-col sm:flex-row">
-                                        <div className="w-full sm:w-32 h-32 bg-muted flex-shrink-0 relative">
-                                             {reg.event.imageUrl ? (
-                                                <img src={reg.event.imageUrl} alt={reg.event.name} className="w-full h-full object-cover" />
-                                             ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                                    <Calendar className="h-8 w-8" />
-                                                </div>
-                                             )}
-                                        </div>
-                                        <div className="p-4 flex-1 flex flex-col justify-between">
-                                            <div>
-                                                <div className="flex justify-between items-start gap-2">
-                                                    <h3 className="font-bold text-lg line-clamp-1">{reg.event.name}</h3>
-                                                    <Badge variant="secondary" className="text-xs shrink-0">
-                                                        {reg.status === 'confirmed' ? 'Confirmado' : reg.status}
-                                                    </Badge>
-                                                </div>
-                                                <div className="text-sm text-muted-foreground mt-1 space-y-1">
-                                                    <div className="flex items-center gap-1">
-                                                        <Calendar className="h-3 w-3" />
-                                                        <span>{new Date(reg.event.date).toLocaleDateString()}</span>
+                        {registrations.map((reg) => {
+                            // Lógica de estado visual (Badge)
+                            let badgeText = reg.status === 'confirmed' ? 'Confirmado' : reg.status;
+                            let badgeVariant: "default" | "secondary" | "destructive" | "outline" = "secondary";
+                            let badgeClassName = "text-xs shrink-0";
+
+                            if (reg.status === 'confirmed') {
+                                if (reg.event.costType === 'Con Costo') {
+                                    if (reg.paymentStatus === 'paid') {
+                                        badgeText = "Pagado";
+                                        badgeClassName = cn(badgeClassName, "bg-green-600 hover:bg-green-700 text-white border-transparent");
+                                    } else {
+                                        badgeText = "Pago Pendiente";
+                                        badgeClassName = cn(badgeClassName, "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-200");
+                                    }
+                                } else {
+                                    badgeText = "Confirmado";
+                                    badgeClassName = cn(badgeClassName, "bg-green-100 text-green-800 border-green-200");
+                                }
+                            }
+
+                            return (
+                                <Card key={reg.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                                    <CardContent className="p-0">
+                                        <div className="flex flex-col sm:flex-row">
+                                            <div className="w-full sm:w-32 h-32 bg-muted flex-shrink-0 relative">
+                                                {reg.event.imageUrl ? (
+                                                    <img src={reg.event.imageUrl} alt={reg.event.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                                        <Calendar className="h-8 w-8" />
                                                     </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <MapPin className="h-3 w-3" />
-                                                        <span className="line-clamp-1">{reg.event.state}, {reg.event.country}</span>
+                                                )}
+                                            </div>
+                                            <div className="p-4 flex-1 flex flex-col justify-between">
+                                                <div>
+                                                    <div className="flex justify-between items-start gap-2">
+                                                        <h3 className="font-bold text-lg line-clamp-1">{reg.event.name}</h3>
+                                                        <Badge variant={badgeVariant} className={badgeClassName}>
+                                                            {badgeText}
+                                                        </Badge>
                                                     </div>
+                                                    <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                                                        <div className="flex items-center gap-1">
+                                                            <Calendar className="h-3 w-3" />
+                                                            <span>{new Date(reg.event.date).toLocaleDateString()}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <MapPin className="h-3 w-3" />
+                                                            <span className="line-clamp-1">{reg.event.state}, {reg.event.country}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-3 flex justify-end">
+                                                    <Button variant="ghost" size="sm" asChild className="text-primary hover:text-primary/80 p-0 h-auto">
+                                                        <Link href={`/dashboard/events/${reg.eventId}`} className="flex items-center gap-1">
+                                                            Ver Detalles <ArrowRight className="h-3 w-3" />
+                                                        </Link>
+                                                    </Button>
                                                 </div>
                                             </div>
-                                            <div className="mt-3 flex justify-end">
-                                                <Button variant="ghost" size="sm" asChild className="text-primary hover:text-primary/80 p-0 h-auto">
-                                                    <Link href={`/dashboard/events/${reg.eventId}`} className="flex items-center gap-1">
-                                                        Ver Detalles <ArrowRight className="h-3 w-3" />
-                                                    </Link>
-                                                </Button>
-                                            </div>
                                         </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
                     </div>
                 )}
             </TabsContent>

@@ -9,6 +9,7 @@ import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy } from 'lucide-react';
 import { EventActionCard } from '@/components/dashboard/event-action-card';
 import { EventBikeSelector } from '@/components/dashboard/event-bike-selector';
 import { PaymentStatusHandler } from '@/components/payment-status-handler';
+import { cn } from '@/lib/utils';
 
 export default async function EventRegistrationDetailsPage({ params }: { params: { id: string } }) {
   const user = await getAuthenticatedUser();
@@ -45,6 +46,31 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
     ? `https://wa.me/${ongProfile.contactWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(whatsappMessage)}`
     : '#';
 
+  // --- Lógica de Estado Visual (Badge) ---
+  let badgeText = registration.status === 'confirmed' ? 'Registro Confirmado' : registration.status;
+  let badgeVariant: "default" | "secondary" | "destructive" | "outline" = registration.status === 'confirmed' ? 'default' : 'secondary';
+  // Clases base para el badge
+  let badgeClassName = "text-base px-3 py-1 capitalize";
+
+  if (registration.status === 'confirmed') {
+      if (event.costType === 'Con Costo') {
+          if (registration.paymentStatus === 'paid') {
+              badgeText = "Registro Confirmado y Pagado";
+              // Verde explícito para éxito de pago
+              badgeClassName = cn(badgeClassName, "bg-green-600 hover:bg-green-700 text-white border-transparent");
+          } else {
+              badgeText = "Pago Pendiente";
+              badgeVariant = "secondary";
+              // Amarillo para alerta/pendiente
+              badgeClassName = cn(badgeClassName, "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-200");
+          }
+      }
+      // Si es gratuito, se queda con el default (Registro Confirmado, variant default)
+  } else if (registration.status === 'cancelled') {
+      badgeText = "Cancelado";
+      badgeVariant = "destructive"; // O secondary, según preferencia, pero destructive es claro
+  }
+
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
       <PaymentStatusHandler />
@@ -55,8 +81,8 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
         </Link>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h1 className="text-3xl font-bold">{event.name}</h1>
-            <Badge variant={registration.status === 'confirmed' ? 'default' : 'secondary'} className="text-base px-3 py-1 capitalize">
-                {registration.status === 'confirmed' ? 'Registro Confirmado' : registration.status}
+            <Badge variant={badgeVariant} className={badgeClassName}>
+                {badgeText}
             </Badge>
         </div>
       </div>
