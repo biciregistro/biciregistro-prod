@@ -94,12 +94,20 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete }: Dashb
                 ) : (
                     <div className="grid gap-4 md:grid-cols-2">
                         {registrations.map((reg) => {
+                            // Lógica de Finalizado
+                            const eventDate = new Date(reg.event.date);
+                            const now = new Date();
+                            const isFinished = eventDate < now;
+
                             // Lógica de estado visual (Badge)
                             let badgeText = reg.status === 'confirmed' ? 'Confirmado' : reg.status;
                             let badgeVariant: "default" | "secondary" | "destructive" | "outline" = "secondary";
                             let badgeClassName = "text-xs shrink-0";
 
-                            if (reg.status === 'confirmed') {
+                            if (isFinished) {
+                                badgeText = "Finalizado";
+                                badgeClassName = cn(badgeClassName, "bg-slate-500 text-white hover:bg-slate-600 border-transparent");
+                            } else if (reg.status === 'confirmed') {
                                 if (reg.event.costType === 'Con Costo') {
                                     if (reg.paymentStatus === 'paid') {
                                         badgeText = "Pagado";
@@ -138,7 +146,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete }: Dashb
                                                     <div className="text-sm text-muted-foreground mt-1 space-y-1">
                                                         <div className="flex items-center gap-1">
                                                             <Calendar className="h-3 w-3" />
-                                                            <span>{new Date(reg.event.date).toLocaleDateString()}</span>
+                                                            <span>{eventDate.toLocaleDateString()}</span>
                                                         </div>
                                                         <div className="flex items-center gap-1">
                                                             <MapPin className="h-3 w-3" />

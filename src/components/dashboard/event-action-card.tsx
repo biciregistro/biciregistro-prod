@@ -9,17 +9,19 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { MessageCircle, CreditCard, Loader2, XCircle, CheckCircle2 } from 'lucide-react';
+import { MessageCircle, CreditCard, Loader2, XCircle, CheckCircle2, Clock } from 'lucide-react';
 import type { Event, EventRegistration } from '@/lib/types';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface EventActionCardProps {
     event: Event;
     registration: EventRegistration;
     ongProfile: { contactWhatsapp?: string } | null | undefined;
     whatsappUrl: string;
+    isFinished?: boolean;
 }
 
-export function EventActionCard({ event, registration, ongProfile, whatsappUrl }: EventActionCardProps) {
+export function EventActionCard({ event, registration, ongProfile, whatsappUrl, isFinished }: EventActionCardProps) {
     const { toast } = useToast();
     const searchParams = useSearchParams();
     const [isPending, startTransition] = useTransition();
@@ -84,26 +86,38 @@ export function EventActionCard({ event, registration, ongProfile, whatsappUrl }
                     <CardDescription>Gestiona tu participación</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {/* Botón de Whatsapp para comprobante manual (solo si no está pagado por plataforma) */}
-                    {!isCancelled && !isPaid && ongProfile?.contactWhatsapp && (
-                        <Button variant="outline" className="w-full border-green-600 text-green-700 hover:bg-green-50" asChild>
-                            <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-                                <MessageCircle className="mr-2 h-4 w-4" />
-                                Enviar Comprobante de Pago
-                            </Link>
-                        </Button>
-                    )}
-                    
-                    {/* Botón de Pago en Línea */}
-                    {!isCancelled && hasCost && !isPaid && (
-                        <Button 
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md animate-pulse" 
-                            onClick={handlePayClick}
-                            disabled={isPaymentPending}
-                        >
-                            {isPaymentPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
-                            Pagar Ahora en Línea
-                        </Button>
+                    {isFinished ? (
+                         <Alert className="bg-slate-100 border-slate-200">
+                            <Clock className="h-4 w-4" />
+                            <AlertTitle>Evento Finalizado</AlertTitle>
+                            <AlertDescription>
+                                Este evento ha concluido. Las acciones de registro ya no están disponibles.
+                            </AlertDescription>
+                        </Alert>
+                    ) : (
+                        <>
+                            {/* Botón de Whatsapp para comprobante manual (solo si no está pagado por plataforma) */}
+                            {!isCancelled && !isPaid && ongProfile?.contactWhatsapp && (
+                                <Button variant="outline" className="w-full border-green-600 text-green-700 hover:bg-green-50" asChild>
+                                    <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                                        <MessageCircle className="mr-2 h-4 w-4" />
+                                        Enviar Comprobante de Pago
+                                    </Link>
+                                </Button>
+                            )}
+                            
+                            {/* Botón de Pago en Línea */}
+                            {!isCancelled && hasCost && !isPaid && (
+                                <Button 
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md animate-pulse" 
+                                    onClick={handlePayClick}
+                                    disabled={isPaymentPending}
+                                >
+                                    {isPaymentPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                                    Pagar Ahora en Línea
+                                </Button>
+                            )}
+                        </>
                     )}
 
                     {/* Estado Pagado */}
@@ -120,7 +134,7 @@ export function EventActionCard({ event, registration, ongProfile, whatsappUrl }
                         </Link>
                     </Button>
 
-                    {!isCancelled && (
+                    {!isCancelled && !isFinished && (
                         <Button 
                             variant="destructive" 
                             className="w-full mt-4" 

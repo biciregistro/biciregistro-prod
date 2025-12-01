@@ -30,6 +30,8 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
 
   const ongProfile = await getOngProfile(event.ongId);
   const eventDate = new Date(event.date);
+  const now = new Date();
+  const isFinished = eventDate < now;
   const userBikes = await getBikes(user.id);
 
   // Resolve names from IDs if they are not stored in registration (which they currently aren't fully reliable)
@@ -52,7 +54,11 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
   // Clases base para el badge
   let badgeClassName = "text-base px-3 py-1 capitalize";
 
-  if (registration.status === 'confirmed') {
+  if (isFinished) {
+      badgeText = "Evento Finalizado";
+      badgeClassName = cn(badgeClassName, "bg-slate-500 text-white hover:bg-slate-600 border-transparent");
+      badgeVariant = "secondary";
+  } else if (registration.status === 'confirmed') {
       if (event.costType === 'Con Costo') {
           if (registration.paymentStatus === 'paid') {
               badgeText = "Registro Confirmado y Pagado";
@@ -144,8 +150,26 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
             </Card>
 
             {/* Bike Selector Card - Conditionally Rendered */}
-            {event.requiresBike !== false && (
+            {event.requiresBike !== false && !isFinished && (
                 <EventBikeSelector userBikes={userBikes} registration={registration} eventId={event.id} />
+            )}
+            
+            {/* Bike Selector Card - Read Only for Finished Events */}
+            {event.requiresBike !== false && isFinished && registration.bikeId && (
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Bicicleta Registrada</CardTitle>
+                        <CardDescription>La bicicleta que usaste en este evento.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-sm font-medium">
+                            {userBikes.find(b => b.id === registration.bikeId)?.make} {userBikes.find(b => b.id === registration.bikeId)?.model}
+                        </p>
+                         <p className="text-xs text-muted-foreground">
+                            Serie: {userBikes.find(b => b.id === registration.bikeId)?.serialNumber}
+                        </p>
+                    </CardContent>
+                </Card>
             )}
 
             {/* Registration Details Card */}
@@ -202,7 +226,8 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                 event={event} 
                 registration={registration} 
                 ongProfile={ongProfile} 
-                whatsappUrl={whatsappUrl} 
+                whatsappUrl={whatsappUrl}
+                isFinished={isFinished}
             />
         </div>
       </div>
