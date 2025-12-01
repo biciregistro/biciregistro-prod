@@ -11,16 +11,17 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Tag, MapPin, Loader2, ShieldCheck } from 'lucide-react';
-import type { Event, User } from '@/lib/types';
+import { Tag, MapPin, Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
+import type { Event, User, EventRegistration } from '@/lib/types';
 
 interface EventRegistrationCardProps {
     event: Event;
     user: User | null;
     isRegistered?: boolean;
+    registration?: EventRegistration | null;
 }
 
-export function EventRegistrationCard({ event, user, isRegistered = false }: EventRegistrationCardProps) {
+export function EventRegistrationCard({ event, user, isRegistered = false, registration }: EventRegistrationCardProps) {
     const router = useRouter();
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
@@ -108,11 +109,11 @@ export function EventRegistrationCard({ event, user, isRegistered = false }: Eve
             if (result.success) {
                 toast({
                     title: "¡Inscripción Exitosa!",
-                    description: "Te has registrado correctamente al evento.",
+                    description: "Te has registrado correctamente al evento. Redirigiendo a tu panel...",
                 });
                 setIsModalOpen(false);
-                // Redirect to the dashboard events tab
-                router.push('/dashboard?tab=events');
+                // Redirect to the dashboard event detail page
+                router.push(`/dashboard/events/${event.id}`);
             } else {
                 toast({
                     variant: "destructive",
@@ -122,6 +123,7 @@ export function EventRegistrationCard({ event, user, isRegistered = false }: Eve
             }
         });
     };
+    
 
     // Callback URLs for unauthenticated users
     const eventUrl = `/events/${event.id}`;
@@ -199,9 +201,18 @@ export function EventRegistrationCard({ event, user, isRegistered = false }: Eve
                         </Button>
                     ) : user ? (
                         isRegistered ? (
-                             <Button size="lg" variant="secondary" className="w-full text-lg font-bold h-12 bg-green-100 text-green-800 hover:bg-green-200" disabled>
-                                ¡Ya estás inscrito!
-                            </Button>
+                            <div className="space-y-3">
+                                <Button size="lg" variant="secondary" className="w-full text-lg font-bold h-12 bg-green-100 text-green-800 hover:bg-green-200" disabled>
+                                    ¡Ya estás inscrito!
+                                </Button>
+                                <Button 
+                                    size="lg" 
+                                    className="w-full text-lg font-bold h-12"
+                                    onClick={() => router.push(`/dashboard/events/${event.id}`)}
+                                >
+                                    Gestionar mi Inscripción <ArrowRight className="ml-2 h-5 w-5" />
+                                </Button>
+                            </div>
                         ) : isSoldOut ? (
                              <Button size="lg" variant="destructive" className="w-full text-lg font-bold h-12" disabled>
                                 Cupo Lleno (Sold Out)

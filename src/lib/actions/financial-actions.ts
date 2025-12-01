@@ -3,8 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { getDecodedSession } from '@/lib/auth';
 import { getEventRegistration, updateRegistrationManualPayment, updateRegistrationStatusInternal } from '@/lib/financial-data';
-import { getEvent, updateEvent } from '@/lib/data';
+import { getEvent, updateEvent, getAuthenticatedUser } from '@/lib/data';
 import { PaymentStatus } from '@/lib/types';
+import { createPreference } from '@/lib/mercadopago';
 
 export async function registerManualPaymentAction(registrationId: string, eventId: string): Promise<{ success: boolean; error?: string }> {
     const session = await getDecodedSession();
@@ -90,5 +91,97 @@ export async function toggleEventBlockAction(eventId: string, isBlocked: boolean
     } catch (error) {
         console.error("Error blocking event:", error);
         return { success: false, error: "Error al actualizar el estado de bloqueo." };
+    }
+}
+
+/**
+ * Server Action para iniciar el flujo de pago con Mercado Pago
+ */
+export async function createPaymentPreferenceAction(eventId: string, registrationId: string): Promise<{ success: boolean; url?: string; error?: string }> {
+    const session = await getDecodedSession();
+    if (!session?.uid) {
+        return { success: false, error: "Debes iniciar sesión para realizar un pago." };
+    }
+
+    try {
+        // 1. Obtener detalles del registro
+        const registration = await getEventRegistration(registrationId);
+        if (!registration) {
+            return { success: false, error: "Registro no encontrado." };
+        }
+
+        // Validar propiedad del registro
+        if (registration.userId !== session.uid) {
+            return { success: false, error: "No tienes permiso para pagar este registro." };
+        }
+
+        // Validar estado del pago
+        if (registration.paymentStatus === 'paid') {
+            return { success: false, error: "Este registro ya ha sido pagado." };
+        }
+
+        // 2. Obtener detalles del evento
+        const event = await getEvent(eventId);
+        if (!event) {
+            return { success: false, error: "Evento no encontrado." };
+        }
+
+        // 3. Determinar el precio y el nombre del item
+        let price = registration.price;
+        let title = `Inscripción: ${event.name}`;
+
+        // Si el precio no está en el registro (legacy), intentar obtenerlo del tier
+        if (!price && registration.tierId && event.costTiers) {
+            const tier = event.costTiers.find(t => t.id === registration.tierId);
+            if (tier) {
+                price = tier.price;
+                title = `Inscripción: ${event.name} (${tier.name})`;
+            }
+        }
+
+        if (!price || price <= 0) {
+            return { success: false, error: "No se pudo determinar el precio a pagar." };
+        }
+
+        // 4. Obtener datos del usuario para el pagador
+        const user = await getAuthenticatedUser(); // Usa la cookie de sesión actual
+        
+        // Construir URLs de retorno dinámicas
+        // NOTA: Se usa una URL base por defecto si la variable de entorno no está definida
+        // Es crucial configurar NEXT_PUBLIC_BASE_URL en producción
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx'; 
+        const backUrl = `${baseUrl}/events/${eventId}`;
+
+        // 5. Crear Preferencia en Mercado Pago
+        const initPoint = await createPreference({
+            title: title,
+            quantity: 1,
+            unit_price: price,
+            metadata: {
+                eventId: eventId,
+                userId: session.uid,
+                registrationId: registrationId
+            },
+            backUrls: {
+                success: backUrl,
+                failure: backUrl,
+                pending: backUrl
+            },
+            payer: {
+                email: user?.email || session.email || 'unknown@email.com',
+                name: user?.name || 'Participante',
+                surname: user?.lastName
+            }
+        });
+
+        if (!initPoint) {
+             return { success: false, error: "Error al generar el link de pago." };
+        }
+
+        return { success: true, url: initPoint };
+
+    } catch (error) {
+        console.error("Error en createPaymentPreferenceAction:", error);
+        return { success: false, error: "Ocurrió un error inesperado al iniciar el pago." };
     }
 }

@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy } from 'lucide-react';
 import { EventActionCard } from '@/components/dashboard/event-action-card';
 import { EventBikeSelector } from '@/components/dashboard/event-bike-selector';
+import { PaymentStatusHandler } from '@/components/payment-status-handler';
 
 export default async function EventRegistrationDetailsPage({ params }: { params: { id: string } }) {
   const user = await getAuthenticatedUser();
@@ -46,6 +47,8 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
 
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
+      <PaymentStatusHandler />
+      
       <div className="mb-6">
         <Link href="/dashboard" className="text-muted-foreground hover:text-foreground flex items-center gap-1 mb-4 text-sm">
             <ArrowLeft className="h-4 w-4" /> Volver a Mi Dashboard

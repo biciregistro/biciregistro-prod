@@ -3,11 +3,12 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { cancelRegistrationAction } from '@/lib/actions';
+import { createPaymentPreferenceAction } from '@/lib/actions/financial-actions';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { MessageCircle, CreditCard, Loader2, XCircle } from 'lucide-react';
+import { MessageCircle, CreditCard, Loader2, XCircle, CheckCircle2 } from 'lucide-react';
 import type { Event, EventRegistration } from '@/lib/types';
 
 interface EventActionCardProps {
@@ -20,6 +21,7 @@ interface EventActionCardProps {
 export function EventActionCard({ event, registration, ongProfile, whatsappUrl }: EventActionCardProps) {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
+    const [isPaymentPending, startPaymentTransition] = useTransition();
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
     const handleCancel = () => {
@@ -42,7 +44,28 @@ export function EventActionCard({ event, registration, ongProfile, whatsappUrl }
         });
     };
 
+    const handlePayClick = () => {
+        if (!registration || !registration.id) return;
+
+        startPaymentTransition(async () => {
+            const result = await createPaymentPreferenceAction(event.id, registration.id);
+
+            if (result.success && result.url) {
+                 // Redirect to Mercado Pago
+                 window.location.href = result.url;
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Error al iniciar pago",
+                    description: result.error || "Intenta de nuevo más tarde."
+                });
+            }
+        });
+    };
+
     const isCancelled = registration.status === 'cancelled';
+    const isPaid = registration.paymentStatus === 'paid';
+    const hasCost = event.costType === 'Con Costo';
 
     return (
         <>
@@ -52,8 +75,9 @@ export function EventActionCard({ event, registration, ongProfile, whatsappUrl }
                     <CardDescription>Gestiona tu participación</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {!isCancelled && ongProfile?.contactWhatsapp && (
-                        <Button className="w-full bg-green-600 hover:bg-green-700 text-white" asChild>
+                    {/* Botón de Whatsapp para comprobante manual (solo si no está pagado por plataforma) */}
+                    {!isCancelled && !isPaid && ongProfile?.contactWhatsapp && (
+                        <Button variant="outline" className="w-full border-green-600 text-green-700 hover:bg-green-50" asChild>
                             <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
                                 <MessageCircle className="mr-2 h-4 w-4" />
                                 Enviar Comprobante de Pago
@@ -61,11 +85,24 @@ export function EventActionCard({ event, registration, ongProfile, whatsappUrl }
                         </Button>
                     )}
                     
-                    {!isCancelled && (
-                        <Button variant="outline" className="w-full" disabled>
-                            <CreditCard className="mr-2 h-4 w-4" />
-                            Pagar en Línea (Próximamente)
+                    {/* Botón de Pago en Línea */}
+                    {!isCancelled && hasCost && !isPaid && (
+                        <Button 
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md animate-pulse" 
+                            onClick={handlePayClick}
+                            disabled={isPaymentPending}
+                        >
+                            {isPaymentPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                            Pagar Ahora en Línea
                         </Button>
+                    )}
+
+                    {/* Estado Pagado */}
+                    {!isCancelled && isPaid && (
+                        <div className="flex items-center justify-center p-3 bg-green-100 text-green-800 rounded-md font-medium">
+                            <CheckCircle2 className="mr-2 h-5 w-5" />
+                            Pago Confirmado
+                        </div>
                     )}
 
                     <Button variant="ghost" className="w-full" asChild>
@@ -79,7 +116,7 @@ export function EventActionCard({ event, registration, ongProfile, whatsappUrl }
                             variant="destructive" 
                             className="w-full mt-4" 
                             onClick={() => setIsCancelModalOpen(true)}
-                            disabled={isPending}
+                            disabled={isPending || isPaymentPending}
                         >
                             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
                             Cancelar Inscripción

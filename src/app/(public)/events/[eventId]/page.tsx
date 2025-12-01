@@ -304,7 +304,12 @@ export default async function EventPage({ params }: EventPageProps) {
 
             {/* Right Column: Sticky Sidebar for Actions */}
             <div className="space-y-6">
-                <EventRegistrationCard event={event} user={user} isRegistered={isRegistered} />
+                <EventRegistrationCard 
+                    event={event} 
+                    user={user} 
+                    isRegistered={isRegistered} 
+                    registration={registration}
+                />
             </div>
         </div>
       </div>
