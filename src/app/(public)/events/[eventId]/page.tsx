@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { getEvent, getAuthenticatedUser, getOngProfile, getOngCommunityCount, getUserRegistrationForEvent } from '@/lib/data';
 import { EventRegistrationCard } from '@/components/event-registration-card';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +20,57 @@ type EventPageProps = {
     eventId: string;
   };
 };
+
+// --- Open Graph Metadata Generation ---
+export async function generateMetadata({ params }: EventPageProps): Promise<Metadata> {
+    const event = await getEvent(params.eventId);
+
+    if (!event) {
+        return {
+            title: 'Evento no encontrado',
+        };
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
+    
+    // Ensure image URL is absolute for OG tags
+    let imageUrl = event.imageUrl || '/rodada-segura.png'; 
+    if (imageUrl.startsWith('/')) {
+        imageUrl = `${baseUrl}${imageUrl}`;
+    }
+
+    const title = `${event.name} | BiciRegistro`;
+    const description = event.description 
+        ? (event.description.length > 160 ? event.description.substring(0, 157) + '...' : event.description)
+        : `Únete al evento ${event.name} organizado por ${event.organizerName || 'la comunidad'}.`;
+
+    return {
+        title: title,
+        description: description,
+        openGraph: {
+            title: title,
+            description: description,
+            url: `${baseUrl}/events/${event.id}`,
+            siteName: 'BiciRegistro',
+            images: [
+                {
+                    url: imageUrl,
+                    width: 1200,
+                    height: 630,
+                    alt: event.name,
+                },
+            ],
+            locale: 'es_MX',
+            type: 'website',
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: title,
+            description: description,
+            images: [imageUrl],
+        },
+    };
+}
 
 const eventTypeColors: Record<string, string> = {
   'Rodada': 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
@@ -304,12 +356,7 @@ export default async function EventPage({ params }: EventPageProps) {
 
             {/* Right Column: Sticky Sidebar for Actions */}
             <div className="space-y-6">
-                <EventRegistrationCard 
-                    event={event} 
-                    user={user} 
-                    isRegistered={isRegistered} 
-                    registration={registration}
-                />
+                <EventRegistrationCard event={event} user={user} isRegistered={isRegistered} />
             </div>
         </div>
       </div>
