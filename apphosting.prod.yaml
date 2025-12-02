@@ -31,3 +31,5 @@ env:
     secret: next-public-mp-public-key
   - variable: MERCADOPAGO_WEBHOOK_SECRET
     secret: mp-webhook-secret
+  - variable: GOOGLE_GENAI_API_KEY
+    secret: google-genai-api-key
