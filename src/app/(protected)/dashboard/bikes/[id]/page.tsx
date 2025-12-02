@@ -4,8 +4,8 @@ import BikeDetailsPageClient from './page-client';
 import type { User, Bike } from '@/lib/types';
 
 // The props object is destructured directly in the function signature
-export default async function BikeDetailsPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function BikeDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await getAuthenticatedUser();
   if (!user) {
     redirect('/login');

@@ -5,8 +5,6 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 
 import {
-    addBike,
-    updateBikeData,
     updateHomepageSectionData,
     updateUserData,
     createUser as createFirestoreUser,
@@ -14,10 +12,7 @@ import {
     createEvent,
     updateEvent,
     getHomepageData,
-    getUserByEmail,
-    getBike,
     getEvent,
-    isSerialNumberUnique,
     registerUserToEvent,
     cancelEventRegistration,
     updateEventRegistrationBike,
@@ -26,23 +21,58 @@ import {
 } from './data';
 import { updateFinancialSettings, updateOngFinancialData } from './financial-data';
 import { deleteSession, getDecodedSession } from './auth';
-import { ActionFormState, HomepageSection, Feature, BikeFormState, Event, PaymentStatus } from './types';
-import { userFormSchema, ongUserFormSchema, BikeRegistrationSchema, eventFormSchema, financialSettingsSchema, financialProfileSchema } from './schemas';
+import { ActionFormState, HomepageSection, Event, PaymentStatus, BikeFormState } from './types';
+import { userFormSchema, ongUserFormSchema, eventFormSchema, financialSettingsSchema, financialProfileSchema } from './schemas';
 import { adminAuth } from './firebase/server';
 
-// ... (rest of the file until registerForEventAction)
+// Import implementations from bike-actions
+import { 
+    registerBike as registerBikeImpl, 
+    updateBike as updateBikeImpl, 
+    reportTheft as reportTheftImpl, 
+    markAsRecovered as markAsRecoveredImpl, 
+    updateOwnershipProof as updateOwnershipProofImpl, 
+    transferOwnership as transferOwnershipImpl,
+    registerBikeWizardAction as registerBikeWizardActionImpl,
+    validateSerialNumberAction as validateSerialNumberActionImpl
+} from './actions/bike-actions';
 
-const optionalString = (schema: z.ZodString) =>
-    z.preprocess((val) => (val === '' ? undefined : val), schema.optional());
+// --- WRAPPERS FOR BIKE ACTIONS ---
+// Necessary to satisfy 'use server' re-export limitations
 
-const bikeFormSchema = BikeRegistrationSchema.extend({
-    id: z.string().optional(),
-    photoUrl: z.string().url("URL de foto lateral inválida.").min(1, "La foto lateral es obligatoria."),
-    serialNumberPhotoUrl: z.string().url("URL de foto de serie inválida.").min(1, "La foto del número de serie es obligatoria."),
-    additionalPhoto1Url: optionalString(z.string().url({ message: "URL de foto adicional 1 inválida." })),
-    additionalPhoto2Url: optionalString(z.string().url({ message: "URL de foto adicional 2 inválida." })),
-    ownershipProofUrl: optionalString(z.string().url({ message: "URL de prueba de propiedad inválida." })),
-});
+export async function registerBike(prevState: BikeFormState, formData: FormData) {
+    return registerBikeImpl(prevState, formData);
+}
+
+export async function updateBike(prevState: BikeFormState, formData: FormData) {
+    return updateBikeImpl(prevState, formData);
+}
+
+export async function reportTheft(prevState: any, formData: FormData) {
+    return reportTheftImpl(prevState, formData);
+}
+
+export async function markAsRecovered(bikeId: string) {
+    return markAsRecoveredImpl(bikeId);
+}
+
+export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
+    return updateOwnershipProofImpl(bikeId, proofUrl);
+}
+
+export async function transferOwnership(prevState: { error?: string; success?: boolean }, formData: FormData) {
+    return transferOwnershipImpl(prevState, formData);
+}
+
+export async function registerBikeWizardAction(formData: any) {
+    return registerBikeWizardActionImpl(formData);
+}
+
+export async function validateSerialNumberAction(serialNumber: string) {
+    return validateSerialNumberActionImpl(serialNumber);
+}
+
+// --- END WRAPPERS ---
 
 const homepageEditSchema = z.object({
     id: z.enum(['hero', 'features', 'cta']),
@@ -58,21 +88,6 @@ const featureItemSchema = z.object({
     description: z.string().min(1, 'La descripción es obligatoria'),
     imageUrl: z.string().url('La URL de la imagen no es válida'),
 });
-
-const theftReportSchema = z.object({
-    bikeId: z.string(),
-    date: z.string().min(1, "La fecha es obligatoria."),
-    time: z.string().optional(),
-    country: z.string().min(1, "El país es obligatorio."),
-    state: z.string().min(1, "El estado/provincia es obligatorio."),
-    city: z.string().min(1, "El municipio/ciudad es obligatorio."),
-    zipCode: z.string().optional(),
-    lat: z.coerce.number().optional(),
-    lng: z.coerce.number().optional(),
-    location: z.string().min(1, "La ubicación es obligatoria."),
-    details: z.string().min(1, "Los detalles son obligatorios."),
-});
-
 
 export async function signup(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
     const data = Object.fromEntries(formData.entries());
@@ -302,219 +317,6 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
     } catch (error: any) {
         console.error("Update profile error:", error);
         return { error: 'Hubo un error inesperado al actualizar tu perfil.' };
-    }
-}
-
-export async function registerBike(prevState: BikeFormState, formData: FormData): Promise<BikeFormState> {
-    const session = await getDecodedSession();
-    if (!session?.uid) {
-        return { success: false, message: 'No estás autenticado.' };
-    }
-
-    const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
-
-    if (!validatedFields.success) {
-        return {
-            success: false,
-            message: 'Error de validación. Por favor, revisa los campos.',
-            errors: validatedFields.error.flatten().fieldErrors,
-        };
-    }
-
-    const { photoUrl, serialNumberPhotoUrl, additionalPhoto1Url, additionalPhoto2Url, ownershipProofUrl, serialNumber, ...bikeData } = validatedFields.data;
-    
-    const isUnique = await isSerialNumberUnique(serialNumber);
-    if (!isUnique) {
-        return {
-            success: false,
-            message: `Error: El número de serie '${serialNumber}' ya se encuentra registrado.`,
-            errors: { serialNumber: ["Este número de serie ya está registrado."] },
-        };
-    }
-
-    try {
-        await addBike({
-            ...bikeData,
-            userId: session.uid,
-            serialNumber,
-            ownershipProof: ownershipProofUrl || '',
-            photos: [
-                photoUrl,
-                serialNumberPhotoUrl,
-                additionalPhoto1Url,
-                additionalPhoto2Url,
-            ].filter((url): url is string => !!url),
-        });
-
-        revalidatePath('/dashboard');
-        return { success: true, message: '¡Bicicleta registrada exitosamente!' };
-
-    } catch (error) {
-        console.error("Database error during bike registration:", error);
-        return { success: false, message: 'Error en la base de datos: No se pudo registrar la bicicleta.' };
-    }
-}
-
-
-export async function updateBike(prevState: BikeFormState, formData: FormData): Promise<BikeFormState> {
-    const session = await getDecodedSession();
-    if (!session?.uid) {
-        return { success: false, message: 'No estás autenticado.' };
-    }
-
-    const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
-
-    if (!validatedFields.success) {
-        return {
-            success: false,
-            message: 'Error de validación. Por favor, revisa los campos.',
-            errors: validatedFields.error.flatten().fieldErrors,
-        };
-    }
-
-    const { id, photoUrl, serialNumberPhotoUrl, additionalPhoto1Url, additionalPhoto2Url, ownershipProofUrl, serialNumber, ...bikeData } = validatedFields.data;
-    if (!id) {
-        return { success: false, message: "Error: No se encontró el ID de la bicicleta para actualizar." };
-    }
-    
-    const isUnique = await isSerialNumberUnique(serialNumber, id);
-    if (!isUnique) {
-        return {
-            success: false,
-            message: `Error: El número de serie '${serialNumber}' ya se encuentra registrado.`,
-            errors: { serialNumber: ["Este número de serie ya está registrado."] },
-        };
-    }
-
-    try {
-        await updateBikeData(id, {
-            ...bikeData,
-            serialNumber,
-            ownershipProof: ownershipProofUrl || '',
-            photos: [
-                photoUrl,
-                serialNumberPhotoUrl,
-                additionalPhoto1Url,
-                additionalPhoto2Url,
-            ].filter((url): url is string => !!url),
-        });
-        revalidatePath('/dashboard');
-        revalidatePath(`/dashboard/bikes/${id}`);
-        return { success: true, message: 'Bicicleta actualizada correctamente.' };
-    } catch (error) {
-        console.error("Database error during bike update:", error);
-        return { success: false, message: 'Error en la base de datos: No se pudo actualizar la bicicleta.' };
-    }
-}
-
-
-export async function reportTheft(prevState: any, formData: FormData) {
-    const session = await getDecodedSession();
-    if (!session?.uid) {
-        return { message: 'No estás autenticado.' };
-    }
-
-    const validatedFields = theftReportSchema.safeParse(Object.fromEntries(formData.entries()));
-
-    if (!validatedFields.success) {
-        return { errors: validatedFields.error.flatten().fieldErrors, message: 'Faltan campos. No se pudo reportar el robo.' };
-    }
-
-    const { bikeId, ...theftData } = validatedFields.data;
-
-    try {
-        await updateBikeData(bikeId, {
-            status: 'stolen',
-            theftReport: theftData,
-        });
-        revalidatePath('/dashboard');
-        revalidatePath(`/dashboard/bikes/${bikeId}`);
-        return { message: 'El robo ha sido reportado exitosamente.' };
-    } catch (error) {
-        return { message: 'Error de base de datos: No se pudo reportar el robo.' };
-    }
-}
-
-export async function markAsRecovered(bikeId: string) {
-    const session = await getDecodedSession();
-    if (!session?.uid) {
-        return;
-    }
-    try {
-        await updateBikeData(bikeId, {
-            status: 'safe',
-            theftReport: undefined,
-        });
-        revalidatePath('/dashboard');
-        revalidatePath(`/dashboard/bikes/${bikeId}`);
-    } catch (error) {
-        console.error("Failed to mark as recovered:", error);
-    }
-}
-
-export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
-    const session = await getDecodedSession();
-    if (!session?.uid) {
-        throw new Error("User not authenticated.");
-    }
-    try {
-        await updateBikeData(bikeId, {
-            ownershipProof: proofUrl,
-        });
-        revalidatePath(`/dashboard/bikes/${bikeId}`);
-    } catch (error) {
-        console.error("Failed to update ownership proof:", error);
-        throw new Error("Could not update ownership proof.");
-    }
-}
-
-export async function transferOwnership(prevState: { error?: string; success?: boolean }, formData: FormData): Promise<{ error?: string; success?: boolean }> {
-    const session = await getDecodedSession();
-    if (!session?.uid) {
-        return { error: 'Debes iniciar sesión para transferir la propiedad.' };
-    }
-
-    const schema = z.object({
-        bikeId: z.string(),
-        newOwnerEmail: z.string().email('Por favor, introduce un correo electrónico válido.'),
-    });
-
-    const validatedFields = schema.safeParse({
-        bikeId: formData.get('bikeId'),
-        newOwnerEmail: formData.get('newOwnerEmail'),
-    });
-
-    if (!validatedFields.success) {
-        return { error: 'Datos inválidos. Por favor, revisa el correo electrónico.' };
-    }
-
-    const { bikeId, newOwnerEmail } = validatedFields.data;
-    const currentUserId = session.uid;
-
-    try {
-        const newOwner = await getUserByEmail(newOwnerEmail);
-        if (!newOwner) {
-            return { error: 'El usuario con ese correo electrónico no fue encontrado.' };
-        }
-
-        if (newOwner.id === currentUserId) {
-            return { error: 'No puedes transferirte la bicicleta a ti mismo.' };
-        }
-        
-        const bike = await getBike(currentUserId, bikeId);
-        if (!bike) {
-            return { error: 'No estás autorizado para transferir esta bicicleta.' };
-        }
-
-        await updateBikeData(bikeId, { userId: newOwner.id });
-        
-        revalidatePath('/dashboard');
-        
-        return { success: true };
-
-    } catch (error) {
-        console.error('Error al transferir la propiedad:', error);
-        return { error: 'Ocurrió un error en el servidor. Por favor, inténtalo de nuevo.' };
     }
 }
 
