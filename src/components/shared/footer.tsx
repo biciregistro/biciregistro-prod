@@ -11,8 +11,9 @@ export function Footer() {
             © {new Date().getFullYear()} Biciregistro. Todos los derechos reservados.
           </p>
         </div>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap justify-center">
           <Link href="/about" className="hover:text-foreground transition-colors">Nosotros</Link>
+          <Link href="/faqs" className="hover:text-foreground transition-colors">Preguntas Frecuentes</Link>
           <Link href="/privacy" className="hover:text-foreground transition-colors">Política de Privacidad</Link>
           <Link href="/terms" className="hover:text-foreground transition-colors">Términos de Servicio</Link>
         </div>
