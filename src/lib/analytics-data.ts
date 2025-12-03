@@ -252,3 +252,94 @@ export const getTopTheftLocations = unstable_cache(
     ['top-theft-locations'],
     { revalidate: 1, tags: ['analytics'] } // Changed to 1 second
 );
+
+// Cached function to get user demographics
+export const getUserDemographics = unstable_cache(
+    async (filters: DashboardFilters) => {
+        const db = adminDb;
+        let query = applyUserFilters(db.collection('users'), filters);
+
+        const snapshot = await query.select('birthDate', 'gender', 'state', 'country').get();
+        
+        if (snapshot.empty) {
+            return {
+                averageAge: 0,
+                averageAgeByGender: [],
+                genderDistribution: [],
+                topLocations: []
+            };
+        }
+
+        let totalAge = 0;
+        let validAgeCount = 0;
+        const genderCounts: Record<string, number> = {};
+        const ageSumByGender: Record<string, number> = {};
+        const ageCountByGender: Record<string, number> = {};
+        const locationCounts: Record<string, number> = {};
+
+        const today = new Date();
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            
+            // Gender (Normalize)
+            let gender = data.gender || 'No especificado';
+            // Capitalize first letter
+            gender = gender.charAt(0).toUpperCase() + gender.slice(1);
+            genderCounts[gender] = (genderCounts[gender] || 0) + 1;
+
+            // Age Calculation
+            if (data.birthDate) {
+                const birthDate = new Date(data.birthDate);
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const m = today.getMonth() - birthDate.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+                if (age > 0 && age < 120) { // Sanity check
+                    totalAge += age;
+                    validAgeCount++;
+                    
+                    // Accumulate age by gender
+                    ageSumByGender[gender] = (ageSumByGender[gender] || 0) + age;
+                    ageCountByGender[gender] = (ageCountByGender[gender] || 0) + 1;
+                }
+            }
+
+            // Location
+            const state = data.state?.trim();
+            const country = data.country?.trim();
+            if (state && country) {
+                const key = `${state}, ${country}`;
+                locationCounts[key] = (locationCounts[key] || 0) + 1;
+            } else if (state) {
+                locationCounts[state] = (locationCounts[state] || 0) + 1;
+            }
+        });
+
+        const averageAge = validAgeCount > 0 ? Math.round(totalAge / validAgeCount) : 0;
+
+        const averageAgeByGender = Object.keys(ageSumByGender).map(g => ({
+            gender: g,
+            average: Math.round(ageSumByGender[g] / ageCountByGender[g])
+        }));
+
+        const genderDistribution = Object.entries(genderCounts)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+
+        const topLocations = Object.entries(locationCounts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+
+        return {
+            averageAge,
+            averageAgeByGender,
+            genderDistribution,
+            topLocations
+        };
+    },
+    ['user-demographics'],
+    { revalidate: 1, tags: ['analytics'] } // Changed to 1 second
+);

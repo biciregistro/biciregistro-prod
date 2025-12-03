@@ -1,11 +1,14 @@
 import type { DashboardFilters } from '@/lib/types';
-import { getBikeStatusCounts, getTopStolenBrands, getTheftsByModality, getGeneralStats, getTopTheftLocations } from '@/lib/analytics-data';
+import { getBikeStatusCounts, getTopStolenBrands, getTheftsByModality, getGeneralStats, getTopTheftLocations, getUserDemographics } from '@/lib/analytics-data';
 import { RecoveryRatePie } from './charts/recovery-rate-pie';
 import { TopStolenBrandsChart } from './charts/top-stolen-brands-chart';
 import { EcosystemHealthBar } from './charts/ecosystem-health-bar';
 import { TheftByModalityChart } from './charts/theft-by-modality-chart';
 import { TopTheftLocationsChart } from './charts/top-theft-locations';
 import { GeneralStatsSection } from './charts/general-stats-section';
+import { AverageAgeCard } from './charts/average-age-card';
+import { GenderDistributionChart } from './charts/gender-distribution-chart';
+import { TopUserLocationsList } from './charts/top-user-locations-list';
 import { Separator } from '@/components/ui/separator';
 
 interface StatsTabContentProps {
@@ -14,12 +17,13 @@ interface StatsTabContentProps {
 
 export async function StatsTabContent({ filters }: StatsTabContentProps) {
   // Fetch all data in parallel for performance
-  const [statusCounts, topBrands, modalityStats, generalStats, topLocations] = await Promise.all([
+  const [statusCounts, topBrands, modalityStats, generalStats, topLocations, userDemographics] = await Promise.all([
     getBikeStatusCounts(filters),
     getTopStolenBrands(filters),
     getTheftsByModality(filters),
     getGeneralStats(filters),
     getTopTheftLocations(filters),
+    getUserDemographics(filters),
   ]);
 
   const recoveryData = {
@@ -42,7 +46,34 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
 
       <Separator className="my-6" />
 
-      {/* SECTION 2: Security Monitor */}
+      {/* SECTION 2: User Demographics (NEW) */}
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-bold tracking-tight">Perfil Demográfico</h2>
+          <p className="text-muted-foreground">
+            Análisis de la base de usuarios registrada.
+          </p>
+        </div>
+
+        <div className="columns-1 md:columns-3 gap-6 space-y-6">
+            <div className="break-inside-avoid mb-6">
+                <AverageAgeCard 
+                    averageAge={userDemographics.averageAge} 
+                    averageAgeByGender={userDemographics.averageAgeByGender}
+                />
+            </div>
+            <div className="break-inside-avoid mb-6">
+                <GenderDistributionChart data={userDemographics.genderDistribution} />
+            </div>
+            <div className="break-inside-avoid mb-6">
+                <TopUserLocationsList data={userDemographics.topLocations} />
+            </div>
+        </div>
+      </div>
+
+      <Separator className="my-6" />
+
+      {/* SECTION 3: Security Monitor */}
       <div className="space-y-6">
         <div className="space-y-1">
           <h2 className="text-2xl font-bold tracking-tight">Monitor de Seguridad</h2>
@@ -69,7 +100,7 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
             <TopStolenBrandsChart data={topBrands} />
           </div>
 
-          {/* Metric 4: Top Theft Locations (MOVED HERE) */}
+          {/* Metric 4: Top Theft Locations */}
           <div className="break-inside-avoid mb-6">
               <TopTheftLocationsChart data={topLocations} />
           </div>
