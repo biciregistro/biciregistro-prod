@@ -1,7 +1,7 @@
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useTransition, useMemo, useEffect } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,16 +10,17 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { BikeRegistrationForm, TheftReportForm } from '@/components/bike-card';
 import { TransferOwnershipForm } from '@/components/bike-components/transfer-ownership-form';
 import { cn } from '@/lib/utils';
-import type { Bike, User } from '@/lib/types';
+import type { Bike, User, BikeStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Pencil, FileDown, UploadCloud, Loader2 } from 'lucide-react';
+import { ArrowLeft, Pencil, FileDown, Loader2 } from 'lucide-react';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { updateOwnershipProof } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import QRCodeGenerator from '@/components/bike-components/qr-code-generator';
 import { auth } from '@/lib/firebase/client';
+import { RecoverBikeButton } from '@/components/bike-components/recover-bike-button';
 
-// DECLARACIÓN CORRECTA: A nivel superior del módulo
+// Dynamic import for PDF downloader
 const BikePDFDownloader = dynamic(
   () => import('@/components/bike-components/bike-pdf-downloader'),
   { 
@@ -28,11 +29,23 @@ const BikePDFDownloader = dynamic(
   }
 );
 
-const bikeStatusStyles: { [key in Bike['status']]: string } = {
+// --- CORRECTED MAPPINGS ---
+// Style mapping for the status badge
+const bikeStatusStyles: { [key in BikeStatus]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
   stolen: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700',
   in_transfer: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700',
+  recovered: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700',
 };
+
+// Text mapping for the status badge
+const bikeStatusTexts: { [key in BikeStatus]: string } = {
+  safe: 'En Regla',
+  stolen: 'Robada',
+  in_transfer: 'En Transferencia',
+  recovered: 'Recuperada',
+};
+// --- END CORRECTION ---
 
 function DetailItem({ label, value }: { label: string; value: React.ReactNode }) {
     if (!value) return null;
@@ -128,6 +141,8 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
     ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(bike.appraisedValue) 
     : null;
 
+  const isTransferable = bike.status === 'safe' || bike.status === 'recovered';
+
   return (
     <div className="container py-6 md:py-8">
       <div className="mb-6 flex flex-col sm:flex-row items-center justify-between px-4 sm:px-0 gap-4">
@@ -182,9 +197,11 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                           {bike.serialNumber}
                       </CardDescription>
                       <div className="pt-2">
+                        {/* --- CORRECTED BADGE LOGIC --- */}
                         <Badge className={cn(bikeStatusStyles[bike.status], "text-base")}>
-                            Estado: {bike.status === 'safe' ? 'En Regla' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}
+                            Estado: {bikeStatusTexts[bike.status]}
                         </Badge>
+                        {/* --- END CORRECTION --- */}
                       </div>
                   </CardHeader>
                   <CardContent className="grid grid-cols-2 gap-4">
@@ -234,11 +251,15 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                       <CardTitle>Gestionar Estado de la Bicicleta</CardTitle>
                   </CardHeader>
                   <CardContent>
-                      <TheftReportForm bike={bike} />
+                      {bike.status === 'stolen' ? (
+                          <RecoverBikeButton bikeId={bike.id} />
+                      ) : (
+                          <TheftReportForm bike={bike} />
+                      )}
                   </CardContent>
               </Card>
               
-              {bike.status === 'safe' && (
+              {isTransferable && (
                   <Card>
                       <CardHeader>
                           <CardTitle>Transferir Propiedad</CardTitle>

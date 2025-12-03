@@ -11,13 +11,13 @@ import { debounce } from 'lodash';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 
-import type { Bike, BikeFormState } from '@/lib/types';
+import type { Bike, BikeFormState, BikeStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { markAsRecovered, registerBike, reportTheft, updateBike } from '@/lib/actions';
+import { markAsRecovered, registerBike, reportTheft, updateBike } from '@/lib/actions/bike-actions';
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -40,11 +40,21 @@ import {
 } from "@/components/ui/dialog";
 import { BikeRegistrationSchema } from '@/lib/schemas';
 import { auth } from '@/lib/firebase/client';
+import { modalityOptions } from '@/lib/bike-types';
+import { RecoverBikeButton } from '@/components/bike-components/recover-bike-button';
 
-const bikeStatusStyles: { [key in Bike['status']]: string } = {
+const bikeStatusStyles: { [key in BikeStatus]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
   stolen: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700',
   in_transfer: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700',
+  recovered: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700',
+};
+
+const bikeStatusTexts: { [key in BikeStatus]: string } = {
+  safe: 'En Regla',
+  stolen: 'Robada',
+  in_transfer: 'En Transferencia',
+  recovered: 'Recuperada',
 };
 
 // Reusable component for the required field indicator
@@ -69,6 +79,16 @@ export function BikeCard({ bike }: { bike: Bike }) {
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const bikeImage = bike.photos[0] || PlaceHolderImages.find(p => p.id === 'bike-1')?.imageUrl || '';
 
+    // Logic to show the report button for 'safe' or 'recovered' bikes
+    const canReportStolen = bike.status === 'safe' || bike.status === 'recovered';
+
+    // BUG FIX: Force modal to close if bike becomes stolen
+    useEffect(() => {
+        if (bike.status === 'stolen') {
+            setIsReportModalOpen(false);
+        }
+    }, [bike.status]);
+
     return (
         <Card className="overflow-hidden transition-all hover:shadow-lg w-full">
             <div className="flex flex-col md:flex-row">
@@ -91,7 +111,7 @@ export function BikeCard({ bike }: { bike: Bike }) {
                             <CardDescription className="font-mono">{bike.serialNumber}</CardDescription>
                         </div>
                         <Badge className={cn("text-base", bikeStatusStyles[bike.status])}>
-                            {bike.status === 'safe' ? 'En Regla' : bike.status === 'stolen' ? 'Robada' : 'En Transferencia'}
+                            {bikeStatusTexts[bike.status]}
                         </Badge>
                     </div>
 
@@ -108,7 +128,7 @@ export function BikeCard({ bike }: { bike: Bike }) {
                             <Link href={`/dashboard/bikes/${bike.id}`}>Ver Detalles Completos</Link>
                         </Button>
                         
-                        {bike.status === 'safe' && (
+                        {canReportStolen && (
                             <Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>
                                 <DialogTrigger asChild>
                                     <Button variant="destructive" className="w-full">
@@ -125,14 +145,15 @@ export function BikeCard({ bike }: { bike: Bike }) {
                                     </DialogHeader>
                                     <TheftReportForm 
                                         bike={bike} 
-                                        onSuccess={() => setIsReportModalOpen(false)} 
+                                        onSuccess={() => setIsReportModalOpen(false)}
+                                        defaultOpen={true} // New prop to skip the initial button
                                     />
                                 </DialogContent>
                             </Dialog>
                         )}
                         
                         {bike.status === 'stolen' && (
-                            <TheftReportForm bike={bike} />
+                            <RecoverBikeButton bikeId={bike.id} />
                         )}
                     </div>
                 </div>
@@ -142,7 +163,6 @@ export function BikeCard({ bike }: { bike: Bike }) {
 }
 
 type BikeFormValues = z.infer<typeof BikeRegistrationSchema>;
-const modalityOptions = ["Urbana", "Gravel", "Pista", "XC", "Enduro", "Downhill", "Trail", "E-Bike", "Dirt Jump", "MTB"];
 
 function SubmitButton({ isEditing, isSerialInvalid }: { isEditing?: boolean, isSerialInvalid?: boolean }) {
     const { pending } = useFormStatus();
@@ -412,13 +432,10 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
         </Form>
     );
 }
+
 function ReportTheftButton({ ...props }) {
     const { pending } = useFormStatus();
     return <Button type="submit" variant="destructive" className="w-full" disabled={pending} {...props}>{pending ? 'Reportando...' : 'Reportar como Robada'}</Button>;
-}
-function MarkRecoveredButton() {
-    const { pending } = useFormStatus();
-    return <Button type="submit" variant="secondary" className="w-full bg-green-500 hover:bg-green-600 text-white" disabled={pending}>{pending ? 'Actualizando...' : 'Marcar como Recuperada'}</Button>;
 }
 
 const theftReportSchema = z.object({
@@ -435,16 +452,18 @@ const theftReportSchema = z.object({
 });
 type TheftReportValues = z.infer<typeof theftReportSchema>;
 
-export function TheftReportForm({ bike, onSuccess }: { bike: Bike, onSuccess?: () => void }) {
-    const [showForm, setShowForm] = useState(false);
+export function TheftReportForm({ bike, onSuccess, defaultOpen = false }: { bike: Bike, onSuccess?: () => void, defaultOpen?: boolean }) {
+    const [showForm, setShowForm] = useState(defaultOpen);
     const [state, formAction] = useActionState(reportTheft, null);
     const { toast } = useToast();
     const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === 'México'));
     const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
     const [cities, setCities] = useState<string[]>([]);
-    const [isPending, startTransition] = useTransition();
-    const router = useRouter();
-
+    
+    // Reset showForm if defaultOpen prop changes (though usually component remounts)
+    useEffect(() => {
+        setShowForm(defaultOpen);
+    }, [defaultOpen]);
 
     const form = useForm<TheftReportValues>({
         resolver: zodResolver(theftReportSchema),
@@ -501,32 +520,19 @@ export function TheftReportForm({ bike, onSuccess }: { bike: Bike, onSuccess?: (
         }
     };
 
-
-    if (bike.status === 'stolen') {
-        return (
-            <form action={() => startTransition(async () => {
-                await markAsRecovered(bike.id);
-                toast({ 
-                    title: "Bicicleta Actualizada", 
-                    description: "La bicicleta ha sido marcada como recuperada." 
-                });
-                
-                router.refresh();
-
-                if (onSuccess) {
-                    onSuccess();
-                }
-            })} className="w-full">
-                <MarkRecoveredButton />
-            </form>
-        )
-    }
     
-    const isVisible = showForm || onSuccess;
+    // Logic to show the report button for 'safe' or 'recovered' bikes
+    const canReportStolen = bike.status === 'safe' || bike.status === 'recovered';
 
-    if (!isVisible) {
+    if (!showForm && canReportStolen) {
         return <Button variant="destructive" className="w-full" onClick={() => setShowForm(true)}>Reportar como Robada</Button>
     }
+    
+    // If we can't report stolen and the form isn't shown, render nothing.
+    if (!canReportStolen) {
+        return null;
+    }
+
 
     return (
         <Form {...form}>

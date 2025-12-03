@@ -218,9 +218,10 @@ export async function markAsRecovered(bikeId: string) {
         return;
     }
     try {
+        // Change status to 'recovered' instead of 'safe'
+        // Do NOT delete theftReport to preserve history for analytics
         await updateBikeData(bikeId, {
-            status: 'safe',
-            theftReport: undefined,
+            status: 'recovered',
         });
         revalidatePath('/dashboard');
         revalidatePath(`/dashboard/bikes/${bikeId}`);

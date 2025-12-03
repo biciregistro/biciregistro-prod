@@ -1,13 +1,16 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getAuthenticatedUser, getHomepageData, getUsers, getOngUsers, getEventsByOngId } from '@/lib/data';
 import { getFinancialSettings, getAllEventsForAdmin } from '@/lib/financial-data';
-import type { HomepageSection } from '@/lib/types';
+import type { HomepageSection, DashboardFilters } from '@/lib/types';
 import { AdminDashboardTabs } from '@/components/admin-dashboard-tabs';
+import { StatsTabContent } from '@/components/admin/stats-tab-content';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  searchParams: { [key: string]: string | string[] | undefined };
 }) {
   const user = await getAuthenticatedUser();
 
@@ -15,12 +18,19 @@ export default async function AdminPage({
     redirect('/dashboard');
   }
 
-  const awaitedSearchParams = await searchParams;
+  // Extract filters for the stats tab
+  const filters: DashboardFilters = {
+    country: typeof searchParams['country'] === 'string' ? searchParams['country'] : undefined,
+    state: typeof searchParams['state'] === 'string' ? searchParams['state'] : undefined,
+    brand: typeof searchParams['brand'] === 'string' ? searchParams['brand'] : undefined,
+    modality: typeof searchParams['modality'] === 'string' ? searchParams['modality'] : undefined,
+    gender: typeof searchParams['gender'] === 'string' ? searchParams['gender'] : undefined,
+  };
 
-  const query = typeof awaitedSearchParams['query'] === 'string' ? awaitedSearchParams['query'] : undefined;
-  const pageToken = typeof awaitedSearchParams['pageToken'] === 'string' ? awaitedSearchParams['pageToken'] : undefined;
+  const query = typeof searchParams['query'] === 'string' ? searchParams['query'] : undefined;
+  const pageToken = typeof searchParams['pageToken'] === 'string' ? searchParams['pageToken'] : undefined;
 
-  // Parallel data fetching for performance
+  // Parallel data fetching for other tabs
   const [homepageData, usersData, ongs, adminEvents, financialSettings, allEvents] = await Promise.all([
     getHomepageData(),
     getUsers({ query, pageToken }),
@@ -58,6 +68,11 @@ export default async function AdminPage({
           events={adminEvents}
           financialSettings={financialSettings}
           allEvents={allEvents}
+          statsContent={
+            <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+              <StatsTabContent filters={filters} />
+            </Suspense>
+          }
         />
       </div>
     </div>

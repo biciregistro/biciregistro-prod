@@ -1,4 +1,4 @@
-export type BikeStatus = 'safe' | 'stolen' | 'in_transfer';
+export type BikeStatus = 'safe' | 'stolen' | 'in_transfer' | 'recovered';
 
 export type Bike = {
   id: string;
@@ -51,6 +51,7 @@ export type User = {
   whatsapp?: string;
   communityId?: string; // ID of the ONG the user is affiliated with
   notificationPreferences?: NotificationPreferences;
+  createdAt?: string; // Added for analytics
 };
 
 export type OngUser = {
@@ -267,4 +268,13 @@ export type FinancialSettings = {
     pasarelaRate: number; // Porcentaje de comisión de la pasarela (Ej. 3.5)
     pasarelaFixed: number; // Monto fijo de la pasarela (Ej. 4.50)
     ivaRate: number; // Tasa de IVA (Ej. 16.0)
+};
+
+// --- Dashboard Filters ---
+export type DashboardFilters = {
+    country?: string;
+    state?: string;
+    brand?: string;
+    modality?: string;
+    gender?: string;
 };

@@ -9,9 +9,10 @@ import { FinancialSettingsForm } from '@/components/admin/financial-settings-for
 import { AdminEventFinancialList } from '@/components/admin/admin-event-financial-list';
 import { HomepageSection, User, OngUser, Event, FinancialSettings } from '@/lib/types';
 import { EventCard } from '@/components/ong/event-card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info, UserPlus, CalendarPlus, DollarSign } from 'lucide-react';
+import { UserPlus, CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DashboardFilterBar } from '@/components/admin/dashboard-filter-bar';
+// REMOVED: import { StatsTabContent } from '@/components/admin/stats-tab-content';
 
 interface AdminDashboardTabsProps {
   homepageSections: HomepageSection[];
@@ -21,14 +22,24 @@ interface AdminDashboardTabsProps {
   events: Event[];
   financialSettings: FinancialSettings;
   allEvents: Event[];
+  statsContent: React.ReactNode; // ADDED: Prop for server component
 }
 
-function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ongs, events, financialSettings, allEvents }: AdminDashboardTabsProps) {
+function AdminDashboardTabsContent({ 
+  homepageSections, 
+  users, 
+  nextPageToken, 
+  ongs, 
+  events, 
+  financialSettings, 
+  allEvents,
+  statsContent // ADDED
+}: AdminDashboardTabsProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
-  const defaultTab = 'content';
+  const defaultTab = 'stats'; // Changed default to stats
   const currentTab = searchParams.get('tab') || defaultTab;
   const [activeTab, setActiveTab] = useState(currentTab);
 
@@ -60,13 +71,8 @@ function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ong
       </TabsList>
 
       <TabsContent value="stats" className="space-y-4">
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertTitle>Próximamente</AlertTitle>
-          <AlertDescription>
-            El módulo de indicadores y métricas del sistema estará disponible en una futura actualización.
-          </AlertDescription>
-        </Alert>
+        <DashboardFilterBar />
+        {statsContent} {/* CHANGED: Render prop */}
       </TabsContent>
 
       <TabsContent value="content" className="space-y-4">
@@ -77,7 +83,8 @@ function AdminDashboardTabsContent({ homepageSections, users, nextPageToken, ong
         <UsersTable users={users} nextPageToken={nextPageToken} />
       </TabsContent>
 
-      <TabsContent value="ongs" className="space-y-4">
+      {/* ... other tabs remain the same ... */}
+       <TabsContent value="ongs" className="space-y-4">
          <div className="flex justify-end mb-4">
              <Link href="/admin/ong/create">
                 <Button>
