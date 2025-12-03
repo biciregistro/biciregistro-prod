@@ -328,6 +328,7 @@ export function RegisterWizard() {
                         <input 
                             type="file" 
                             accept="image/*" 
+                            capture="environment" 
                             onChange={handleBikePhoto}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                         />
