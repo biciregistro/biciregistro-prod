@@ -343,3 +343,114 @@ export const getUserDemographics = unstable_cache(
     ['user-demographics'],
     { revalidate: 1, tags: ['analytics'] } // Changed to 1 second
 );
+
+// Cached function to get market metrics
+export const getMarketMetrics = unstable_cache(
+    async (filters: DashboardFilters) => {
+        const db = adminDb;
+        // Fix: Explicitly type query as Query to prevent TS assignment error when reassigning below
+        let query: FirebaseFirestore.Query = db.collection('bikes'); 
+        
+        // Apply filters (Geo is ignored to include 'safe' bikes, Brand/Modality applied)
+        query = applyFilters(query, filters, false); 
+
+        const snapshot = await query.select('make', 'modality', 'appraisedValue').get();
+        
+        if (snapshot.empty) {
+            return {
+                topBrands: [],
+                modalities: [],
+                totalValue: 0,
+                averageValue: 0
+            };
+        }
+
+        const brandCounts: Record<string, number> = {};
+        const modalityCounts: Record<string, number> = {};
+        let totalValue = 0;
+        let validValueCount = 0;
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            
+            // Brands
+            const brand = data.make;
+            if (brand) brandCounts[brand] = (brandCounts[brand] || 0) + 1;
+
+            // Modalities
+            const modality = data.modality;
+            if (modality) modalityCounts[modality] = (modalityCounts[modality] || 0) + 1;
+
+            // Value
+            const value = data.appraisedValue;
+            if (typeof value === 'number' && value > 0) {
+                totalValue += value;
+                validValueCount++;
+            }
+        });
+
+        // Process Top Brands
+        const topBrands = Object.entries(brandCounts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+
+        // Process Modalities
+        const totalBikes = snapshot.size;
+        const modalities = Object.entries(modalityCounts)
+            .map(([name, count]) => ({ 
+                name, 
+                count, 
+                percentage: (count / totalBikes) * 100 
+            }))
+            .sort((a, b) => b.count - a.count);
+
+        const averageValue = validValueCount > 0 ? totalValue / validValueCount : 0;
+
+        return {
+            topBrands,
+            modalities,
+            totalValue,
+            averageValue
+        };
+    },
+    ['market-metrics'],
+    { revalidate: 1, tags: ['analytics'] }
+);
+
+// NEW: Fraud Prevention Stats
+export const getFraudPreventionStats = unstable_cache(
+    async () => {
+        const doc = await adminDb.collection('stats').doc('global').get();
+        return {
+            totalSearches: doc.data()?.totalSearches || 0
+        };
+    },
+    ['fraud-stats'],
+    { revalidate: 1, tags: ['analytics'] }
+);
+
+// NEW: Marketing Potential Stats
+export const getMarketingPotential = unstable_cache(
+    async (filters: DashboardFilters) => {
+        const db = adminDb;
+        let query = applyUserFilters(db.collection('users'), filters);
+        
+        // Count total users matching filters first
+        const totalSnapshot = await query.count().get();
+        const totalUsers = totalSnapshot.data().count;
+
+        // Count users with marketing consent
+        const consentQuery = query.where('notificationPreferences.marketing', '==', true);
+        const consentSnapshot = await consentQuery.count().get();
+        const contactableUsers = consentSnapshot.data().count;
+
+        return {
+            totalUsers,
+            contactableUsers,
+            percentage: totalUsers > 0 ? (contactableUsers / totalUsers) * 100 : 0
+        };
+    },
+    ['marketing-potential'],
+    { revalidate: 1, tags: ['analytics'] }
+);
