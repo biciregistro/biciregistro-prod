@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Camera, CheckCircle, AlertCircle, Upload, Bike } from "lucide-react";
+import { Loader2, Camera, CheckCircle, AlertCircle, Upload, Bike, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 // Actions centralizadas
 import { analyzeSerialNumberAction, analyzeBikeImageAction } from '@/lib/actions/ai-actions';
@@ -31,7 +31,7 @@ type WizardData = {
 };
 
 export function RegisterWizard() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0); // Inicia en 0 (Bienvenida)
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<WizardData>({
     serialNumber: '',
@@ -232,29 +232,64 @@ export function RegisterWizard() {
 
   return (
     <div className="w-full">
-      {/* Progress Bar Simple */}
-      <div className="flex justify-between mb-8 relative px-4">
-        <div className="absolute top-1/2 left-4 right-4 h-1 bg-gray-200 -z-10 -translate-y-1/2 rounded-full"></div>
-        {[1, 2, 3].map((s) => (
-            <div key={s} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${step >= s ? 'bg-primary text-white scale-110 shadow-md' : 'bg-gray-200 text-gray-500'}`}>
-                {s}
-            </div>
-        ))}
-      </div>
+      {/* Progress Bar Simple - Oculto en paso 0 */}
+      {step > 0 && (
+        <div className="flex justify-between mb-8 relative px-4 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="absolute top-1/2 left-4 right-4 h-1 bg-gray-200 -z-10 -translate-y-1/2 rounded-full"></div>
+            {[1, 2, 3].map((s) => (
+                <div key={s} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${step >= s ? 'bg-primary text-white scale-110 shadow-md' : 'bg-gray-200 text-gray-500'}`}>
+                    {s}
+                </div>
+            ))}
+        </div>
+      )}
 
       <Card className="border-2 border-primary/10 shadow-lg">
-        <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-2">
-                {step === 1 && "1. Escanea el Número de Serie"}
-                {step === 2 && "2. Toma una foto lateral"}
-                {step === 3 && "3. Detalles Finales"}
-            </CardTitle>
-            <CardDescription>
-                {step === 1 && "Empecemos por lo más importante. Escanea el número de serie de tu bici y deja que Sprock nuestra IA lo escriba por ti."}
-                {step === 2 && "Toma una foto lateral de tu bicicleta, Sprock intentará reconocerla."}
-                {step === 3 && "Solo unos datos más para estimar su valor."}
-            </CardDescription>
-        </CardHeader>
+        
+        {/* --- STEP 0: BIENVENIDA --- */}
+        {step === 0 && (
+            <div className="animate-in fade-in zoom-in-95 duration-500 text-center py-8">
+                <CardHeader>
+                    <div className="mx-auto bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center mb-4">
+                        <Sparkles className="w-10 h-10 text-primary animate-pulse" />
+                    </div>
+                    <CardTitle className="text-3xl font-bold text-primary">Bienvenido al Registro Inteligente</CardTitle>
+                    <CardDescription className="text-lg mt-2">
+                        Estás a punto de registrar tu bicicleta.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 max-w-md mx-auto">
+                    <p className="text-gray-600">
+                        <span className="font-semibold text-primary">Sprock</span>, nuestra IA, te acompañará en el proceso para registrar tu bici en 2 minutos o menos.
+                    </p>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800 flex items-center gap-3 text-left">
+                        <Bike className="w-8 h-8 shrink-0" />
+                        <span>Por favor, <b>ten a la mano tu bicicleta</b> para escanear el número de serie y tomarle una foto.</span>
+                    </div>
+                </CardContent>
+                <CardFooter className="justify-center pb-8">
+                    <Button size="lg" onClick={() => setStep(1)} className="w-full sm:w-auto px-12 text-lg h-12 shadow-md hover:shadow-xl transition-all">
+                        Comenzar
+                    </Button>
+                </CardFooter>
+            </div>
+        )}
+
+        {/* --- HEADERS PARA PASOS 1-3 --- */}
+        {step > 0 && (
+            <CardHeader>
+                <CardTitle className="text-2xl flex items-center gap-2">
+                    {step === 1 && "1. Escanea el Número de Serie"}
+                    {step === 2 && "2. Toma una foto lateral"}
+                    {step === 3 && "3. Detalles Finales"}
+                </CardTitle>
+                <CardDescription>
+                    {step === 1 && "Empecemos por lo más importante. Escanea el número de serie de tu bici y deja que Sprock nuestra IA lo escriba por ti."}
+                    {step === 2 && "Toma una foto lateral de tu bicicleta, Sprock intentará reconocerla."}
+                    {step === 3 && "Solo unos datos más para estimar su valor."}
+                </CardDescription>
+            </CardHeader>
+        )}
         
         <CardContent className="space-y-6">
             
@@ -452,35 +487,37 @@ export function RegisterWizard() {
             )}
 
         </CardContent>
-        <CardFooter className="flex justify-between border-t p-6 bg-gray-50/50">
-            {step > 1 ? (
-                <Button variant="outline" onClick={() => setStep(step - 1)} disabled={loading}>
-                    Atrás
-                </Button>
-            ) : (
-                <div></div> // Spacer
-            )}
+        {step > 0 && (
+            <CardFooter className="flex justify-between border-t p-6 bg-gray-50/50">
+                {step > 1 ? (
+                    <Button variant="outline" onClick={() => setStep(step - 1)} disabled={loading}>
+                        Atrás
+                    </Button>
+                ) : (
+                    <div></div> // Spacer
+                )}
 
-            {step === 1 && (
-                <Button onClick={validateStep1} disabled={loading || !formData.serialNumber} className="w-full sm:w-auto">
-                    {loading ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : null}
-                    Confirmar y Siguiente
-                </Button>
-            )}
+                {step === 1 && (
+                    <Button onClick={validateStep1} disabled={loading || !formData.serialNumber} className="w-full sm:w-auto">
+                        {loading ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : null}
+                        Confirmar y Siguiente
+                    </Button>
+                )}
 
-            {step === 2 && (
-                <Button onClick={validateStep2} disabled={loading} className="w-full sm:w-auto">
-                     Confirmar y Siguiente
-                </Button>
-            )}
+                {step === 2 && (
+                    <Button onClick={validateStep2} disabled={loading} className="w-full sm:w-auto">
+                        Confirmar y Siguiente
+                    </Button>
+                )}
 
-            {step === 3 && (
-                <Button onClick={handleRegister} disabled={loading} className="bg-green-600 hover:bg-green-700 w-full sm:w-auto">
-                    {loading ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                    Finalizar Registro
-                </Button>
-            )}
-        </CardFooter>
+                {step === 3 && (
+                    <Button onClick={handleRegister} disabled={loading} className="bg-green-600 hover:bg-green-700 w-full sm:w-auto">
+                        {loading ? <Loader2 className="animate-spin w-4 h-4 mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+                        Finalizar Registro
+                    </Button>
+                )}
+            </CardFooter>
+        )}
       </Card>
     </div>
   );
