@@ -44,6 +44,42 @@ function applyUserFilters(query: FirebaseFirestore.Query, filters: DashboardFilt
     return q;
 }
 
+// Helper to parse dates in various formats (ISO, DDMMYYYY, DD/MM/YYYY)
+function parseFlexibleDate(dateString: string): Date | null {
+    if (!dateString) return null;
+
+    // 1. Try standard Date parsing first (ISO YYYY-MM-DD or standard strings)
+    let date = new Date(dateString);
+    if (!isNaN(date.getTime())) return date;
+
+    // 2. Try DDMMYYYY (8 digits continuous)
+    // Example: 19091986
+    const ddmmyyyy = /^\d{8}$/;
+    if (ddmmyyyy.test(dateString)) {
+        const day = parseInt(dateString.substring(0, 2), 10);
+        const month = parseInt(dateString.substring(2, 4), 10) - 1; // Month is 0-indexed in JS
+        const year = parseInt(dateString.substring(4, 8), 10);
+        date = new Date(year, month, day);
+        if (!isNaN(date.getTime())) return date;
+    }
+
+    // 3. Try DD/MM/YYYY or DD-MM-YYYY
+    const parts = dateString.split(/[\/\-]/);
+    if (parts.length === 3) {
+        // Assume Day-Month-Year order for latin locales if not ISO
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        // Basic validation for reasonable year to avoid confusing YYYY-MM-DD split by '-'
+        if (year > 1900 && month >= 0 && month < 12 && day > 0 && day <= 31) {
+             date = new Date(year, month, day);
+             if (!isNaN(date.getTime())) return date;
+        }
+    }
+
+    return null;
+}
+
 // Cached function to get bike status counts
 export const getBikeStatusCounts = unstable_cache(
     async (filters: DashboardFilters) => {
@@ -288,21 +324,24 @@ export const getUserDemographics = unstable_cache(
             gender = gender.charAt(0).toUpperCase() + gender.slice(1);
             genderCounts[gender] = (genderCounts[gender] || 0) + 1;
 
-            // Age Calculation
+            // Age Calculation using flexible parsing
             if (data.birthDate) {
-                const birthDate = new Date(data.birthDate);
-                let age = today.getFullYear() - birthDate.getFullYear();
-                const m = today.getMonth() - birthDate.getMonth();
-                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-                    age--;
-                }
-                if (age > 0 && age < 120) { // Sanity check
-                    totalAge += age;
-                    validAgeCount++;
-                    
-                    // Accumulate age by gender
-                    ageSumByGender[gender] = (ageSumByGender[gender] || 0) + age;
-                    ageCountByGender[gender] = (ageCountByGender[gender] || 0) + 1;
+                const birthDate = parseFlexibleDate(data.birthDate);
+                
+                if (birthDate) {
+                    let age = today.getFullYear() - birthDate.getFullYear();
+                    const m = today.getMonth() - birthDate.getMonth();
+                    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                        age--;
+                    }
+                    if (age > 0 && age < 120) { // Sanity check
+                        totalAge += age;
+                        validAgeCount++;
+                        
+                        // Accumulate age by gender
+                        ageSumByGender[gender] = (ageSumByGender[gender] || 0) + age;
+                        ageCountByGender[gender] = (ageCountByGender[gender] || 0) + 1;
+                    }
                 }
             }
 
