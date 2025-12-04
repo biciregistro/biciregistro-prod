@@ -29,6 +29,32 @@ import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Logo } from './icons/logo';
 import { cn } from '@/lib/utils';
 
+// Helper to convert ISO date (YYYY-MM-DD) to Display Format (DD/MM/YYYY)
+const toDisplayDate = (val: string | undefined | null): string => {
+    if (!val) return '';
+    // If already DD/MM/YYYY
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(val)) return val;
+    // If YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+        const [y, m, d] = val.split('-');
+        return `${d}/${m}/${y}`;
+    }
+    return val;
+};
+
+// Helper to convert Display Format (DD/MM/YYYY) to ISO (YYYY-MM-DD) for backend
+const toISODate = (val: string | undefined | null): string => {
+    if (!val) return '';
+    // If already YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    // If DD/MM/YYYY
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(val)) {
+        const [d, m, y] = val.split('/');
+        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    return ''; 
+};
+
 // --- Dashboard Navigation ---
 export function DashboardNav() {
     const pathname = usePathname();
@@ -277,13 +303,58 @@ function ProfileFormContent({ user, communityId }: { user?: User, communityId?: 
             setCities([]);
         }
     };
+    
+    // Auto-format Date Logic
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>, onChange: (value: string) => void) => {
+        let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
+        
+        if (value.length > 8) value = value.substring(0, 8); // Max 8 digits (DDMMAAAA)
+
+        // Insert slashes
+        let formattedValue = '';
+        if (value.length > 4) {
+             formattedValue = `${value.substring(0, 2)}/${value.substring(2, 4)}/${value.substring(4)}`;
+        } else if (value.length > 2) {
+             formattedValue = `${value.substring(0, 2)}/${value.substring(2)}`;
+        } else {
+             formattedValue = value;
+        }
+
+        // Update the visual input
+        e.target.value = formattedValue;
+
+        // Transform to ISO for validation/submission only if complete or valid part
+        // We will store the DD/MM/YYYY in the form state temporarily or ISO if complete?
+        // Actually, userFormSchema expects a string. Zod will validate. 
+        // Best approach: Store formatted value in form state so UI matches, 
+        // BUT we need to convert to ISO before submission or let the schema handle it?
+        // Our schema is loose on birthDate format currently, but backend expects ISO mostly.
+        
+        // Wait, the criteria says: "Although visually DD/MM/AAAA, upon submission it must be transformed... ideally ISO"
+        // And the <Input> is controlled.
+        
+        onChange(formattedValue);
+    };
 
 
     const handleFormSubmit = async (values: FormValues) => {
-        const { currentPassword, newPassword } = values;
+        const { currentPassword, newPassword, birthDate } = values;
+        
+        // Convert display date to ISO for submission
+        if (birthDate) {
+             const isoDate = toISODate(birthDate);
+             if (isoDate) {
+                 values.birthDate = isoDate;
+             }
+        }
 
         if (formRef.current) {
             const formData = new FormData(formRef.current);
+            // Manually override the birthDate in formData because the input might have the formatted value
+            if (values.birthDate) {
+                formData.set('birthDate', values.birthDate);
+            }
+
             startTransition(() => {
                 if (!isEditing || !newPassword) {
                     formAction(formData);
@@ -408,11 +479,15 @@ function ProfileFormContent({ user, communityId }: { user?: User, communityId?: 
                                             <FormLabel>Fecha de Nacimiento</FormLabel>
                                             <FormControl>
                                                 <Input 
-                                                    placeholder="DD/MM/AAAA" 
+                                                    type="text" 
+                                                    inputMode="numeric"
+                                                    placeholder="DD/MM/AAAA"
                                                     {...field}
-                                                    value={field.value || ''}
+                                                    value={toDisplayDate(field.value) || ''}
+                                                    onChange={(e) => handleDateChange(e, field.onChange)}
                                                 />
                                             </FormControl>
+                                            <FormDescription>Ej. 25/12/1990</FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}

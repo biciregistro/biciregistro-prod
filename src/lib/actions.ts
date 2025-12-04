@@ -89,6 +89,17 @@ const featureItemSchema = z.object({
     imageUrl: z.string().url('La URL de la imagen no es válida'),
 });
 
+// Helper to ensure dates are saved as ISO YYYY-MM-DD
+const normalizeDateToISO = (dateStr: string | undefined): string | undefined => {
+    if (!dateStr) return dateStr;
+    // Check for DD/MM/YYYY
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+        const [d, m, y] = dateStr.split('/');
+        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    return dateStr;
+};
+
 export async function signup(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
     const data = Object.fromEntries(formData.entries());
     const validatedFields = userFormSchema.safeParse(data);
@@ -117,7 +128,7 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         const customToken = await adminAuth.createCustomToken(userRecord.uid);
         
         // 1. Exclude password fields and temp notification fields
-        const { password: p, confirmPassword: cp, notificationsSafety, notificationsMarketing, ...userProfileData } = validatedFields.data;
+        const { password: p, confirmPassword: cp, notificationsSafety, notificationsMarketing, birthDate, ...userProfileData } = validatedFields.data;
         
         // 2. Construct notification preferences object
         const notificationPreferences = {
@@ -129,6 +140,7 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         const rawUserData = {
             id: userRecord.uid,
             ...userProfileData,
+            birthDate: normalizeDateToISO(birthDate),
             email: email, 
             role: 'ciclista' as const,
             communityId,
@@ -280,7 +292,7 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
     }
 
     // Extract temporary notification fields
-    const { id, currentPassword, newPassword, email, notificationsSafety, notificationsMarketing, ...userData } = validatedFields.data;
+    const { id, currentPassword, newPassword, email, notificationsSafety, notificationsMarketing, birthDate, ...userData } = validatedFields.data;
 
     if (id !== session.uid) {
         return { error: 'No tienes permiso para actualizar este perfil.' };
@@ -297,6 +309,7 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         // Construct update payload with notification preferences
         const updatePayload = {
             ...userData,
+            birthDate: normalizeDateToISO(birthDate),
             notificationPreferences: {
                 safety: !!notificationsSafety,
                 marketing: !!notificationsMarketing
