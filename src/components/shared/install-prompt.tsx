@@ -106,7 +106,7 @@ export function InstallPrompt() {
             <div className="flex items-center gap-3 bg-background border p-4 rounded-lg shadow-lg max-w-sm">
                 <div className="flex-1">
                     <p className="font-semibold text-sm">Instalar App</p>
-                    <p className="text-xs text-muted-foreground">Añade a tu inicio para un acceso rápido</p>
+                    <p className="text-xs text-muted-foreground">Añade Biciregistro a tu pantalla principal para un acceso inmediato</p>
                 </div>
                 <div className="flex gap-2">
                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowPrompt(false)}>
