@@ -12,7 +12,6 @@ import { EventCard } from '@/components/ong/event-card';
 import { UserPlus, CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardFilterBar } from '@/components/admin/dashboard-filter-bar';
-// REMOVED: import { StatsTabContent } from '@/components/admin/stats-tab-content';
 
 interface AdminDashboardTabsProps {
   homepageSections: HomepageSection[];
@@ -22,7 +21,8 @@ interface AdminDashboardTabsProps {
   events: Event[];
   financialSettings: FinancialSettings;
   allEvents: any[]; // Relaxed type to accept AdminEventFinancialView
-  statsContent: React.ReactNode; // ADDED: Prop for server component
+  statsContent: React.ReactNode;
+  initialTab?: string; // New prop for SSR consistency
 }
 
 function AdminDashboardTabsContent({ 
@@ -33,22 +33,23 @@ function AdminDashboardTabsContent({
   events, 
   financialSettings, 
   allEvents,
-  statsContent // ADDED
+  statsContent,
+  initialTab = 'stats'
 }: AdminDashboardTabsProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
-  const defaultTab = 'stats'; // Changed default to stats
-  const currentTab = searchParams.get('tab') || defaultTab;
-  const [activeTab, setActiveTab] = useState(currentTab);
+  // Use prop for initial state to match server render
+  const [activeTab, setActiveTab] = useState(initialTab);
 
+  // Sync with URL on change (client-side only logic)
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab) {
+    if (tab && tab !== activeTab) {
       setActiveTab(tab);
     }
-  }, [searchParams]);
+  }, [searchParams, activeTab]);
 
   const onTabChange = (value: string) => {
     setActiveTab(value);
@@ -72,7 +73,7 @@ function AdminDashboardTabsContent({
 
       <TabsContent value="stats" className="space-y-4">
         <DashboardFilterBar />
-        {statsContent} {/* CHANGED: Render prop */}
+        {statsContent}
       </TabsContent>
 
       <TabsContent value="content" className="space-y-4">
@@ -83,7 +84,6 @@ function AdminDashboardTabsContent({
         <UsersTable users={users} nextPageToken={nextPageToken} />
       </TabsContent>
 
-      {/* ... other tabs remain the same ... */}
        <TabsContent value="ongs" className="space-y-4">
          <div className="flex justify-end mb-4">
              <Link href="/admin/ong/create">

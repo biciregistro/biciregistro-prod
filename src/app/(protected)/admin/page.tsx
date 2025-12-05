@@ -10,25 +10,29 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const user = await getAuthenticatedUser();
 
   if (!user || user.role !== 'admin') {
     redirect('/dashboard');
   }
 
+  // Extract initial tab from URL params (server-side)
+  const initialTab = typeof resolvedSearchParams['tab'] === 'string' ? resolvedSearchParams['tab'] : 'stats';
+
   // Extract filters for the stats tab
   const filters: DashboardFilters = {
-    country: typeof searchParams['country'] === 'string' ? searchParams['country'] : undefined,
-    state: typeof searchParams['state'] === 'string' ? searchParams['state'] : undefined,
-    brand: typeof searchParams['brand'] === 'string' ? searchParams['brand'] : undefined,
-    modality: typeof searchParams['modality'] === 'string' ? searchParams['modality'] : undefined,
-    gender: typeof searchParams['gender'] === 'string' ? searchParams['gender'] : undefined,
+    country: typeof resolvedSearchParams['country'] === 'string' ? resolvedSearchParams['country'] : undefined,
+    state: typeof resolvedSearchParams['state'] === 'string' ? resolvedSearchParams['state'] : undefined,
+    brand: typeof resolvedSearchParams['brand'] === 'string' ? resolvedSearchParams['brand'] : undefined,
+    modality: typeof resolvedSearchParams['modality'] === 'string' ? resolvedSearchParams['modality'] : undefined,
+    gender: typeof resolvedSearchParams['gender'] === 'string' ? resolvedSearchParams['gender'] : undefined,
   };
 
-  const query = typeof searchParams['query'] === 'string' ? searchParams['query'] : undefined;
-  const pageToken = typeof searchParams['pageToken'] === 'string' ? searchParams['pageToken'] : undefined;
+  const query = typeof resolvedSearchParams['query'] === 'string' ? resolvedSearchParams['query'] : undefined;
+  const pageToken = typeof resolvedSearchParams['pageToken'] === 'string' ? resolvedSearchParams['pageToken'] : undefined;
 
   // Parallel data fetching for other tabs
   const [homepageData, usersData, ongs, adminEvents, financialSettings, allEvents] = await Promise.all([
@@ -61,6 +65,7 @@ export default async function AdminPage({
         </div>
         
         <AdminDashboardTabs 
+          initialTab={initialTab}
           homepageSections={homepageSections} 
           users={users} 
           nextPageToken={nextPageToken} 

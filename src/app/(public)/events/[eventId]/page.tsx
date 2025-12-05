@@ -16,14 +16,15 @@ import { EventRegistration } from '@/lib/types';
 import { PricingTierCard } from '@/components/pricing-tier-card';
 
 type EventPageProps = {
-  params: {
+  params: Promise<{
     eventId: string;
-  };
+  }>;
 };
 
 // --- Open Graph Metadata Generation ---
 export async function generateMetadata({ params }: EventPageProps): Promise<Metadata> {
-    const event = await getEvent(params.eventId);
+    const { eventId } = await params;
+    const event = await getEvent(eventId);
 
     if (!event) {
         return {
@@ -90,15 +91,19 @@ const modalityColors: Record<string, string> = {
 };
 
 export default async function EventPage({ params }: EventPageProps) {
-  const event = await getEvent(params.eventId);
+  const { eventId } = await params;
+  const event = await getEvent(eventId);
   const user = await getAuthenticatedUser();
 
   if (!event) {
     notFound();
   }
 
+  const isAdmin = user?.role === 'admin';
   const isOwner = user?.id === event.ongId;
-  if (event.status === 'draft' && !isOwner) {
+  
+  // Allow Admin to see drafts too
+  if (event.status === 'draft' && !isOwner && !isAdmin) {
      notFound();
   }
 

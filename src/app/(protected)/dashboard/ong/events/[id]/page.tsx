@@ -13,21 +13,22 @@ import { EventStatusBadge } from '@/components/ong/event-status-badge';
 import { AttendeeManagement } from '@/components/ong/attendee-management';
 import { EventFinancialSummary } from '@/components/ong/event-financial-summary';
 
-export default async function EventDetailsPage({ params }: { params: { id: string } }) {
+export default async function EventDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await getAuthenticatedUser();
 
   if (!user) redirect('/login');
   if (user.role !== 'ong' && user.role !== 'admin') redirect('/dashboard');
 
-  const event = await getEvent(params.id);
+  const event = await getEvent(id);
 
   if (!event) notFound();
   if (user.role === 'ong' && event.ongId !== user.id) redirect('/dashboard/ong');
 
   const [attendees, financialSummary, payouts] = await Promise.all([
-    getEventAttendees(params.id),
-    getEventFinancialSummary(params.id),
-    getPayoutsByEvent(params.id)
+    getEventAttendees(id),
+    getEventFinancialSummary(id),
+    getPayoutsByEvent(id)
   ]);
 
   const eventDate = new Date(event.date);
