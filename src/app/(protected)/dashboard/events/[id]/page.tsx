@@ -11,12 +11,12 @@ import { EventBikeSelector } from '@/components/dashboard/event-bike-selector';
 import { PaymentStatusHandler } from '@/components/payment-status-handler';
 import { cn } from '@/lib/utils';
 
-export default async function EventRegistrationDetailsPage({ params }: { params: { id: string } }) {
+export default async function EventRegistrationDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthenticatedUser();
 
   if (!user) redirect('/login');
 
-  const eventId = params.id;
+  const { id: eventId } = await params;
   const event = await getEvent(eventId);
 
   if (!event) notFound();
