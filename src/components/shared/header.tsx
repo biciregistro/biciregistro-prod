@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { User, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import type { User as UserType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,8 @@ import {
   SheetContent,
   SheetTrigger,
   SheetClose,
+  SheetHeader,
+  SheetTitle,
 } from "@/components/ui/sheet"
 import { logout } from '@/lib/actions';
 
@@ -95,7 +97,7 @@ export function Header({ user }: { user: UserType | null }) {
             <div className="flex items-center justify-end gap-2">
             {user ? (
                 <div className="flex items-center gap-4">
-                <Button asChild>
+                <Button asChild className="hidden md:inline-flex">
                     <Link href={dashboardHome}>Panel</Link>
                 </Button>
                 <DropdownMenu>
@@ -129,21 +131,57 @@ export function Header({ user }: { user: UserType | null }) {
                 </div>
             ) : (
                 <>
+                    {/* Desktop Navigation */}
                     <nav className="hidden items-center space-x-2 md:flex">
-                    <Button asChild variant="ghost">
-                        <Link href="/login">Iniciar Sesión</Link>
-                    </Button>
-                    <Button asChild>
-                        <Link href="/signup">Registra Tu Bici</Link>
-                    </Button>
-                    </nav>
-                    <div className="md:hidden">
                         <Button asChild variant="ghost">
                             <Link href="/login">Iniciar Sesión</Link>
                         </Button>
-                         <Button asChild>
+                        <Button asChild>
                             <Link href="/signup">Registra Tu Bici</Link>
                         </Button>
+                    </nav>
+
+                    {/* Mobile Navigation */}
+                    <div className="md:hidden">
+                        <Sheet>
+                            <SheetTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                    <Menu className="h-6 w-6" />
+                                    <span className="sr-only">Menú</span>
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent side="right">
+                                <SheetHeader>
+                                    <SheetTitle className="text-left">Menú</SheetTitle>
+                                </SheetHeader>
+                                <div className="flex flex-col gap-4 mt-6">
+                                    {navLinks.map(link => (
+                                        <SheetClose asChild key={link.href}>
+                                            <Link
+                                                href={link.href}
+                                                className={cn(
+                                                    'text-lg font-medium transition-colors hover:text-primary',
+                                                    pathname === link.href ? 'text-primary' : 'text-foreground/60'
+                                                )}
+                                            >
+                                                {link.label}
+                                            </Link>
+                                        </SheetClose>
+                                    ))}
+                                    <div className="border-t my-2" />
+                                    <SheetClose asChild>
+                                        <Button asChild variant="ghost" className="justify-start px-0 text-lg">
+                                            <Link href="/login">Iniciar Sesión</Link>
+                                        </Button>
+                                    </SheetClose>
+                                    <SheetClose asChild>
+                                        <Button asChild className="w-full">
+                                            <Link href="/signup">Registra Tu Bici</Link>
+                                        </Button>
+                                    </SheetClose>
+                                </div>
+                            </SheetContent>
+                        </Sheet>
                     </div>
                 </>
             )}
