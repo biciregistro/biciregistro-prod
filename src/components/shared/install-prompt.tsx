@@ -102,8 +102,8 @@ export function InstallPrompt() {
     <>
       {/* Botón Flotante para Android/Chrome */}
       {showPrompt && (
-        <div className="fixed bottom-4 left-4 z-50 md:bottom-8 md:left-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center gap-3 bg-background border p-4 rounded-lg shadow-lg max-w-sm">
+        <div className="fixed z-50 animate-in fade-in slide-in-from-bottom-4 duration-500 bottom-24 left-4 right-4 md:bottom-8 md:left-8 md:right-auto md:w-auto">
+            <div className="flex items-center gap-3 bg-background border p-4 rounded-lg shadow-lg max-w-sm mx-auto md:mx-0">
                 <div className="flex-1">
                     <p className="font-semibold text-sm">Instalar App</p>
                     <p className="text-xs text-muted-foreground">Añade Biciregistro a tu pantalla principal para un acceso inmediato</p>
