@@ -18,6 +18,7 @@ import {
     updateEventRegistrationBike,
     updateRegistrationStatusInternal,
     cancelEventRegistrationById,
+    getAuthenticatedUser,
 } from './data';
 import { updateFinancialSettings, updateOngFinancialData } from './financial-data';
 import { deleteSession, getDecodedSession } from './auth';
@@ -552,8 +553,10 @@ export async function cancelRegistrationManuallyAction(registrationId: string, e
 }
 
 export async function saveFinancialSettingsAction(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
-    const session = await getDecodedSession();
-    if (!session?.uid || session.admin !== true) {
+    // Validar usuario consultando la base de datos, no solo el token de sesión
+    const user = await getAuthenticatedUser();
+    
+    if (!user || user.role !== 'admin') {
         return { error: 'No tienes permisos para realizar esta acción.' };
     }
 
