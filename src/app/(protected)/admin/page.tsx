@@ -74,7 +74,7 @@ export default async function AdminPage({
           financialSettings={financialSettings}
           allEvents={allEvents}
           statsContent={
-            <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+            <Suspense key={JSON.stringify(filters)} fallback={<Skeleton className="h-[400px] w-full" />}>
               <StatsTabContent filters={filters} />
             </Suspense>
           }

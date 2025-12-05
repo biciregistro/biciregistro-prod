@@ -1,6 +1,7 @@
 import type {Metadata} from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import { FeedbackButton } from "@/components/shared/feedback-button";
+import { InstallPrompt } from "@/components/shared/install-prompt";
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -19,9 +20,17 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        
+        {/* PWA Meta Tags */}
+        <meta name="theme-color" content="#2563EB" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        {/* Next.js inyectará automáticamente el link al manifest generado por src/app/manifest.ts */}
       </head>
       <body className="antialiased min-h-screen flex flex-col">
         {children}
+        <InstallPrompt />
         <FeedbackButton />
         <Toaster />
       </body>
