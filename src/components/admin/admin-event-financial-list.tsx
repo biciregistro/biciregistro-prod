@@ -132,9 +132,10 @@ export function AdminEventFinancialList({ events }: AdminEventFinancialListProps
         });
     };
 
-    const handleBlockToggle = async (eventId: string, currentStatus: boolean) => {
+    const handleBlockToggle = async (eventId: string, checked: boolean) => {
         setIsUpdating(eventId);
-        const newStatus = !currentStatus;
+        // Direct assignment, do not invert
+        const newStatus = checked;
         
         const result = await toggleAction(eventId, newStatus);
         
