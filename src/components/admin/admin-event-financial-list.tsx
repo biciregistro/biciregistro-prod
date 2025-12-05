@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Event } from '@/lib/types';
-import { ExternalLink, ShieldAlert, Loader2, ChevronDown, ChevronUp, DollarSign, Users, MapPin, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Wallet } from 'lucide-react';
+import { ExternalLink, ShieldAlert, Loader2, ChevronDown, ChevronUp, DollarSign, Users, MapPin, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Wallet, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toggleEventBlockAction as toggleAction } from '@/lib/actions/financial-actions';
 import { PayoutManagerModal } from './payout-manager-modal';
@@ -19,8 +19,15 @@ import { useRouter } from 'next/navigation';
 export interface AdminEventFinancialView extends Event {
     ongName: string;
     totalCollected: number;
+    platformCollected: number;
+    manualCollected: number;
     amountDispersed: number;
     pendingDisbursement: number;
+    revenue?: {
+        net: number;
+        iva: number;
+        mpCost: number;
+    }
 }
 
 interface AdminEventFinancialListProps {
@@ -67,6 +74,9 @@ export function AdminEventFinancialList({ events }: AdminEventFinancialListProps
                     };
                     valA = getStatusLabel(a);
                     valB = getStatusLabel(b);
+                } else if (key === 'brRevenue') {
+                    valA = (a.revenue?.net || 0) + (a.revenue?.iva || 0);
+                    valB = (b.revenue?.net || 0) + (b.revenue?.iva || 0);
                 } else {
                     // Direct property access
                     valA = a[key as keyof AdminEventFinancialView];
@@ -193,7 +203,7 @@ export function AdminEventFinancialList({ events }: AdminEventFinancialListProps
                                 <SortableHeader label="Tipo" columnKey="costType" />
                                 <SortableHeader label="Recaudado" columnKey="totalCollected" className="text-right" />
                                 <SortableHeader label="Por Dispersar" columnKey="pendingDisbursement" className="text-right" />
-                                <SortableHeader label="Dispersado" columnKey="amountDispersed" className="text-right" />
+                                <SortableHeader label="Utilidad BR" columnKey="brRevenue" className="text-right" />
                                 <SortableHeader label="Estado" columnKey="status" className="text-center" />
                                 <TableHead className="text-center">Bloqueo</TableHead>
                             </TableRow>
@@ -203,6 +213,9 @@ export function AdminEventFinancialList({ events }: AdminEventFinancialListProps
                                 const isExpanded = expandedEventId === event.id;
                                 const isFree = event.costType === 'Gratuito';
                                 const isNegativeBalance = event.pendingDisbursement < 0;
+                                const revenue = event.revenue;
+                                const grossRevenue = (revenue?.net || 0) + (revenue?.iva || 0) + (revenue?.mpCost || 0);
+                                const netRevenue = (revenue?.net || 0) + (revenue?.iva || 0);
                                 
                                 // Determine Real Status
                                 const eventDate = new Date(event.date);
@@ -226,8 +239,8 @@ export function AdminEventFinancialList({ events }: AdminEventFinancialListProps
                                         <TableRow 
                                             className={cn(
                                                 "cursor-pointer hover:bg-muted/50 transition-colors",
-                                                event.isBlocked && "bg-gray-100 dark:bg-gray-800/50", // Changed Blocked to Gray to distinguish from Debt
-                                                isNegativeBalance && "bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-900/30" // Debt is Red
+                                                event.isBlocked && "bg-gray-100 dark:bg-gray-800/50",
+                                                isNegativeBalance && "bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-900/30"
                                             )}
                                             onClick={() => toggleExpand(event.id)}
                                         >
@@ -263,8 +276,8 @@ export function AdminEventFinancialList({ events }: AdminEventFinancialListProps
                                             )}>
                                                 {isFree ? "-" : formatCurrency(event.pendingDisbursement)}
                                             </TableCell>
-                                            <TableCell className="text-right text-green-600 font-medium">
-                                                {isFree ? "-" : formatCurrency(event.amountDispersed)}
+                                            <TableCell className="text-right text-green-700 font-medium">
+                                                {isFree ? "-" : formatCurrency(netRevenue)}
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 <Badge variant={statusVariant}>
@@ -291,7 +304,7 @@ export function AdminEventFinancialList({ events }: AdminEventFinancialListProps
                                         {isExpanded && (
                                             <TableRow className="bg-muted/30 hover:bg-muted/30">
                                                 <TableCell colSpan={9} className="p-0">
-                                                    <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                    <div className="p-6 grid grid-cols-1 md:grid-cols-5 gap-6 animate-in fade-in slide-in-from-top-2 duration-200">
                                                         
                                                         <div className="space-y-1">
                                                             <h4 className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-2">
@@ -331,25 +344,49 @@ export function AdminEventFinancialList({ events }: AdminEventFinancialListProps
 
                                                         <div className="space-y-1">
                                                             <h4 className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-2">
-                                                                <DollarSign className="h-3 w-3" /> Financiero
+                                                                <DollarSign className="h-3 w-3" /> Financiero Evento
                                                             </h4>
-                                                            <div className="flex flex-col gap-1">
-                                                                <div className="flex justify-between text-sm">
-                                                                    <span className="text-muted-foreground">Total:</span>
-                                                                    <span className="font-bold">{formatCurrency(event.totalCollected)}</span>
-                                                                </div>
-                                                                <div className="flex justify-between text-sm">
-                                                                    <span className="text-muted-foreground">Por Dispersar:</span>
-                                                                    <span className={cn(
-                                                                        "font-medium",
-                                                                        isNegativeBalance ? "text-red-600" : "text-orange-600"
-                                                                    )}>{formatCurrency(event.pendingDisbursement)}</span>
+                                                            <div className="text-sm space-y-1">
+                                                                <div className="flex justify-between"><span className="text-muted-foreground">Plataforma:</span> <span>{formatCurrency(event.platformCollected)}</span></div>
+                                                                <div className="flex justify-between"><span className="text-muted-foreground">Efectivo:</span> <span>{formatCurrency(event.manualCollected)}</span></div>
+                                                                <div className="flex justify-between font-bold border-t pt-1 mt-1"><span className="text-foreground">Total:</span> <span>{formatCurrency(event.totalCollected)}</span></div>
+                                                                <div className="flex justify-between text-green-600"><span className="">Dispersado:</span> <span>{formatCurrency(event.amountDispersed)}</span></div>
+                                                                <div className="flex justify-between">
+                                                                    <span className={cn(isNegativeBalance ? "text-red-600" : "text-orange-600")}>Pendiente:</span> 
+                                                                    <span className={cn("font-bold", isNegativeBalance ? "text-red-600" : "text-orange-600")}>{formatCurrency(event.pendingDisbursement)}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
 
+                                                        {/* BiciRegistro Revenue Breakdown */}
+                                                        {!isFree && revenue && (
+                                                            <div className="space-y-1 bg-white dark:bg-black/20 p-2 rounded border">
+                                                                <h4 className="text-xs font-semibold uppercase text-muted-foreground flex items-center gap-2">
+                                                                    <TrendingUp className="h-3 w-3" /> Ingresos BR
+                                                                </h4>
+                                                                <div className="flex flex-col gap-1 text-xs">
+                                                                    <div className="flex justify-between text-muted-foreground">
+                                                                        <span>Comisiones:</span>
+                                                                        <span>{formatCurrency(grossRevenue)}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between text-red-500/80">
+                                                                        <span>- Pasarela:</span>
+                                                                        <span>-{formatCurrency(revenue.mpCost)}</span>
+                                                                    </div>
+                                                                    <div className="border-t my-1"></div>
+                                                                    <div className="flex justify-between font-bold text-green-700">
+                                                                        <span>Utilidad:</span>
+                                                                        <span>{formatCurrency(netRevenue)}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                                                                        <span>Base: {formatCurrency(revenue.net)}</span>
+                                                                        <span>IVA: {formatCurrency(revenue.iva)}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
                                                         <div className="col-span-full pt-4 border-t flex justify-end gap-2">
-                                                             {/* PAYOUT BUTTON */}
                                                              {!isFree && (
                                                                 <Button 
                                                                     onClick={() => openPayoutModal(event)}
@@ -394,7 +431,6 @@ export function AdminEventFinancialList({ events }: AdminEventFinancialListProps
                         isOpen={isPayoutModalOpen}
                         onClose={() => setIsPayoutModalOpen(false)}
                         onSuccess={() => {
-                            // Trigger router refresh to update server components data
                             router.refresh();
                         }}
                     />

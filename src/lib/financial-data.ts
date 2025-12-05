@@ -104,7 +104,7 @@ export async function getPayoutsByEvent(eventId: string): Promise<Payout[]> {
         
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payout));
     } catch (error) {
-        console.error("Error fetching payouts:", error);
+        // Fallback or empty if index missing/error
         return [];
     }
 }
@@ -126,8 +126,16 @@ async function getTotalDispersed(eventId: string): Promise<number> {
 export interface AdminEventFinancialView extends Event {
     ongName: string;
     totalCollected: number;
+    platformCollected: number;
+    manualCollected: number;
     amountDispersed: number;
     pendingDisbursement: number;
+    // BiciRegistro Revenue Breakdown
+    revenue: {
+        net: number;
+        iva: number;
+        mpCost: number;
+    }
 }
 
 export async function getAllEventsForAdmin(): Promise<AdminEventFinancialView[]> {
@@ -186,22 +194,35 @@ export async function getAllEventsForAdmin(): Promise<AdminEventFinancialView[]>
             const ongName = ongNamesMap.get(eventBase.ongId) || eventBase.ongId;
 
             let totalCollected = 0;
+            let platformCollected = 0;
+            let manualCollected = 0;
             let amountDispersed = 0;
             let pendingDisbursement = 0;
+            let revenue = { net: 0, iva: 0, mpCost: 0 };
 
             if (eventBase.costType !== 'Gratuito') {
                 const summary = await getEventFinancialSummary(eventBase.id);
                 totalCollected = summary.total.gross;
-                amountDispersed = summary.dispersed; // From updated summary
+                platformCollected = summary.platform.gross;
+                manualCollected = summary.manual.gross;
+                amountDispersed = summary.dispersed; 
                 pendingDisbursement = summary.balanceToDisperse;
+                revenue = {
+                    net: summary.biciregistro.net,
+                    iva: summary.biciregistro.iva,
+                    mpCost: summary.biciregistro.mpCost
+                };
             }
 
             return {
                 ...eventBase,
                 ongName,
                 totalCollected,
+                platformCollected,
+                manualCollected,
                 amountDispersed,
-                pendingDisbursement
+                pendingDisbursement,
+                revenue
             } as AdminEventFinancialView;
         });
 
@@ -227,12 +248,22 @@ export interface DetailedFinancialSummary {
     platform: FinancialBreakdown;
     manual: FinancialBreakdown;
     balanceToDisperse: number;
-    dispersed: number; // New field
+    dispersed: number;
+    biciregistro: {
+        gross: number; // Total Fees Collected
+        net: number;   // Before Tax Income
+        iva: number;   // Tax portion
+        mpCost: number; // Payment Gateway Cost
+    }
 }
 
 export async function getEventFinancialSummary(eventId: string): Promise<DetailedFinancialSummary> {
     try {
-        const eventDoc = await adminDb.collection('events').doc(eventId).get();
+        const [eventDoc, settings] = await Promise.all([
+            adminDb.collection('events').doc(eventId).get(),
+            getFinancialSettings()
+        ]);
+
         const eventData = eventDoc.exists ? eventDoc.data() as Event : null;
         const tiersMap = new Map<string, { price: number, fee?: number, netPrice?: number }>();
         
@@ -242,11 +273,8 @@ export async function getEventFinancialSummary(eventId: string): Promise<Detaile
             });
         }
 
-        // Fetch Registrations
         const registrationsRef = adminDb.collection('event-registrations').where('eventId', '==', eventId);
         const snapshot = await registrationsRef.get();
-        
-        // Fetch Payouts (Dispersions)
         const dispersedAmount = await getTotalDispersed(eventId);
 
         const summary: DetailedFinancialSummary = {
@@ -254,8 +282,20 @@ export async function getEventFinancialSummary(eventId: string): Promise<Detaile
             platform: { gross: 0, net: 0, fee: 0 },
             manual: { gross: 0, net: 0, fee: 0 },
             balanceToDisperse: 0,
-            dispersed: dispersedAmount
+            dispersed: dispersedAmount,
+            biciregistro: { gross: 0, net: 0, iva: 0, mpCost: 0 }
         };
+
+        // Gateway Costs Calculation Variables
+        const mpRate = (settings.pasarelaRate || 3.5) / 100;
+        const mpFixed = settings.pasarelaFixed || 4.0;
+        const ivaRate = (settings.ivaRate || 16.0) / 100;
+        const mpIva = 1 + ivaRate; // MP fee includes IVA usually? Or is added? Assuming MP fee structure is (Price * rate + fixed) * (1+IVA)
+
+        // Correction: MP Charges (Rate + Fixed) + IVA on that charge
+        // Cost = (Amount * rate + fixed) * (1 + iva)
+
+        let totalMpCost = 0;
 
         snapshot.forEach(doc => {
             const reg = doc.data() as EventRegistration;
@@ -280,25 +320,48 @@ export async function getEventFinancialSummary(eventId: string): Promise<Detaile
             summary.total.net += net;
             summary.total.fee += fee;
 
-            if (reg.paymentMethod === 'manual') {
-                summary.manual.gross += amount;
-                summary.manual.net += net;
-                summary.manual.fee += fee;
-            } else {
+            // Calculate Gateway Cost if paid via platform
+            if (reg.paymentMethod === 'platform' || reg.paymentMethod === undefined) { 
+                // Default to platform if paid but method missing (legacy)
+                // Note: manual payments do NOT incur MP costs for us.
+                
+                // MP Cost Formula per transaction
+                const cost = (amount * mpRate + mpFixed) * mpIva;
+                totalMpCost += cost;
+
                 summary.platform.gross += amount;
                 summary.platform.net += net;
                 summary.platform.fee += fee;
+            } else {
+                summary.manual.gross += amount;
+                summary.manual.net += net;
+                summary.manual.fee += fee;
             }
         });
 
-        // Calculation:
-        // Net Platform Income = (Platform Gross - Platform Fee)
-        // Manual Fee Debt = Manual Fee (The ONG collected this, so they owe us the fee)
-        // Balance = Net Platform Income - Manual Fee Debt - Already Dispersed
+        // Revenue Breakdown
+        const totalFeesCollected = summary.total.fee; // This is what we charged the ONG (Platform Fee + Manual Fee debt)
+        // Wait, Manual Fee debt is collected by ONG but owed to us. It IS revenue for us.
+        // So Revenue = Total Fees.
         
+        // Net Income = Total Revenue - Cost of Sales (MP Fees)
+        const netIncome = totalFeesCollected - totalMpCost;
+        
+        // Breakdown Net Income into Base + IVA
+        // NetIncome = Base * (1 + ivaRate) -> Base = NetIncome / (1 + ivaRate)
+        const baseIncome = netIncome / (1 + ivaRate);
+        const incomeIva = netIncome - baseIncome;
+
+        summary.biciregistro = {
+            gross: totalFeesCollected,
+            mpCost: totalMpCost,
+            net: baseIncome,
+            iva: incomeIva
+        };
+
+        // Balance Calculation (Same as before)
         const netPlatformIncome = summary.platform.gross - summary.platform.fee;
         const manualFeeDebt = summary.manual.fee;
-        
         summary.balanceToDisperse = netPlatformIncome - manualFeeDebt - dispersedAmount;
 
         return summary;
@@ -309,7 +372,8 @@ export async function getEventFinancialSummary(eventId: string): Promise<Detaile
             platform: { gross: 0, net: 0, fee: 0 },
             manual: { gross: 0, net: 0, fee: 0 },
             balanceToDisperse: 0,
-            dispersed: 0
+            dispersed: 0,
+            biciregistro: { gross: 0, net: 0, iva: 0, mpCost: 0 }
         };
     }
 }
