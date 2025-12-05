@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getAuthenticatedUser, getEvent, getEventAttendees } from '@/lib/data';
-import { getEventFinancialSummary } from '@/lib/financial-data';
+import { getEventFinancialSummary, getPayoutsByEvent } from '@/lib/financial-data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -24,9 +24,10 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
   if (!event) notFound();
   if (user.role === 'ong' && event.ongId !== user.id) redirect('/dashboard/ong');
 
-  const [attendees, financialSummary] = await Promise.all([
+  const [attendees, financialSummary, payouts] = await Promise.all([
     getEventAttendees(params.id),
-    getEventFinancialSummary(params.id)
+    getEventFinancialSummary(params.id),
+    getPayoutsByEvent(params.id)
   ]);
 
   const eventDate = new Date(event.date);
@@ -185,7 +186,7 @@ export default async function EventDetailsPage({ params }: { params: { id: strin
         </TabsContent>
 
         <TabsContent value="finance" className="mt-6">
-          <EventFinancialSummary data={financialSummary} />
+          <EventFinancialSummary data={financialSummary} payouts={payouts} />
         </TabsContent>
       </Tabs>
     </div>

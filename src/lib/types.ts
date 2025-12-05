@@ -278,3 +278,16 @@ export type DashboardFilters = {
     modality?: string;
     gender?: string;
 };
+
+// --- Payout Management ---
+export type Payout = {
+    id: string;
+    eventId: string;
+    ongId: string;
+    amount: number;
+    date: string; // ISO String
+    proofUrl: string;
+    proofPath: string; // For storage management
+    notes?: string;
+    createdBy: string; // Admin UID
+};

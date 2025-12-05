@@ -50,6 +50,14 @@ service firebase.storage {
       allow write: if request.auth != null;
     }
     
+    // NEW: Payout Proofs
+    // Structure: /payout-proofs/{eventId}/{fileName}
+    match /payout-proofs/{eventId}/{fileName} {
+        allow read: if request.auth != null; // Authenticated users (Admin + ONG)
+        allow write: if request.auth != null; // Strictly managed by backend usually, but client upload needs this. 
+        // We rely on backend validation or client-side admin check for the upload action if client-direct.
+    }
+
     // Homepage images
     match /homepage/{section}/{fileName} {
         allow read: if true;

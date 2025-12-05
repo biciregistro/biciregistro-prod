@@ -177,11 +177,26 @@ service cloud.firestore {
     // Events
     match /events/{eventId} {
       allow read: if resource.data.status == 'published' || 
-                     (isSignedIn() && resource.data.ongId == request.auth.uid);
+                     (isSignedIn() && resource.data.ongId == request.auth.uid) ||
+                     isAdmin(); // Explicitly allow admin read
       
       allow create: if isSignedIn() && isOng() && request.resource.data.ongId == request.auth.uid;
-      allow update: if isSignedIn() && isOng() && resource.data.ongId == request.auth.uid;
-      allow delete: if isSignedIn() && isOng() && resource.data.ongId == request.auth.uid;
+      allow update: if (isSignedIn() && isOng() && resource.data.ongId == request.auth.uid) || isAdmin();
+      allow delete: if (isSignedIn() && isOng() && resource.data.ongId == request.auth.uid) || isAdmin();
+    }
+
+    // Event Registration
+    match /event-registrations/{registrationId} {
+      allow read: if isAdmin() || 
+                     (isSignedIn() && resource.data.userId == request.auth.uid) ||
+                     (isSignedIn() && isOng()); // Ideally check if ONG owns the event, but that requires extra get()
+      allow write: if isSignedIn(); // Tighter control in backend functions/actions
+    }
+    
+    // NEW: Event Payouts (Dispersiones)
+    match /event-payouts/{payoutId} {
+        allow read: if isAdmin() || (isSignedIn() && resource.data.ongId == request.auth.uid);
+        allow write: if isAdmin();
     }
 
     // Homepage content (used by current app logic)

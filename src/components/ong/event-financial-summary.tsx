@@ -6,8 +6,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { DollarSign, CreditCard, Wallet, AlertTriangle, CheckCircle2, Calculator, TrendingUp } from 'lucide-react';
 import type { DetailedFinancialSummary } from '@/lib/financial-data';
+import type { Payout } from '@/lib/types';
+import { EventPayoutHistory } from './event-payout-history';
 
-export function EventFinancialSummary({ data }: { data: DetailedFinancialSummary }) {
+export function EventFinancialSummary({ data, payouts = [] }: { data: DetailedFinancialSummary, payouts?: Payout[] }) {
     const isNegative = data.balanceToDisperse < 0;
     
     const f = (n: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
@@ -17,6 +19,7 @@ export function EventFinancialSummary({ data }: { data: DetailedFinancialSummary
     const platformFees = data.platform.fee;
     const manualFees = data.manual.fee;
     const organizerNetIncome = data.total.gross - data.total.fee;
+    const totalDispersed = data.dispersed || 0;
 
     return (
         <div className="space-y-8">
@@ -108,6 +111,10 @@ export function EventFinancialSummary({ data }: { data: DetailedFinancialSummary
                             <span className="flex items-center gap-1">(-) Comisiones por Ingresos Efectivo/Transferencia (Retención)</span>
                             <span>{f(manualFees)}</span>
                         </div>
+                        <div className="flex justify-between items-center text-green-600">
+                            <span className="flex items-center gap-1">(-) Pagos ya Dispersados</span>
+                            <span>{f(totalDispersed)}</span>
+                        </div>
                         
                         <Separator />
                         
@@ -143,6 +150,9 @@ export function EventFinancialSummary({ data }: { data: DetailedFinancialSummary
                     </Alert>
                 </CardContent>
             </Card>
+
+            {/* Payout History Table */}
+            <EventPayoutHistory payouts={payouts} />
         </div>
     );
 }

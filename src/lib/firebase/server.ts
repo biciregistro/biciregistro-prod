@@ -2,6 +2,7 @@
 import { initializeApp, getApps, cert, getApp, App } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getStorage, Storage } from 'firebase-admin/storage';
 import { firebaseAdminConfig } from './config';
 
 // --- Type-safe global declaration ---
@@ -9,6 +10,7 @@ declare global {
   var _firebaseAdminApp: App | undefined;
   var _firebaseAdminDb: Firestore | undefined;
   var _firebaseAdminAuth: Auth | undefined;
+  var _firebaseAdminStorage: Storage | undefined;
 }
 
 // --- App Singleton ---
@@ -30,6 +32,7 @@ const getAdminApp = (): App => {
           clientEmail,
           privateKey,
         }),
+        storageBucket: `${projectId}.firebasestorage.app` // Default bucket inference
       });
 
   globalThis._firebaseAdminApp = app;
@@ -75,9 +78,20 @@ const getAdminAuth = (): Auth => {
     return auth;
 }
 
+// --- Storage Singleton ---
+const getAdminStorage = (): Storage => {
+    if (globalThis._firebaseAdminStorage) {
+        return globalThis._firebaseAdminStorage;
+    }
+    const storage = getStorage(getAdminApp());
+    globalThis._firebaseAdminStorage = storage;
+    return storage;
+}
+
 
 // --- Exports ---
 const adminAuth = getAdminAuth();
 const adminDb = getAdminDb();
+const adminStorage = getAdminStorage();
 
-export { adminAuth, adminDb };
+export { adminAuth, adminDb, adminStorage };

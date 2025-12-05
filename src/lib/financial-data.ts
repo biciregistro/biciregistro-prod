@@ -2,7 +2,7 @@
 import { unstable_cache } from 'next/cache';
 import { adminDb } from './firebase/server';
 import { FieldPath } from 'firebase-admin/firestore';
-import type { FinancialSettings, OngUser, EventRegistration, Event } from './types';
+import type { FinancialSettings, OngUser, EventRegistration, Event, Payout } from './types';
 
 const SETTINGS_COLLECTION = 'settings';
 const FINANCIAL_DOC_ID = 'financial';
@@ -93,6 +93,33 @@ export async function updateRegistrationManualPayment(registrationId: string, fe
     }
 }
 
+// --- Payout Management ---
+
+export async function getPayoutsByEvent(eventId: string): Promise<Payout[]> {
+    try {
+        const snapshot = await adminDb.collection('event-payouts')
+            .where('eventId', '==', eventId)
+            .orderBy('date', 'desc')
+            .get();
+        
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payout));
+    } catch (error) {
+        console.error("Error fetching payouts:", error);
+        return [];
+    }
+}
+
+// Internal helper to get sum of payouts
+async function getTotalDispersed(eventId: string): Promise<number> {
+    try {
+        const payouts = await getPayoutsByEvent(eventId);
+        return payouts.reduce((sum, p) => sum + (p.amount || 0), 0);
+    } catch (error) {
+        return 0;
+    }
+}
+
+
 // --- Admin Financial Oversight ---
 
 // Extended Type for Admin View
@@ -111,7 +138,7 @@ export async function getAllEventsForAdmin(): Promise<AdminEventFinancialView[]>
             .limit(100)
             .get();
             
-        // 2. Fetch ONGs needed (Optimization: Fetch only unique ONGs)
+        // 2. Fetch ONGs needed
         const ongIds = new Set<string>();
         snapshot.docs.forEach(doc => {
             const data = doc.data();
@@ -120,17 +147,10 @@ export async function getAllEventsForAdmin(): Promise<AdminEventFinancialView[]>
 
         const ongNamesMap = new Map<string, string>();
         if (ongIds.size > 0) {
-            // Cannot use 'in' query for > 10 IDs easily, so we fetch profiles in chunks or just all if reasonable.
-            // Since ongs collection is likely smaller than users, or we can use promise.all for individual fetches if many.
-            // Assuming < 30 active ONGs for now. If scaling needed, use batched 'in' queries.
-            
-            // Actually, fetching ong-profiles is efficient
             const ongChunks = Array.from(ongIds);
             const ongPromises = [];
-            // Firestore 'in' limit is 10
             for (let i = 0; i < ongChunks.length; i += 10) {
                 const chunk = ongChunks.slice(i, i + 10);
-                // Use FieldPath.documentId() for querying by ID
                 ongPromises.push(adminDb.collection('ong-profiles').where(FieldPath.documentId(), 'in', chunk).get());
             }
             
@@ -143,7 +163,7 @@ export async function getAllEventsForAdmin(): Promise<AdminEventFinancialView[]>
             });
         }
 
-        // 3. Process Events in Parallel to attach Financials
+        // 3. Process Events in Parallel
         const eventsPromises = snapshot.docs.map(async (doc) => {
             const data = doc.data();
             
@@ -165,20 +185,15 @@ export async function getAllEventsForAdmin(): Promise<AdminEventFinancialView[]>
 
             const ongName = ongNamesMap.get(eventBase.ongId) || eventBase.ongId;
 
-            // Calculate financials ONLY if it's a paid event to save reads
             let totalCollected = 0;
-            let amountDispersed = 0; // Placeholder for future feature
+            let amountDispersed = 0;
             let pendingDisbursement = 0;
 
             if (eventBase.costType !== 'Gratuito') {
                 const summary = await getEventFinancialSummary(eventBase.id);
                 totalCollected = summary.total.gross;
-                // Pending logic matches ONG view: (Platform Net - Platform Fee) - Manual Fee
-                // If the math is consistent with getEventFinancialSummary, we are good.
+                amountDispersed = summary.dispersed; // From updated summary
                 pendingDisbursement = summary.balanceToDisperse;
-                
-                // TODO: When 'Disbursements' collection exists, subtract actual payouts from pendingDisbursement
-                // amountDispersed = await getDispersedAmount(eventBase.id);
             }
 
             return {
@@ -212,6 +227,7 @@ export interface DetailedFinancialSummary {
     platform: FinancialBreakdown;
     manual: FinancialBreakdown;
     balanceToDisperse: number;
+    dispersed: number; // New field
 }
 
 export async function getEventFinancialSummary(eventId: string): Promise<DetailedFinancialSummary> {
@@ -226,14 +242,19 @@ export async function getEventFinancialSummary(eventId: string): Promise<Detaile
             });
         }
 
+        // Fetch Registrations
         const registrationsRef = adminDb.collection('event-registrations').where('eventId', '==', eventId);
         const snapshot = await registrationsRef.get();
         
+        // Fetch Payouts (Dispersions)
+        const dispersedAmount = await getTotalDispersed(eventId);
+
         const summary: DetailedFinancialSummary = {
             total: { gross: 0, net: 0, fee: 0 },
             platform: { gross: 0, net: 0, fee: 0 },
             manual: { gross: 0, net: 0, fee: 0 },
-            balanceToDisperse: 0
+            balanceToDisperse: 0,
+            dispersed: dispersedAmount
         };
 
         snapshot.forEach(doc => {
@@ -270,7 +291,15 @@ export async function getEventFinancialSummary(eventId: string): Promise<Detaile
             }
         });
 
-        summary.balanceToDisperse = (summary.platform.gross - summary.platform.fee) - summary.manual.fee;
+        // Calculation:
+        // Net Platform Income = (Platform Gross - Platform Fee)
+        // Manual Fee Debt = Manual Fee (The ONG collected this, so they owe us the fee)
+        // Balance = Net Platform Income - Manual Fee Debt - Already Dispersed
+        
+        const netPlatformIncome = summary.platform.gross - summary.platform.fee;
+        const manualFeeDebt = summary.manual.fee;
+        
+        summary.balanceToDisperse = netPlatformIncome - manualFeeDebt - dispersedAmount;
 
         return summary;
     } catch (error) {
@@ -279,7 +308,8 @@ export async function getEventFinancialSummary(eventId: string): Promise<Detaile
             total: { gross: 0, net: 0, fee: 0 },
             platform: { gross: 0, net: 0, fee: 0 },
             manual: { gross: 0, net: 0, fee: 0 },
-            balanceToDisperse: 0
+            balanceToDisperse: 0,
+            dispersed: 0
         };
     }
 }

@@ -9,9 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Event } from '@/lib/types';
-import { ExternalLink, ShieldAlert, Loader2, ChevronDown, ChevronUp, DollarSign, Users, MapPin, Calendar, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { ExternalLink, ShieldAlert, Loader2, ChevronDown, ChevronUp, DollarSign, Users, MapPin, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toggleEventBlockAction as toggleAction } from '@/lib/actions/financial-actions';
+import { PayoutManagerModal } from './payout-manager-modal';
+import { useRouter } from 'next/navigation';
 
 // Define interface locally to avoid importing from 'server-only' file
 export interface AdminEventFinancialView extends Event {
@@ -32,7 +34,13 @@ export function AdminEventFinancialList({ events }: AdminEventFinancialListProps
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
     const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: null });
+    
+    // Payout Modal State
+    const [selectedEventForPayout, setSelectedEventForPayout] = useState<AdminEventFinancialView | null>(null);
+    const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
+
     const { toast } = useToast();
+    const router = useRouter(); // For manual refresh
 
     // Sorting Logic
     const sortedEvents = useMemo(() => {
@@ -162,6 +170,11 @@ export function AdminEventFinancialList({ events }: AdminEventFinancialListProps
                 </div>
             </TableHead>
         );
+    };
+
+    const openPayoutModal = (event: AdminEventFinancialView) => {
+        setSelectedEventForPayout(event);
+        setIsPayoutModalOpen(true);
     };
 
     return (
@@ -335,13 +348,24 @@ export function AdminEventFinancialList({ events }: AdminEventFinancialListProps
                                                             </div>
                                                         </div>
 
-                                                        <div className="col-span-full pt-4 border-t flex justify-end">
+                                                        <div className="col-span-full pt-4 border-t flex justify-end gap-2">
+                                                             {/* PAYOUT BUTTON */}
+                                                             {!isFree && (
+                                                                <Button 
+                                                                    onClick={() => openPayoutModal(event)}
+                                                                    size="sm"
+                                                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                                                >
+                                                                    <Wallet className="mr-2 h-4 w-4" /> Gestionar Dispersiones
+                                                                </Button>
+                                                             )}
+
                                                             <Button variant="outline" size="sm" asChild>
                                                                 <Link href={`/events/${event.id}`} target="_blank">
                                                                     <ExternalLink className="mr-2 h-4 w-4" /> Ver Página del Evento
                                                                 </Link>
                                                             </Button>
-                                                            <Button variant="secondary" size="sm" className="ml-2" asChild>
+                                                            <Button variant="secondary" size="sm" asChild>
                                                                 <Link href={`/dashboard/ong/events/${event.id}`} target="_blank">
                                                                     Ver Panel de Gestión
                                                                 </Link>
@@ -364,6 +388,16 @@ export function AdminEventFinancialList({ events }: AdminEventFinancialListProps
                             )}
                         </TableBody>
                     </Table>
+
+                    <PayoutManagerModal 
+                        event={selectedEventForPayout}
+                        isOpen={isPayoutModalOpen}
+                        onClose={() => setIsPayoutModalOpen(false)}
+                        onSuccess={() => {
+                            // Trigger router refresh to update server components data
+                            router.refresh();
+                        }}
+                    />
                 </div>
             </CardContent>
         </Card>

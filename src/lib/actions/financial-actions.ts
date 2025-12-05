@@ -2,10 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { getDecodedSession } from '@/lib/auth';
-import { getEventRegistration, updateRegistrationManualPayment, updateRegistrationStatusInternal } from '@/lib/financial-data';
+import { getEventRegistration, updateRegistrationManualPayment, updateRegistrationStatusInternal, getPayoutsByEvent } from '@/lib/financial-data';
 import { getEvent, updateEvent, getAuthenticatedUser } from '@/lib/data';
 import { PaymentStatus } from '@/lib/types';
 import { createPreference } from '@/lib/mercadopago';
+import { adminStorage, adminDb } from '@/lib/firebase/server';
+import { randomUUID } from 'crypto';
 
 export async function registerManualPaymentAction(registrationId: string, eventId: string): Promise<{ success: boolean; error?: string }> {
     const session = await getDecodedSession();
@@ -243,4 +245,88 @@ export async function verifyPaymentAction(paymentId: string): Promise<{ success:
         console.error("Error en verifyPaymentAction:", error);
         return { success: false, error: "Error interno al verificar pago." };
     }
+}
+
+/**
+ * Registra una dispersión manual (Payout) y sube el comprobante.
+ */
+export async function registerPayoutAction(formData: FormData): Promise<{ success: boolean; error?: string }> {
+    const session = await getDecodedSession();
+    if (!session?.uid || session.admin !== true) {
+        return { success: false, error: "No tienes permisos de administrador." };
+    }
+
+    try {
+        // 1. Extraer datos
+        const eventId = formData.get('eventId') as string;
+        const ongId = formData.get('ongId') as string;
+        const amountStr = formData.get('amount') as string;
+        const notes = formData.get('notes') as string || '';
+        const file = formData.get('proofFile') as File;
+
+        if (!eventId || !ongId || !amountStr || !file) {
+            return { success: false, error: "Faltan datos obligatorios." };
+        }
+
+        const amount = parseFloat(amountStr);
+        if (isNaN(amount) || amount <= 0) {
+            return { success: false, error: "El monto debe ser válido y mayor a 0." };
+        }
+
+        // 2. Subir Archivo a Storage
+        const fileExtension = file.name.split('.').pop() || 'jpg';
+        const fileName = `${randomUUID()}.${fileExtension}`;
+        const filePath = `payout-proofs/${eventId}/${fileName}`;
+        const bucket = adminStorage.bucket();
+        const fileRef = bucket.file(filePath);
+
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        await fileRef.save(buffer, {
+            contentType: file.type,
+            metadata: {
+                customMetadata: {
+                    uploadedBy: session.uid,
+                    eventId: eventId
+                }
+            }
+        });
+
+        // Generar URL firmada de larga duración (Solución para Uniform Bucket-Level Access)
+        const [proofUrl] = await fileRef.getSignedUrl({
+            action: 'read',
+            expires: '03-01-2500', // Fecha lejana
+        });
+        
+        // 3. Crear Registro en Firestore
+        const payoutData = {
+            eventId,
+            ongId,
+            amount,
+            date: new Date().toISOString(),
+            proofUrl,
+            proofPath: filePath,
+            notes,
+            createdBy: session.uid
+        };
+
+        await adminDb.collection('event-payouts').add(payoutData);
+
+        // 4. Revalidar
+        revalidatePath(`/admin`); 
+        
+        return { success: true };
+
+    } catch (error) {
+        console.error("Error registering payout:", error);
+        return { success: false, error: "Error al registrar la dispersión. Inténtalo de nuevo." };
+    }
+}
+
+// Client-fetch wrapper
+export async function getPayoutsAction(eventId: string) {
+    const session = await getDecodedSession();
+    if (!session?.uid) return [];
+    return await getPayoutsByEvent(eventId);
 }
