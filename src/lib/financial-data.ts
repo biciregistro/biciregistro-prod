@@ -1,6 +1,7 @@
-import 'server-only';
+'server-only';
 import { unstable_cache } from 'next/cache';
 import { adminDb } from './firebase/server';
+import { FieldPath } from 'firebase-admin/firestore';
 import type { FinancialSettings, OngUser, EventRegistration, Event } from './types';
 
 const SETTINGS_COLLECTION = 'settings';
@@ -94,37 +95,104 @@ export async function updateRegistrationManualPayment(registrationId: string, fe
 
 // --- Admin Financial Oversight ---
 
-export async function getAllEventsForAdmin(): Promise<Event[]> {
+// Extended Type for Admin View
+export interface AdminEventFinancialView extends Event {
+    ongName: string;
+    totalCollected: number;
+    amountDispersed: number;
+    pendingDisbursement: number;
+}
+
+export async function getAllEventsForAdmin(): Promise<AdminEventFinancialView[]> {
     try {
+        // 1. Fetch Events
         const snapshot = await adminDb.collection('events')
             .orderBy('date', 'desc')
             .limit(100)
             .get();
             
-        return snapshot.docs.map(doc => {
+        // 2. Fetch ONGs needed (Optimization: Fetch only unique ONGs)
+        const ongIds = new Set<string>();
+        snapshot.docs.forEach(doc => {
             const data = doc.data();
-            // Manual timestamp conversion to avoid dependency on helpers
-            let date = data.date;
-            if (date && typeof date.toDate === 'function') {
-                date = date.toDate().toISOString();
-            } else if (date && date instanceof Date) {
-                date = date.toISOString();
+            if (data.ongId) ongIds.add(data.ongId);
+        });
+
+        const ongNamesMap = new Map<string, string>();
+        if (ongIds.size > 0) {
+            // Cannot use 'in' query for > 10 IDs easily, so we fetch profiles in chunks or just all if reasonable.
+            // Since ongs collection is likely smaller than users, or we can use promise.all for individual fetches if many.
+            // Assuming < 30 active ONGs for now. If scaling needed, use batched 'in' queries.
+            
+            // Actually, fetching ong-profiles is efficient
+            const ongChunks = Array.from(ongIds);
+            const ongPromises = [];
+            // Firestore 'in' limit is 10
+            for (let i = 0; i < ongChunks.length; i += 10) {
+                const chunk = ongChunks.slice(i, i + 10);
+                // Use FieldPath.documentId() for querying by ID
+                ongPromises.push(adminDb.collection('ong-profiles').where(FieldPath.documentId(), 'in', chunk).get());
             }
+            
+            const ongSnapshots = await Promise.all(ongPromises);
+            ongSnapshots.forEach(snap => {
+                snap.docs.forEach(doc => {
+                    const data = doc.data();
+                    ongNamesMap.set(doc.id, data.organizationName || 'Organización Desconocida');
+                });
+            });
+        }
+
+        // 3. Process Events in Parallel to attach Financials
+        const eventsPromises = snapshot.docs.map(async (doc) => {
+            const data = doc.data();
+            
+            // Manual timestamp conversion
+            let date = data.date;
+            if (date && typeof date.toDate === 'function') date = date.toDate().toISOString();
+            else if (date && date instanceof Date) date = date.toISOString();
 
             let deadline = data.registrationDeadline;
-            if (deadline && typeof deadline.toDate === 'function') {
-                deadline = deadline.toDate().toISOString();
-            } else if (deadline && deadline instanceof Date) {
-                deadline = deadline.toISOString();
-            }
+            if (deadline && typeof deadline.toDate === 'function') deadline = deadline.toDate().toISOString();
+            else if (deadline && deadline instanceof Date) deadline = deadline.toISOString();
 
-            return { 
+            const eventBase = { 
                 id: doc.id, 
                 ...data,
                 date: date,
                 registrationDeadline: deadline
             } as Event;
+
+            const ongName = ongNamesMap.get(eventBase.ongId) || eventBase.ongId;
+
+            // Calculate financials ONLY if it's a paid event to save reads
+            let totalCollected = 0;
+            let amountDispersed = 0; // Placeholder for future feature
+            let pendingDisbursement = 0;
+
+            if (eventBase.costType !== 'Gratuito') {
+                const summary = await getEventFinancialSummary(eventBase.id);
+                totalCollected = summary.total.gross;
+                // Pending logic matches ONG view: (Platform Net - Platform Fee) - Manual Fee
+                // If the math is consistent with getEventFinancialSummary, we are good.
+                pendingDisbursement = summary.balanceToDisperse;
+                
+                // TODO: When 'Disbursements' collection exists, subtract actual payouts from pendingDisbursement
+                // amountDispersed = await getDispersedAmount(eventBase.id);
+            }
+
+            return {
+                ...eventBase,
+                ongName,
+                totalCollected,
+                amountDispersed,
+                pendingDisbursement
+            } as AdminEventFinancialView;
         });
+
+        const events = await Promise.all(eventsPromises);
+        return events;
+
     } catch (error) {
         console.error("Error fetching all events for admin:", error);
         return [];

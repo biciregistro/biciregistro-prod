@@ -21,7 +21,7 @@ interface AdminDashboardTabsProps {
   ongs: OngUser[];
   events: Event[];
   financialSettings: FinancialSettings;
-  allEvents: Event[];
+  allEvents: any[]; // Relaxed type to accept AdminEventFinancialView
   statsContent: React.ReactNode; // ADDED: Prop for server component
 }
 
