@@ -230,6 +230,25 @@ export function RegisterWizard() {
     }
   };
 
+  // --- SANITIZAR INPUT DE VALOR ---
+  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    
+    // 1. Eliminar caracteres no permitidos (letras, símbolos raros), dejando solo dígitos, puntos y comas.
+    val = val.replace(/[^0-9.,]/g, '');
+
+    // 2. Si hay separadores (punto o coma), cortar el string para tomar solo la parte entera.
+    // Esto previene errores de decimales flotantes y soluciona el caso 999.00 -> 99900
+    if (val.match(/[.,]/)) {
+        val = val.split(/[.,]/)[0];
+        
+        // Opcional: Podríamos mostrar un toast informativo si detectamos que intentó poner decimales
+        // if (val.length > 0) toast({ description: "Solo ingresa números enteros.", duration: 2000 });
+    }
+
+    setFormData({...formData, value: val});
+  };
+
   return (
     <div className="w-full">
       {/* Progress Bar Simple - Oculto en paso 0 */}
@@ -468,14 +487,15 @@ export function RegisterWizard() {
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                                 <Input 
-                                    type="number" 
+                                    type="text" 
+                                    inputMode="numeric"
                                     value={formData.value} 
-                                    onChange={(e) => setFormData({...formData, value: e.target.value})}
+                                    onChange={handleValueChange}
                                     placeholder="Ej. 15000"
                                     className="pl-7"
                                 />
                             </div>
-                            <p className="text-xs text-muted-foreground">Esto ayuda en caso de recuperación o seguro.</p>
+                            <p className="text-xs text-muted-foreground">Ingresa el valor en números enteros (sin centavos, puntos ni comas).</p>
                         </div>
                     </div>
 
