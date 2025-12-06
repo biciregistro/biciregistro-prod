@@ -38,7 +38,9 @@ function UserNavLinks({ user }: { user: UserType }) {
     return (
         <>
             <DropdownMenuItem asChild>
-                <Link href={dashboardHome}>Panel de Control</Link>
+                <Link href={dashboardHome}>
+                    {user.role === 'ciclista' ? 'Mi Garaje' : 'Panel de Control'}
+                </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
                 <Link href={profilePath}>
