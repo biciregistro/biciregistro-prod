@@ -6,13 +6,14 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Building } from 'lucide-react';
 
 type JoinPageProps = {
-    params: {
+    params: Promise<{
         ongId: string;
-    };
+    }>;
 };
 
 export default async function JoinPage({ params }: JoinPageProps) {
-    const ong = await getOngProfile(params.ongId);
+    const { ongId } = await params;
+    const ong = await getOngProfile(ongId);
 
     if (!ong) {
         // Redirect to the standard signup page if the ONG ID is invalid
@@ -30,7 +31,7 @@ export default async function JoinPage({ params }: JoinPageProps) {
                     </AlertDescription>
                 </Alert>
 
-                <ProfileForm communityId={params.ongId} />
+                <ProfileForm communityId={ongId} />
             </div>
         </div>
     );
