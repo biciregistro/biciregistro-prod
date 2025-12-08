@@ -10,8 +10,10 @@ import { AlertCircle } from 'lucide-react';
 import type { Metadata } from 'next';
 
 // This function generates dynamic metadata for each bike page
-export async function generateMetadata({ params }: { params: { serial: string } }): Promise<Metadata> {
-  const bike = await getBikeBySerial(params.serial);
+export async function generateMetadata({ params }: { params: Promise<{ serial: string }> }): Promise<Metadata> {
+  // Await params before accessing properties
+  const { serial } = await params;
+  const bike = await getBikeBySerial(serial);
 
   if (!bike) {
     return {
@@ -36,8 +38,10 @@ const bikeStatusStyles: { [key in Bike['status']]: string } = {
     in_transfer: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700',
 };
 
-export default async function PublicBikePage({ params }: { params: { serial: string } }) {
-  const bike = await getBikeBySerial(params.serial);
+export default async function PublicBikePage({ params }: { params: Promise<{ serial: string }> }) {
+  // Await params before accessing properties
+  const { serial } = await params;
+  const bike = await getBikeBySerial(serial);
 
   if (!bike) {
     notFound();
