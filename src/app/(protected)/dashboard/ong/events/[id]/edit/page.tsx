@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
-export default async function EditEventPage({ params }: { params: { id: string } }) {
+export default async function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await getAuthenticatedUser();
 
   if (!user) {
@@ -19,7 +20,7 @@ export default async function EditEventPage({ params }: { params: { id: string }
 
   // Fetch data in parallel
   const [event, financialSettings, ongProfile] = await Promise.all([
-    getEvent(params.id),
+    getEvent(id),
     getFinancialSettings(),
     getOngProfile(user.id)
   ]);

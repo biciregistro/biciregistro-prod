@@ -11,11 +11,16 @@ const bikeStatusStyles: { [key in Bike['status']]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
   stolen: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700',
   in_transfer: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700',
+  recovered: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700',
 };
 
-export default async function SearchPage({ searchParams }: { searchParams?: { serial?: string } }) {
-  const serial = searchParams?.serial;
-  let bike: Bike | undefined;
+export default async function SearchPage({ searchParams }: { searchParams: Promise<{ serial?: string } | undefined> }) {
+  // Await searchParams before accessing properties
+  const params = await searchParams;
+  const serial = params?.serial;
+  
+  // Fix: Allow null as valid type because getBikeBySerial returns Bike | null
+  let bike: Bike | null | undefined;
   let owner: Awaited<ReturnType<typeof getUser>> | undefined;
 
   if (serial) {
@@ -75,7 +80,10 @@ export default async function SearchPage({ searchParams }: { searchParams?: { se
                              <div>
                                 <p className="text-sm font-medium text-muted-foreground">Estado</p>
                                 <Badge className={cn(bikeStatusStyles[bike.status], "text-base")}>
-                                    {bike.status === 'safe' ? 'En Regla' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}
+                                    {bike.status === 'safe' ? 'En Regla' : 
+                                     bike.status === 'stolen' ? 'Robada' : 
+                                     bike.status === 'recovered' ? 'Recuperada' :
+                                     'En transferencia'}
                                 </Badge>
                              </div>
                              {bike.status === 'stolen' && (

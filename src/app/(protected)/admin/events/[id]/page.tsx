@@ -11,14 +11,15 @@ import { EventStatusButton } from '@/components/ong/event-status-button';
 import { EventStatusBadge } from '@/components/ong/event-status-badge';
 import { cn } from '@/lib/utils';
 
-export default async function AdminEventDetailsPage({ params }: { params: { id: string } }) {
+export default async function AdminEventDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await getAuthenticatedUser();
 
   if (!user || user.role !== 'admin') {
     redirect('/dashboard');
   }
 
-  const event = await getEvent(params.id);
+  const event = await getEvent(id);
 
   if (!event) notFound();
   
@@ -26,7 +27,7 @@ export default async function AdminEventDetailsPage({ params }: { params: { id: 
   // For now, adhering to "Admin creates events" -> Admin manages their own events.
   // if (event.ongId !== user.id) redirect('/admin?tab=events'); 
 
-  const attendees = await getEventAttendees(params.id);
+  const attendees = await getEventAttendees(id);
   const publicUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx'}/events/${event.id}`;
   const eventDate = new Date(event.date);
   const isFinished = eventDate < new Date();
