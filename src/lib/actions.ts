@@ -336,7 +336,10 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
 
 export async function logout() {
     await deleteSession();
-    redirect('/login');
+    // Use root path to avoid issues with protected routes returning 404/redirect loops
+    // when session is invalidated during the action response
+    revalidatePath('/', 'layout');
+    redirect('/');
 }
 
 export async function forceLogout() {
