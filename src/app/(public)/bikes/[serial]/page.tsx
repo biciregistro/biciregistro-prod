@@ -36,6 +36,7 @@ const bikeStatusStyles: { [key in Bike['status']]: string } = {
     safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
     stolen: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700',
     in_transfer: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700',
+    recovered: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700',
 };
 
 export default async function PublicBikePage({ params }: { params: Promise<{ serial: string }> }) {
@@ -74,7 +75,12 @@ export default async function PublicBikePage({ params }: { params: Promise<{ ser
 
                         <div className="space-y-1">
                             <p className="text-sm font-medium">Estado</p>
-                            <Badge className={cn("text-base", bikeStatusStyles[bike.status])}>{bike.status === 'safe' ? 'En Regla' : bike.status === 'stolen' ? 'Robada' : 'En transferencia'}</Badge>
+                            <Badge className={cn("text-base", bikeStatusStyles[bike.status])}>
+                                {bike.status === 'safe' ? 'En Regla' : 
+                                 bike.status === 'stolen' ? 'Robada' : 
+                                 bike.status === 'recovered' ? 'Recuperada' :
+                                 'En transferencia'}
+                            </Badge>
                         </div>
                     </div>
                 </CardContent>
@@ -90,7 +96,7 @@ export default async function PublicBikePage({ params }: { params: Promise<{ ser
                 </Alert>
             )}
 
-            {bike.status === 'safe' && (
+            {(bike.status === 'safe' || bike.status === 'recovered') && (
                 <Alert variant="default" className="bg-green-50 border-green-200">
                     <AlertCircle className="h-4 w-4 text-green-700" />
                     <AlertTitle className="text-green-800">Esta bicicleta está marcada como segura.</AlertTitle>
