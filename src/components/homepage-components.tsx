@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Skeleton } from './ui/skeleton';
+import { SponsorsCarousel } from './shared/sponsors-carousel';
 
 // Helper to map an icon string to a component
 const iconMap = {
@@ -93,6 +94,26 @@ export function HeroSection({ section }: { section?: Extract<HomepageSection, { 
     </section>
   );
 }
+
+// --- Allies Section ---
+export function AlliesSection({ section }: { section?: Extract<HomepageSection, { id: 'allies' }> }) {
+  if (!section || !section.sponsors || section.sponsors.length === 0) {
+    return null; // Or a skeleton if you prefer, but usually hidden if empty
+  }
+
+  return (
+    <section className="w-full bg-background py-8 border-b">
+      <div className="container px-4">
+        <SponsorsCarousel 
+            title={section.title} 
+            sponsors={section.sponsors} 
+            className="py-0" // Override default padding
+        />
+      </div>
+    </section>
+  );
+}
+
 
 // --- Features Section ---
 export function FeaturesSection({ section }: { section?: Extract<HomepageSection, { id: 'features' }> }) {

@@ -15,6 +15,11 @@ export const defaultHomepageData: { [key: string]: HomepageSection } = {
     buttonText: 'Registra tu Bici Gratis',
     imageUrl: 'https://images.unsplash.com/photo-1664853811022-33e391e36169?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjeWNsaXN0JTIwc3Vuc2V0fGVufDB8fHx8MTc2MTg5MTcyMnww&ixlib=rb-4.1.0&q=80&w=1080',
   },
+  allies: {
+    id: 'allies',
+    title: 'Ellos confían en BiciRegistro',
+    sponsors: [],
+  },
   features: {
     id: 'features',
     title: '¿Por Qué BiciRegistro?',

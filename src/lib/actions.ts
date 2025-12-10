@@ -76,9 +76,9 @@ export async function validateSerialNumberAction(serialNumber: string) {
 // --- END WRAPPERS ---
 
 const homepageEditSchema = z.object({
-    id: z.enum(['hero', 'features', 'cta']),
+    id: z.enum(['hero', 'features', 'cta', 'allies']),
     title: z.string().min(1, 'El título es obligatorio'),
-    subtitle: z.string().min(1, 'El subtítulo es obligatorio'),
+    subtitle: z.string().optional(),
     imageUrl: z.string().url('La URL de la imagen no es válida').optional(),
     buttonText: z.string().optional(),
 });
@@ -88,6 +88,13 @@ const featureItemSchema = z.object({
     title: z.string().min(1, 'El título es obligatorio'),
     description: z.string().min(1, 'La descripción es obligatoria'),
     imageUrl: z.string().url('La URL de la imagen no es válida'),
+});
+
+const alliesItemSchema = z.object({
+    sponsors: z.array(z.object({
+        name: z.string().optional(),
+        url: z.string().url('URL inválida')
+    })).optional()
 });
 
 // Helper to ensure dates are saved as ISO YYYY-MM-DD
@@ -225,12 +232,26 @@ export async function createOngUser(prevState: ActionFormState, formData: FormDa
 }
 
 export async function updateHomepageSection(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
-    const validatedFields = homepageEditSchema.safeParse(Object.fromEntries(formData.entries()));
+    const data = Object.fromEntries(formData.entries());
+    const validatedFields = homepageEditSchema.safeParse(data);
+    
     if (!validatedFields.success) {
         return { error: "Datos inválidos.", errors: validatedFields.error.flatten().fieldErrors };
     }
+
     try {
-        await updateHomepageSectionData(validatedFields.data as HomepageSection);
+        const payload: Partial<HomepageSection> = { ...validatedFields.data };
+        
+        // Handle allies specific logic: Parse JSON string from hidden input if present
+        if (data.sponsorsJson && typeof data.sponsorsJson === 'string') {
+            try {
+                (payload as any).sponsors = JSON.parse(data.sponsorsJson);
+            } catch (e) {
+                console.error("Error parsing sponsors JSON", e);
+            }
+        }
+
+        await updateHomepageSectionData(payload as HomepageSection);
         revalidatePath('/');
         return { success: true, message: `Sección '${validatedFields.data.id}' actualizada.` };
     } catch (error) {

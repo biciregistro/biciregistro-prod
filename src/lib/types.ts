@@ -242,7 +242,12 @@ export type HomepageSection =
       subtitle: string;
       buttonText?: string;
       imageUrl?: string;
-    };
+    }
+  | {
+      id: 'allies';
+      title: string;
+      sponsors: { name?: string; url: string }[];
+  };
 
 
 // Type for server action form state
