@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, AlertCircle } from 'lucide-react';
 import { eventFormSchema } from '@/lib/schemas';
 import { z } from "zod";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
@@ -105,23 +106,35 @@ export function ConfigurationSection({ form }: ConfigurationSectionProps) {
                 </div>
 
                 {/* Emergency Contact Config */}
-                <div className="flex items-center justify-between border rounded-lg p-4 bg-muted/5">
-                    <div>
-                        <h3 className="text-lg font-medium">Contacto de Emergencia</h3>
-                        <p className="text-sm text-muted-foreground">¿Solicitar obligatoriamente un contacto de emergencia?</p>
+                <div className="space-y-4 border rounded-lg p-4 bg-muted/5">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-medium">Información de Emergencia</h3>
+                            <p className="text-sm text-muted-foreground">¿Solicitar contacto de emergencia, tipo de sangre y seguro?</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <FormLabel className="font-normal cursor-pointer" htmlFor="emergency-toggle">
+                                {requiresEmergency ? "Sí" : "No"}
+                            </FormLabel>
+                            <Switch
+                                id="emergency-toggle"
+                                checked={requiresEmergency}
+                                onCheckedChange={(checked) => {
+                                    form.setValue('requiresEmergencyContact', checked);
+                                }}
+                            />
+                        </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                        <FormLabel className="font-normal cursor-pointer" htmlFor="emergency-toggle">
-                            {requiresEmergency ? "Sí" : "No"}
-                        </FormLabel>
-                        <Switch
-                            id="emergency-toggle"
-                            checked={requiresEmergency}
-                            onCheckedChange={(checked) => {
-                                form.setValue('requiresEmergencyContact', checked);
-                            }}
-                        />
-                    </div>
+
+                    {requiresEmergency && (
+                        <Alert className="animate-in fade-in bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900 text-xs">
+                            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            <AlertTitle className="text-blue-800 dark:text-blue-300">Aviso de Privacidad</AlertTitle>
+                            <AlertDescription className="text-blue-700 dark:text-blue-400/80 mt-1">
+                                Estos datos están protegidos y sólo estarán visibles para el organizador hasta 24 hrs después del evento, después de este tiempo se eliminarán de su base de información visible.
+                            </AlertDescription>
+                        </Alert>
+                    )}
                 </div>
             </div>
 

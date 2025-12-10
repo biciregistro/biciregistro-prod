@@ -8,6 +8,9 @@ import { defaultHomepageData } from './homepage-data';
 import { firebaseConfig } from './firebase/config';
 import { UserRecord } from 'firebase-admin/auth';
 
+// Export from sub-modules to keep this file clean
+export { registerUserToEvent, getEventAttendees } from './data/event-registration-data';
+
 // --- Helper Functions ---
 
 const normalizeSerialNumber = (serial: string): string => {
@@ -450,90 +453,6 @@ export async function updateEventRegistrationBike(eventId: string, userId: strin
     }
 }
 
-export async function registerUserToEvent(
-    registrationData: Omit<EventRegistration, 'id' | 'registrationDate' | 'status'>
-): Promise<{ success: boolean; message?: string; error?: string }> {
-    const db = adminDb;
-    const { eventId, userId } = registrationData;
-
-    try {
-        return await db.runTransaction(async (transaction) => {
-            // 1. Get Event Doc to check limits
-            const eventRef = db.collection('events').doc(eventId);
-            const eventDoc = await transaction.get(eventRef);
-
-            if (!eventDoc.exists) {
-                return { success: false, error: "El evento no existe." };
-            }
-
-            const eventData = eventDoc.data() as Event;
-            
-            // Check capacity
-            const maxParticipants = eventData.maxParticipants || 0;
-            const currentParticipants = eventData.currentParticipants || 0;
-
-            if (maxParticipants > 0 && currentParticipants >= maxParticipants) {
-                return { success: false, error: "Lo sentimos, el cupo para este evento está lleno." };
-            }
-
-            // 2. Check if user is already registered
-            const regQuery = db.collection('event-registrations')
-                .where('userId', '==', userId)
-                .where('eventId', '==', eventId)
-                .limit(1);
-            
-            const regSnapshot = await transaction.get(regQuery);
-            let existingRegDoc = null;
-            
-            if (!regSnapshot.empty) {
-                const doc = regSnapshot.docs[0];
-                const data = doc.data() as EventRegistration;
-                if (data.status === 'cancelled') {
-                    // Allow re-registration
-                    existingRegDoc = doc;
-                } else {
-                     return { success: false, error: "Ya te encuentras registrado en este evento." };
-                }
-            }
-
-            // Default paymentStatus based on cost
-            let paymentStatus = 'pending';
-            if (eventData.costType === 'Gratuito') {
-                paymentStatus = 'not_applicable';
-            } else if (registrationData.price === 0) {
-                 paymentStatus = 'not_applicable'; 
-            }
-
-            const registrationPayload = {
-                ...registrationData,
-                registrationDate: new Date().toISOString(), // Update date on re-registration
-                status: 'confirmed',
-                paymentStatus: paymentStatus,
-                checkedIn: false,
-            };
-
-            if (existingRegDoc) {
-                // 3a. Update existing Cancelled Registration
-                transaction.update(existingRegDoc.ref, registrationPayload);
-            } else {
-                // 3b. Create New Registration
-                const newRegRef = db.collection('event-registrations').doc();
-                transaction.set(newRegRef, registrationPayload);
-            }
-
-            // 4. Increment participant count
-            transaction.update(eventRef, {
-                currentParticipants: currentParticipants + 1
-            });
-
-            return { success: true, message: "¡Registro exitoso!" };
-        });
-    } catch (error) {
-        console.error("Transaction failure:", error);
-        return { success: false, error: "Ocurrió un error al procesar tu registro. Inténtalo de nuevo." };
-    }
-}
-
 export async function cancelEventRegistration(eventId: string, userId: string): Promise<{ success: boolean; error?: string }> {
     const db = adminDb;
     try {
@@ -621,91 +540,6 @@ export async function cancelEventRegistrationById(eventId: string, registrationI
     } catch (error) {
         console.error("Error cancelling registration by ID:", error);
         return { success: false, error: "Error al cancelar la inscripción." };
-    }
-}
-
-export async function getEventAttendees(eventId: string): Promise<EventAttendee[]> {
-    if (!eventId) return [];
-    
-    try {
-        const db = adminDb;
-        
-        // 1. Get all registrations for the event
-        const registrationsSnapshot = await db.collection('event-registrations')
-            .where('eventId', '==', eventId)
-            .get(); // Sorting in memory to avoid index issues for now, or assume index created
-
-        if (registrationsSnapshot.empty) {
-            return [];
-        }
-
-        // 2. Get Event details for mapping IDs to Names
-        const event = await getEvent(eventId);
-        if (!event) return []; 
-
-        const tiersMap = new Map(event.costTiers?.map(t => [t.id, t.name]));
-        const tiersPriceMap = new Map(event.costTiers?.map(t => [t.id, t.price]));
-        const categoriesMap = new Map(event.categories?.map(c => [c.id, c.name]));
-
-        // 3. Fetch user details for each registration
-        const attendeesPromises = registrationsSnapshot.docs.map(async (doc) => {
-            const regData = doc.data() as EventRegistration;
-            const user = await getUser(regData.userId);
-            
-            let bikeData = undefined;
-            if (regData.bikeId) {
-                const bike = await getBike(regData.userId, regData.bikeId);
-                if (bike) {
-                    bikeData = {
-                        id: bike.id,
-                        make: bike.make,
-                        model: bike.model,
-                        serialNumber: bike.serialNumber
-                    };
-                }
-            }
-            
-            // Determine price
-            let price = regData.price;
-            if (price === undefined && regData.tierId) {
-                price = tiersPriceMap.get(regData.tierId);
-            }
-            
-            // Determine payment status if missing (for legacy data compatibility)
-            let paymentStatus = regData.paymentStatus || 'pending';
-            if (event.costType === 'Gratuito') {
-                paymentStatus = 'not_applicable';
-            }
-
-            return {
-                id: doc.id,
-                userId: regData.userId,
-                name: user?.name || 'Usuario',
-                lastName: user?.lastName || 'Eliminado',
-                email: user?.email || '',
-                whatsapp: user?.whatsapp,
-                registrationDate: regData.registrationDate,
-                tierName: regData.tierId ? tiersMap.get(regData.tierId) || 'N/A' : (event.costType === 'Gratuito' ? 'Gratuito' : 'N/A'),
-                categoryName: regData.categoryId ? categoriesMap.get(regData.categoryId) || 'N/A' : 'N/A',
-                status: regData.status,
-                bike: bikeData,
-                // New Fields Mapped
-                paymentStatus: paymentStatus as any,
-                checkedIn: regData.checkedIn || false,
-                price: price || 0,
-                // New Emergency Fields
-                emergencyContactName: regData.emergencyContactName,
-                emergencyContactPhone: regData.emergencyContactPhone,
-            };
-        });
-
-        const attendees = await Promise.all(attendeesPromises);
-        // Sort in memory
-        return attendees.sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime());
-
-    } catch (error) {
-        console.error("Error fetching event attendees:", error);
-        return [];
     }
 }
 

@@ -13,7 +13,6 @@ import {
     updateEvent,
     getHomepageData,
     getEvent,
-    registerUserToEvent,
     cancelEventRegistration,
     updateEventRegistrationBike,
     updateRegistrationStatusInternal,
@@ -417,48 +416,6 @@ export async function saveEvent(eventData: any, isDraft: boolean): Promise<Actio
         console.error("Save event error:", error);
         return { error: 'Ocurrió un error al guardar el evento.' };
     }
-}
-
-export async function registerForEventAction(
-    eventId: string, 
-    tierId?: string, 
-    categoryId?: string,
-    emergencyContactName?: string,
-    emergencyContactPhone?: string
-): Promise<{ success: boolean; error?: string; message?: string }> {
-    const session = await getDecodedSession();
-    
-    if (!session?.uid) {
-        return { success: false, error: "Debes iniciar sesión para registrarte." };
-    }
-
-    // Validation logic for emergency fields
-    const event = await getEvent(eventId);
-    if (!event) return { success: false, error: "Evento no encontrado." };
-
-    if (event.requiresEmergencyContact) {
-        if (!emergencyContactName || !emergencyContactName.trim()) {
-             return { success: false, error: "El nombre del contacto de emergencia es obligatorio." };
-        }
-        if (!emergencyContactPhone || !emergencyContactPhone.trim()) {
-             return { success: false, error: "El teléfono del contacto de emergencia es obligatorio." };
-        }
-    }
-
-    const result = await registerUserToEvent({
-        eventId,
-        userId: session.uid,
-        tierId,
-        categoryId,
-        emergencyContactName,
-        emergencyContactPhone,
-    });
-
-    if (result.success) {
-        revalidatePath(`/events/${eventId}`);
-    }
-
-    return result;
 }
 
 export async function toggleEventStatusAction(eventId: string, newStatus: 'draft' | 'published'): Promise<{ success: boolean; error?: string }> {

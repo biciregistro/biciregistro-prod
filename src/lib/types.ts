@@ -52,6 +52,9 @@ export type User = {
   communityId?: string; // ID of the ONG the user is affiliated with
   notificationPreferences?: NotificationPreferences;
   createdAt?: string; // Added for analytics
+  // Emergency Info (HU-EVENT-005)
+  bloodType?: string;
+  insuranceInfo?: string;
 };
 
 export type OngUser = {
@@ -175,6 +178,9 @@ export type EventRegistration = {
     // Emergency Contact Data
     emergencyContactName?: string;
     emergencyContactPhone?: string;
+    // Extended Emergency Info (HU-EVENT-005)
+    bloodType?: string | null;
+    insuranceInfo?: string | null;
 };
 
 export type EventAttendee = {
@@ -204,8 +210,11 @@ export type EventAttendee = {
         serialNumber: string;
     };
     // Emergency Contact Data
-    emergencyContactName?: string;
-    emergencyContactPhone?: string;
+    emergencyContactName?: string | null;
+    emergencyContactPhone?: string | null;
+    // Extended Emergency Info (HU-EVENT-005)
+    bloodType?: string | null;
+    insuranceInfo?: string | null;
 };
 
 export type UserEventRegistration = EventRegistration & {

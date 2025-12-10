@@ -4,7 +4,8 @@ import { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { registerForEventAction } from '@/lib/actions';
+// Updated import to point to the dedicated file
+import { registerForEventAction } from '@/lib/actions/event-registration-actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -21,6 +22,8 @@ interface EventRegistrationCardProps {
     registration?: EventRegistration | null;
 }
 
+const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
 export function EventRegistrationCard({ event, user, isRegistered = false, registration }: EventRegistrationCardProps) {
     const router = useRouter();
     const { toast } = useToast();
@@ -30,9 +33,19 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
     const [selectedTierId, setSelectedTierId] = useState<string | undefined>(undefined);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
 
-    // Emergency Contact State
+    // Emergency Contact State - Initialize with user data if available
     const [emergencyName, setEmergencyName] = useState('');
     const [emergencyPhone, setEmergencyPhone] = useState('');
+    const [bloodType, setBloodType] = useState<string | undefined>(undefined);
+    const [insuranceInfo, setInsuranceInfo] = useState('');
+
+    useEffect(() => {
+        if (user) {
+            // Auto-fill from user profile if data exists
+            if (user.bloodType) setBloodType(user.bloodType);
+            if (user.insuranceInfo) setInsuranceInfo(user.insuranceInfo);
+        }
+    }, [user]);
 
     const tiers = event.costTiers || [];
     const categories = event.categories || [];
@@ -95,6 +108,22 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                 });
                 return;
             }
+            if (!bloodType) {
+                toast({
+                    variant: "destructive",
+                    title: "Datos incompletos",
+                    description: "Por favor selecciona tu tipo de sangre.",
+                });
+                return;
+            }
+            if (!insuranceInfo.trim()) {
+                toast({
+                    variant: "destructive",
+                    title: "Datos incompletos",
+                    description: "Ingresa tu seguro médico o escribe 'Sin seguro'.",
+                });
+                return;
+            }
         }
 
         startTransition(async () => {
@@ -103,7 +132,9 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                 selectedTierId, 
                 selectedCategoryId,
                 emergencyName,
-                emergencyPhone
+                emergencyPhone,
+                bloodType,
+                insuranceInfo
             );
             
             if (result.success) {
@@ -275,33 +306,61 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                         </div>
                     )}
 
-                    {/* Emergency Contact Form Section */}
+                    {/* Emergency Contact Form Section (Expanded) */}
                     {event.requiresEmergencyContact && (
-                        <div className="space-y-3 pt-3 border-t mt-2">
+                        <div className="space-y-4 pt-3 border-t mt-2">
                             <h4 className="font-semibold text-sm flex items-center gap-2 text-destructive">
-                                Contacto de Emergencia (Obligatorio)
+                                Información de Emergencia (Obligatorio)
                             </h4>
-                            <div className="grid gap-2">
-                                <Label htmlFor="e-name">Nombre Completo</Label>
-                                <Input 
-                                    id="e-name" 
-                                    value={emergencyName} 
-                                    onChange={(e) => setEmergencyName(e.target.value)} 
-                                    placeholder="Nombre de familiar o amigo"
-                                    className="h-9"
-                                />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2 col-span-2">
+                                    <Label htmlFor="e-name">Nombre de Contacto</Label>
+                                    <Input 
+                                        id="e-name" 
+                                        value={emergencyName} 
+                                        onChange={(e) => setEmergencyName(e.target.value)} 
+                                        placeholder="Nombre de familiar o amigo"
+                                        className="h-9"
+                                    />
+                                </div>
+                                <div className="space-y-2 col-span-2 sm:col-span-1">
+                                    <Label htmlFor="e-phone">Teléfono</Label>
+                                    <Input 
+                                        id="e-phone" 
+                                        type="tel"
+                                        value={emergencyPhone} 
+                                        onChange={(e) => setEmergencyPhone(e.target.value)} 
+                                        placeholder="10 dígitos"
+                                        className="h-9"
+                                    />
+                                </div>
+                                <div className="space-y-2 col-span-2 sm:col-span-1">
+                                    <Label>Tipo de Sangre</Label>
+                                    <Select value={bloodType} onValueChange={setBloodType}>
+                                        <SelectTrigger className="h-9">
+                                            <SelectValue placeholder="Seleccionar" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {BLOOD_TYPES.map(type => (
+                                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2 col-span-2">
+                                    <Label htmlFor="e-insurance">Seguro Médico / Póliza</Label>
+                                    <Input 
+                                        id="e-insurance"
+                                        value={insuranceInfo} 
+                                        onChange={(e) => setInsuranceInfo(e.target.value)} 
+                                        placeholder="Ej. IMSS, GNP - Poliza 12345, o 'Sin seguro'"
+                                        className="h-9"
+                                    />
+                                </div>
                             </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="e-phone">Teléfono</Label>
-                                <Input 
-                                    id="e-phone" 
-                                    type="tel"
-                                    value={emergencyPhone} 
-                                    onChange={(e) => setEmergencyPhone(e.target.value)} 
-                                    placeholder="10 dígitos"
-                                    className="h-9"
-                                />
-                            </div>
+                            <p className="text-[10px] text-muted-foreground italic bg-muted/30 p-2 rounded">
+                                * Tus datos médicos solo serán visibles para el organizador durante el evento y hasta 24 horas después.
+                            </p>
                         </div>
                     )}
 

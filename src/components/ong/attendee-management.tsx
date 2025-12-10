@@ -17,12 +17,20 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
+import { 
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, MoreHorizontal, Check, AlertCircle, CreditCard, UserCheck, Bike, XCircle, Wallet } from 'lucide-react';
+import { MessageCircle, MoreHorizontal, Check, AlertCircle, CreditCard, UserCheck, Bike, XCircle, Wallet, HeartPulse, ShieldAlert, Phone, FileText } from 'lucide-react';
 import { EventAttendee, PaymentStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { toggleCheckInStatus, cancelRegistrationManuallyAction } from '@/lib/actions';
@@ -51,6 +59,10 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
     const [selectedAttendeeId, setSelectedAttendeeId] = useState<string | null>(null);
+    
+    // Emergency Data Modal State
+    const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
+    const [selectedEmergencyData, setSelectedEmergencyData] = useState<EventAttendee | null>(null);
 
     const { toast } = useToast();
     const router = useRouter();
@@ -125,6 +137,11 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
         setCancelDialogOpen(true);
     };
 
+    const openEmergencyModal = (attendee: EventAttendee) => {
+        setSelectedEmergencyData(attendee);
+        setEmergencyModalOpen(true);
+    };
+
     const handleCancelRegistration = async () => {
         if (!selectedAttendeeId) return;
         setIsUpdating(selectedAttendeeId);
@@ -190,7 +207,7 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
                             <TableHead className="w-[50px]">Check-in</TableHead>
                             <TableHead>Participante</TableHead>
                             <TableHead>Contacto</TableHead>
-                            {showEmergencyContact && <TableHead>Emergencia</TableHead>}
+                            {showEmergencyContact && <TableHead>Info Médica</TableHead>}
                             {showBikeInfo && <TableHead>Bicicleta</TableHead>}
                             <TableHead>Nivel/Cat.</TableHead>
                             <TableHead>Pago</TableHead>
@@ -242,10 +259,14 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
                                     </TableCell>
                                     {showEmergencyContact && (
                                         <TableCell>
-                                            <div className="flex flex-col text-xs">
-                                                <span className="font-medium">{attendee.emergencyContactName || 'N/A'}</span>
-                                                <span className="text-muted-foreground">{attendee.emergencyContactPhone || '-'}</span>
-                                            </div>
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm" 
+                                                className="h-8 text-xs gap-1 border-red-200 text-red-700 bg-red-50 hover:bg-red-100 hover:text-red-800 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400"
+                                                onClick={() => openEmergencyModal(attendee)}
+                                            >
+                                                <HeartPulse className="h-3 w-3" /> Ver Datos
+                                            </Button>
                                         </TableCell>
                                     )}
                                     {showBikeInfo && (
@@ -323,6 +344,7 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
                 </Table>
             </div>
 
+            {/* Cancel Confirmation Dialog */}
             <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -339,6 +361,68 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Emergency Data Dialog */}
+            <Dialog open={emergencyModalOpen} onOpenChange={setEmergencyModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <ShieldAlert className="h-5 w-5" />
+                            Información de Emergencia
+                        </DialogTitle>
+                        <DialogDescription>
+                            Datos proporcionados por {selectedEmergencyData?.name} {selectedEmergencyData?.lastName}. 
+                            <br/>Esta información es confidencial.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    {selectedEmergencyData && (
+                        <div className="grid gap-4 py-4">
+                            <div className="flex items-start gap-4 p-4 border rounded-md bg-muted/20">
+                                <HeartPulse className="h-5 w-5 text-red-500 mt-1" />
+                                <div className="space-y-1">
+                                    <p className="text-sm font-medium leading-none">Tipo de Sangre</p>
+                                    <p className="text-lg font-bold">{selectedEmergencyData.bloodType || 'No especificado'}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-start gap-4 p-4 border rounded-md bg-muted/20">
+                                <FileText className="h-5 w-5 text-blue-500 mt-1" />
+                                <div className="space-y-1">
+                                    <p className="text-sm font-medium leading-none">Seguro Médico / Póliza</p>
+                                    <p className="text-base">{selectedEmergencyData.insuranceInfo || 'No especificado'}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-start gap-4 p-4 border rounded-md bg-muted/20">
+                                <Phone className="h-5 w-5 text-green-600 mt-1" />
+                                <div className="space-y-1 w-full">
+                                    <p className="text-sm font-medium leading-none">Contacto de Emergencia</p>
+                                    <p className="text-base font-semibold">{selectedEmergencyData.emergencyContactName}</p>
+                                    <div className="flex items-center justify-between mt-2">
+                                        <p className="text-lg font-mono text-muted-foreground">{selectedEmergencyData.emergencyContactPhone}</p>
+                                        {selectedEmergencyData.emergencyContactPhone && selectedEmergencyData.emergencyContactPhone !== '***' && (
+                                            <Button size="sm" variant="outline" asChild>
+                                                <a href={`tel:${selectedEmergencyData.emergencyContactPhone}`}>Llamar</a>
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {selectedEmergencyData.emergencyContactName === '***' && (
+                                <p className="text-xs text-center text-muted-foreground italic">
+                                    * Los datos han sido ocultados automáticamente por política de privacidad (evento finalizado hace +24h).
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button onClick={() => setEmergencyModalOpen(false)}>Cerrar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
