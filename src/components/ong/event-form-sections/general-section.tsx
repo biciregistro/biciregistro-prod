@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UseFormReturn } from "react-hook-form";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,6 @@ interface GeneralSectionProps {
     form: UseFormReturn<EventFormValues>;
 }
 
-// Required label helper
 const RequiredLabel = ({ children }: { children: React.ReactNode }) => (
   <span>
     {children} <span className="text-red-500">*</span>
@@ -32,30 +31,20 @@ const levels = ['Principiante', 'Intermedio', 'Avanzado'];
 
 export function GeneralSection({ form }: GeneralSectionProps) {
     const [uploadKey, setUploadKey] = useState(0);
-    const [states, setStates] = useState<string[]>([]);
+    const [currentStates, setCurrentStates] = useState<string[]>([]);
+    
+    const selectedCountryName = form.watch('country');
 
-    // Sync initial states if country is pre-filled
-    const currentCountry = form.watch('country');
-    if (states.length === 0 && currentCountry) {
-        const countryData = countries.find(c => c.name === currentCountry);
-        if (countryData) {
-             // Avoid infinite loop by checking if we actually need to update
-             // This is a simplified approach, ideally use useEffect
-             // setStates(countryData.states); 
-        }
-    }
+    useEffect(() => {
+        const country = countries.find(c => c.name === selectedCountryName);
+        setCurrentStates(country?.states || []);
+    }, [selectedCountryName]);
 
     const handleCountryChange = (countryName: string) => {
-        const country = countries.find(c => c.name === countryName);
-        setStates(country?.states || []);
         form.setValue('country', countryName);
         form.setValue('state', ''); 
     };
     
-    // Initialize states on mount/change
-    const selectedCountry = countries.find(c => c.name === form.watch('country'));
-    const currentStates = selectedCountry?.states || [];
-
     const handleSponsorUpload = (url: string) => {
         const currentSponsors = form.getValues('sponsors') || [];
         form.setValue('sponsors', [...currentSponsors, url]);
@@ -70,7 +59,6 @@ export function GeneralSection({ form }: GeneralSectionProps) {
 
     return (
         <div className="space-y-8">
-            {/* Image Upload */}
             <div className="space-y-2">
                 <FormLabel>Imagen de Portada (Opcional)</FormLabel>
                 <div className="p-4 border rounded-md bg-muted/10">
@@ -84,7 +72,6 @@ export function GeneralSection({ form }: GeneralSectionProps) {
                 </div>
             </div>
 
-            {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                     control={form.control}
@@ -162,7 +149,6 @@ export function GeneralSection({ form }: GeneralSectionProps) {
                 />
             </div>
 
-            {/* Location */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                     control={form.control}
@@ -170,7 +156,7 @@ export function GeneralSection({ form }: GeneralSectionProps) {
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel><RequiredLabel>País</RequiredLabel></FormLabel>
-                            <Select onValueChange={handleCountryChange} defaultValue={field.value}>
+                            <Select onValueChange={handleCountryChange} value={field.value}>
                                 <FormControl>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Selecciona un país" />
@@ -192,7 +178,7 @@ export function GeneralSection({ form }: GeneralSectionProps) {
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel><RequiredLabel>Estado / Ciudad</RequiredLabel></FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!selectedCountry}>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={currentStates.length === 0}>
                                 <FormControl>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Selecciona un estado" />
@@ -224,7 +210,6 @@ export function GeneralSection({ form }: GeneralSectionProps) {
                 )}
             />
 
-            {/* Description */}
             <FormField
                 control={form.control}
                 name="description"
@@ -243,7 +228,6 @@ export function GeneralSection({ form }: GeneralSectionProps) {
                 )}
             />
 
-            {/* Sponsors Configuration */}
             <div className="space-y-4 border rounded-lg p-4 bg-muted/5 mt-6">
                 <div className="flex items-center justify-between">
                     <div>
@@ -287,7 +271,6 @@ export function GeneralSection({ form }: GeneralSectionProps) {
                 </div>
             </div>
 
-            {/* Technical Details */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                 <FormField
                     control={form.control}

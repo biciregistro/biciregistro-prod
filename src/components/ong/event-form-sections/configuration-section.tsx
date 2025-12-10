@@ -17,7 +17,6 @@ interface ConfigurationSectionProps {
     form: UseFormReturn<EventFormValues>;
 }
 
-// Required label helper
 const RequiredLabel = ({ children }: { children: React.ReactNode }) => (
   <span>
     {children} <span className="text-red-500">*</span>
@@ -37,7 +36,6 @@ export function ConfigurationSection({ form }: ConfigurationSectionProps) {
 
     return (
         <div className="space-y-4">
-            {/* Registration Deadline Config */}
             <div className="space-y-4 border rounded-lg p-4 bg-muted/5">
                 <div className="flex items-center justify-between">
                     <div>
@@ -83,9 +81,7 @@ export function ConfigurationSection({ form }: ConfigurationSectionProps) {
                 )}
             </div>
 
-            {/* Bike & Emergency Configs Container */}
             <div className="space-y-4">
-                {/* Bike Requirement Config */}
                 <div className="flex items-center justify-between border rounded-lg p-4 bg-muted/5">
                     <div>
                         <h3 className="text-lg font-medium">Requisitos de Bicicleta</h3>
@@ -105,7 +101,6 @@ export function ConfigurationSection({ form }: ConfigurationSectionProps) {
                     </div>
                 </div>
 
-                {/* Emergency Contact Config */}
                 <div className="space-y-4 border rounded-lg p-4 bg-muted/5">
                     <div className="flex items-center justify-between">
                         <div>
@@ -138,7 +133,6 @@ export function ConfigurationSection({ form }: ConfigurationSectionProps) {
                 </div>
             </div>
 
-            {/* Categories Configuration */}
             <div className="space-y-4 border rounded-lg p-4 bg-muted/5 mt-6">
                 <div className="flex items-center justify-between">
                     <div>
