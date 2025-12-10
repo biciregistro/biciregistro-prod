@@ -1,6 +1,7 @@
 import 'server-only';
 import { adminDb } from '../firebase/server';
-import { getUser, getEvent, getBike } from '../data';
+// Change import source to break cycle
+import { getUser, getEvent, getBike } from './core'; 
 import { EventRegistration, EventAttendee } from '../types';
 import { Event } from '../types';
 import { unstable_noStore as noStore } from 'next/cache';

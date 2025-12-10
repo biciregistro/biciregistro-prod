@@ -1,12 +1,21 @@
 import 'server-only';
 import { FieldValue, Timestamp, FieldPath } from 'firebase-admin/firestore';
 import { unstable_cache } from 'next/cache';
-import type { User, OngUser, Bike, BikeStatus, HomepageSection, UserRole, Event, EventRegistration, EventAttendee, UserEventRegistration } from './types';
+import type { User, OngUser, Bike, BikeStatus, HomepageSection, UserRole, Event, EventRegistration, UserEventRegistration } from './types';
 import { getDecodedSession } from '@/lib/auth';
 import { adminDb, adminAuth } from './firebase/server';
 import { defaultHomepageData } from './homepage-data';
-import { firebaseConfig } from './firebase/config';
 import { UserRecord } from 'firebase-admin/auth';
+import { 
+    getUser, 
+    getEvent, 
+    getBike, 
+    convertBikeTimestamps, 
+    convertEventTimestamps 
+} from './data/core';
+
+// Re-export core functions to maintain public API and resolve circular dependencies
+export { getUser, getEvent, getBike };
 
 // Export from sub-modules to keep this file clean
 export { registerUserToEvent, getEventAttendees } from './data/event-registration-data';
@@ -95,18 +104,6 @@ export async function getAuthenticatedUser(): Promise<User | null> {
     }
 }
 
-export async function getUser(userId: string): Promise<User | null> {
-    if (!userId) return null;
-    try {
-        const db = adminDb;
-        const docSnap = await db.collection('users').doc(userId).get();
-        return docSnap.exists ? { id: docSnap.id, ...docSnap.data() } as User : null;
-    } catch (error) {
-        console.error("Error fetching user:", error);
-        return null;
-    }
-}
-
 export async function getUserByEmail(email: string): Promise<User | null> {
     if (!email) return null;
     try {
@@ -132,7 +129,6 @@ export async function createOngFirestoreProfile(ongData: Omit<OngUser, 'role' | 
     const db = adminDb;
     await db.collection('ong-profiles').doc(ongData.id).set(ongData);
 }
-
 
 export async function updateUserData(userId: string, data: Partial<Omit<User, 'id' | 'role' | 'email'>>) {
     const db = adminDb;
@@ -169,7 +165,6 @@ export async function getOngFollowersCount(ongId: string): Promise<number> {
         return 0;
     }
 }
-
 
 // --- Admin User Management ---
 export async function getUsers({
@@ -232,28 +227,6 @@ export async function getOngUsers(): Promise<OngUser[]> {
     }
 }
 
-// --- Data Serialization Helper ---
-const convertBikeTimestamps = (data: any): any => {
-    if (!data) return data;
-    const convertedData = { ...data };
-    if (convertedData.createdAt instanceof Timestamp) {
-        convertedData.createdAt = convertedData.createdAt.toDate().toISOString();
-    }
-    if (convertedData.theftReport?.date instanceof Timestamp) {
-        convertedData.theftReport.date = convertedData.theftReport.date.toDate().toISOString();
-    }
-    return convertedData;
-};
-
-const convertEventTimestamps = (data: any): any => {
-    if (!data) return data;
-    const convertedData = { ...data };
-    if (convertedData.date instanceof Timestamp) {
-        convertedData.date = convertedData.date.toDate().toISOString();
-    }
-    return convertedData;
-};
-
 // --- Bike Management ---
 export async function getBikes(userId: string): Promise<Bike[]> {
     if (!userId) return [];
@@ -261,30 +234,6 @@ export async function getBikes(userId: string): Promise<Bike[]> {
     let query = db.collection('bikes').where('userId', '==', userId);
     const snapshot = await query.orderBy('createdAt', 'desc').get();
     return snapshot.docs.map(doc => ({ id: doc.id, ...convertBikeTimestamps(doc.data()) } as Bike));
-}
-
-export async function getBike(userId: string, bikeId: string): Promise<Bike | null> {
-    if (!userId || !bikeId) return null;
-    try {
-        const db = adminDb;
-        const docSnap = await db.collection('bikes').doc(bikeId).get();
-
-        if (!docSnap.exists) {
-            return null;
-        }
-
-        const bikeData = docSnap.data() as Bike;
-
-        if (bikeData.userId !== userId) {
-            console.warn(`Security warning: User ${userId} attempted to access bike ${bikeId} owned by ${bikeData.userId}.`);
-            return null;
-        }
-
-        return { id: docSnap.id, ...convertBikeTimestamps(bikeData) } as Bike;
-    } catch (error) {
-        console.error("Error fetching bike:", error);
-        return null;
-    }
 }
 
 export async function getBikeBySerial(serial: string): Promise<Bike | null> {
@@ -342,21 +291,6 @@ export async function updateBikeStatus(bikeId: string, status: BikeStatus, theft
 }
 
 // --- Event Management ---
-export async function getEvent(eventId: string): Promise<Event | null> {
-    if (!eventId) return null;
-    try {
-        const db = adminDb;
-        const docSnap = await db.collection('events').doc(eventId).get();
-        if (!docSnap.exists) {
-            return null;
-        }
-        return { id: docSnap.id, ...convertEventTimestamps(docSnap.data()) } as Event;
-    } catch (error) {
-        console.error("Error fetching event:", error);
-        return null;
-    }
-}
-
 export async function getEventsByOngId(ongId: string): Promise<Event[]> {
     if (!ongId) return [];
     const db = adminDb;
@@ -382,7 +316,6 @@ export async function updateEvent(eventId: string, eventData: Partial<Omit<Event
         dataToUpdate.date = Timestamp.fromDate(new Date(eventData.date)) as any;
     }
 
-    // Filter out undefined values
     const cleanData = Object.fromEntries(Object.entries(dataToUpdate).filter(([_, v]) => v !== undefined));
 
     await db.collection('events').doc(eventId).update(cleanData);
@@ -409,7 +342,6 @@ export async function updateHomepageSectionData(data: HomepageSection) {
 }
 
 // --- Event Registration ---
-
 export async function getUserRegistrationForEvent(userId: string, eventId: string): Promise<any | null> {
     if (!userId || !eventId) return null;
     try {
@@ -476,17 +408,14 @@ export async function cancelEventRegistration(eventId: string, userId: string): 
                 return { success: false, error: "La inscripción ya está cancelada." };
             }
 
-            // Get event to check participant count integrity
             const eventDoc = await transaction.get(eventRef);
             if (!eventDoc.exists) {
                  return { success: false, error: "El evento no existe." };
             }
             const currentParticipants = eventDoc.data()?.currentParticipants || 0;
 
-            // Update registration status
             transaction.update(regDoc.ref, { status: 'cancelled' });
 
-            // Decrement participant count
             const newCount = Math.max(0, currentParticipants - 1);
             transaction.update(eventRef, { currentParticipants: newCount });
 
@@ -498,7 +427,6 @@ export async function cancelEventRegistration(eventId: string, userId: string): 
     }
 }
 
-// Function for Organizer to cancel a specific registration by ID
 export async function cancelEventRegistrationById(eventId: string, registrationId: string): Promise<{ success: boolean; error?: string }> {
     const db = adminDb;
     try {
@@ -521,17 +449,14 @@ export async function cancelEventRegistrationById(eventId: string, registrationI
                 return { success: false, error: "La inscripción ya está cancelada." };
             }
 
-            // Get event to check participant count integrity
             const eventDoc = await transaction.get(eventRef);
             if (!eventDoc.exists) {
                  return { success: false, error: "El evento no existe." };
             }
             const currentParticipants = eventDoc.data()?.currentParticipants || 0;
 
-            // Update registration status
             transaction.update(regRef, { status: 'cancelled' });
 
-            // Decrement participant count
             const newCount = Math.max(0, currentParticipants - 1);
             transaction.update(eventRef, { currentParticipants: newCount });
 
@@ -543,7 +468,6 @@ export async function cancelEventRegistrationById(eventId: string, registrationI
     }
 }
 
-// Function to update registration status (Internal use for Server Action)
 export async function updateRegistrationStatusInternal(
     registrationId: string, 
     data: { paymentStatus?: string, checkedIn?: boolean }
@@ -552,7 +476,6 @@ export async function updateRegistrationStatusInternal(
     const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
     
     if (data.checkedIn === true) {
-        // Add timestamp if checking in
         (cleanData as any).checkedInAt = new Date().toISOString();
     }
     
@@ -571,14 +494,12 @@ export async function getUserEventRegistrations(userId: string): Promise<UserEve
 
         const registrations = registrationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EventRegistration));
 
-        // Fetch events concurrently
         const registrationsWithEvents = await Promise.all(registrations.map(async (reg) => {
             const event = await getEvent(reg.eventId);
             if (!event) return null;
             return { ...reg, event };
         }));
 
-        // Filter out nulls and sort by event date
         const validRegistrations = registrationsWithEvents.filter((r): r is UserEventRegistration => r !== null);
         
         return validRegistrations.sort((a, b) => 
@@ -591,26 +512,22 @@ export async function getUserEventRegistrations(userId: string): Promise<UserEve
     }
 }
 
-// Optimized function for displaying community list
 export async function getOngCommunityMembers(ongId: string): Promise<any[]> {
     if (!ongId) return [];
     try {
         const db = adminDb;
         const userIds = new Set<string>();
 
-        // 1. Get direct users
         const directUsersSnapshot = await db.collection('users')
             .where('communityId', '==', ongId)
             .get();
         
         directUsersSnapshot.forEach(doc => userIds.add(doc.id));
 
-        // 2. Get event attendees (optimized batch)
         const events = await getEventsByOngId(ongId);
         const eventIds = events.map(e => e.id);
 
         if (eventIds.length > 0) {
-             // Firestore 'in' query limit is 10
              for (let i = 0; i < eventIds.length; i += 10) {
                  const chunk = eventIds.slice(i, i + 10);
                  const registrationsSnapshot = await db.collection('event-registrations')
@@ -625,11 +542,9 @@ export async function getOngCommunityMembers(ongId: string): Promise<any[]> {
 
         if (userIds.size === 0) return [];
 
-        // 3. Fetch user details efficiently (without bikes)
         const userIdsArray = Array.from(userIds);
         const members: any[] = [];
 
-        // Fetch users in batches of 10
         for (let i = 0; i < userIdsArray.length; i += 10) {
             const chunk = userIdsArray.slice(i, i + 10);
             
@@ -663,14 +578,12 @@ export async function getOngCommunityMembers(ongId: string): Promise<any[]> {
     }
 }
 
-// INTERNAL LOGIC FOR COUNTING
 async function _getOngCommunityCountLogic(ongId: string): Promise<number> {
     if (!ongId) return 0;
     try {
         const db = adminDb;
         const userIds = new Set<string>();
 
-        // 1. Get direct users (projection only ID)
         const directUsersSnapshot = await db.collection('users')
             .where('communityId', '==', ongId)
             .select() 
@@ -678,7 +591,6 @@ async function _getOngCommunityCountLogic(ongId: string): Promise<number> {
         
         directUsersSnapshot.forEach(doc => userIds.add(doc.id));
 
-        // 2. Get event attendees
         const events = await getEventsByOngId(ongId);
         const eventIds = events.map(e => e.id);
 
@@ -704,7 +616,6 @@ async function _getOngCommunityCountLogic(ongId: string): Promise<number> {
     }
 }
 
-// CACHED EXPORTED FUNCTION
 export const getOngCommunityCount = unstable_cache(
     async (ongId: string) => _getOngCommunityCountLogic(ongId),
     ['ong-community-count'],
