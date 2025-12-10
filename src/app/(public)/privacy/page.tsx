@@ -31,7 +31,7 @@ export default function PrivacyPage() {
                     <li><strong>Datos de Identificación:</strong> Nombre completo, fotografía de perfil, CURP, fecha de nacimiento.</li>
                     <li><strong>Datos de Contacto:</strong> Correo electrónico, número de teléfono móvil, domicilio.</li>
                     <li><strong>Datos Patrimoniales:</strong> Información relacionada con su bicicleta (Marca, modelo, número de serie, fotografías, color, factura o comprobante de propiedad), así como datos bancarios para el procesamiento de pagos (procesados a través de pasarelas seguras y encriptadas).</li>
-                    <li><strong>Datos Sensibles (Salud):</strong> En caso de inscripción a eventos deportivos, podremos recabar: Tipo de sangre, alergias y contacto de emergencia.</li>
+                    <li><strong>Datos Sensibles (Salud):</strong> En caso de inscripción a eventos deportivos, podremos recabar: Tipo de sangre, alergias, información de seguro médico y contacto de emergencia.</li>
                 </ul>
             </section>
 
@@ -81,7 +81,7 @@ export default function PrivacyPage() {
                         <tbody className="divide-y">
                             <tr>
                                 <td className="p-3 font-medium">Organizadores de Eventos</td>
-                                <td className="p-3">Gestión logística, entrega de kits, cronometraje, seguridad del evento y validación de bicicletas participantes.</td>
+                                <td className="p-3">Gestión logística, entrega de kits, cronometraje, seguridad del evento, validación de bicicletas participantes y atención en caso de emergencia.</td>
                                 <td className="p-3">NO (Es necesario para el contrato)</td>
                             </tr>
                             <tr>
@@ -99,7 +99,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <p className="text-sm bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-md border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200">
-                    <strong>Nota Importante:</strong> Al inscribirse a un evento a través de BICIREGISTRO, usted acepta y autoriza que sus datos de identificación, contacto y los detalles de su bicicleta sean transferidos al Organizador de dicho evento para los fines logísticos y de seguridad mencionados.
+                    <strong>Nota Importante sobre la Transferencia a Organizadores:</strong> Al inscribirse a un evento a través de BICIREGISTRO, usted acepta y autoriza que sus datos de identificación, contacto, los detalles de su bicicleta y, si el evento lo requiere, sus datos de salud (tipo de sangre, seguro) y contacto de emergencia, sean transferidos al Organizador de dicho evento para los fines logísticos y de seguridad mencionados.
                 </p>
             </section>
 
