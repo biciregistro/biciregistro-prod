@@ -142,6 +142,10 @@ export type Event = {
   // Bike Requirement
   requiresBike?: boolean; // Defaults to true if undefined
 
+  // Legal / Waiver Configuration (HU-LEGAL-001)
+  requiresWaiver?: boolean;
+  waiverText?: string;
+
   // Sponsors
   sponsors?: string[]; // Array of image URLs
 
@@ -181,6 +185,11 @@ export type EventRegistration = {
     // Extended Emergency Info (HU-EVENT-005)
     bloodType?: string | null;
     insuranceInfo?: string | null;
+
+    // Legal Waiver Evidence (HU-LEGAL-002)
+    waiverSignature?: string; // URL to signature image
+    waiverAcceptedAt?: string; // ISO Timestamp
+    waiverTextSnapshot?: string; // The exact text signed
 };
 
 export type EventAttendee = {
@@ -215,6 +224,9 @@ export type EventAttendee = {
     // Extended Emergency Info (HU-EVENT-005)
     bloodType?: string | null;
     insuranceInfo?: string | null;
+
+    // Legal Waiver Status
+    waiverSigned?: boolean;
 };
 
 export type UserEventRegistration = EventRegistration & {

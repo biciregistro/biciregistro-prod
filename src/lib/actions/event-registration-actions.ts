@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { getDecodedSession } from '@/lib/auth';
-import { getEvent, registerUserToEvent } from '@/lib/data'; // Importing from main data entry point which now uses the refactored logic internally or directly
+import { getEvent } from '@/lib/data'; 
+import { registerUserToEvent } from '@/lib/data/event-registration-data';
 
 // Separate actions file for Event Registration logic to keep files modular
 
@@ -13,7 +14,10 @@ export async function registerForEventAction(
     emergencyContactName?: string,
     emergencyContactPhone?: string,
     bloodType?: string,
-    insuranceInfo?: string
+    insuranceInfo?: string,
+    waiverSignature?: string,
+    waiverAcceptedAt?: string,
+    waiverTextSnapshot?: string
 ): Promise<{ success: boolean; error?: string; message?: string }> {
     const session = await getDecodedSession();
     
@@ -41,23 +45,14 @@ export async function registerForEventAction(
         }
     }
 
-    // Call the data function (which is now in src/lib/data/event-registration-data.ts but exported via src/lib/data.ts if we updated exports, 
-    // or we should import directly if we didn't update src/lib/data.ts exports. 
-    // Checking previous steps, I created src/lib/data/event-registration-data.ts but I did NOT update src/lib/data.ts to export it.
-    // I should import directly from the new file to be safe and avoid circular deps in this specific refactor step).
-    
-    // CORRECTING IMPORT PATH DYNAMICALLY:
-    // Since I cannot change imports easily without rewriting the file, and I suspect registerUserToEvent might still be the old one in data.ts if I didn't remove it.
-    // However, in step 4 of the plan "Lógica de Registro (Backend - Nuevo Archivo)", I created src/lib/actions/event-registration-actions.ts 
-    // and I updated src/lib/data.ts to REMOVE registerUserToEvent? No, I likely duplicated it or need to check.
-    
-    // Let's rely on the direct import from the new data file to ensure we use the UPDATED logic.
-    // But wait, I can't see the file content of src/lib/data.ts right now to know if I removed the old function.
-    // To be safe, I will import from the specific file I created: '@/lib/data/event-registration-data'
-    
-    const { registerUserToEvent: registerUserToEventRefactored } = await import('@/lib/data/event-registration-data');
+    // Validation logic for waiver (HU-LEGAL-002)
+    if (event.requiresWaiver) {
+        if (!waiverSignature) {
+            return { success: false, error: "Debes firmar la carta responsiva para continuar." };
+        }
+    }
 
-    const result = await registerUserToEventRefactored({
+    const result = await registerUserToEvent({
         eventId,
         userId: session.uid,
         tierId,
@@ -66,6 +61,9 @@ export async function registerForEventAction(
         emergencyContactPhone,
         bloodType,
         insuranceInfo,
+        waiverSignature,
+        waiverAcceptedAt,
+        waiverTextSnapshot
     });
 
     if (result.success) {

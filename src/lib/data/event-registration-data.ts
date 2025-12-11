@@ -6,6 +6,26 @@ import { EventRegistration, EventAttendee } from '../types';
 import { Event } from '../types';
 import { unstable_noStore as noStore } from 'next/cache';
 
+export async function getRegistrationById(registrationId: string): Promise<EventRegistration | null> {
+    noStore();
+    if (!registrationId) return null;
+    
+    try {
+        const db = adminDb;
+        const docSnap = await db.collection('event-registrations').doc(registrationId).get();
+
+        if (!docSnap.exists) {
+            return null;
+        }
+
+        return { id: docSnap.id, ...docSnap.data() } as EventRegistration;
+    } catch (error) {
+        console.error("Error fetching registration by ID:", error);
+        return null;
+    }
+}
+
+
 export async function registerUserToEvent(
     registrationData: Omit<EventRegistration, 'id' | 'registrationDate' | 'status'>
 ): Promise<{ success: boolean; message?: string; error?: string }> {
@@ -177,6 +197,7 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 emergencyContactPhone: areEmergencyDetailsHidden ? '***' : (regData.emergencyContactPhone || null),
                 bloodType: areEmergencyDetailsHidden ? '***' : (regData.bloodType || null),
                 insuranceInfo: areEmergencyDetailsHidden ? '***' : (regData.insuranceInfo || null),
+                 waiverSigned: !!regData.waiverSignature,
             } as EventAttendee;
         });
 

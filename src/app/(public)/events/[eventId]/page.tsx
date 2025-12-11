@@ -118,6 +118,10 @@ export default async function EventPage({ params }: EventPageProps) {
   const isRegistered = !!registration && registration.status !== 'cancelled';
 
   const eventDate = new Date(event.date);
+  
+  // Define organizer name for waiver, with fallback
+  const waiverOrganizerName = ongProfile?.contactPerson || ongProfile?.organizationName || 'El Organizador';
+
 
   return (
     <div className="min-h-screen bg-muted/5 pb-12">
@@ -341,7 +345,12 @@ export default async function EventPage({ params }: EventPageProps) {
 
             {/* Right Column: Sticky Sidebar for Actions */}
             <div className="space-y-6">
-                <EventRegistrationCard event={event} user={user} isRegistered={isRegistered} />
+                <EventRegistrationCard 
+                    event={event} 
+                    user={user} 
+                    isRegistered={isRegistered}
+                    organizerNameForWaiver={waiverOrganizerName}
+                />
             </div>
         </div>
       </div>

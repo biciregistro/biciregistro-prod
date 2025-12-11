@@ -18,6 +18,7 @@ import type { Event, FinancialSettings } from '@/lib/types';
 import { GeneralSection } from './event-form-sections/general-section';
 import { ConfigurationSection } from './event-form-sections/configuration-section';
 import { CostSection } from './event-form-sections/cost-section';
+import { LegalSection } from './event-form-sections/legal-section';
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
@@ -63,6 +64,8 @@ export function EventForm({ initialData, financialSettings, hasFinancialData }: 
             registrationDeadline: initialData?.registrationDeadline ? new Date(initialData.registrationDeadline).toISOString().slice(0, 16) : "",
             requiresEmergencyContact: initialData?.requiresEmergencyContact || false,
             requiresBike: initialData?.requiresBike !== false,
+            requiresWaiver: initialData?.requiresWaiver || false,
+            waiverText: initialData?.waiverText || "",
             sponsors: initialData?.sponsors || [],
         },
     });
@@ -108,6 +111,10 @@ export function EventForm({ initialData, financialSettings, hasFinancialData }: 
                 submitData.registrationDeadline = undefined;
             }
 
+            if (!data.requiresWaiver) {
+                submitData.waiverText = undefined;
+            }
+
             // Note: requiresEmergency and requiresBike are boolean, so false is valid data
             
             const result = await saveEvent(submitData, isDraft);
@@ -149,6 +156,8 @@ export function EventForm({ initialData, financialSettings, hasFinancialData }: 
                 <GeneralSection form={form} />
                 
                 <ConfigurationSection form={form} />
+
+                <LegalSection form={form} />
 
                 <CostSection form={form} financialSettings={financialSettings} hasFinancialData={hasFinancialData} />
 

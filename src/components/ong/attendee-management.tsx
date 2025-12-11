@@ -45,16 +45,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import dynamic from 'next/dynamic';
+
+// Dynamic import for the PDF download modal
+const WaiverDownloadModal = dynamic(() => import('./waiver-download-modal').then(mod => mod.WaiverDownloadModal), {
+    ssr: false,
+    loading: () => null,
+});
 
 interface AttendeeManagementProps {
     attendees: EventAttendee[];
     eventId: string;
+    eventName: string; // Add event name for PDF filename
     showEmergencyContact?: boolean;
     showBikeInfo?: boolean;
+    showWaiverInfo?: boolean; // New prop to control waiver column
     isBlocked?: boolean; // Bloqueo administrativo
 }
 
-export function AttendeeManagement({ attendees, eventId, showEmergencyContact, showBikeInfo, isBlocked }: AttendeeManagementProps) {
+export function AttendeeManagement({ attendees, eventId, eventName, showEmergencyContact, showBikeInfo, showWaiverInfo, isBlocked }: AttendeeManagementProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -63,6 +72,11 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
     // Emergency Data Modal State
     const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
     const [selectedEmergencyData, setSelectedEmergencyData] = useState<EventAttendee | null>(null);
+
+    // Waiver Download Modal State
+    const [waiverModalOpen, setWaiverModalOpen] = useState(false);
+    const [selectedParticipantForWaiver, setSelectedParticipantForWaiver] = useState<{ id: string, name: string } | null>(null);
+
 
     const { toast } = useToast();
     const router = useRouter();
@@ -142,6 +156,12 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
         setEmergencyModalOpen(true);
     };
 
+    const openWaiverModal = (attendee: EventAttendee) => {
+        setSelectedParticipantForWaiver({ id: attendee.id, name: `${attendee.name} ${attendee.lastName}` });
+        setWaiverModalOpen(true);
+    };
+
+
     const handleCancelRegistration = async () => {
         if (!selectedAttendeeId) return;
         setIsUpdating(selectedAttendeeId);
@@ -209,6 +229,7 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
                             <TableHead>Contacto</TableHead>
                             {showEmergencyContact && <TableHead>Info Médica</TableHead>}
                             {showBikeInfo && <TableHead>Bicicleta</TableHead>}
+                            {showWaiverInfo && <TableHead>Responsiva</TableHead>}
                             <TableHead>Nivel/Cat.</TableHead>
                             <TableHead>Pago</TableHead>
                             <TableHead className="text-right">Acciones</TableHead>
@@ -278,6 +299,22 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
                                                 </div>
                                             ) : (
                                                 <span className="text-amber-600 dark:text-amber-500 text-xs font-medium">Aún no ha registrado Bici</span>
+                                            )}
+                                        </TableCell>
+                                    )}
+                                     {showWaiverInfo && (
+                                        <TableCell>
+                                            {attendee.waiverSigned ? (
+                                                <Button 
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8 text-xs gap-1 border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100"
+                                                    onClick={() => openWaiverModal(attendee)}
+                                                >
+                                                    <FileText className="h-3 w-3" /> Firmada
+                                                </Button>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground italic">No requerida/firmada</span>
                                             )}
                                         </TableCell>
                                     )}
@@ -423,6 +460,17 @@ export function AttendeeManagement({ attendees, eventId, showEmergencyContact, s
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+             {/* Waiver Download Modal */}
+            {selectedParticipantForWaiver && (
+                <WaiverDownloadModal
+                    isOpen={waiverModalOpen}
+                    onClose={() => setWaiverModalOpen(false)}
+                    registrationId={selectedParticipantForWaiver.id}
+                    eventName={eventName}
+                    participantName={selectedParticipantForWaiver.name}
+                />
+            )}
         </div>
     );
 }

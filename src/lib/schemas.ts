@@ -121,6 +121,10 @@ export const eventFormSchema = z.object({
     // Bike Requirement
     requiresBike: z.boolean().optional(),
 
+    // Legal / Waiver Configuration
+    requiresWaiver: z.boolean().optional(),
+    waiverText: z.string().optional(),
+
     // Sponsors
     sponsors: z.array(z.string().url()).optional(),
 }).superRefine((data, ctx) => {
@@ -154,6 +158,14 @@ export const eventFormSchema = z.object({
                 path: ["registrationDeadline"],
             });
         }
+    }
+
+    if (data.requiresWaiver && (!data.waiverText || data.waiverText.trim().length < 50)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Si solicitas carta responsiva, el texto debe tener al menos 50 caracteres.",
+            path: ["waiverText"],
+        });
     }
 });
 

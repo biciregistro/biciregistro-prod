@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
@@ -25,6 +26,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { logout } from '@/lib/actions';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const navLinks = [
   { href: '/', label: 'Inicio', auth: false },
@@ -71,6 +73,11 @@ function UserNavLinks({ user }: { user: UserType }) {
 export function Header({ user }: { user: UserType | null }) {
   const pathname = usePathname();
   const dashboardHome = user?.role === 'ong' ? '/dashboard/ong' : '/dashboard';
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -97,96 +104,101 @@ export function Header({ user }: { user: UserType | null }) {
             </div>
             
             <div className="flex items-center justify-end gap-2">
-            {user ? (
-                <div className="flex items-center gap-4">
-                <Button asChild className="hidden md:inline-flex">
-                    <Link href={dashboardHome}>Panel</Link>
-                </Button>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                        <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.avatarUrl} alt={user.name} />
-                        <AvatarFallback className="bg-primary text-primary-foreground">
-                            {user.name.charAt(0)}
-                        </AvatarFallback>
-                        </Avatar>
-                    </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <DropdownMenuLabel className="font-normal">
-                        <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{user.name}</p>
-                        <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                        </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <UserNavLinks user={user} />
-                    <DropdownMenuSeparator />
-                    <form action={logout}>
-                        <DropdownMenuItem asChild>
-                             <button type="submit" className="w-full text-left">Cerrar Sesión</button>
-                        </DropdownMenuItem>
-                    </form>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                </div>
-            ) : (
-                <>
-                    {/* Desktop Navigation */}
-                    <nav className="hidden items-center space-x-2 md:flex">
-                        <Button asChild variant="ghost">
-                            <Link href="/login">Iniciar Sesión</Link>
-                        </Button>
-                        <Button asChild>
-                            <Link href="/signup">Registra Tu Bici</Link>
-                        </Button>
-                    </nav>
-
-                    {/* Mobile Navigation */}
-                    <div className="md:hidden">
-                        <Sheet>
-                            <SheetTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                    <Menu className="h-6 w-6" />
-                                    <span className="sr-only">Menú</span>
-                                </Button>
-                            </SheetTrigger>
-                            <SheetContent side="right">
-                                <SheetHeader>
-                                    <SheetTitle className="text-left">Menú</SheetTitle>
-                                </SheetHeader>
-                                <div className="flex flex-col gap-4 mt-6">
-                                    {navLinks.map(link => (
-                                        <SheetClose asChild key={link.href}>
-                                            <Link
-                                                href={link.href}
-                                                className={cn(
-                                                    'text-lg font-medium transition-colors hover:text-primary',
-                                                    pathname === link.href ? 'text-primary' : 'text-foreground/60'
-                                                )}
-                                            >
-                                                {link.label}
-                                            </Link>
-                                        </SheetClose>
-                                    ))}
-                                    <div className="border-t my-2" />
-                                    <SheetClose asChild>
-                                        <Button asChild variant="ghost" className="justify-start px-0 text-lg">
-                                            <Link href="/login">Iniciar Sesión</Link>
-                                        </Button>
-                                    </SheetClose>
-                                    <SheetClose asChild>
-                                        <Button asChild className="w-full">
-                                            <Link href="/signup">Registra Tu Bici</Link>
-                                        </Button>
-                                    </SheetClose>
-                                </div>
-                            </SheetContent>
-                        </Sheet>
+                {!isClient ? (
+                    <div className="flex items-center gap-4">
+                        <Skeleton className="h-10 w-20 hidden md:inline-flex" />
+                        <Skeleton className="h-8 w-8 rounded-full" />
                     </div>
-                </>
-            )}
+                ) : user ? (
+                    <div className="flex items-center gap-4">
+                        <Button asChild className="hidden md:inline-flex">
+                            <Link href={dashboardHome}>Panel</Link>
+                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarImage src={user.avatarUrl} alt={user.name} />
+                                        <AvatarFallback className="bg-primary text-primary-foreground">
+                                            {user.name.charAt(0)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-56" align="end" forceMount>
+                                <DropdownMenuLabel className="font-normal">
+                                    <div className="flex flex-col space-y-1">
+                                    <p className="text-sm font-medium leading-none">{user.name}</p>
+                                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                                    </div>
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <UserNavLinks user={user} />
+                                <DropdownMenuSeparator />
+                                <form action={logout}>
+                                    <DropdownMenuItem asChild>
+                                        <button type="submit" className="w-full text-left">Cerrar Sesión</button>
+                                    </DropdownMenuItem>
+                                </form>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                ) : (
+                    <>
+                        {/* Desktop Navigation */}
+                        <nav className="hidden items-center space-x-2 md:flex">
+                            <Button asChild variant="ghost">
+                                <Link href="/login">Iniciar Sesión</Link>
+                            </Button>
+                            <Button asChild>
+                                <Link href="/signup">Registra Tu Bici</Link>
+                            </Button>
+                        </nav>
+
+                        {/* Mobile Navigation */}
+                        <div className="md:hidden">
+                            <Sheet>
+                                <SheetTrigger asChild>
+                                    <Button variant="ghost" size="icon">
+                                        <Menu className="h-6 w-6" />
+                                        <span className="sr-only">Menú</span>
+                                    </Button>
+                                </SheetTrigger>
+                                <SheetContent side="right">
+                                    <SheetHeader>
+                                        <SheetTitle className="text-left">Menú</SheetTitle>
+                                    </SheetHeader>
+                                    <div className="flex flex-col gap-4 mt-6">
+                                        {navLinks.map(link => (
+                                            <SheetClose asChild key={link.href}>
+                                                <Link
+                                                    href={link.href}
+                                                    className={cn(
+                                                        'text-lg font-medium transition-colors hover:text-primary',
+                                                        pathname === link.href ? 'text-primary' : 'text-foreground/60'
+                                                    )}
+                                                >
+                                                    {link.label}
+                                                </Link>
+                                            </SheetClose>
+                                        ))}
+                                        <div className="border-t my-2" />
+                                        <SheetClose asChild>
+                                            <Button asChild variant="ghost" className="justify-start px-0 text-lg">
+                                                <Link href="/login">Iniciar Sesión</Link>
+                                            </Button>
+                                        </SheetClose>
+                                        <SheetClose asChild>
+                                            <Button asChild className="w-full">
+                                                <Link href="/signup">Registra Tu Bici</Link>
+                                            </Button>
+                                        </SheetClose>
+                                    </div>
+                                </SheetContent>
+                            </Sheet>
+                        </div>
+                    </>
+                )}
             </div>
             </div>
       </div>
