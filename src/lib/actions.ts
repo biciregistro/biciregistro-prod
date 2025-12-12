@@ -241,16 +241,33 @@ export async function updateHomepageSection(prevState: ActionFormState, formData
     try {
         const payload: Partial<HomepageSection> = { ...validatedFields.data };
         
-        // Handle allies specific logic: Parse JSON string from hidden input if present
-        if (data.sponsorsJson && typeof data.sponsorsJson === 'string') {
-            try {
-                (payload as any).sponsors = JSON.parse(data.sponsorsJson);
-            } catch (e) {
-                console.error("Error parsing sponsors JSON", e);
+        // --- CORRECCIÓN ---
+        // Si el id es 'allies', nos aseguramos de que los sponsors se parseen correctamente
+        // y de que la estructura completa del documento se envíe, creando uno si es necesario.
+        if (payload.id === 'allies') {
+            let sponsors = [];
+            if (data.sponsorsJson && typeof data.sponsorsJson === 'string') {
+                try {
+                    sponsors = JSON.parse(data.sponsorsJson);
+                } catch (e) {
+                    console.error("Error parsing sponsors JSON", e);
+                    // No hacer nada, se usará un array vacío
+                }
             }
+
+            // Construir el payload completo para 'allies'
+            const alliesPayload: Extract<HomepageSection, { id: 'allies' }> = {
+                id: 'allies',
+                title: payload.title || 'Nuestros Aliados', // Default title si no existe
+                sponsors: sponsors
+            };
+            
+            await updateHomepageSectionData(alliesPayload);
+        } else {
+             // Lógica original para las otras secciones
+            await updateHomepageSectionData(payload as HomepageSection);
         }
 
-        await updateHomepageSectionData(payload as HomepageSection);
         revalidatePath('/');
         return { success: true, message: `Sección '${validatedFields.data.id}' actualizada.` };
     } catch (error) {
