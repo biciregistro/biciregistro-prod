@@ -56,6 +56,8 @@ export type User = {
   // Emergency Info (HU-EVENT-005)
   bloodType?: string;
   insuranceInfo?: string;
+  // HU-02: FCM Tokens for Push Notifications
+  fcmTokens?: string[];
 };
 
 export type OngUser = {
@@ -317,4 +319,25 @@ export type Payout = {
     proofPath: string; // For storage management
     notes?: string;
     createdBy: string; // Admin UID
+};
+
+// --- HU-02: Notifications ---
+export type NotificationTemplate = {
+    id: string;
+    type: 'theft_alert';
+    titleTemplate: string;
+    bodyTemplate: string;
+    isActive: boolean;
+    updatedAt: string;
+};
+
+export type NotificationLog = {
+    id: string;
+    type: 'theft_alert';
+    relatedId: string; // e.g. bikeId
+    sentAt: string;
+    recipientCount: number;
+    successCount: number;
+    failureCount: number;
+    location: string;
 };

@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, signInWithCustomToken, type Auth, type AuthError } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
+import { getMessaging, type Messaging, isSupported } from "firebase/messaging";
 import { initializeAppCheck, ReCaptchaV3Provider, onTokenChanged, AppCheck } from "firebase/app-check";
 
 // This object is the single source of truth for the Firebase configuration.
@@ -20,17 +21,18 @@ let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 let storage: FirebaseStorage;
+let messaging: Messaging | undefined; // Messaging might not be supported
 let appCheck: AppCheck | undefined;
 
 // This promise will be resolved once Firebase and App Check are fully initialized.
-let firebaseInitializationPromise: Promise<{ app: FirebaseApp; auth: Auth; db: Firestore; storage: FirebaseStorage; appCheck?: AppCheck; }> | null = null;
+let firebaseInitializationPromise: Promise<{ app: FirebaseApp; auth: Auth; db: Firestore; storage: FirebaseStorage; messaging?: Messaging; appCheck?: AppCheck; }> | null = null;
 
-function initializeClientApp(): Promise<{ app: FirebaseApp; auth: Auth; db: Firestore; storage: FirebaseStorage; appCheck?: AppCheck; }> {
+function initializeClientApp(): Promise<{ app: FirebaseApp; auth: Auth; db: Firestore; storage: FirebaseStorage; messaging?: Messaging; appCheck?: AppCheck; }> {
   if (firebaseInitializationPromise) {
     return firebaseInitializationPromise;
   }
 
-  firebaseInitializationPromise = new Promise((resolve, reject) => {
+  firebaseInitializationPromise = new Promise(async (resolve, reject) => {
     // This function should only be executed in the browser.
     if (typeof window === 'undefined') {
       console.warn("Firebase client initialization skipped on the server.");
@@ -56,6 +58,16 @@ function initializeClientApp(): Promise<{ app: FirebaseApp; auth: Auth; db: Fire
     db = getFirestore(app);
     storage = getStorage(app);
 
+    // Initialize Messaging if supported
+    try {
+        const supported = await isSupported();
+        if (supported) {
+            messaging = getMessaging(app);
+        }
+    } catch (e) {
+        console.warn("Firebase Messaging not supported in this environment", e);
+    }
+
     // Initialize App Check and wait for the token.
     try {
       if (process.env.NODE_ENV === "development") {
@@ -72,7 +84,7 @@ function initializeClientApp(): Promise<{ app: FirebaseApp; auth: Auth; db: Fire
         if (token) {
           console.log("App Check token received, Firebase is ready.");
           unsubscribe();
-          resolve({ app, auth, db, storage, appCheck });
+          resolve({ app, auth, db, storage, messaging, appCheck });
         }
       });
       
@@ -120,4 +132,4 @@ if (typeof window !== 'undefined') {
 
 // Export the initialized services for legacy usage.
 // Note: These might not be fully initialized when imported.
-export { app, db, auth, storage };
+export { app, db, auth, storage, messaging };

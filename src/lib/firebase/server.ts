@@ -3,6 +3,7 @@ import { initializeApp, getApps, cert, getApp, App } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getStorage, Storage } from 'firebase-admin/storage';
+import { getMessaging, Messaging } from 'firebase-admin/messaging';
 import { firebaseAdminConfig } from './config';
 
 // --- Type-safe global declaration ---
@@ -11,6 +12,7 @@ declare global {
   var _firebaseAdminDb: Firestore | undefined;
   var _firebaseAdminAuth: Auth | undefined;
   var _firebaseAdminStorage: Storage | undefined;
+  var _firebaseAdminMessaging: Messaging | undefined;
 }
 
 // --- App Singleton ---
@@ -88,10 +90,21 @@ const getAdminStorage = (): Storage => {
     return storage;
 }
 
+// --- Messaging Singleton ---
+const getAdminMessaging = (): Messaging => {
+    if (globalThis._firebaseAdminMessaging) {
+        return globalThis._firebaseAdminMessaging;
+    }
+    const messaging = getMessaging(getAdminApp());
+    globalThis._firebaseAdminMessaging = messaging;
+    return messaging;
+}
+
 
 // --- Exports ---
 const adminAuth = getAdminAuth();
 const adminDb = getAdminDb();
 const adminStorage = getAdminStorage();
+const adminMessaging = getAdminMessaging();
 
-export { adminAuth, adminDb, adminStorage };
+export { adminAuth, adminDb, adminStorage, adminMessaging };

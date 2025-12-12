@@ -12,9 +12,12 @@ import {
     updateBikeData, 
     isSerialNumberUnique, 
     getBike, 
-    getUserByEmail 
+    getUserByEmail,
+    getUser 
 } from '@/lib/data';
 import crypto from 'crypto';
+import { sendTheftAlert } from '@/lib/notifications/service';
+import { FieldValue } from 'firebase-admin/firestore';
 
 // --- Schemas y Helpers ---
 
@@ -207,14 +210,52 @@ export async function reportTheft(prevState: any, formData: FormData) {
     const { bikeId, ...theftData } = validatedFields.data;
 
     try {
+        // 1. Update Bike Status
         await updateBikeData(bikeId, {
             status: 'stolen',
             theftReport: theftData,
         });
+
+        // 2. HU-02: Send Push Notification (Async / Fire & Forget)
+        // We need additional data (make, model, owner info) that is not in the form data
+        // We run this inside a try-catch but don't block the UI response if it fails
+        (async () => {
+             try {
+                // Fetch bike to get details
+                const bike = await getBike(session.uid, bikeId);
+                if (!bike) return;
+
+                // Fetch owner user to get contact info
+                const owner = await getUser(session.uid);
+                if (!owner) return;
+
+                const ownerName = owner.name + (owner.lastName ? ` ${owner.lastName}` : '');
+                // Priority: Whatsapp form field (not in current schema/data) -> User Whatsapp -> User Phone -> 'La plataforma'
+                // Note: Current theftReport schema doesn't have owner contact override, so we use profile data.
+                // CORRECTION: User type does not have 'phone', removed owner.phone
+                const ownerPhone = owner.whatsapp || owner.email;
+
+                await sendTheftAlert(bikeId, {
+                    make: bike.make,
+                    model: bike.model,
+                    color: bike.color,
+                    location: theftData.location,
+                    city: theftData.city,
+                    reward: theftData.reward,
+                    ownerName: ownerName,
+                    ownerPhone: ownerPhone
+                });
+
+             } catch (notificationError) {
+                 console.error("Failed to send theft alert notification:", notificationError);
+             }
+        })();
+
         revalidatePath('/dashboard');
         revalidatePath(`/dashboard/bikes/${bikeId}`);
         return { message: 'El robo ha sido reportado exitosamente.' };
     } catch (error) {
+        console.error("Error reporting theft:", error);
         return { message: 'Error de base de datos: No se pudo reportar el robo.' };
     }
 }
@@ -362,4 +403,20 @@ export async function validateSerialNumberAction(serialNumber: string) {
         return { exists: true, message: "Este número de serie ya está registrado." };
     }
     return { exists: false };
+}
+
+// HU-02: Action to save FCM Token from Client
+export async function saveFCMToken(token: string) {
+    const session = await getDecodedSession();
+    if (!session?.uid) return { success: false };
+
+    try {
+        await adminDb.collection('users').doc(session.uid).update({
+            fcmTokens: FieldValue.arrayUnion(token)
+        });
+        return { success: true };
+    } catch (error) {
+        console.error("Error saving FCM token:", error);
+        return { success: false };
+    }
 }
