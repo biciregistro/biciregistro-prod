@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useActionState, useEffect, useState, useCallback, useTransition } from 'react';
+import { useActionState, useEffect, useState, useCallback } from 'react';
 import { useFormStatus } from 'react-dom';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -17,7 +17,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { markAsRecovered, registerBike, reportTheft, updateBike } from '@/lib/actions/bike-actions';
+import { registerBike, updateBike } from '@/lib/actions/bike-actions';
+import { reportTheft } from '@/lib/actions';
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -449,6 +450,12 @@ const theftReportSchema = z.object({
     lng: z.coerce.number().optional(),
     location: z.string().min(1, "La ubicación es obligatoria."),
     details: z.string().min(1, "Los detalles son obligatorios."),
+    reward: z.preprocess(
+        (val) => val || undefined,
+        z.string()
+         .regex(/^[0-9]+$/, { message: "La recompensa solo debe contener números." })
+         .optional()
+    ),
 });
 type TheftReportValues = z.infer<typeof theftReportSchema>;
 
@@ -477,7 +484,8 @@ export function TheftReportForm({ bike, onSuccess, defaultOpen = false }: { bike
             lat: undefined,
             lng: undefined,
             location: "",
-            details: ""
+            details: "",
+            reward: "",
         },
     });
 
@@ -687,6 +695,19 @@ export function TheftReportForm({ bike, onSuccess, defaultOpen = false }: { bike
                             <FormLabel>Detalles del robo</FormLabel>
                             <FormControl>
                                 <Textarea placeholder="ej., La dejé candada a las 2pm y cuando volví a las 4pm ya no estaba." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="reward"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Recompensa (Opcional)</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="ej., 500" {...field} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>

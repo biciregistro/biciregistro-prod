@@ -42,6 +42,13 @@ const theftReportSchema = z.object({
     lng: z.coerce.number().optional(),
     location: z.string().min(1, "La ubicación es obligatoria."),
     details: z.string().min(1, "Los detalles son obligatorios."),
+    // HU-01: Add optional reward field with numeric validation.
+    reward: z.preprocess(
+        (val) => val || undefined, // Treat empty string or null as undefined, making it optional.
+        z.string()
+         .regex(/^[0-9]+$/, { message: "La recompensa solo debe contener números." })
+         .optional()
+    ),
 });
 
 // Helper interno para subir imagen Base64 y obtener URL PÚBLICA con Token

@@ -25,6 +25,7 @@ export type Bike = {
     zipCode?: string; // Added field (optional)
     lat?: number; // Added field
     lng?: number; // Added field
+    reward?: string; // HU-01: Campo para recompensa opcional
   };
 };
 

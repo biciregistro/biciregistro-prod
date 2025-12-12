@@ -48,7 +48,7 @@ const bikeStatusTexts: { [key in BikeStatus]: string } = {
 // --- END CORRECTION ---
 
 function DetailItem({ label, value }: { label: string; value: React.ReactNode }) {
-    if (!value) return null;
+    if (!value && value !== 0) return null;
     return (
         <div>
             <p className="text-sm font-medium text-muted-foreground">{label}</p>
@@ -139,6 +139,10 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
 
   const formattedValue = bike.appraisedValue 
     ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(bike.appraisedValue) 
+    : null;
+
+  const formattedReward = bike.theftReport?.reward
+    ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(bike.theftReport.reward))
     : null;
 
   const isTransferable = bike.status === 'safe' || bike.status === 'recovered';
@@ -240,6 +244,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                             <DetailItem label="País" value={bike.theftReport.country} />
                             <DetailItem label="Estado/Provincia" value={bike.theftReport.state} />
                             <DetailItem label="Ubicación" value={bike.theftReport.location} />
+                             {formattedReward && <DetailItem label="Recompensa" value={formattedReward} />}
                           </div>
                           <DetailItem label="Detalles del robo" value={bike.theftReport.details} />
                       </CardContent>
