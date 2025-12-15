@@ -12,9 +12,10 @@ const DEFAULT_TITLE = "🚨 ALERTA - Bicicleta robada en tu zona 🚨";
 const DEFAULT_BODY = "Bicicleta {{make}} {{model}} {{color}} robada en {{location}}. {{reward_text}} Cualquier informacion contactar a {{owner_name}} al {{owner_phone}}";
 
 // Helper para normalizar los nombres de ciudades para comparación
+// Actualizado para ignorar acentos y diacríticos (ej: "Bogotá" == "bogota")
 const normalizeString = (str: string | undefined) => {
     if (!str) return '';
-    return str.trim().toLowerCase();
+    return str.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 };
 
 export async function sendTheftAlert(
@@ -66,12 +67,18 @@ export async function sendTheftAlert(
     }
 
     const normalizedTheftCity = normalizeString(theftData.city);
+    console.log(`Normalized target city: '${normalizedTheftCity}'`);
+
     let allTokens: string[] = [];
+    let cityMatchCount = 0;
+
     usersSnapshot.forEach(doc => {
         const userData = doc.data() as User;
+        const normalizedUserCity = normalizeString(userData.city);
         
-        // **FIX**: Case-insensitive and trim-safe comparison
-        if (normalizeString(userData.city) === normalizedTheftCity) {
+        // **FIX**: Case-insensitive, trim-safe, and accent-insensitive comparison
+        if (normalizedUserCity === normalizedTheftCity) {
+            cityMatchCount++;
             if (userData.fcmTokens && Array.isArray(userData.fcmTokens) && userData.fcmTokens.length > 0) {
                 // Check preferences if they exist (default to true/safe if undefined)
                 if (userData.notificationPreferences?.safety !== false) {
@@ -81,6 +88,8 @@ export async function sendTheftAlert(
         }
     });
 
+    console.log(`Matched ${cityMatchCount} users in city '${theftData.city}' (normalized: '${normalizedTheftCity}').`);
+
     if (allTokens.length === 0) {
          console.log(`No active FCM tokens found for users in ${theftData.city}.`);
          return;
@@ -89,7 +98,7 @@ export async function sendTheftAlert(
     // Deduplicate tokens
     allTokens = [...new Set(allTokens)];
 
-    console.log(`Found ${allTokens.length} devices to notify in ${theftData.city}.`);
+    console.log(`Found ${allTokens.length} unique devices to notify in ${theftData.city}.`);
 
     // 3. Prepare Message Content
     const rewardText = theftData.reward 
