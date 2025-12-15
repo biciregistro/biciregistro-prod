@@ -1,3 +1,4 @@
+
 import 'server-only';
 import { FieldValue, Timestamp, FieldPath } from 'firebase-admin/firestore';
 import { unstable_cache } from 'next/cache';
@@ -512,63 +513,33 @@ export async function getUserEventRegistrations(userId: string): Promise<UserEve
     }
 }
 
+// MODIFIED: This function will now ONLY fetch DIRECT members.
 export async function getOngCommunityMembers(ongId: string): Promise<any[]> {
     if (!ongId) return [];
     try {
         const db = adminDb;
-        const userIds = new Set<string>();
+        const members: any[] = [];
 
         const directUsersSnapshot = await db.collection('users')
             .where('communityId', '==', ongId)
             .get();
         
-        directUsersSnapshot.forEach(doc => userIds.add(doc.id));
-
-        const events = await getEventsByOngId(ongId);
-        const eventIds = events.map(e => e.id);
-
-        if (eventIds.length > 0) {
-             for (let i = 0; i < eventIds.length; i += 10) {
-                 const chunk = eventIds.slice(i, i + 10);
-                 const registrationsSnapshot = await db.collection('event-registrations')
-                    .where('eventId', 'in', chunk)
-                    .get();
-                 registrationsSnapshot.forEach(doc => {
-                     const data = doc.data();
-                     if (data.userId) userIds.add(data.userId);
-                 });
-             }
+        if (directUsersSnapshot.empty) {
+            return [];
         }
 
-        if (userIds.size === 0) return [];
-
-        const userIdsArray = Array.from(userIds);
-        const members: any[] = [];
-
-        for (let i = 0; i < userIdsArray.length; i += 10) {
-            const chunk = userIdsArray.slice(i, i + 10);
-            
-            if (chunk.length === 0) continue;
-
-            const usersSnapshot = await db.collection('users')
-                .where(FieldPath.documentId(), 'in', chunk)
-                .get();
-            
-            const chunkMembers = usersSnapshot.docs.map(doc => {
-                const userData = doc.data();
-                return {
-                    id: doc.id,
-                    name: userData.name,
-                    lastName: userData.lastName,
-                    email: userData.email,
-                    whatsapp: userData.whatsapp,
-                    country: userData.country,
-                    state: userData.state,
-                };
+        directUsersSnapshot.forEach(doc => {
+            const userData = doc.data();
+            members.push({
+                id: doc.id,
+                name: userData.name,
+                lastName: userData.lastName,
+                email: userData.email,
+                whatsapp: userData.whatsapp,
+                country: userData.country,
+                state: userData.state,
             });
-
-            members.push(...chunkMembers);
-        }
+        });
 
         return members;
 
@@ -577,6 +548,7 @@ export async function getOngCommunityMembers(ongId: string): Promise<any[]> {
         return [];
     }
 }
+
 
 async function _getOngCommunityCountLogic(ongId: string): Promise<number> {
     if (!ongId) return 0;

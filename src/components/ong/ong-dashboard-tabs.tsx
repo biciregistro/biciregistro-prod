@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -19,6 +20,7 @@ interface OngDashboardTabsProps {
     ongProfile: OngUser;
     events: Event[];
     communityMembers: any[];
+    statsContent?: React.ReactNode; // New Prop
 }
 
 function CopyButton({ textToCopy }: { textToCopy: string }) {
@@ -136,7 +138,7 @@ function CommunityTable({ members }: { members: any[] }) {
     );
 }
 
-function OngDashboardTabsContent({ ongProfile, events, communityMembers }: OngDashboardTabsProps) {
+function OngDashboardTabsContent({ ongProfile, events, communityMembers, statsContent }: OngDashboardTabsProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
@@ -203,13 +205,15 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers }: OngDa
                 </TabsContent>
 
                 <TabsContent value="stats" className="space-y-4">
-                    <Alert>
-                        <Info className="h-4 w-4" />
-                        <AlertTitle>Próximamente</AlertTitle>
-                        <AlertDescription>
-                            Aquí podrás visualizar métricas clave sobre el crecimiento de tu comunidad y el impacto de tus eventos.
-                        </AlertDescription>
-                    </Alert>
+                    {statsContent ? statsContent : (
+                        <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>Próximamente</AlertTitle>
+                            <AlertDescription>
+                                Aquí podrás visualizar métricas clave sobre el crecimiento de tu comunidad y el impacto de tus eventos.
+                            </AlertDescription>
+                        </Alert>
+                    )}
                 </TabsContent>
             </Tabs>
         </div>
