@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getToken, isSupported } from 'firebase/messaging';
-import { getFirebaseServices } from '@/lib/firebase/client';
+import { getFirebaseServices, firebaseConfig } from '@/lib/firebase/client';
 import { saveFCMToken } from '@/lib/actions/bike-actions';
 import { useToast } from '@/hooks/use-toast';
 
@@ -26,9 +26,20 @@ export const useFcmToken = (userId?: string) => {
         const { messaging } = await getFirebaseServices();
         if (!messaging) return;
         
-        // --- FIX START: Manually register the service worker ---
-        const swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-        console.log('Service Worker registered successfully:', swRegistration);
+        // --- FIX START: Manually register the service worker with config params ---
+        // We pass the config via URL params to avoid async fetch issues in the SW
+        const params = new URLSearchParams({
+            apiKey: firebaseConfig.apiKey || '',
+            authDomain: firebaseConfig.authDomain || '',
+            projectId: firebaseConfig.projectId || '',
+            storageBucket: firebaseConfig.storageBucket || '',
+            messagingSenderId: firebaseConfig.messagingSenderId || '',
+            appId: firebaseConfig.appId || '',
+        }).toString();
+
+        const swUrl = `/firebase-messaging-sw.js?${params}`;
+        const swRegistration = await navigator.serviceWorker.register(swUrl);
+        console.log('Service Worker registered successfully with config:', swRegistration);
         // --- FIX END ---
 
         const currentPermission = await Notification.requestPermission();
@@ -37,9 +48,7 @@ export const useFcmToken = (userId?: string) => {
         if (currentPermission === 'granted') {
           const currentToken = await getToken(messaging, {
             vapidKey: VAPID_KEY, 
-            // --- FIX START: Pass the explicit service worker registration ---
             serviceWorkerRegistration: swRegistration,
-            // --- FIX END ---
           });
 
           if (currentToken) {
