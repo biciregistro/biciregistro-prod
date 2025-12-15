@@ -11,6 +11,12 @@ const TEMPLATE_DOC_ID = 'notifications_theft_alert'; // Fixed ID for the theft a
 const DEFAULT_TITLE = "🚨 ALERTA - Bicicleta robada en tu zona 🚨";
 const DEFAULT_BODY = "Bicicleta {{make}} {{model}} {{color}} robada en {{location}}. {{reward_text}} Cualquier informacion contactar a {{owner_name}} al {{owner_phone}}";
 
+// Helper para normalizar los nombres de ciudades para comparación
+const normalizeString = (str: string | undefined) => {
+    if (!str) return '';
+    return str.trim().toLowerCase();
+};
+
 export async function sendTheftAlert(
     bikeId: string,
     theftData: {
@@ -51,29 +57,26 @@ export async function sendTheftAlert(
     }
 
     // 2. Find Users in the target Zone (City) with FCM Tokens
-    // Optimized query: only get users in the city who likely have tokens (we can't query array-contains non-empty, so we get all in city)
-    // Note: In a real large-scale app, we would use FCM Topics subscription per city.
-    const usersSnapshot = await adminDb.collection(USERS_COLLECTION)
-        .where('city', '==', theftData.city)
-        .get();
+    // Get all users and filter in-memory to handle case-insensitivity.
+    const usersSnapshot = await adminDb.collection(USERS_COLLECTION).get();
 
     if (usersSnapshot.empty) {
-        console.log(`No users found in ${theftData.city} to notify.`);
+        console.log(`No users found in the database to notify.`);
         return;
     }
 
+    const normalizedTheftCity = normalizeString(theftData.city);
     let allTokens: string[] = [];
     usersSnapshot.forEach(doc => {
         const userData = doc.data() as User;
-        // Filter out the owner of the stolen bike (if they are in the same city, which is likely)
-        // We assume bikeId check is not needed here as we don't have owner ID passed explicitly, 
-        // but the notification is unlikely to be annoying to the victim themselves if they receive it.
-        // However, we should filter by preferences if implemented.
         
-        if (userData.fcmTokens && Array.isArray(userData.fcmTokens) && userData.fcmTokens.length > 0) {
-            // Check preferences if they exist (default to true/safe if undefined)
-            if (userData.notificationPreferences?.safety !== false) {
-                 allTokens.push(...userData.fcmTokens);
+        // **FIX**: Case-insensitive and trim-safe comparison
+        if (normalizeString(userData.city) === normalizedTheftCity) {
+            if (userData.fcmTokens && Array.isArray(userData.fcmTokens) && userData.fcmTokens.length > 0) {
+                // Check preferences if they exist (default to true/safe if undefined)
+                if (userData.notificationPreferences?.safety !== false) {
+                     allTokens.push(...userData.fcmTokens);
+                }
             }
         }
     });
@@ -101,7 +104,7 @@ export async function sendTheftAlert(
         .replace('{{make}}', theftData.make)
         .replace('{{model}}', theftData.model)
         .replace('{{color}}', theftData.color)
-        .replace('{{location}}', theftData.location) // Or theftData.city depending on desired granularity
+        .replace('{{location}}', theftData.location)
         .replace('{{reward_text}}', rewardText)
         .replace('{{owner_name}}', theftData.ownerName)
         .replace('{{owner_phone}}', contactInfo);
@@ -124,12 +127,12 @@ export async function sendTheftAlert(
         recipientCount: allTokens.length,
         successCount,
         failureCount,
-        location: theftData.city
+        city: theftData.city // **FIXED**: Changed from 'location' to 'city' for consistency
     };
 
     try {
         await adminDb.collection(LOGS_COLLECTION).doc(logEntry.id).set(logEntry);
-        // Increment global stats counter (optional but good for HU-03)
+        // Increment global stats counter
         await adminDb.collection(TEMPLATE_COLLECTION).doc(TEMPLATE_DOC_ID).update({
             totalSent: FieldValue.increment(successCount),
             triggerCount: FieldValue.increment(1)

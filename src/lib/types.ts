@@ -339,5 +339,5 @@ export type NotificationLog = {
     recipientCount: number;
     successCount: number;
     failureCount: number;
-    location: string;
+    city: string; // **FIXED**: Changed from 'location' to 'city' for consistency
 };
