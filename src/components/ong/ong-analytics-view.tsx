@@ -3,6 +3,7 @@ import { getOngAnalytics } from '@/lib/data/ong-analytics';
 import { getAuthenticatedUser } from '@/lib/data'; 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator'; 
 import { Terminal, Users, Bike as BikeIcon } from 'lucide-react';
 
 // Admin Charts (Named Imports)
@@ -19,24 +20,44 @@ import { TopUserLocationsList } from '@/components/admin/charts/top-user-locatio
 
 // --- Local Helpers ---
 
-function StatCard({ title, value, icon: Icon }: { title: string, value: number | string, icon: any }) {
+function CombinedStatCard({ totalUsers, totalBikes }: { totalUsers: number; totalBikes: number; }) {
     return (
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{title}</CardTitle>
-                <Icon className="h-4 w-4 text-muted-foreground" />
+            <CardHeader>
+                <CardTitle className="text-sm font-medium">Comunidad</CardTitle>
             </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{value}</div>
+            <CardContent className="flex flex-col justify-center items-center space-y-4 pt-2">
+                <div className="flex items-center space-x-4">
+                    <Users className="h-6 w-6 text-muted-foreground" />
+                    <div className="text-center">
+                        <p className="text-2xl font-bold">{totalUsers}</p>
+                        <p className="text-xs text-muted-foreground">Usuarios</p>
+                    </div>
+                </div>
+                <Separator />
+                <div className="flex items-center space-x-4">
+                    <BikeIcon className="h-6 w-6 text-muted-foreground" />
+                    <div className="text-center">
+                        <p className="text-2xl font-bold">{totalBikes}</p>
+                        <p className="text-xs text-muted-foreground">Bicicletas</p>
+                    </div>
+                </div>
             </CardContent>
         </Card>
     );
 }
 
-const toChartData = (record: Record<string, number>, keyName: 'value' | 'count' = 'value') => {
+// Helper to transform Record to Array with specific keys to satisfy TypeScript
+const toValueData = (record: Record<string, number>) => {
     return Object.entries(record)
-        .map(([name, val]) => ({ name, [keyName]: val }))
-        .sort((a, b) => (b[keyName] as number) - (a[keyName] as number));
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+};
+
+const toCountData = (record: Record<string, number>) => {
+    return Object.entries(record)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count);
 };
 
 const toModalityData = (record: Record<string, number>) => {
@@ -91,14 +112,18 @@ export default async function OngAnalyticsView() {
       <section>
         <h2 className="text-2xl font-bold tracking-tight mb-4">Datos Generales</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Usuarios" value={general.totalUsers} icon={Users} />
-            <StatCard title="Bicicletas" value={general.totalBikes} icon={BikeIcon} />
+            <CombinedStatCard 
+                totalUsers={general.totalUsers}
+                totalBikes={general.totalBikes}
+            />
             <AverageAgeCard 
                 averageAge={general.averageAge} 
                 averageAgeByGender={general.averageAgeByGender} 
             />
-            <GenderDistributionChart data={toChartData(general.genderDistribution, 'value')} />
-            <TopUserLocationsList data={toChartData(general.userLocations, 'count')} />
+            {/* Gender Chart requires 'value' */}
+            <GenderDistributionChart data={toValueData(general.genderDistribution)} />
+            {/* Location List requires 'count' */}
+            <TopUserLocationsList data={toCountData(general.userLocations)} />
         </div>
       </section>
 
@@ -106,7 +131,8 @@ export default async function OngAnalyticsView() {
         <h2 className="text-2xl font-bold tracking-tight mb-4">Datos de Mercado</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <MarketValueCard totalValue={market.assetValue} averageValue={market.averageValue} />
-            <TopBrandsList data={toChartData(market.topBrands, 'count')} />
+            {/* Brands List requires 'count' */}
+            <TopBrandsList data={toCountData(market.topBrands)} />
             <ModalitiesList data={toModalityData(market.modalities)} />
         </div>
       </section>
@@ -117,9 +143,12 @@ export default async function OngAnalyticsView() {
             <div className="lg:col-span-3">
                 <EcosystemHealthBar data={security.counts} />
             </div>
-            <TopStolenBrandsChart data={toChartData(security.topStolenBrands, 'count')} />
-            <TheftByModalityChart data={toChartData(security.theftsByModality, 'value')} />
-            <TopTheftLocationsChart data={toChartData(security.topTheftLocations, 'count')} />
+            {/* Stolen Brands requires 'count' */}
+            <TopStolenBrandsChart data={toCountData(security.topStolenBrands)} />
+            {/* Theft Modality is a PieChart, requires 'value' */}
+            <TheftByModalityChart data={toValueData(security.theftsByModality)} />
+            {/* Theft Locations requires 'count' */}
+            <TopTheftLocationsChart data={toCountData(security.topTheftLocations)} />
         </div>
       </section>
     </div>
