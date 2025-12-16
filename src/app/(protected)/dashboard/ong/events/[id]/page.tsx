@@ -2,16 +2,18 @@ import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getAuthenticatedUser, getEvent, getEventAttendees } from '@/lib/data';
 import { getEventFinancialSummary, getPayoutsByEvent } from '@/lib/financial-data';
+import { getEventAnalytics } from '@/lib/data/event-analytics';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ArrowLeft, Edit, Eye, Users, MapPin, Share2, DollarSign, UserCheck, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Edit, Eye, Users, MapPin, Share2, DollarSign, UserCheck, ShieldAlert, BarChart3 } from 'lucide-react';
 import { CopyButton } from '@/components/ong-components';
 import { EventStatusButton } from '@/components/ong/event-status-button';
 import { EventStatusBadge } from '@/components/ong/event-status-badge';
 import { AttendeeManagement } from '@/components/ong/attendee-management';
 import { EventFinancialSummary } from '@/components/ong/event-financial-summary';
+import { EventAnalyticsView } from '@/components/ong/event-analytics-view';
 
 export default async function EventDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,10 +27,11 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
   if (!event) notFound();
   if (user.role === 'ong' && event.ongId !== user.id) redirect('/dashboard/ong');
 
-  const [attendees, financialSummary, payouts] = await Promise.all([
+  const [attendees, financialSummary, payouts, analytics] = await Promise.all([
     getEventAttendees(id),
     getEventFinancialSummary(id),
-    getPayoutsByEvent(id)
+    getPayoutsByEvent(id),
+    getEventAnalytics(id)
   ]);
 
   const eventDate = new Date(event.date);
@@ -95,9 +98,13 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
       )}
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">Resumen y Asistentes</TabsTrigger>
           <TabsTrigger value="finance">Finanzas y Balance</TabsTrigger>
+          <TabsTrigger value="stats" className="gap-2">
+            <BarChart3 className="h-4 w-4"/>
+            Indicadores
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="mt-6 space-y-6">
@@ -191,6 +198,10 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
 
         <TabsContent value="finance" className="mt-6">
           <EventFinancialSummary data={financialSummary} payouts={payouts} />
+        </TabsContent>
+
+        <TabsContent value="stats" className="mt-6">
+          {analytics && <EventAnalyticsView data={analytics} />}
         </TabsContent>
       </Tabs>
     </div>
