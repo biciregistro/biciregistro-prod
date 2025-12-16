@@ -11,6 +11,7 @@ export interface EventAnalyticsData {
     genderDistribution: { name: string; value: number }[];
     userLocations: { name: string; value: number }[];
     ageRanges: { name: string; value: number }[];
+    usersWithAge: number; // NUEVO CAMPO: Total de usuarios con edad registrada
   };
   market: {
     totalAssetValue: number;
@@ -36,7 +37,7 @@ export const getEventAnalytics = unstable_cache(
         return {
              general: { 
                  totalRegistrations: 0, checkedInCount: 0, attendanceRate: 0, 
-                 averageAge: 0, genderDistribution: [], userLocations: [], ageRanges: [] 
+                 averageAge: 0, genderDistribution: [], userLocations: [], ageRanges: [], usersWithAge: 0
              },
              market: { 
                  totalAssetValue: 0, averageAssetValue: 0, topBrands: [], topModalities: [] 
@@ -116,6 +117,7 @@ export const getEventAnalytics = unstable_cache(
       });
 
       const averageAge = ages.length > 0 ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : 0;
+      const usersWithAge = ages.length; // Cálculo correcto de usuarios con edad registrada
 
       const genderDistribution = Object.entries(genderCounts)
         .map(([name, value]) => ({ name, value }))
@@ -162,7 +164,8 @@ export const getEventAnalytics = unstable_cache(
             averageAge,
             genderDistribution,
             userLocations,
-            ageRanges
+            ageRanges,
+            usersWithAge
         },
         market: {
             totalAssetValue,
