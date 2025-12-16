@@ -2,6 +2,7 @@
 import { adminDb } from '@/lib/firebase/server';
 import { Bike, User } from '@/lib/types';
 import { unstable_cache } from 'next/cache';
+import { FieldPath } from 'firebase-admin/firestore';
 
 // Interface matching the needs of the UI components
 export interface OngAnalyticsData {
@@ -33,16 +34,29 @@ export const getOngAnalytics = unstable_cache(
     try {
       if (!ongId) throw new Error('ONG ID is required.');
 
-      // MODIFIED: Use the same simplified query as getOngCommunityMembers
+      // Step 1: Fetch all users belonging to the ONG
       const usersSnapshot = await adminDb.collection('users').where('communityId', '==', ongId).get();
-      
-      // The bikes query is intentionally kept the same, as it's directly tied to the ONG
-      const bikesSnapshot = await adminDb.collection('bikes').where('communityId', '==', ongId).get();
-
-      if (usersSnapshot.empty && bikesSnapshot.empty) return null;
+      if (usersSnapshot.empty) return null; // No users, no data.
       
       const users = usersSnapshot.docs.map(doc => doc.data() as User);
-      const bikes = bikesSnapshot.docs.map(doc => doc.data() as Bike);
+      const userIds = usersSnapshot.docs.map(doc => doc.id);
+
+      // Step 2: Fetch all bikes belonging to those users in chunks of 30
+      let bikes: Bike[] = [];
+      if (userIds.length > 0) {
+          const bikePromises = [];
+          for (let i = 0; i < userIds.length; i += 30) {
+              const chunk = userIds.slice(i, i + 30);
+              const query = adminDb.collection('bikes').where('userId', 'in', chunk).get();
+              bikePromises.push(query);
+          }
+          const bikeSnapshots = await Promise.all(bikePromises);
+          bikeSnapshots.forEach(snap => {
+              snap.forEach(doc => {
+                  bikes.push(doc.data() as Bike);
+              });
+          });
+      }
 
       // --- General ---
       const totalUsers = users.length;
@@ -53,7 +67,6 @@ export const getOngAnalytics = unstable_cache(
       const userLocations: Record<string, number> = {};
 
       users.forEach(u => {
-          // Age calculation
           if (u.birthDate) {
               const birthYear = new Date(u.birthDate).getFullYear();
               if (!isNaN(birthYear)) {
@@ -66,12 +79,8 @@ export const getOngAnalytics = unstable_cache(
                   }
               }
           }
-
-          // Gender
           const gender = u.gender || 'No especificado';
           genderDistribution[gender] = (genderDistribution[gender] || 0) + 1;
-
-          // Location
           const loc = u.city || u.state || 'Desconocida';
           userLocations[loc] = (userLocations[loc] || 0) + 1;
       });
@@ -144,6 +153,6 @@ export const getOngAnalytics = unstable_cache(
       return null;
     }
   },
-  ['ong-analytics-v2'], // Cache key
+  ['ong-analytics-v3'], // Updated Cache key
   { revalidate: 3600 }
 );
