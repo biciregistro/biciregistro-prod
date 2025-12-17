@@ -1,8 +1,7 @@
 // src/components/admin/landing-editor/landing-events-editor.tsx
 'use client';
 
-import React from 'react';
-import { useFormState } from 'react-dom';
+import React, { useActionState } from 'react'; // Updated import
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { landingEventsContentSchema } from '@/lib/schemas';
@@ -32,7 +31,8 @@ export function LandingEventsEditor({ content }: LandingEventsEditorProps) {
     defaultValues: content,
   });
 
-  const [formState, formAction] = useFormState(updateLandingEventsContent, null);
+  // Updated hook usage
+  const [formState, formAction] = useActionState(updateLandingEventsContent, null);
 
   React.useEffect(() => {
     if (formState?.success) {

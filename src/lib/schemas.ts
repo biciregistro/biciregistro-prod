@@ -198,7 +198,7 @@ export const notificationCampaignSchema = z.object({
 
 // --- Events Manager Landing Page Schemas ---
 
-export const landingEventsHeroSchema = z.object({
+const landingEventsHeroSchema = z.object({
     title: z.string().min(10, "El título es muy corto."),
     subtitle: z.string().min(10, "El subtítulo es muy corto."),
     ctaButton: z.string().min(5, "El texto del botón es muy corto."),
@@ -206,31 +206,31 @@ export const landingEventsHeroSchema = z.object({
     backgroundImageUrl: z.string().url("La URL de la imagen de fondo no es válida."),
 });
 
-export const landingEventsPainPointSchema = z.object({
+const landingEventsPainPointSchema = z.object({
     id: z.string(),
     title: z.string().min(5, "El título es muy corto."),
     description: z.string().min(10, "La descripción es muy corta."),
 });
 
-export const landingEventsSolutionSchema = z.object({
+const landingEventsSolutionSchema = z.object({
     id: z.string(),
     title: z.string().min(5, "El título es muy corto."),
     description: z.string().min(10, "La descripción es muy corta."),
 });
 
-export const landingEventsFeatureSchema = z.object({
+const landingEventsFeatureSchema = z.object({
     title: z.string().min(10, "El título es muy corto."),
     description: z.string().min(10, "La descripción es muy corta."),
     imageUrl: z.string().url("La URL de la imagen no es válida."),
 });
 
-export const landingEventsCtaSchema = z.object({
+const landingEventsCtaSchema = z.object({
     title: z.string().min(10, "El título es muy corto."),
     description: z.string().min(10, "La descripción es muy corta."),
     ctaButton: z.string().min(5, "El texto del botón es muy corto."),
 });
 
-export const landingEventsAllySchema = z.object({
+const landingEventsAllySchema = z.object({
     name: z.string().min(3, "El nombre del aliado es muy corto."),
     logoUrl: z.string().url("La URL del logo no es válida."),
 });
