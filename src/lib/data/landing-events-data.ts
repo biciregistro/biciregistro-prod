@@ -37,6 +37,19 @@ export async function saveLandingEventsContent(content: LandingEventsContent): P
     await docRef.set(content, { merge: true });
 }
 
+/**
+ * Updates a specific section of the landing page content.
+ * @param sectionKey The key of the section to update (e.g., 'hero', 'featureSection').
+ * @param data The data for that section.
+ */
+export async function updateLandingEventsSection(sectionKey: keyof LandingEventsContent, data: any): Promise<void> {
+    const docRef = adminDb.doc(LANDING_EVENTS_DOC_PATH);
+    // Use dot notation to update nested fields without overwriting the whole document
+    await docRef.update({
+        [sectionKey]: data
+    });
+}
+
 
 /**
  * Provides a default structure for the landing page content.
