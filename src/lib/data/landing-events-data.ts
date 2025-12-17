@@ -14,12 +14,27 @@ export async function getLandingEventsContent(): Promise<LandingEventsContent> {
   try {
     const docRef = adminDb.doc(LANDING_EVENTS_DOC_PATH);
     const docSnap = await docRef.get();
+    const defaultContent = getDefaultLandingEventsContent();
 
     if (docSnap.exists) {
-      return docSnap.data() as LandingEventsContent;
+      const data = docSnap.data() as Partial<LandingEventsContent>;
+      
+      // Merge retrieved data with default content to handle partial documents
+      // caused by saving individual sections before the whole document is initialized.
+      return {
+        ...defaultContent,
+        ...data,
+        // Ensure nested sections are also merged if they exist partially
+        hero: { ...defaultContent.hero, ...data.hero },
+        painPointsSection: { ...defaultContent.painPointsSection, ...data.painPointsSection },
+        solutionSection: { ...defaultContent.solutionSection, ...data.solutionSection },
+        featureSection: { ...defaultContent.featureSection, ...data.featureSection },
+        socialProofSection: { ...defaultContent.socialProofSection, ...data.socialProofSection },
+        ctaSection: { ...defaultContent.ctaSection, ...data.ctaSection },
+      };
     } else {
       console.log("Document 'landingEventsManager' does not exist. Returning default content.");
-      return getDefaultLandingEventsContent();
+      return defaultContent;
     }
   } catch (error) {
     console.error("Error fetching landing events content:", error);
