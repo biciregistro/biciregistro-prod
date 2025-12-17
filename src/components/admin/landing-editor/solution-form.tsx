@@ -71,7 +71,8 @@ export function SolutionForm({ initialData }: SolutionFormProps) {
                 {fields.map((field, index) => (
                     <div key={field.id} className="space-y-2">
                     <h4 className="font-semibold">Eje #{index + 1}</h4>
-                     <input type="hidden" name={`solutions[${index}].id`} value={field.id} />
+                     {/* Updated hidden input to use dot notation */}
+                     <input type="hidden" name={`solutions.${index}.id`} value={field.id} />
                     <FormField
                         control={control}
                         name={`solutions.${index}.title` as any}

@@ -56,7 +56,6 @@ async function updateSection<T>(
             };
         }
 
-        // Updated function call
         await saveLandingSection(sectionKey as any, validationResult.data);
 
         revalidatePaths.forEach(path => revalidatePath(path));
@@ -111,26 +110,39 @@ function formDataToSectionObject(formData: FormData, sectionKey: string): any {
     const obj: any = {};
     
     // Helper specific for array reconstruction
-    // Adjusted to accept a simpler prefix since forms are now scoped
+    // Adjusted to accept inputs named with dot notation (e.g., points.0.title)
     const reconstructArray = (prefix: string) => {
         const items: any[] = [];
-        // Look for keys starting with prefix. e.g. "points" -> "points[0].title"
-        const keys = [...formData.keys()].filter(k => k.startsWith(prefix + '['));
-        const indices = [...new Set(keys.map(k => k.match(/\[(\d+)\]/)?.[1]))];
+        
+        // We look for keys that start with "prefix." (e.g., "points.")
+        const prefixDot = prefix + '.';
+        const keys = [...formData.keys()].filter(k => k.startsWith(prefixDot));
+        
+        // Extract indices: "points.0.title" -> "0"
+        const indices = [...new Set(keys.map(k => {
+            const afterPrefix = k.substring(prefixDot.length);
+            return afterPrefix.split('.')[0]; // Gets "0" from "0.title"
+        }))];
 
-        for (const index of indices) {
-            if (index === undefined) continue;
+        for (const indexStr of indices) {
+            const index = parseInt(indexStr);
+            if (isNaN(index)) continue;
+
             const item: any = {};
-            const itemKeys = keys.filter(k => k.includes(`[${index}]`));
+            // Filter keys for this specific index: "points.0."
+            const itemPrefix = `${prefixDot}${indexStr}.`;
+            const itemKeys = keys.filter(k => k.startsWith(itemPrefix));
+
             for (const key of itemKeys) {
-                // key example: points[0].title
-                // parts: [points[0], title]
-                const parts = key.split('.');
-                const fieldName = parts[parts.length - 1];
-                item[fieldName] = formData.get(key);
+                // key example: points.0.title
+                // fieldName should be "title"
+                const fieldName = key.substring(itemPrefix.length);
+                if (fieldName) {
+                    item[fieldName] = formData.get(key);
+                }
             }
              if (Object.keys(item).length > 0) {
-               items[parseInt(index)] = item;
+               items[index] = item;
             }
         }
         return items.filter(Boolean);

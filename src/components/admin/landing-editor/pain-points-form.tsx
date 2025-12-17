@@ -71,7 +71,8 @@ export function PainPointsForm({ initialData }: PainPointsFormProps) {
                 {fields.map((field, index) => (
                     <div key={field.id} className="space-y-2">
                     <h4 className="font-semibold">Punto de Dolor #{index + 1}</h4>
-                     <input type="hidden" name={`points[${index}].id`} value={field.id} />
+                     {/* Updated hidden input to use dot notation for consistency with server parser */}
+                     <input type="hidden" name={`points.${index}.id`} value={field.id} />
                     
                     <FormField
                         control={control}
