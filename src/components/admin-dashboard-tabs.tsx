@@ -12,6 +12,7 @@ import { EventCard } from '@/components/ong/event-card';
 import { UserPlus, CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardFilterBar } from '@/components/admin/dashboard-filter-bar';
+import { NotificationComposer } from '@/components/admin/notifications/notification-composer';
 
 interface AdminDashboardTabsProps {
   homepageSections: HomepageSection[];
@@ -62,13 +63,14 @@ function AdminDashboardTabsContent({
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-      <TabsList className="grid w-full grid-cols-6 mb-8">
+      <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7 mb-8 h-auto">
         <TabsTrigger value="stats">Indicadores</TabsTrigger>
         <TabsTrigger value="content">Contenido</TabsTrigger>
         <TabsTrigger value="users">Usuarios</TabsTrigger>
         <TabsTrigger value="ongs">ONGs</TabsTrigger>
         <TabsTrigger value="events">Eventos</TabsTrigger>
         <TabsTrigger value="finance">Finanzas</TabsTrigger>
+        <TabsTrigger value="notifications">Notificaciones</TabsTrigger>
       </TabsList>
 
       <TabsContent value="stats" className="space-y-4">
@@ -128,6 +130,10 @@ function AdminDashboardTabsContent({
           <FinancialSettingsForm initialSettings={financialSettings} />
           
           <AdminEventFinancialList events={allEvents} />
+      </TabsContent>
+
+      <TabsContent value="notifications" className="space-y-6">
+          <NotificationComposer />
       </TabsContent>
     </Tabs>
   );

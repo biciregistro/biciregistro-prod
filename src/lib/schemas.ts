@@ -175,3 +175,23 @@ export const financialSettingsSchema = z.object({
     pasarelaFixed: z.coerce.number().min(0, "El monto fijo no puede ser negativo."),
     ivaRate: z.coerce.number().min(0).max(100, "El porcentaje de IVA debe estar entre 0 y 100."),
 });
+
+// --- Notification Campaign Schema ---
+export const notificationCampaignSchema = z.object({
+    title: z.string().min(5, "El título debe tener al menos 5 caracteres.").max(100, "El título es demasiado largo."),
+    body: z.string().min(10, "El mensaje debe tener al menos 10 caracteres.").max(500, "El mensaje es demasiado largo."),
+    link: z.string().url("El link debe ser una URL válida.").optional().or(z.literal('')),
+    
+    // Filters
+    filters: z.object({
+        country: z.string().optional(),
+        state: z.string().optional(),
+        city: z.string().optional(),
+        gender: z.string().optional(),
+        
+        bikeMake: z.string().optional(),
+        bikeModality: z.string().optional(),
+        
+        targetGroup: z.enum(['all', 'with_bike', 'without_bike']).default('all'),
+    }),
+});
