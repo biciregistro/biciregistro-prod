@@ -13,28 +13,42 @@ export interface Sponsor {
     url: string;
 }
 
-interface SponsorsListEditorProps {
+// Internal type with ID for rendering
+interface SponsorWithId extends Sponsor {
+    _id: string;
+}
+
+interface SponsorsManagerProps {
     initialSponsors: Sponsor[];
-    namePrefix?: string; // If provided, inputs will have name attributes for FormData
+    namePrefix?: string; 
     onChange?: (sponsors: Sponsor[]) => void;
     description?: string;
 }
 
-export function SponsorsListEditor({ initialSponsors, namePrefix, onChange, description }: SponsorsListEditorProps) {
-    const [sponsors, setSponsors] = useState<Sponsor[]>(initialSponsors || []);
+export function SponsorsManager({ initialSponsors, namePrefix, onChange, description }: SponsorsManagerProps) {
+    // Initialize state with deterministic IDs for SSR consistency
+    const [sponsors, setSponsors] = useState<SponsorWithId[]>(() => 
+        (initialSponsors || []).map((s, i) => ({ ...s, _id: `init-${i}` }))
+    );
 
-    // Effect to notify parent of changes
     useEffect(() => {
         if (onChange) {
-            onChange(sponsors);
+            // Strip IDs before sending back
+            const cleanSponsors = sponsors.map(({ _id, ...rest }) => rest);
+            onChange(cleanSponsors);
         }
     }, [sponsors, onChange]);
 
-    const addSponsor = () => {
-        setSponsors([...sponsors, { name: '', url: '' }]);
+    const addSponsor = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Random IDs are fine for client-side added items
+        setSponsors([...sponsors, { name: '', url: '', _id: `new-${Math.random().toString(36).substring(7)}` }]);
     };
 
-    const removeSponsor = (index: number) => {
+    const removeSponsor = (index: number, e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
         const newSponsors = [...sponsors];
         newSponsors.splice(index, 1);
         setSponsors(newSponsors);
@@ -59,13 +73,13 @@ export function SponsorsListEditor({ initialSponsors, namePrefix, onChange, desc
 
             <div className="space-y-4">
                 {sponsors.map((sponsor, index) => (
-                    <Card key={index} className="p-4 relative">
+                    <Card key={sponsor._id} className="p-4 relative">
                         <Button 
                             type="button" 
                             variant="ghost" 
                             size="sm" 
                             className="absolute top-2 right-2 text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => removeSponsor(index)}
+                            onClick={(e) => removeSponsor(index, e)}
                         >
                             <Trash2 className="h-4 w-4" />
                         </Button>
@@ -74,7 +88,6 @@ export function SponsorsListEditor({ initialSponsors, namePrefix, onChange, desc
                             <div className="space-y-2">
                                 <Label>Nombre del Aliado</Label>
                                 <Input 
-                                    // If namePrefix is present, we give it a name for FormData submission
                                     name={namePrefix ? `${namePrefix}.${index}.name` : undefined}
                                     value={sponsor.name || ''} 
                                     onChange={(e) => updateSponsor(index, 'name', e.target.value)}
@@ -92,18 +105,17 @@ export function SponsorsListEditor({ initialSponsors, namePrefix, onChange, desc
                                     )}
                                     <div className="flex-1">
                                         <ImageUpload 
-                                            storagePath="homepage/allies" // Generic path, could be prop-ified if needed strict separation
+                                            storagePath="homepage/allies" 
                                             onUploadSuccess={(url) => updateSponsor(index, 'url', url)}
                                             buttonText={sponsor.url ? "Cambiar Logo" : "Subir Logo"}
                                             guidelinesText=""
                                         />
                                     </div>
                                 </div>
-                                {/* Hidden input for URL submission via FormData */}
                                 {namePrefix && (
                                     <input 
                                         type="hidden"
-                                        name={`${namePrefix}.${index}.logoUrl`} // Note: Landing expects 'logoUrl', Home expects 'url'. Logic needed.
+                                        name={`${namePrefix}.${index}.logoUrl`} 
                                         value={sponsor.url} 
                                     />
                                 )}
@@ -112,9 +124,9 @@ export function SponsorsListEditor({ initialSponsors, namePrefix, onChange, desc
                     </Card>
                 ))}
                 {sponsors.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg">
-                        No hay aliados configurados. Haz clic en "Agregar Aliado" para comenzar.
-                    </p>
+                    <div className="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg">
+                        No hay aliados configurados. Haz clic en &quot;Agregar Aliado&quot; para comenzar.
+                    </div>
                 )}
             </div>
         </div>

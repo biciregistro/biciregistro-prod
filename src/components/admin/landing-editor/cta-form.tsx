@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { SponsorsListEditor, Sponsor } from '@/components/shared/sponsors-list-editor';
+import { SponsorsManager, Sponsor } from '@/components/shared/sponsors-manager';
 
 type SocialProofData = LandingEventsContent['socialProofSection'];
 type CtaData = LandingEventsContent['ctaSection'];
@@ -56,9 +56,9 @@ function SocialProofSubForm({ initialData }: { initialData: SocialProofData }) {
         <div className="space-y-4 border rounded-md p-4 mb-6">
             <h3 className="text-lg font-medium mb-2">Logos de Aliados</h3>
             <form action={formAction} className="space-y-4">
-                <SponsorsListEditor 
+                <SponsorsManager 
                     initialSponsors={initialSponsors} 
-                    namePrefix="allies" // Inputs will be allies.0.name, allies.0.logoUrl (handled by editor logic for name)
+                    namePrefix="allies" 
                 />
                 <div className="flex justify-end mt-4">
                     <SubmitButton text="Guardar Aliados" />
