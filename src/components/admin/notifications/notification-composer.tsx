@@ -175,8 +175,8 @@ export function NotificationComposer() {
     };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-100px)]">
-            <div className="lg:col-span-7 xl:col-span-8 flex flex-col h-full overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="lg:col-span-7 xl:col-span-8 flex flex-col">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col">
                     <Card className="flex-1 flex flex-col border-none shadow-none lg:border lg:shadow-sm">
                         <CardHeader className="pb-4">
@@ -347,6 +347,7 @@ export function NotificationComposer() {
                                                                 </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent>
+                                                                <SelectItem value="none">Cualquiera</SelectItem>
                                                                 <SelectItem value="masculino">Masculino</SelectItem>
                                                                 <SelectItem value="femenino">Femenino</SelectItem>
                                                                 <SelectItem value="otro">Otro</SelectItem>
@@ -453,7 +454,7 @@ export function NotificationComposer() {
                 </Tabs>
             </div>
 
-            <div className="hidden lg:flex lg:col-span-5 xl:col-span-4 flex-col justify-center items-center bg-gray-50/50 rounded-xl border border-dashed border-gray-200 p-8 h-full">
+            <div className="hidden lg:flex lg:col-span-5 xl:col-span-4 flex-col justify-center items-center bg-gray-50/50 rounded-xl border border-dashed border-gray-200 p-8">
                 <div className="mb-8 text-center">
                     <h3 className="text-lg font-semibold text-gray-900">Vista Previa</h3>
                     <p className="text-sm text-gray-500">iOS / Android</p>

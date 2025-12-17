@@ -37,7 +37,7 @@ async function getTargetTokens(filters: FilterParams): Promise<string[]> {
     }
 
     // 2. Fetch Users based on demographic filters
-    let usersQuery = db.collection('users').select('fcmTokens', 'country', 'state', 'city', 'gender');
+    let usersQuery = db.collection('users').select('fcmTokens', 'country', 'state', 'city', 'gender', 'notificationPreferences');
     
     if (filters.country && filters.country !== "none") {
         usersQuery = usersQuery.where('country', '==', filters.country);
@@ -45,11 +45,10 @@ async function getTargetTokens(filters: FilterParams): Promise<string[]> {
     if (filters.state && filters.state !== "none") {
         usersQuery = usersQuery.where('state', '==', filters.state);
     }
-    // Only apply city if needed (not in current UI but good for future)
     if (filters.city) {
         usersQuery = usersQuery.where('city', '==', filters.city);
     }
-    if (filters.gender) {
+    if (filters.gender && filters.gender !== "none") {
         usersQuery = usersQuery.where('gender', '==', filters.gender);
     }
 
@@ -94,16 +93,6 @@ async function getTargetTokens(filters: FilterParams): Promise<string[]> {
 
 export async function estimateAudienceSize(filters: FilterParams): Promise<number> {
     try {
-        const tokens = await getTargetTokens(filters);
-        // Note: This returns device count, not user count exactly, but close enough for estimation
-        // For more accuracy, we should return unique user count, but getTargetTokens returns tokens.
-        // Let's optimize if needed. For now, we want User Count.
-        
-        // Re-implementing simplified counting logic for Users to be consistent with previous attempt
-        // but actually using the logic refactored above is safer.
-        // However, getTargetTokens returns TOKENS. We want USERS.
-        
-        // Let's just use the logic inside getTargetTokens but count users.
         const db = adminDb;
         let bikeUserIds: Set<string> | null = null;
         const hasBikeFilters = filters.bikeMake || filters.bikeModality || filters.targetGroup === 'with_bike';
@@ -121,7 +110,7 @@ export async function estimateAudienceSize(filters: FilterParams): Promise<numbe
         let usersQuery = db.collection('users').select('fcmTokens', 'country', 'state', 'gender', 'notificationPreferences');
         if (filters.country && filters.country !== "none") usersQuery = usersQuery.where('country', '==', filters.country);
         if (filters.state && filters.state !== "none") usersQuery = usersQuery.where('state', '==', filters.state);
-        if (filters.gender) usersQuery = usersQuery.where('gender', '==', filters.gender);
+        if (filters.gender && filters.gender !== "none") usersQuery = usersQuery.where('gender', '==', filters.gender);
 
         const userSnapshot = await usersQuery.get();
         let userCount = 0;
