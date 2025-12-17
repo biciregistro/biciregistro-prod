@@ -216,40 +216,35 @@ export async function reportTheft(prevState: any, formData: FormData) {
             theftReport: theftData,
         });
 
-        // 2. HU-02: Send Push Notification (Async / Fire & Forget)
-        // We need additional data (make, model, owner info) that is not in the form data
-        // We run this inside a try-catch but don't block the UI response if it fails
-        (async () => {
-             try {
-                // Fetch bike to get details
-                const bike = await getBike(session.uid, bikeId);
-                if (!bike) return;
-
+        // 2. HU-02: Send Push Notification (Synchronous to ensure execution in serverless environment)
+        try {
+            // Fetch bike to get details
+            const bike = await getBike(session.uid, bikeId);
+            if (bike) {
                 // Fetch owner user to get contact info
                 const owner = await getUser(session.uid);
-                if (!owner) return;
+                if (owner) {
+                    const ownerName = owner.name + (owner.lastName ? ` ${owner.lastName}` : '');
+                    // Priority: Whatsapp form field (not in current schema/data) -> User Whatsapp -> User Phone -> 'La plataforma'
+                    const ownerPhone = owner.whatsapp || owner.email;
 
-                const ownerName = owner.name + (owner.lastName ? ` ${owner.lastName}` : '');
-                // Priority: Whatsapp form field (not in current schema/data) -> User Whatsapp -> User Phone -> 'La plataforma'
-                // Note: Current theftReport schema doesn't have owner contact override, so we use profile data.
-                // CORRECTION: User type does not have 'phone', removed owner.phone
-                const ownerPhone = owner.whatsapp || owner.email;
-
-                await sendTheftAlert(bikeId, {
-                    make: bike.make,
-                    model: bike.model,
-                    color: bike.color,
-                    location: theftData.location,
-                    city: theftData.city,
-                    reward: theftData.reward,
-                    ownerName: ownerName,
-                    ownerPhone: ownerPhone
-                });
-
-             } catch (notificationError) {
-                 console.error("Failed to send theft alert notification:", notificationError);
-             }
-        })();
+                    await sendTheftAlert(bikeId, {
+                        make: bike.make,
+                        model: bike.model,
+                        color: bike.color,
+                        location: theftData.location,
+                        city: theftData.city,
+                        reward: theftData.reward,
+                        ownerName: ownerName,
+                        ownerPhone: ownerPhone
+                    });
+                }
+            }
+        } catch (notificationError) {
+            console.error("Failed to send theft alert notification:", notificationError);
+            // We catch the error so the user still gets a success message for the report itself,
+            // but the error is logged for debugging.
+        }
 
         revalidatePath('/dashboard');
         revalidatePath(`/dashboard/bikes/${bikeId}`);
