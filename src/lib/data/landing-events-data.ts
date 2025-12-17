@@ -44,10 +44,10 @@ export async function saveLandingEventsContent(content: LandingEventsContent): P
  */
 export async function saveLandingSection(sectionKey: keyof LandingEventsContent, data: any): Promise<void> {
     const docRef = adminDb.doc(LANDING_EVENTS_DOC_PATH);
-    // Use dot notation to update nested fields without overwriting the whole document
-    await docRef.update({
+    // Use set with merge: true instead of update to handle document creation if it doesn't exist
+    await docRef.set({
         [sectionKey]: data
-    });
+    }, { merge: true });
 }
 
 
