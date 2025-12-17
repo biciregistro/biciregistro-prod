@@ -152,6 +152,7 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
             role: 'ciclista' as const,
             communityId,
             notificationPreferences,
+            createdAt: new Date().toISOString(), // <-- Add createdAt timestamp
         };
 
         // 4. Clean the object: Remove any keys with undefined values to prevent Firestore errors

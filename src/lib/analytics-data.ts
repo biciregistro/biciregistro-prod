@@ -1,7 +1,7 @@
 'use server';
 
 import { adminDb } from '@/lib/firebase/server';
-import type { DashboardFilters } from '@/lib/types';
+import type { DashboardFilters, User } from '@/lib/types';
 import { MODALITY_MAPPING, BIKE_MODALITIES_OPTIONS } from '@/lib/bike-types';
 import { unstable_cache } from 'next/cache';
 
@@ -202,50 +202,43 @@ export const getGeneralStats = unstable_cache(
         const usersRef = db.collection('users');
         const bikesRef = db.collection('bikes');
 
-        // 1. Total Users (Respecting Geo Filters only)
-        // Assuming 'country' and 'state' are on the user doc
         let totalUsersQuery = applyUserFilters(usersRef, filters);
-        
-        // 2. Total Bikes (Respecting all filters EXCEPT geo for total count, same logic as above)
-        // If user filters by "Jalisco", we want to see bikes in Jalisco. 
-        // But remember, we assumed 'safe' bikes don't have location data in theftReport.
-        // Does the bike doc have root level 'country'/'state'? 
-        // Let's check types.ts: Bike has 'status', 'theftReport'. 
-        // It DOES NOT have root country/state in the type definition, only in theftReport.
-        // Wait, User has country/state. Bike implies location via Owner?
-        // For this general stat, we will count ALL bikes if no filters, 
-        // but if geo filter is present, we can only reliably count STOLEN bikes with location.
-        // HOWEVER, to be useful, we'll return the total count we calculated in getBikeStatusCounts.
-        // Let's re-run a lightweight count here.
-        let totalBikesQuery = applyFilters(bikesRef, filters, false); 
+        let totalBikesQuery = applyFilters(bikesRef, filters, false);
 
-        // 3. User Growth (Last 30 Days)
-        // We'll try to fetch users created recently.
-        // Note: Firestore requires an index for this if mixed with other filters.
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        // We assume we have a 'createdAt' or similar field. 
-        // If not, this part will return empty or 0.
-        // Let's try to query 'metadata.creationTime' is on Auth, not Firestore usually unless synced.
-        // Let's assume there is NO 'createdAt' on legacy users.
-        // We will return a simulated chart for now to avoid breaking the UI with empty data,
-        // or just return 0 if no data found.
         
-        const [usersSnapshot, bikesSnapshot] = await Promise.all([
+        const recentUsersQuery = applyUserFilters(usersRef, filters)
+            .where('createdAt', '>=', thirtyDaysAgo.toISOString());
+
+        const [usersSnapshot, bikesSnapshot, recentUsersSnapshot] = await Promise.all([
             totalUsersQuery.count().get(),
             totalBikesQuery.count().get(),
+            recentUsersQuery.get(),
         ]);
+
+        const dailyCounts: { [key: string]: number } = {};
+        recentUsersSnapshot.forEach(doc => {
+            const user = doc.data() as User;
+            if (user.createdAt) {
+                const date = new Date(user.createdAt).toISOString().split('T')[0];
+                dailyCounts[date] = (dailyCounts[date] || 0) + 1;
+            }
+        });
+
+        const dailyGrowth = Object.entries(dailyCounts)
+            .map(([date, count]) => ({ date, count }))
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         return {
             totalUsers: usersSnapshot.data().count,
             totalBikes: bikesSnapshot.data().count,
             activeUsers: 0, // Placeholder as we don't track login activity yet
-            // Sending empty array for chart, UI should handle "No data" state gracefully
-            dailyGrowth: [] 
+            dailyGrowth: dailyGrowth
         };
     },
     ['general-stats'],
-    { revalidate: 1, tags: ['analytics'] } // Changed to 1 second
+    { revalidate: 1, tags: ['analytics'] }
 );
 
 // Cached function to get top theft locations
