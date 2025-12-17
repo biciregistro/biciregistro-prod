@@ -10,7 +10,8 @@ import {
     landingEventsSocialProofSectionSchema,
     landingEventsCtaSchema
 } from '@/lib/schemas/landing-events';
-import { updateLandingEventsSection } from '@/lib/data/landing-events-data';
+// Renamed function to bust cache
+import { saveLandingSection } from '@/lib/data/landing-events-data'; 
 import { getAuthenticatedUser } from '../data';
 
 export type SectionFormState = {
@@ -55,7 +56,8 @@ async function updateSection<T>(
             };
         }
 
-        await updateLandingEventsSection(sectionKey as any, validationResult.data);
+        // Updated function call
+        await saveLandingSection(sectionKey as any, validationResult.data);
 
         revalidatePaths.forEach(path => revalidatePath(path));
 
