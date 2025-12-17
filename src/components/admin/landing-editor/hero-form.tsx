@@ -7,9 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { ImageUpload } from '@/components/shared/image-upload'; // Import ImageUpload
+import Image from 'next/image';
 
 export function HeroForm() {
-  const { control } = useFormContext();
+  const { control, setValue, watch } = useFormContext(); // Add setValue and watch
+
+  // Watch the image URL to display a preview
+  const backgroundImageUrl = watch('hero.backgroundImageUrl');
 
   return (
     <Card>
@@ -69,19 +74,49 @@ export function HeroForm() {
             </FormItem>
           )}
         />
-        <FormField
-          control={control}
-          name="hero.backgroundImageUrl"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>URL de Imagen de Fondo</FormLabel>
-              <FormControl>
-                <Input type="url" placeholder="https://images.unsplash.com/..." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+        
+        {/* Image Upload for Background Image */}
+        <div className="space-y-4">
+          <FormLabel>Imagen de Fondo</FormLabel>
+          
+          {backgroundImageUrl && (
+            <div className="mb-4">
+               <p className="text-sm text-muted-foreground mb-2">Imagen Actual:</p>
+               <div className="relative w-full h-48 rounded-md overflow-hidden border">
+                 <Image 
+                   src={backgroundImageUrl} 
+                   alt="Fondo actual" 
+                   fill 
+                   className="object-cover"
+                 />
+               </div>
+            </div>
           )}
-        />
+
+          <ImageUpload
+             storagePath="landing-events/hero"
+             onUploadSuccess={(url) => {
+               setValue('hero.backgroundImageUrl', url, { shouldDirty: true, shouldValidate: true });
+             }}
+             buttonText="Subir Nueva Imagen"
+             guidelinesText="Recomendado: 1920x1080px, alta resolución."
+          />
+
+           {/* Hidden input to ensure the field is registered and validated properly */}
+           <FormField
+            control={control}
+            name="hero.backgroundImageUrl"
+            render={({ field }) => (
+              <FormItem className="hidden">
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
       </CardContent>
     </Card>
   );
