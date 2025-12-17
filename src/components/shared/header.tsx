@@ -150,6 +150,11 @@ export function Header({ user }: { user: UserType | null }) {
                             <Button asChild variant="ghost">
                                 <Link href="/login">Iniciar Sesión</Link>
                             </Button>
+                            
+                            <Button asChild variant="outline" className="hidden lg:inline-flex border-primary text-primary hover:bg-primary/10">
+                                <Link href="/events-manager">Soy Organizador</Link>
+                            </Button>
+
                             <Button asChild>
                                 <Link href="/signup">Registra Tu Bici</Link>
                             </Button>
@@ -183,6 +188,13 @@ export function Header({ user }: { user: UserType | null }) {
                                             </SheetClose>
                                         ))}
                                         <div className="border-t my-2" />
+                                        
+                                        <SheetClose asChild>
+                                            <Button asChild variant="outline" className="w-full justify-start text-lg border-primary text-primary">
+                                                <Link href="/events-manager">Soy Organizador</Link>
+                                            </Button>
+                                        </SheetClose>
+
                                         <SheetClose asChild>
                                             <Button asChild variant="ghost" className="justify-start px-0 text-lg">
                                                 <Link href="/login">Iniciar Sesión</Link>

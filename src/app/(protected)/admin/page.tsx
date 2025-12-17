@@ -2,7 +2,8 @@ import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getAuthenticatedUser, getHomepageData, getUsers, getOngUsers, getEventsByOngId } from '@/lib/data';
 import { getFinancialSettings, getAllEventsForAdmin } from '@/lib/financial-data';
-import type { HomepageSection, DashboardFilters } from '@/lib/types';
+import { getLandingEventsContent } from '@/lib/data/landing-events-data'; // Import the new data fetcher
+import type { HomepageSection, DashboardFilters, LandingEventsContent } from '@/lib/types';
 import { AdminDashboardTabs } from '@/components/admin-dashboard-tabs';
 import { StatsTabContent } from '@/components/admin/stats-tab-content';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,10 +20,8 @@ export default async function AdminPage({
     redirect('/dashboard');
   }
 
-  // Extract initial tab from URL params (server-side)
   const initialTab = typeof resolvedSearchParams['tab'] === 'string' ? resolvedSearchParams['tab'] : 'stats';
 
-  // Extract filters for the stats tab
   const filters: DashboardFilters = {
     country: typeof resolvedSearchParams['country'] === 'string' ? resolvedSearchParams['country'] : undefined,
     state: typeof resolvedSearchParams['state'] === 'string' ? resolvedSearchParams['state'] : undefined,
@@ -34,9 +33,18 @@ export default async function AdminPage({
   const query = typeof resolvedSearchParams['query'] === 'string' ? resolvedSearchParams['query'] : undefined;
   const pageToken = typeof resolvedSearchParams['pageToken'] === 'string' ? resolvedSearchParams['pageToken'] : undefined;
 
-  // Parallel data fetching for other tabs
-  const [homepageData, usersData, ongs, adminEvents, financialSettings, allEvents] = await Promise.all([
+  // Parallel data fetching including the new landing page content
+  const [
+    homepageData, 
+    landingEventsContent, // Fetch new data
+    usersData, 
+    ongs, 
+    adminEvents, 
+    financialSettings, 
+    allEvents
+  ] = await Promise.all([
     getHomepageData(),
+    getLandingEventsContent(), // Call the new function
     getUsers({ query, pageToken }),
     getOngUsers(),
     getEventsByOngId(user.id),
@@ -67,6 +75,7 @@ export default async function AdminPage({
         <AdminDashboardTabs 
           initialTab={initialTab}
           homepageSections={homepageSections} 
+          landingEventsContent={landingEventsContent} // Pass the new data to the component
           users={users} 
           nextPageToken={nextPageToken} 
           ongs={ongs}

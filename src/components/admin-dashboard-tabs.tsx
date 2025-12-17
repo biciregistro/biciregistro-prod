@@ -7,15 +7,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HomepageEditor, UsersTable, OngUsersTable } from '@/components/admin-components';
 import { FinancialSettingsForm } from '@/components/admin/financial-settings-form';
 import { AdminEventFinancialList } from '@/components/admin/admin-event-financial-list';
-import { HomepageSection, User, OngUser, Event, FinancialSettings } from '@/lib/types';
+import { HomepageSection, User, OngUser, Event, FinancialSettings, LandingEventsContent } from '@/lib/types';
 import { EventCard } from '@/components/ong/event-card';
 import { UserPlus, CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardFilterBar } from '@/components/admin/dashboard-filter-bar';
 import { NotificationComposer } from '@/components/admin/notifications/notification-composer';
+import { LandingEventsEditor } from './admin/landing-editor/landing-events-editor';
 
 interface AdminDashboardTabsProps {
   homepageSections: HomepageSection[];
+  landingEventsContent: LandingEventsContent; // Added prop
   users: User[];
   nextPageToken?: string;
   ongs: OngUser[];
@@ -23,11 +25,12 @@ interface AdminDashboardTabsProps {
   financialSettings: FinancialSettings;
   allEvents: any[]; // Relaxed type to accept AdminEventFinancialView
   statsContent: React.ReactNode;
-  initialTab?: string; // New prop for SSR consistency
+  initialTab?: string;
 }
 
 function AdminDashboardTabsContent({ 
   homepageSections, 
+  landingEventsContent, // Added prop
   users, 
   nextPageToken, 
   ongs, 
@@ -41,25 +44,36 @@ function AdminDashboardTabsContent({
   const router = useRouter();
   const pathname = usePathname();
 
-  // Use prop for initial state to match server render
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeSubTab, setActiveSubTab] = useState(searchParams.get('subtab') || 'homepage');
 
-  // Sync with URL on change (client-side only logic)
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab && tab !== activeTab) {
       setActiveTab(tab);
     }
-  }, [searchParams, activeTab]);
+    const subtab = searchParams.get('subtab');
+    if (subtab && subtab !== activeSubTab) {
+      setActiveSubTab(subtab);
+    }
+  }, [searchParams, activeTab, activeSubTab]);
 
   const onTabChange = (value: string) => {
     setActiveTab(value);
-    
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', value);
-    
+    // Reset subtab when changing main tabs
+    params.delete('subtab'); 
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
+
+  const onSubTabChange = (value: string) => {
+    setActiveSubTab(value);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('subtab', value);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
@@ -79,7 +93,18 @@ function AdminDashboardTabsContent({
       </TabsContent>
 
       <TabsContent value="content" className="space-y-4">
-        <HomepageEditor sections={homepageSections} />
+        <Tabs value={activeSubTab} onValueChange={onSubTabChange}>
+          <TabsList>
+            <TabsTrigger value="homepage">Homepage</TabsTrigger>
+            <TabsTrigger value="events_manager">Landing Events Manager</TabsTrigger>
+          </TabsList>
+          <TabsContent value="homepage" className="mt-4">
+            <HomepageEditor sections={homepageSections} />
+          </TabsContent>
+          <TabsContent value="events_manager" className="mt-4">
+            <LandingEventsEditor content={landingEventsContent} />
+          </TabsContent>
+        </Tabs>
       </TabsContent>
 
       <TabsContent value="users" className="space-y-4">

@@ -323,7 +323,7 @@ export type Payout = {
 
 // --- HU-02: Notifications ---
 export type NotificationTemplate = {
-    id: string;
+    id: 'theft_alert';
     type: 'theft_alert';
     titleTemplate: string;
     bodyTemplate: string;
@@ -340,4 +340,60 @@ export type NotificationLog = {
     successCount: number;
     failureCount: number;
     city: string; // **FIXED**: Changed from 'location' to 'city' for consistency
+};
+
+// --- Events Manager Landing Page Content Types ---
+
+export type LandingEventsHero = {
+    title: string;
+    subtitle: string;
+    ctaButton: string;
+    trustCopy: string;
+    backgroundImageUrl: string;
+};
+
+export type LandingEventsPainPoint = {
+    id: string;
+    title: string;
+    description: string;
+};
+
+export type LandingEventsSolution = {
+    id: string;
+    title: string;
+    description: string;
+};
+
+export type LandingEventsFeature = {
+    title: string;
+    description: string;
+    imageUrl: string;
+};
+
+export type LandingEventsCta = {
+    title: string;
+    description: string;
+    ctaButton: string;
+};
+
+export type LandingEventsAlly = {
+    name: string;
+    logoUrl: string;
+};
+
+export type LandingEventsContent = {
+    hero: LandingEventsHero;
+    painPointsSection: {
+        title: string;
+        points: [LandingEventsPainPoint, LandingEventsPainPoint, LandingEventsPainPoint];
+    };
+    solutionSection: {
+        title: string;
+        solutions: [LandingEventsSolution, LandingEventsSolution, LandingEventsSolution];
+    };
+    featureSection: LandingEventsFeature;
+    socialProofSection: {
+        allies: LandingEventsAlly[];
+    };
+    ctaSection: LandingEventsCta;
 };
