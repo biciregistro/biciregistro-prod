@@ -245,6 +245,12 @@ export type Feature = {
   imageUrl?: string;
 };
 
+export type SecurityFeature = {
+  title: string;
+  description: string;
+  imageUrl: string;
+};
+
 // Use a discriminated union for more type-safe sections
 export type HomepageSection =
   | {
@@ -259,6 +265,12 @@ export type HomepageSection =
       title: string;
       subtitle: string;
       features: Feature[];
+    }
+  | {
+      id: 'security';
+      title: string;
+      subtitle: string;
+      items: [SecurityFeature, SecurityFeature, SecurityFeature];
     }
   | {
       id: 'cta';

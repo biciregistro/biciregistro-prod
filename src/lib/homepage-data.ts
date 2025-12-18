@@ -42,6 +42,28 @@ export const defaultHomepageData: { [key: string]: HomepageSection } = {
       },
     ],
   },
+  security: {
+    id: 'security',
+    title: 'Tu Seguridad es Nuestra Prioridad',
+    subtitle: 'Hemos construido BiciRegistro con múltiples capas de protección para garantizar que tus datos estén siempre seguros.',
+    items: [
+      {
+        title: 'Infraestructura de Nivel Mundial',
+        description: 'Tus datos no están en un servidor casero, sino en la infraestructura segura de Google Firebase, protegida contra ataques y accesos no autorizados.',
+        imageUrl: 'https://placehold.co/400x300/E2E8F0/4A5568?text=Google+Firebase',
+      },
+      {
+        title: 'Privacidad por Diseño',
+        description: 'Tus datos personales son confidenciales. Solo la información no sensible de tu bici es pública para facilitar su verificación y recuperación.',
+        imageUrl: 'https://placehold.co/400x300/E2E8F0/4A5568?text=Privacy+Shield',
+      },
+      {
+        title: 'Pagos Seguros y Encriptados',
+        description: 'Nunca almacenamos los datos de tu tarjeta. Todos los pagos son procesados por Mercado Pago, líder en seguridad financiera en Latinoamérica.',
+        imageUrl: 'https://placehold.co/400x300/E2E8F0/4A5568?text=Mercado+Pago',
+      },
+    ],
+  },
   cta: {
     id: 'cta',
     title: '¿Listo para unirte a la comunidad?',

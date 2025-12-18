@@ -75,7 +75,7 @@ export async function validateSerialNumberAction(serialNumber: string) {
 // --- END WRAPPERS ---
 
 const homepageEditSchema = z.object({
-    id: z.enum(['hero', 'features', 'cta', 'allies']),
+    id: z.enum(['hero', 'features', 'cta', 'allies', 'security']),
     title: z.string().min(1, 'El título es obligatorio'),
     subtitle: z.string().optional(),
     imageUrl: z.string().url('La URL de la imagen no es válida').optional(),
@@ -242,9 +242,6 @@ export async function updateHomepageSection(prevState: ActionFormState, formData
     try {
         const payload: Partial<HomepageSection> = { ...validatedFields.data };
         
-        // --- CORRECCIÓN ---
-        // Si el id es 'allies', nos aseguramos de que los sponsors se parseen correctamente
-        // y de que la estructura completa del documento se envíe, creando uno si es necesario.
         if (payload.id === 'allies') {
             let sponsors = [];
             if (data.sponsorsJson && typeof data.sponsorsJson === 'string') {
@@ -264,6 +261,25 @@ export async function updateHomepageSection(prevState: ActionFormState, formData
             };
             
             await updateHomepageSectionData(alliesPayload);
+        } else if (payload.id === 'security') {
+             let items = [];
+             if (data.itemsJson && typeof data.itemsJson === 'string') {
+                 try {
+                     items = JSON.parse(data.itemsJson);
+                 } catch (e) {
+                     console.error("Error parsing security items JSON", e);
+                 }
+             }
+             
+             // Ensure we have exactly 3 items structure if possible, or trust admin
+             const securityPayload: Extract<HomepageSection, { id: 'security' }> = {
+                 id: 'security',
+                 title: payload.title || 'Tu Seguridad es Nuestra Prioridad',
+                 subtitle: payload.subtitle || '',
+                 items: items as [any, any, any] // Type assertion for tuple
+             };
+             
+             await updateHomepageSectionData(securityPayload);
         } else {
              // Lógica original para las otras secciones
             await updateHomepageSectionData(payload as HomepageSection);
