@@ -1,9 +1,12 @@
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { getAuthenticatedUser, getOngProfile } from '@/lib/data';
 import { OngProfileForm } from '@/components/ong/ong-profile-form';
 import type { OngUser } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 
 // Loading skeleton for the form
 const FormSkeleton = () => (
@@ -90,6 +93,14 @@ export default async function OngProfilePage() {
     return (
         <div className="container py-8 px-4 md:px-6">
             <div className="max-w-4xl mx-auto">
+                <div className="mb-8">
+                    <Link href="/dashboard/ong">
+                        <Button variant="outline">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Regresar al Panel
+                        </Button>
+                    </Link>
+                </div>
                 <Suspense fallback={<FormSkeleton />}>
                     <OngProfileForm ongProfile={fullOngProfile} />
                 </Suspense>
