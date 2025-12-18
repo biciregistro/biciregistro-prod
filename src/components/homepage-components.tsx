@@ -208,16 +208,16 @@ export function CtaSection({ section }: { section?: Extract<HomepageSection, { i
 export function SecuritySection({ section }: { section?: Extract<HomepageSection, { id: 'security' }> }) {
     if (!section || !section.items) {
         return (
-            <section className="py-12 sm:py-16">
+            <section className="py-12 sm:py-16 bg-secondary/50">
                 <div className="container text-center space-y-4 px-4">
                     <Skeleton className="h-9 w-3/4 mx-auto" />
                     <Skeleton className="h-6 w-full mx-auto" />
                     <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">
                         {[...Array(3)].map((_, i) => (
                             <Card key={i}>
+                                <Skeleton className="aspect-video" />
                                 <CardHeader>
-                                    <Skeleton className="h-10 w-10 rounded-full mx-auto" />
-                                    <Skeleton className="h-6 w-3/4 mx-auto mt-4" />
+                                    <Skeleton className="h-6 w-3/4" />
                                 </CardHeader>
                                 <CardContent>
                                     <Skeleton className="h-4 w-full" />
@@ -232,17 +232,17 @@ export function SecuritySection({ section }: { section?: Extract<HomepageSection
     }
 
   return (
-    <section className="py-12 sm:py-16">
+    <section className="py-12 sm:py-16 bg-secondary/50">
       <div className="container text-center px-4">
         <h2 className="text-3xl font-bold tracking-tight">{section.title}</h2>
         <p className="mt-2 text-lg text-muted-foreground">{section.subtitle}</p>
         <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">
             {section.items.map((item, index) => (
-                <Card key={index} className="text-center">
+                <Card key={index} className="text-left overflow-hidden">
+                    <div className="relative aspect-video">
+                        <Image src={item.imageUrl} alt={item.title} fill className="object-cover" />
+                    </div>
                     <CardHeader>
-                        <div className="relative h-24 w-full mb-4">
-                            <Image src={item.imageUrl} alt={item.title} layout="fill" className="object-contain" />
-                        </div>
                         <CardTitle>{item.title}</CardTitle>
                     </CardHeader>
                     <CardContent>
