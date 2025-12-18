@@ -3,33 +3,16 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { getAuthenticatedUser, getOngProfile } from '@/lib/data';
-import { OngProfileForm } from '@/components/ong/ong-profile-form';
+import { OngSettingsTabs } from '@/components/ong/ong-settings-tabs';
 import type { OngUser } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 
-// Loading skeleton for the form
-const FormSkeleton = () => (
+// Loading skeleton for the tabs
+const TabsSkeleton = () => (
     <div className="space-y-6">
-        <Skeleton className="h-12 w-1/2" />
-        <Skeleton className="h-8 w-3/4" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
-            <div className="space-y-6">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
-            </div>
-            <div className="space-y-6">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-            </div>
-        </div>
-        <div className="flex justify-end">
-            <Skeleton className="h-10 w-24" />
-        </div>
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-[400px] w-full" />
     </div>
 );
 
@@ -66,11 +49,11 @@ export default async function OngProfilePage() {
             state: ongProfileData.state || user.state || '',
             description: ongProfileData.description || '',
             invitationLink: ongProfileData.invitationLink || '',
+            // Ensure financialData exists or is undefined (not null)
+            financialData: ongProfileData.financialData,
         };
     } else {
-        // This is the critical fix for new/broken users:
-        // Instead of showing an error, we show the form pre-filled with basics
-        // so the user can "repair" their profile by saving it.
+        // Fallback for new users
         fullOngProfile = {
             id: user.id,
             role: 'ong',
@@ -93,16 +76,21 @@ export default async function OngProfilePage() {
     return (
         <div className="container py-8 px-4 md:px-6">
             <div className="max-w-4xl mx-auto">
-                <div className="mb-8">
+                <div className="mb-8 flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight">Configuración</h1>
+                        <p className="text-muted-foreground">Gestiona tu perfil público y tu información financiera.</p>
+                    </div>
                     <Link href="/dashboard/ong">
                         <Button variant="outline">
                             <ArrowLeft className="mr-2 h-4 w-4" />
-                            Regresar al Panel
+                            Volver al Tablero
                         </Button>
                     </Link>
                 </div>
-                <Suspense fallback={<FormSkeleton />}>
-                    <OngProfileForm ongProfile={fullOngProfile} />
+                
+                <Suspense fallback={<TabsSkeleton />}>
+                    <OngSettingsTabs ongProfile={fullOngProfile} />
                 </Suspense>
             </div>
         </div>

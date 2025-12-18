@@ -3,8 +3,9 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { getAuthenticatedUser } from "@/lib/data";
-import { ongProfileSchema } from "@/lib/schemas";
+import { ongProfileSchema, financialProfileSchema } from "@/lib/schemas";
 import { adminDb as db } from "@/lib/firebase/server";
+import { updateOngFinancialData } from "@/lib/financial-data";
 
 export async function updateOngProfile(values: z.infer<typeof ongProfileSchema>) {
     const user = await getAuthenticatedUser();
@@ -53,5 +54,30 @@ export async function updateOngProfile(values: z.infer<typeof ongProfileSchema>)
     } catch (error) {
         console.error("Error updating ONG profile:", error);
         return { success: false, message: "Ocurrió un error al actualizar el perfil." };
+    }
+}
+
+export async function saveOngFinancialsAction(prevState: any, formData: FormData) {
+    const user = await getAuthenticatedUser();
+    if (!user || user.role !== 'ong') {
+        return { error: 'No tienes permisos para realizar esta acción.' };
+    }
+
+    const validatedFields = financialProfileSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            error: 'Datos inválidos. Verifica que la CLABE tenga 18 dígitos numéricos.',
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    try {
+        await updateOngFinancialData(user.id, validatedFields.data);
+        revalidatePath('/dashboard/ong/profile');
+        return { success: true, message: 'Datos bancarios guardados correctamente.' };
+    } catch (error) {
+        console.error("Error saving ONG financials:", error);
+        return { error: 'Ocurrió un error al guardar los datos bancarios.' };
     }
 }

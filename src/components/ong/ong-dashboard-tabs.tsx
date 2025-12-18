@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Info, Copy, Check, CalendarPlus, Edit, MessageCircle } from 'lucide-react';
+import { Info, Copy, Check, CalendarPlus, Edit, MessageCircle, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { EventCard } from '@/components/ong/event-card';
 import type { Event, OngUser } from '@/lib/types';
@@ -56,8 +56,8 @@ function WelcomeCard({ ongProfile }: { ongProfile: OngUser }) {
                     <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                         <Button variant="outline" asChild>
                             <Link href="/dashboard/ong/profile">
-                                <Edit className="mr-2 h-4 w-4" />
-                                Editar Perfil
+                                <Settings className="mr-2 h-4 w-4" />
+                                Administrar Perfil
                             </Link>
                         </Button>
                         <div className="flex items-center gap-2 bg-background p-1 rounded-md border w-full sm:w-auto">
