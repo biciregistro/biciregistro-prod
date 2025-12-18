@@ -78,7 +78,43 @@ export async function getAuthenticatedUser(): Promise<User | null> {
         const firebaseUser = await adminAuth.getUser(session.uid);
         const userRole = (session.role as UserRole) || 'ciclista';
 
-        if (userRole === 'ong' || userRole === 'admin') {
+        if (userRole === 'ong') {
+            // FIX: Self-healing logic for old ONG profiles.
+            // If the user document doesn't exist but the user is an ONG,
+            // try to fetch the profile from 'ong-profiles' and recreate the 'users' doc.
+            const ongProfile = await getOngProfile(session.uid);
+            
+            if (ongProfile) {
+                console.log(`[Self-Healing] Creating missing 'users' doc for ONG: ${session.uid}`);
+                
+                const recoveredUser: User = {
+                    id: firebaseUser.uid,
+                    email: firebaseUser.email!,
+                    name: ongProfile.organizationName, // Use the correct name from profile
+                    lastName: '', // ONGs usually don't have last names in this context
+                    role: 'ong',
+                    avatarUrl: ongProfile.logoUrl,
+                    createdAt: new Date().toISOString(),
+                };
+                
+                // Save the recovered document
+                await db.collection('users').doc(recoveredUser.id).set(recoveredUser);
+                
+                return recoveredUser;
+            }
+            
+            // Fallback for completely broken state (should happen rarely)
+            const tempUser: User = {
+                id: firebaseUser.uid,
+                email: firebaseUser.email!,
+                name: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
+                lastName: '',
+                role: userRole,
+            };
+            return tempUser;
+        }
+
+        if (userRole === 'admin') {
             const tempUser: User = {
                 id: firebaseUser.uid,
                 email: firebaseUser.email!,

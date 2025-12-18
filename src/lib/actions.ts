@@ -209,11 +209,21 @@ export async function createOngUser(prevState: ActionFormState, formData: FormDa
 
         await adminAuth.setCustomUserClaims(userRecord.uid, { role: 'ong' });
 
+        // 1. Crear perfil extendido en 'ong-profiles'
         await createOngFirestoreProfile({
             id: userRecord.uid,
             organizationName,
             invitationLink, // Guardar el link generado
             ...ongData,
+        });
+
+        // 2. Crear documento de usuario básico en 'users' para mantener consistencia
+        await createFirestoreUser({
+            id: userRecord.uid,
+            email: email,
+            name: organizationName,
+            role: 'ong',
+            createdAt: new Date().toISOString(),
         });
 
     } catch (error: any) {
