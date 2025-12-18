@@ -79,6 +79,10 @@ export function Header({ user }: { user: UserType | null }) {
     setIsClient(true);
   }, []);
 
+  // Safe accessor to prevent crash if user.name is missing in DB
+  const userNameInitial = (user?.name || user?.email || "?").charAt(0).toUpperCase();
+  const displayName = user?.name || "Usuario";
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center px-4">
@@ -118,9 +122,9 @@ export function Header({ user }: { user: UserType | null }) {
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                                     <Avatar className="h-8 w-8">
-                                        <AvatarImage src={user.avatarUrl} alt={user.name} />
+                                        <AvatarImage src={user.avatarUrl} alt={displayName} />
                                         <AvatarFallback className="bg-primary text-primary-foreground">
-                                            {user.name.charAt(0)}
+                                            {userNameInitial}
                                         </AvatarFallback>
                                     </Avatar>
                                 </Button>
@@ -128,7 +132,7 @@ export function Header({ user }: { user: UserType | null }) {
                             <DropdownMenuContent className="w-56" align="end" forceMount>
                                 <DropdownMenuLabel className="font-normal">
                                     <div className="flex flex-col space-y-1">
-                                    <p className="text-sm font-medium leading-none">{user.name}</p>
+                                    <p className="text-sm font-medium leading-none">{displayName}</p>
                                     <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                                     </div>
                                 </DropdownMenuLabel>
