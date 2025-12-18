@@ -326,14 +326,31 @@ export async function updateEvent(eventId: string, eventData: Partial<Omit<Event
 export async function getHomepageData(): Promise<{ [key: string]: HomepageSection }> {
     const db = adminDb;
     const snapshot = await db.collection('homepage').get();
+    
     if (snapshot.empty) {
         return defaultHomepageData;
     }
-    const sections: { [key: string]: HomepageSection } = {};
+    
+    const sectionsFromDb: { [key: string]: Partial<HomepageSection> } = {};
     snapshot.forEach(doc => {
-        sections[doc.id] = doc.data() as HomepageSection;
+        sectionsFromDb[doc.id] = doc.data();
     });
-    return sections;
+
+    // Merge DB data on top of defaults to ensure new sections are included
+    const mergedData = { ...defaultHomepageData };
+    for (const key in sectionsFromDb) {
+        if (Object.prototype.hasOwnProperty.call(mergedData, key)) {
+            // Shallow merge is not enough for sections with arrays like 'features' or 'items'
+            // We need to merge them correctly.
+            const dbSection = sectionsFromDb[key];
+            const defaultSection = mergedData[key];
+            mergedData[key] = { ...defaultSection, ...dbSection } as HomepageSection;
+        } else {
+            mergedData[key] = sectionsFromDb[key] as HomepageSection;
+        }
+    }
+    
+    return mergedData;
 }
 
 export async function updateHomepageSectionData(data: HomepageSection) {
