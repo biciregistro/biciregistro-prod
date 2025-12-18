@@ -43,6 +43,7 @@ export type User = {
   email: string;
   role: UserRole;
   avatarUrl?: string;
+  logoUrl?: string; // Added for ONG compatibility
   country?: string;
   state?: string;
   city?: string; // Added field
@@ -74,6 +75,8 @@ export type OngUser = {
   country: string;
   state: string;
   avatarUrl?: string;
+  logoUrl?: string; // Added field
+  description?: string; // Added field
   invitationLink: string; // The unique invitation link for the ONG
   // Financial Data for Payouts
   financialData?: {
