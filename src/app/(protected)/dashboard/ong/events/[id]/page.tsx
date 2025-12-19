@@ -52,12 +52,14 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
       currency: 'MXN'
   }).format(financialSummary.total.gross);
 
+  const backLink = user.role === 'admin' ? '/admin?tab=events' : '/dashboard/ong?tab=events';
+
   return (
     <div className="container py-8 px-4 md:px-6 space-y-8">
       
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <Link href="/dashboard/ong" className="text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2 text-sm">
+            <Link href={backLink} className="text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2 text-sm">
                 <ArrowLeft className="h-4 w-4" /> Volver a Mis Eventos
             </Link>
             <h1 className="text-3xl font-bold tracking-tight">{event.name}</h1>
