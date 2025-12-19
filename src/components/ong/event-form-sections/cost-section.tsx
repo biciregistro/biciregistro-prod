@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { useFieldArray, useWatch, Control, UseFormReturn } from "react-hook-form";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -9,12 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from '@/components/ui/button';
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from '@/components/ui/card';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { PlusCircle, Trash2, Calculator } from 'lucide-react';
 import { calculateGrossUp, calculateFeeBreakdown } from '@/lib/utils';
-import type { FinancialSettings } from '@/lib/types';
+import type { FinancialSettings, OngUser } from '@/lib/types';
 import { eventFormSchema } from '@/lib/schemas';
 import { z } from "zod";
+import { FinancialRegistrationModal } from '../financial-registration-modal';
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
@@ -22,6 +21,7 @@ interface CostSectionProps {
     form: UseFormReturn<EventFormValues>;
     financialSettings: FinancialSettings;
     hasFinancialData: boolean;
+    ongProfile?: Partial<OngUser>;
 }
 
 const CostTierCalculator = ({ index, control, settings }: { index: number, control: Control<EventFormValues>, settings: FinancialSettings }) => {
@@ -61,9 +61,10 @@ const CostTierCalculator = ({ index, control, settings }: { index: number, contr
     );
 };
 
-export function CostSection({ form, financialSettings, hasFinancialData }: CostSectionProps) {
-    const [showFinancialAlert, setShowFinancialAlert] = useState(false);
-    const router = useRouter();
+export function CostSection({ form, financialSettings, hasFinancialData: initialHasFinancialData, ongProfile }: CostSectionProps) {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    // Local state to track financial data readiness, updated after modal success
+    const [localHasFinancialData, setLocalHasFinancialData] = useState(initialHasFinancialData);
 
     const { fields, append, remove } = useFieldArray({
         control: form.control,
@@ -76,8 +77,8 @@ export function CostSection({ form, financialSettings, hasFinancialData }: CostS
     }) === 'Con Costo';
 
     const handleToggle = (checked: boolean) => {
-        if (checked && !hasFinancialData) {
-            setShowFinancialAlert(true);
+        if (checked && !localHasFinancialData) {
+            setIsModalOpen(true);
             return;
         }
 
@@ -87,25 +88,24 @@ export function CostSection({ form, financialSettings, hasFinancialData }: CostS
             form.setValue('paymentDetails', '');
         }
     };
+    
+    const handleFinancialSuccess = () => {
+        setLocalHasFinancialData(true);
+        setIsModalOpen(false);
+        // Automatically enable the cost mode after successful registration
+        form.setValue('costType', 'Con Costo');
+    };
 
     return (
         <div className="space-y-4 border rounded-lg p-4 bg-muted/5">
-            <AlertDialog open={showFinancialAlert} onOpenChange={setShowFinancialAlert}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Datos Bancarios Requeridos</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Para crear eventos de pago, necesitas registrar una cuenta bancaria donde te depositaremos las ganancias.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => router.push('/dashboard/ong/profile')}>
-                            Registrar Cuenta
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            {ongProfile && (
+                <FinancialRegistrationModal
+                    isOpen={isModalOpen}
+                    onOpenChange={setIsModalOpen}
+                    onSuccess={handleFinancialSuccess}
+                    ongProfile={ongProfile}
+                />
+            )}
 
             <div className="flex items-center justify-between">
                 <div>

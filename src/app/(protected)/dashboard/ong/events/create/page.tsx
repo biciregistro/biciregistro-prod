@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import type { OngUser } from '@/lib/types';
 
 export default async function CreateEventPage() {
   const user = await getAuthenticatedUser();
@@ -17,12 +18,19 @@ export default async function CreateEventPage() {
     redirect('/dashboard');
   }
 
-  const [financialSettings, ongProfile] = await Promise.all([
+  const [financialSettings, ongProfileData] = await Promise.all([
     getFinancialSettings(),
     getOngProfile(user.id)
   ]);
 
-  const hasFinancialData = !!(ongProfile?.financialData?.clabe);
+  const hasFinancialData = !!(ongProfileData?.financialData?.clabe);
+
+  // Construct a partial OngUser object to pass to the form
+  const ongProfile: Partial<OngUser> = {
+      ...ongProfileData,
+      id: user.id,
+      email: user.email,
+  };
 
   return (
     <div className="container py-8 px-4 md:px-6">
@@ -45,7 +53,11 @@ export default async function CreateEventPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <EventForm financialSettings={financialSettings} hasFinancialData={hasFinancialData} />
+            <EventForm 
+                financialSettings={financialSettings} 
+                hasFinancialData={hasFinancialData}
+                ongProfile={ongProfile} // Nuevo prop
+            />
           </CardContent>
         </Card>
       </div>

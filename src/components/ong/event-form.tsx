@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Form } from "@/components/ui/form";
 import { Loader2 } from 'lucide-react';
 import { calculateGrossUp, calculateFeeBreakdown } from '@/lib/utils';
-import type { Event, FinancialSettings } from '@/lib/types';
+import type { Event, FinancialSettings, OngUser } from '@/lib/types';
 
 import { GeneralSection } from './event-form-sections/general-section';
 import { ConfigurationSection } from './event-form-sections/configuration-section';
@@ -26,9 +26,10 @@ interface EventFormProps {
     initialData?: Event;
     financialSettings: FinancialSettings;
     hasFinancialData: boolean;
+    ongProfile?: Partial<OngUser>; // Nuevo prop
 }
 
-export function EventForm({ initialData, financialSettings, hasFinancialData }: EventFormProps) {
+export function EventForm({ initialData, financialSettings, hasFinancialData, ongProfile }: EventFormProps) {
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
     const router = useRouter();
@@ -159,7 +160,12 @@ export function EventForm({ initialData, financialSettings, hasFinancialData }: 
 
                 <LegalSection form={form} />
 
-                <CostSection form={form} financialSettings={financialSettings} hasFinancialData={hasFinancialData} />
+                <CostSection 
+                    form={form} 
+                    financialSettings={financialSettings} 
+                    hasFinancialData={hasFinancialData} 
+                    ongProfile={ongProfile} // Propagar al CostSection
+                />
 
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t mt-8">

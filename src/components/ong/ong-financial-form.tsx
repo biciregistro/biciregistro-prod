@@ -4,10 +4,8 @@ import { useState } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
 
-import { saveOngFinancialsAction } from '@/lib/actions/ong-actions'; // Asumiré que moveré la acción aquí
+import { saveOngFinancialsAction } from '@/lib/actions/ong-actions'; 
 import { financialProfileSchema } from '@/lib/schemas';
 import type { OngUser } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -30,9 +28,11 @@ type FinancialFormValues = z.infer<typeof financialProfileSchema>;
 
 interface OngFinancialFormProps {
   ongProfile: OngUser;
+  onSuccess?: () => void;
+  hideHeader?: boolean; // Option to hide the card header for cleaner modal UI
 }
 
-export function OngFinancialForm({ ongProfile }: OngFinancialFormProps) {
+export function OngFinancialForm({ ongProfile, onSuccess, hideHeader = false }: OngFinancialFormProps) {
     const { toast } = useToast();
     const [isPending, setIsPending] = useState(false);
 
@@ -47,13 +47,10 @@ export function OngFinancialForm({ ongProfile }: OngFinancialFormProps) {
 
     const onSubmit = async (data: FinancialFormValues) => {
         setIsPending(true);
-        // We wrap the server action call to handle the form data conversion properly
         const formData = new FormData();
         Object.entries(data).forEach(([key, value]) => formData.append(key, value));
 
         try {
-             // Calling the action directly as we are handling client-side state
-             // But usually server actions return a plain object
              const result = await saveOngFinancialsAction(null, formData);
              
              if (result?.success) {
@@ -61,6 +58,9 @@ export function OngFinancialForm({ ongProfile }: OngFinancialFormProps) {
                      title: "Datos Guardados",
                      description: result.message,
                  });
+                 if (onSuccess) {
+                    onSuccess();
+                 }
              } else {
                  toast({
                      variant: "destructive",
@@ -79,6 +79,76 @@ export function OngFinancialForm({ ongProfile }: OngFinancialFormProps) {
         }
     };
 
+    const FormContent = (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <div className="grid gap-6 md:grid-cols-2">
+                    <FormField
+                        control={form.control}
+                        name="bankName"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Nombre del Banco</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="Ej. BBVA, Santander" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="accountHolder"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Nombre del Beneficiario</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="Nombre completo del titular" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <div className="md:col-span-2">
+                        <FormField
+                            control={form.control}
+                            name="clabe"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>CLABE Interbancaria (18 dígitos)</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="012345678901234567" maxLength={18} {...field} />
+                                    </FormControl>
+                                    <FormDescription>
+                                        La CLABE es única para cada cuenta bancaria y consta de 18 dígitos.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                </div>
+
+                <div className="flex justify-end pt-4">
+                    <Button type="submit" disabled={isPending}>
+                        {isPending ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Guardando...
+                            </>
+                        ) : (
+                            "Guardar Datos Financieros"
+                        )}
+                    </Button>
+                </div>
+            </form>
+        </Form>
+    );
+
+    if (hideHeader) {
+        return <div className="p-1">{FormContent}</div>;
+    }
+
     return (
         <Card>
             <CardHeader>
@@ -92,69 +162,7 @@ export function OngFinancialForm({ ongProfile }: OngFinancialFormProps) {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        <div className="grid gap-6 md:grid-cols-2">
-                            <FormField
-                                control={form.control}
-                                name="bankName"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Nombre del Banco</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="Ej. BBVA, Santander" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="accountHolder"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Nombre del Beneficiario</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="Nombre completo del titular" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <div className="md:col-span-2">
-                                <FormField
-                                    control={form.control}
-                                    name="clabe"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>CLABE Interbancaria (18 dígitos)</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="012345678901234567" maxLength={18} {...field} />
-                                            </FormControl>
-                                            <FormDescription>
-                                                La CLABE es única para cada cuenta bancaria y consta de 18 dígitos.
-                                            </FormDescription>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end pt-4">
-                            <Button type="submit" disabled={isPending}>
-                                {isPending ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Guardando...
-                                    </>
-                                ) : (
-                                    "Guardar Datos Financieros"
-                                )}
-                            </Button>
-                        </div>
-                    </form>
-                </Form>
+                {FormContent}
             </CardContent>
         </Card>
     );
