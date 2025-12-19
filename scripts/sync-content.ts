@@ -17,7 +17,11 @@ function loadEnv() {
                 const match = line.match(/^([^=]+)=(.*)$/);
                 if (match) {
                     const key = match[1].trim();
-                    const value = match[2].trim().replace(/^['"]|['"]$/g, ''); // Eliminar comillas
+                    let value = match[2].trim();
+                    // Eliminar comillas simples o dobles envolventes si existen
+                    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+                        value = value.slice(1, -1);
+                    }
                     process.env[key] = value;
                 }
             });
@@ -29,16 +33,41 @@ function loadEnv() {
 
 loadEnv();
 
+// Intentar obtener las credenciales de dos formas:
+// 1. Variable única con el JSON completo (FIREBASE_SERVICE_ACCOUNT_KEY)
+// 2. Variables individuales (FIREBASE_PROJECT_ID, etc.)
+
+let serviceAccount: any;
+
 const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
-if (!serviceAccountKey) {
-    console.error("❌ ERROR: No se encontró FIREBASE_SERVICE_ACCOUNT_KEY.");
-    console.error("Este script requiere credenciales de administrador para escribir en Firestore.");
-    console.error("Asegúrate de tener un archivo .env.local con esta variable o configurarla en tu entorno.");
-    process.exit(1);
-}
+if (serviceAccountKey) {
+    try {
+        serviceAccount = JSON.parse(serviceAccountKey);
+    } catch (e) {
+        console.error("❌ ERROR: FIREBASE_SERVICE_ACCOUNT_KEY no es un JSON válido.");
+        process.exit(1);
+    }
+} else {
+    // Intentar construir desde variables individuales
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
-const serviceAccount = JSON.parse(serviceAccountKey);
+    if (projectId && clientEmail && privateKey) {
+        serviceAccount = {
+            project_id: projectId,
+            client_email: clientEmail,
+            // Reemplazar saltos de línea escapados (\n) por saltos reales
+            private_key: privateKey.replace(/\\n/g, '\n'),
+        };
+    } else {
+        console.error("❌ ERROR: No se encontraron credenciales válidas.");
+        console.error("Debes definir FIREBASE_SERVICE_ACCOUNT_KEY (JSON)");
+        console.error("O las variables: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY");
+        process.exit(1);
+    }
+}
 
 if (!getApps().length) {
   initializeApp({
