@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { EventAnalyticsData } from '@/lib/data/event-analytics';
-import { Users, UserCheck, Percent, DollarSign, Bike, User } from 'lucide-react';
+import { Users, UserCheck, Percent, DollarSign, Bike, User, Eye, TrendingUp } from 'lucide-react';
 import { GenderDistributionChart } from '@/components/admin/charts/gender-distribution-chart';
 import { TopBrandsList } from '@/components/admin/charts/top-brands-list';
 import { ModalitiesList } from '@/components/admin/charts/modalities-list';
@@ -14,15 +14,30 @@ import { Separator } from '@/components/ui/separator';
 /**
  * Tarjeta consolidada que muestra el total de inscritos, los asistentes reales (check-in)
  * y el porcentaje de participación del evento.
+ * AHORA INCLUYE: Visitas a la página y Tasa de Conversión.
  */
-function AttendanceSummaryCard({ total, checkedIn, rate }: { total: number; checkedIn: number; rate: number }) {
+function AttendanceSummaryCard({ total, checkedIn, rate, pageViews }: { total: number; checkedIn: number; rate: number; pageViews: number }) {
+    // Calcular tasa de conversión: (Inscritos / Visitas) * 100
+    // Si pageViews es 0, la tasa es 0 para evitar división por cero.
+    // Si pageViews es menor que total (ej. datos legados), capamos al 100% o mostramos real > 100%?
+    // Mostremos real, puede ser curioso ver >100% si hay registros manuales sin visita web.
+    const conversionRate = pageViews > 0 ? ((total / pageViews) * 100).toFixed(1) : 0;
+
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="text-sm font-medium">Resumen de Asistencia</CardTitle>
+                <CardTitle>Resumen de Asistencia</CardTitle>
                  <CardDescription>Métricas clave de participación.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 pt-2">
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3 text-sm">
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">Visitas a la Página</span>
+                    </div>
+                    <span className="text-2xl font-bold">{pageViews}</span>
+                </div>
+                <Separator />
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3 text-sm">
                         <Users className="h-4 w-4 text-muted-foreground" />
@@ -39,12 +54,21 @@ function AttendanceSummaryCard({ total, checkedIn, rate }: { total: number; chec
                     <span className="text-2xl font-bold">{checkedIn}</span>
                 </div>
                 <Separator />
-                <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3 text-sm">
-                        <Percent className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">Participación</span>
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <TrendingUp className="h-3 w-3" />
+                            <span>Conversión</span>
+                        </div>
+                        <span className="text-xl font-bold text-green-600">{conversionRate}%</span>
                     </div>
-                    <span className="text-2xl font-bold text-primary">{rate}%</span>
+                    <div className="flex flex-col gap-1 text-right">
+                        <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
+                            <Percent className="h-3 w-3" />
+                            <span>Asistencia</span>
+                        </div>
+                        <span className="text-xl font-bold text-primary">{rate}%</span>
+                    </div>
                 </div>
             </CardContent>
         </Card>
@@ -111,7 +135,7 @@ function StatCard({ title, value, icon: Icon, description }: any) {
     );
 }
 
-export function EventAnalyticsView({ data }: { data: EventAnalyticsData }) {
+export function EventAnalyticsView({ data, pageViews = 0 }: { data: EventAnalyticsData; pageViews?: number }) {
     if (!data) return <div className="p-4">No hay datos disponibles aún.</div>;
 
     const { general, market } = data;
@@ -148,6 +172,7 @@ export function EventAnalyticsView({ data }: { data: EventAnalyticsData }) {
                         total={general.totalRegistrations}
                         checkedIn={general.checkedInCount}
                         rate={general.attendanceRate}
+                        pageViews={pageViews}
                     />
                     <DemographicsAgeCard
                         averageAge={general.averageAge}

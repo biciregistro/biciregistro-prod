@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { getEvent, getAuthenticatedUser, getOngProfile, getOngCommunityCount, getUserRegistrationForEvent } from '@/lib/data';
+import { getEvent, getAuthenticatedUser, getOngProfile, getOngCommunityCount, getUserRegistrationForEvent, incrementEventPageView } from '@/lib/data';
 import { EventRegistrationCard } from '@/components/event-registration-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -106,6 +106,11 @@ export default async function EventPage({ params }: EventPageProps) {
   // Allow Admin to see drafts too
   if (event.status === 'draft' && !isOwner && !isAdmin) {
      notFound();
+  }
+
+  // Increment Page Views (Fire and forget, only for published events)
+  if (event.status === 'published') {
+      incrementEventPageView(eventId).catch(err => console.error("Error incrementing views:", err));
   }
 
   const ongProfile = await getOngProfile(event.ongId);

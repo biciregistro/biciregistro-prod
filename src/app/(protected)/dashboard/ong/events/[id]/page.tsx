@@ -203,7 +203,7 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
         </TabsContent>
 
         <TabsContent value="stats" className="mt-6">
-          {analytics && <EventAnalyticsView data={analytics} />}
+          {analytics && <EventAnalyticsView data={analytics} pageViews={event.pageViews || 0} />}
         </TabsContent>
       </Tabs>
     </div>

@@ -358,6 +358,13 @@ export async function updateEvent(eventId: string, eventData: Partial<Omit<Event
     await db.collection('events').doc(eventId).update(cleanData);
 }
 
+export async function incrementEventPageView(eventId: string) {
+    const db = adminDb;
+    await db.collection('events').doc(eventId).update({
+        pageViews: FieldValue.increment(1)
+    });
+}
+
 // --- Homepage Content Management ---
 export async function getHomepageData(): Promise<{ [key: string]: HomepageSection }> {
     const db = adminDb;

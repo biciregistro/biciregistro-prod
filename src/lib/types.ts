@@ -157,6 +157,9 @@ export type Event = {
 
   // Administrative Control
   isBlocked?: boolean; // Bloqueo manual por administrador
+
+  // Analytics
+  pageViews?: number; // Contador de visitas a la página pública
 };
 
 export type PaymentStatus = 'pending' | 'paid' | 'not_applicable';
