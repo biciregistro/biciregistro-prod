@@ -315,7 +315,7 @@ export default async function EventPage({ params }: EventPageProps) {
                         <CardContent className="p-6 sm:p-8">
                             <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
                                 <Avatar className="h-20 w-20 border-4 border-background shadow-sm">
-                                    <AvatarImage src={ongProfile.avatarUrl} alt={ongProfile.organizationName} />
+                                    <AvatarImage src={ongProfile.logoUrl} alt={ongProfile.organizationName} />
                                     <AvatarFallback className="text-xl font-bold bg-primary/10 text-primary">
                                         {ongProfile.organizationName.substring(0, 2).toUpperCase()}
                                     </AvatarFallback>
