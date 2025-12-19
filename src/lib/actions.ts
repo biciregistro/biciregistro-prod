@@ -9,20 +9,19 @@ import {
     updateUserData,
     createUser as createFirestoreUser,
     createOngFirestoreProfile,
-    createEvent,
-    updateEvent,
     getHomepageData,
     getEvent,
+    updateEvent,
     cancelEventRegistration,
     updateEventRegistrationBike,
     updateRegistrationStatusInternal,
     cancelEventRegistrationById,
     getAuthenticatedUser,
 } from './data';
-import { updateFinancialSettings, updateOngFinancialData } from './financial-data';
+import { updateFinancialSettings } from './financial-data';
 import { deleteSession, getDecodedSession } from './auth';
 import { ActionFormState, HomepageSection, Event, PaymentStatus, BikeFormState } from './types';
-import { userFormSchema, ongUserFormSchema, eventFormSchema, financialSettingsSchema, financialProfileSchema } from './schemas';
+import { userFormSchema, ongUserFormSchema, financialSettingsSchema } from './schemas'; // Removed financialProfileSchema
 import { adminAuth } from './firebase/server';
 
 // Import implementations from bike-actions
@@ -89,17 +88,9 @@ const featureItemSchema = z.object({
     imageUrl: z.string().url('La URL de la imagen no es válida'),
 });
 
-const alliesItemSchema = z.object({
-    sponsors: z.array(z.object({
-        name: z.string().optional(),
-        url: z.string().url('URL inválida')
-    })).optional()
-});
-
 // Helper to ensure dates are saved as ISO YYYY-MM-DD
 const normalizeDateToISO = (dateStr: string | undefined): string | undefined => {
     if (!dateStr) return dateStr;
-    // Check for DD/MM/YYYY
     if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
         const [d, m, y] = dateStr.split('/');
         return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
@@ -134,16 +125,13 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         
         const customToken = await adminAuth.createCustomToken(userRecord.uid);
         
-        // 1. Exclude password fields and temp notification fields
         const { password: p, confirmPassword: cp, notificationsSafety, notificationsMarketing, birthDate, ...userProfileData } = validatedFields.data;
         
-        // 2. Construct notification preferences object
         const notificationPreferences = {
             safety: !!notificationsSafety,
             marketing: !!notificationsMarketing
         };
 
-        // 3. Construct the raw data object for Firestore
         const rawUserData = {
             id: userRecord.uid,
             ...userProfileData,
@@ -152,15 +140,13 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
             role: 'ciclista' as const,
             communityId,
             notificationPreferences,
-            createdAt: new Date().toISOString(), // <-- Add createdAt timestamp
+            createdAt: new Date().toISOString(),
         };
 
-        // 4. Clean the object: Remove any keys with undefined values to prevent Firestore errors
         const cleanUserData = Object.fromEntries(
             Object.entries(rawUserData).filter(([_, value]) => value !== undefined)
         );
 
-        // 5. Save the cleaned data
         await createFirestoreUser(cleanUserData as any);
         
         return { success: true, customToken: customToken };
@@ -209,15 +195,13 @@ export async function createOngUser(prevState: ActionFormState, formData: FormDa
 
         await adminAuth.setCustomUserClaims(userRecord.uid, { role: 'ong' });
 
-        // 1. Crear perfil extendido en 'ong-profiles'
         await createOngFirestoreProfile({
             id: userRecord.uid,
             organizationName,
-            invitationLink, // Guardar el link generado
+            invitationLink,
             ...ongData,
         });
 
-        // 2. Crear documento de usuario básico en 'users' para mantener consistencia
         await createFirestoreUser({
             id: userRecord.uid,
             email: email,
@@ -259,17 +243,13 @@ export async function updateHomepageSection(prevState: ActionFormState, formData
                     sponsors = JSON.parse(data.sponsorsJson);
                 } catch (e) {
                     console.error("Error parsing sponsors JSON", e);
-                    // No hacer nada, se usará un array vacío
                 }
             }
-
-            // Construir el payload completo para 'allies'
             const alliesPayload: Extract<HomepageSection, { id: 'allies' }> = {
                 id: 'allies',
-                title: payload.title || 'Nuestros Aliados', // Default title si no existe
+                title: payload.title || 'Nuestros Aliados',
                 sponsors: sponsors
             };
-            
             await updateHomepageSectionData(alliesPayload);
         } else if (payload.id === 'security') {
              let items = [];
@@ -280,18 +260,14 @@ export async function updateHomepageSection(prevState: ActionFormState, formData
                      console.error("Error parsing security items JSON", e);
                  }
              }
-             
-             // Ensure we have exactly 3 items structure if possible, or trust admin
              const securityPayload: Extract<HomepageSection, { id: 'security' }> = {
                  id: 'security',
                  title: payload.title || 'Tu Seguridad es Nuestra Prioridad',
                  subtitle: payload.subtitle || '',
-                 items: items as [any, any, any] // Type assertion for tuple
+                 items: items as [any, any, any]
              };
-             
              await updateHomepageSectionData(securityPayload);
         } else {
-             // Lógica original para las otras secciones
             await updateHomepageSectionData(payload as HomepageSection);
         }
 
@@ -356,7 +332,6 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         };
     }
 
-    // Extract temporary notification fields
     const { id, currentPassword, newPassword, email, notificationsSafety, notificationsMarketing, birthDate, ...userData } = validatedFields.data;
 
     if (id !== session.uid) {
@@ -371,7 +346,6 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
             passwordChanged = true;
         }
 
-        // Construct update payload with notification preferences
         const updatePayload = {
             ...userData,
             birthDate: normalizeDateToISO(birthDate),
@@ -400,8 +374,6 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
 
 export async function logout() {
     await deleteSession();
-    // Use root path to avoid issues with protected routes returning 404/redirect loops
-    // when session is invalidated during the action response
     revalidatePath('/', 'layout');
     redirect('/');
 }
@@ -410,57 +382,6 @@ export async function forceLogout() {
     await deleteSession();
 }
 
-export async function saveEvent(eventData: any, isDraft: boolean): Promise<ActionFormState> {
-    const session = await getDecodedSession();
-    if (!session?.uid) {
-        return { error: 'No estás autenticado.' };
-    }
-
-    const validatedFields = eventFormSchema.safeParse(eventData);
-
-    if (!validatedFields.success) {
-        return {
-            error: 'Datos del evento no válidos. Revisa los campos marcados.',
-            errors: validatedFields.error.flatten().fieldErrors,
-        };
-    }
-
-    const data = validatedFields.data;
-    const status = isDraft ? 'draft' : 'published';
-
-    try {
-        const eventId = eventData.id;
-
-        const payload: Omit<Event, 'id'> = {
-            ongId: session.uid,
-            status: status,
-            ...data,
-            costTiers: data.costTiers || [],
-        };
-
-        if (eventId) {
-            await updateEvent(eventId, payload);
-            revalidatePath(`/dashboard/ong/events/${eventId}`);
-            // If editing, we revalidate the specific path
-            // For admins, we might want to revalidate admin paths too if we had a detail view
-        } else {
-            await createEvent(payload);
-        }
-
-        // Dynamic revalidation based on role
-        if (session.admin === true) {
-             revalidatePath('/admin');
-        } else {
-             revalidatePath('/dashboard/ong');
-        }
-        
-        return { success: true, message: isDraft ? 'Borrador guardado exitosamente.' : 'Evento publicado exitosamente.' };
-
-    } catch (error: any) {
-        console.error("Save event error:", error);
-        return { error: 'Ocurrió un error al guardar el evento.' };
-    }
-}
 
 export async function toggleEventStatusAction(eventId: string, newStatus: 'draft' | 'published'): Promise<{ success: boolean; error?: string }> {
     const session = await getDecodedSession();
@@ -578,7 +499,6 @@ export async function cancelRegistrationManuallyAction(registrationId: string, e
 }
 
 export async function saveFinancialSettingsAction(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
-    // Validar usuario consultando la base de datos, no solo el token de sesión
     const user = await getAuthenticatedUser();
     
     if (!user || user.role !== 'admin') {
@@ -601,30 +521,5 @@ export async function saveFinancialSettingsAction(prevState: ActionFormState, fo
     } catch (error) {
         console.error("Error saving financial settings:", error);
         return { error: 'Ocurrió un error al guardar la configuración.' };
-    }
-}
-
-export async function saveOngFinancialsAction(prevState: ActionFormState, formData: FormData): Promise<ActionFormState> {
-    const session = await getDecodedSession();
-    if (!session?.uid || session.role !== 'ong') {
-        return { error: 'No tienes permisos para realizar esta acción.' };
-    }
-
-    const validatedFields = financialProfileSchema.safeParse(Object.fromEntries(formData.entries()));
-
-    if (!validatedFields.success) {
-        return {
-            error: 'Datos inválidos. Verifica que la CLABE tenga 18 dígitos numéricos.',
-            errors: validatedFields.error.flatten().fieldErrors,
-        };
-    }
-
-    try {
-        await updateOngFinancialData(session.uid, validatedFields.data);
-        revalidatePath('/dashboard/ong/profile');
-        return { success: true, message: 'Datos bancarios guardados correctamente.' };
-    } catch (error) {
-        console.error("Error saving ONG financials:", error);
-        return { error: 'Ocurrió un error al guardar los datos bancarios.' };
     }
 }

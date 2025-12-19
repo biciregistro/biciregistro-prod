@@ -7,7 +7,7 @@ import { z } from "zod";
 import { useRouter, usePathname } from 'next/navigation';
 
 import { eventFormSchema } from '@/lib/schemas';
-import { saveEvent } from '@/lib/actions';
+import { saveEvent } from '@/lib/actions/ong-actions';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Form } from "@/components/ui/form";
@@ -26,7 +26,7 @@ interface EventFormProps {
     initialData?: Event;
     financialSettings: FinancialSettings;
     hasFinancialData: boolean;
-    ongProfile?: Partial<OngUser>; // Nuevo prop
+    ongProfile?: Partial<OngUser>;
 }
 
 export function EventForm({ initialData, financialSettings, hasFinancialData, ongProfile }: EventFormProps) {
@@ -35,7 +35,6 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
     const router = useRouter();
     const pathname = usePathname();
 
-    // Initial Tiers Logic: Map initial tiers to use NET price if available, else PRICE (Total)
     const initialTiers = initialData?.costTiers?.map(tier => ({
         ...tier,
         price: tier.netPrice || tier.price
@@ -74,49 +73,36 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
     const onSubmit = async (data: EventFormValues, isDraft: boolean) => {
         startTransition(async () => {
             const isCostEnabled = data.costType === 'Con Costo';
+            const isNewEvent = !initialData?.id;
 
-            // Process Cost Tiers: Calculate Gross-up and Fee
             const processedTiers = data.costTiers?.map(tier => {
                 if (!isCostEnabled) return tier;
                 
-                const netPrice = Number(tier.price); // Input is NET
+                const netPrice = Number(tier.price);
                 const totalGrossPrice = calculateGrossUp(netPrice, financialSettings);
                 const breakdown = calculateFeeBreakdown(totalGrossPrice, netPrice);
 
                 return {
                     ...tier,
-                    price: totalGrossPrice, // Save TOTAL for payment gateway
-                    netPrice: netPrice,     // Save NET for organizer
-                    fee: breakdown.feeAmount // Save FEE for platform revenue
+                    price: totalGrossPrice,
+                    netPrice: netPrice,
+                    fee: breakdown.feeAmount
                 };
             }) || [];
 
-            // Merge form data with ID if editing
             const submitData = { 
                 ...data, 
                 id: initialData?.id,
                 costTiers: isCostEnabled ? processedTiers : [],
             };
             
-            // Cleanup logic for disabled features
             if (!isCostEnabled) {
                 submitData.paymentDetails = undefined;
                 submitData.costType = 'Gratuito';
             }
-
-            if (!data.hasCategories) {
-                submitData.categories = [];
-            }
-
-            if (!data.hasRegistrationDeadline) {
-                submitData.registrationDeadline = undefined;
-            }
-
-            if (!data.requiresWaiver) {
-                submitData.waiverText = undefined;
-            }
-
-            // Note: requiresEmergency and requiresBike are boolean, so false is valid data
+            if (!data.hasCategories) submitData.categories = [];
+            if (!data.hasRegistrationDeadline) submitData.registrationDeadline = undefined;
+            if (!data.requiresWaiver) submitData.waiverText = undefined;
             
             const result = await saveEvent(submitData, isDraft);
 
@@ -126,10 +112,20 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
                     description: result.message,
                 });
                 
-                if (pathname.startsWith('/admin')) {
-                    router.push('/admin?tab=events');
-                } else {
-                    router.push('/dashboard/ong');
+                if (!isDraft && isNewEvent && result.eventId) {
+                    const redirectUrl = pathname.startsWith('/admin')
+                        ? `/admin/events/${result.eventId}`
+                        : `/dashboard/ong/events/${result.eventId}`;
+                    router.push(redirectUrl);
+                } else if (!isDraft && !isNewEvent) {
+                    // If editing, just go back to the event management page
+                    const redirectUrl = pathname.startsWith('/admin')
+                        ? `/admin/events/${result.eventId}`
+                        : `/dashboard/ong/events/${result.eventId}`;
+                    router.push(redirectUrl);
+                }
+                else {
+                    router.push(pathname.startsWith('/admin') ? '/admin?tab=events' : '/dashboard/ong');
                 }
             } else {
                 toast({
@@ -155,19 +151,15 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
             <form className="space-y-8">
                 
                 <GeneralSection form={form} />
-                
                 <ConfigurationSection form={form} />
-
                 <LegalSection form={form} />
-
                 <CostSection 
                     form={form} 
                     financialSettings={financialSettings} 
                     hasFinancialData={hasFinancialData} 
-                    ongProfile={ongProfile} // Propagar al CostSection
+                    ongProfile={ongProfile}
                 />
 
-                {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t mt-8">
                     <Button 
                         type="button" 
@@ -176,7 +168,7 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
                         onClick={form.handleSubmit((data) => onSubmit(data, true), onError)}
                         disabled={isPending}
                     >
-                        {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Guardar Borrador
                     </Button>
                     <Button 
@@ -185,8 +177,8 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
                         onClick={form.handleSubmit((data) => onSubmit(data, false), onError)}
                         disabled={isPending}
                     >
-                        {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Publicar Evento
+                        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {initialData?.id ? "Actualizar Evento" : "Publicar Evento"}
                     </Button>
                 </div>
             </form>

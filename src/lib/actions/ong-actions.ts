@@ -2,10 +2,14 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+
 import { getAuthenticatedUser } from "@/lib/data";
-import { ongProfileSchema, financialProfileSchema } from "@/lib/schemas";
+import { createEvent, updateEvent } from "@/lib/data";
+import { ongProfileSchema, financialProfileSchema, eventFormSchema } from "@/lib/schemas";
 import { adminDb as db } from "@/lib/firebase/server";
 import { updateOngFinancialData } from "@/lib/financial-data";
+import type { ActionFormState, Event } from "@/lib/types";
+
 
 export async function updateOngProfile(values: z.infer<typeof ongProfileSchema>) {
     const user = await getAuthenticatedUser();
@@ -79,5 +83,57 @@ export async function saveOngFinancialsAction(prevState: any, formData: FormData
     } catch (error) {
         console.error("Error saving ONG financials:", error);
         return { error: 'Ocurrió un error al guardar los datos bancarios.' };
+    }
+}
+
+export async function saveEvent(eventData: any, isDraft: boolean): Promise<ActionFormState & { eventId?: string }> {
+    const user = await getAuthenticatedUser();
+    if (!user || (user.role !== 'ong' && user.role !== 'admin')) {
+        return { error: 'No estás autenticado o no tienes permisos.' };
+    }
+
+    const validatedFields = eventFormSchema.safeParse(eventData);
+
+    if (!validatedFields.success) {
+        return {
+            error: 'Datos del evento no válidos. Revisa los campos marcados.',
+            errors: validatedFields.error.flatten().fieldErrors,
+        };
+    }
+
+    const data = validatedFields.data;
+    const status = isDraft ? 'draft' : 'published';
+
+    try {
+        let eventId = eventData.id;
+        
+        const payload: Omit<Event, 'id'> = {
+            ongId: user.id,
+            status: status,
+            ...data,
+            costTiers: data.costTiers || [],
+        };
+
+        if (eventId) {
+            await updateEvent(eventId, payload);
+        } else {
+            eventId = await createEvent(payload);
+        }
+        
+        revalidatePath('/dashboard/ong');
+        revalidatePath(`/dashboard/ong/events/${eventId}`);
+        if (user.role === 'admin') {
+             revalidatePath('/admin');
+        }
+
+        return { 
+            success: true, 
+            message: isDraft ? 'Borrador guardado.' : 'Evento publicado.',
+            eventId: eventId
+        };
+
+    } catch (error: any) {
+        console.error("Save event error:", error);
+        return { error: 'Ocurrió un error al guardar el evento.' };
     }
 }
