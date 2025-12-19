@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import { FeedbackButton } from "@/components/shared/feedback-button";
 import { InstallPrompt } from "@/components/shared/install-prompt";
+import { GoogleAnalytics } from "@/components/shared/google-analytics";
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -33,6 +34,7 @@ export default function RootLayout({
         <InstallPrompt />
         <FeedbackButton />
         <Toaster />
+        <GoogleAnalytics />
       </body>
     </html>
   );
