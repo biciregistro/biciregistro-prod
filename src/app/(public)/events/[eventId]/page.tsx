@@ -150,6 +150,20 @@ export default async function EventPage({ params }: EventPageProps) {
             priority
         />
         
+        {/* Organizer Logo */}
+        {ongProfile?.logoUrl && (
+            <div className="absolute top-4 left-4 md:top-6 md:left-6 z-20 bg-white/90 rounded-full p-1 shadow-lg backdrop-blur-sm">
+                <div className="relative w-16 h-16 md:w-24 md:h-24">
+                    <Image 
+                        src={ongProfile.logoUrl} 
+                        alt={`${ongProfile.organizationName} logo`}
+                        fill 
+                        className="object-contain"
+                    />
+                </div>
+            </div>
+        )}
+
         {/* Rodada Segura Badge */}
         <div className="absolute top-4 right-4 md:top-6 md:right-6 z-20 bg-white/90 rounded-full p-1 shadow-lg backdrop-blur-sm">
             <div className="relative w-16 h-16 md:w-24 md:h-24">
