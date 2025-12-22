@@ -3,7 +3,7 @@
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 
 // Arreglo para el icono por defecto de Leaflet que se rompe con Webpack
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
@@ -77,10 +77,12 @@ function MapClickHandler({ initialPosition, onLocationChange }: { initialPositio
 export default function LocationPickerMap({ onLocationSelect, onClose }: LocationPickerMapProps) {
   const [markerPosition, setMarkerPosition] = useState<L.LatLng>(new L.LatLng(19.4326, -99.1332)); // Default a CDMX
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Generamos un ID único para el contenedor cada vez que se monta el componente
-  // Esto fuerza a React a destruir y recrear el DOM del mapa, evitando el error "Map container is already initialized"
-  const mapKey = useMemo(() => Math.random().toString(36).substring(7), []);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Asegura que el componente solo se renderice en el cliente
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleLocationChange = (pos: L.LatLng) => {
     setMarkerPosition(pos);
@@ -89,8 +91,6 @@ export default function LocationPickerMap({ onLocationSelect, onClose }: Locatio
   const handleConfirmLocation = async () => {
     setIsLoading(true);
     try {
-      // Usamos un proxy o un endpoint propio para evitar problemas de CORS si es necesario,
-      // pero Nominatim suele ser abierto.
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${markerPosition.lat}&lon=${markerPosition.lng}&addressdetails=1`
       );
@@ -110,17 +110,21 @@ export default function LocationPickerMap({ onLocationSelect, onClose }: Locatio
 
     } catch (error) {
       console.error("Error en Reverse Geocoding:", error);
-      // Aquí podrías mostrar un toast de error al usuario
     } finally {
       setIsLoading(false);
     }
   };
 
+  if (!isMounted) {
+      return <div className="h-[400px] w-full bg-muted animate-pulse flex items-center justify-center">Cargando mapa...</div>;
+  }
+
   return (
     <div className="space-y-4">
       <div style={{ height: '400px', width: '100%' }}>
+        {/* La key asegura que si isMounted cambia (o cualquier state padre), el mapa se reinicie limpiamente */}
         <MapContainer 
-            key={mapKey} 
+            key={isMounted ? "mounted-map" : "loading-map"}
             center={markerPosition} 
             zoom={13} 
             style={{ height: '100%', width: '100%' }}
