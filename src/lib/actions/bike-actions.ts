@@ -45,9 +45,9 @@ const theftReportSchema = z.object({
     lng: z.coerce.number().optional(),
     location: z.string().min(1, "La ubicación es obligatoria."),
     details: z.string().min(1, "Los detalles son obligatorios."),
-    // HU-01: Add optional reward field with numeric validation.
+    thiefDetails: z.string().optional(), // <-- NUEVO CAMPO
     reward: z.preprocess(
-        (val) => val || undefined, // Treat empty string or null as undefined, making it optional.
+        (val) => val || undefined,
         z.string()
          .regex(/^[0-9]+$/, { message: "La recompensa solo debe contener números." })
          .optional()
@@ -64,24 +64,21 @@ async function uploadBase64Image(base64String: string, path: string) {
         }
 
         const bucket = getStorage().bucket(bucketName);
-        // Eliminar prefijo data:image/xyz;base64,
         const base64Data = base64String.replace(/^data:image\/\w+;base64,/, "");
         const buffer = Buffer.from(base64Data, 'base64');
         const file = bucket.file(path);
         
-        // Generar un token de descarga
         const token = crypto.randomUUID();
 
         await file.save(buffer, {
             metadata: {
                 contentType: 'image/jpeg',
                 metadata: {
-                    firebaseStorageDownloadTokens: token, // Asignar el token
+                    firebaseStorageDownloadTokens: token,
                 }
             },
         });
 
-        // Usamos la URL pública directa de Firebase Storage CON EL TOKEN
         const encodedPath = encodeURIComponent(path);
         const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${token}`;
         
@@ -207,25 +204,23 @@ export async function reportTheft(prevState: any, formData: FormData) {
         return { errors: validatedFields.error.flatten().fieldErrors, message: 'Faltan campos. No se pudo reportar el robo.' };
     }
 
+    // El objeto theftData ahora incluye lat, lng, y thiefDetails si existen.
     const { bikeId, ...theftData } = validatedFields.data;
 
     try {
         // 1. Update Bike Status
         await updateBikeData(bikeId, {
             status: 'stolen',
-            theftReport: theftData,
+            theftReport: theftData, // Guardamos el objeto completo.
         });
 
-        // 2. HU-02: Send Push Notification (Synchronous to ensure execution in serverless environment)
+        // 2. HU-02: Send Push Notification (No changes needed here)
         try {
-            // Fetch bike to get details
             const bike = await getBike(session.uid, bikeId);
             if (bike) {
-                // Fetch owner user to get contact info
                 const owner = await getUser(session.uid);
                 if (owner) {
                     const ownerName = owner.name + (owner.lastName ? ` ${owner.lastName}` : '');
-                    // Priority: Whatsapp form field (not in current schema/data) -> User Whatsapp -> User Phone -> 'La plataforma'
                     const ownerPhone = owner.whatsapp || owner.email;
 
                     await sendTheftAlert(bikeId, {
@@ -242,8 +237,6 @@ export async function reportTheft(prevState: any, formData: FormData) {
             }
         } catch (notificationError) {
             console.error("Failed to send theft alert notification:", notificationError);
-            // We catch the error so the user still gets a success message for the report itself,
-            // but the error is logged for debugging.
         }
 
         revalidatePath('/dashboard');
@@ -255,14 +248,13 @@ export async function reportTheft(prevState: any, formData: FormData) {
     }
 }
 
+
 export async function markAsRecovered(bikeId: string) {
     const session = await getDecodedSession();
     if (!session?.uid) {
         return;
     }
     try {
-        // Change status to 'recovered' instead of 'safe'
-        // Do NOT delete theftReport to preserve history for analytics
         await updateBikeData(bikeId, {
             status: 'recovered',
         });
@@ -349,7 +341,6 @@ export async function registerBikeWizardAction(formData: any) {
         const userId = session.uid;
         const photoUrls: string[] = [];
 
-        // 1. Upload Images to Storage
         if (formData.bikeImage) {
             const path = `bike-photos/${userId}/${Date.now()}_main.jpg`;
             const url = await uploadBase64Image(formData.bikeImage, path);
@@ -400,7 +391,6 @@ export async function validateSerialNumberAction(serialNumber: string) {
     return { exists: false };
 }
 
-// HU-02: Action to save FCM Token from Client
 export async function saveFCMToken(token: string) {
     const session = await getDecodedSession();
     if (!session?.uid) return { success: false };

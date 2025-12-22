@@ -18,17 +18,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { registerBike, updateBike } from '@/lib/actions/bike-actions';
-import { reportTheft } from '@/lib/actions';
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, ArrowLeft, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { countries, type Country } from '@/lib/countries';
-import { getCities } from '@/lib/cities';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { bikeBrands } from '@/lib/bike-brands';
 import {
@@ -43,6 +39,7 @@ import { BikeRegistrationSchema } from '@/lib/schemas';
 import { auth } from '@/lib/firebase/client';
 import { modalityOptions } from '@/lib/bike-types';
 import { RecoverBikeButton } from '@/components/bike-components/recover-bike-button';
+import { TheftReportForm } from '@/components/bike-components/theft-report-form'; // Import the new component
 
 const bikeStatusStyles: { [key in BikeStatus]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -144,10 +141,11 @@ export function BikeCard({ bike }: { bike: Bike }) {
                                             Por favor, proporciona los detalles del incidente.
                                         </DialogDescription>
                                     </DialogHeader>
+                                    {/* Usamos el nuevo componente modularizado */}
                                     <TheftReportForm 
                                         bike={bike} 
                                         onSuccess={() => setIsReportModalOpen(false)}
-                                        defaultOpen={true} // New prop to skip the initial button
+                                        defaultOpen={true}
                                     />
                                 </DialogContent>
                             </Dialog>
@@ -429,295 +427,6 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                         <SubmitButton isEditing={isEditing} isSerialInvalid={serialExists} />
                     </CardFooter>
                 </Card>
-            </form>
-        </Form>
-    );
-}
-
-function ReportTheftButton({ ...props }) {
-    const { pending } = useFormStatus();
-    return <Button type="submit" variant="destructive" className="w-full" disabled={pending} {...props}>{pending ? 'Reportando...' : 'Reportar como Robada'}</Button>;
-}
-
-const theftReportSchema = z.object({
-    date: z.string().min(1, "La fecha es obligatoria."),
-    time: z.string().optional(),
-    country: z.string().min(1, "El país es obligatorio."),
-    state: z.string().min(1, "El estado/provincia es obligatorio."),
-    city: z.string().min(1, "El municipio es obligatorio."),
-    zipCode: z.string().optional(),
-    lat: z.coerce.number().optional(),
-    lng: z.coerce.number().optional(),
-    location: z.string().min(1, "La ubicación es obligatoria."),
-    details: z.string().min(1, "Los detalles son obligatorios."),
-    reward: z.preprocess(
-        (val) => val || undefined,
-        z.string()
-         .regex(/^[0-9]+$/, { message: "La recompensa solo debe contener números." })
-         .optional()
-    ),
-});
-type TheftReportValues = z.infer<typeof theftReportSchema>;
-
-export function TheftReportForm({ bike, onSuccess, defaultOpen = false }: { bike: Bike, onSuccess?: () => void, defaultOpen?: boolean }) {
-    const [showForm, setShowForm] = useState(defaultOpen);
-    const [state, formAction] = useActionState(reportTheft, null);
-    const { toast } = useToast();
-    const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === 'México'));
-    const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
-    const [cities, setCities] = useState<string[]>([]);
-    
-    // Reset showForm if defaultOpen prop changes (though usually component remounts)
-    useEffect(() => {
-        setShowForm(defaultOpen);
-    }, [defaultOpen]);
-
-    const form = useForm<TheftReportValues>({
-        resolver: zodResolver(theftReportSchema),
-        defaultValues: {
-            date: new Date().toISOString().split('T')[0],
-            time: new Date().toTimeString().slice(0,5),
-            country: 'México',
-            state: '',
-            city: '',
-            zipCode: '',
-            lat: undefined,
-            lng: undefined,
-            location: "",
-            details: "",
-            reward: "",
-        },
-    });
-
-    useEffect(() => {
-        if (state?.message) {
-            toast({
-                title: state.errors ? "Error" : "Éxito",
-                description: state.message,
-                variant: state.errors ? "destructive" : "default",
-            });
-            if (!state.errors) {
-                setShowForm(false);
-                if (onSuccess) {
-                    onSuccess();
-                }
-            }
-        }
-    }, [state, toast, onSuccess]);
-
-    const handleCountryChange = (countryName: string) => {
-        const country = countries.find(c => c.name === countryName);
-        setSelectedCountry(country);
-        setStates(country ? country.states : []);
-        setCities([]);
-        form.setValue('country', countryName);
-        form.setValue('state', '');
-        form.setValue('city', '');
-    };
-
-    const handleStateChange = (stateName: string) => {
-        form.setValue('state', stateName);
-        form.setValue('city', '');
-        
-        const countryName = form.getValues('country');
-        if (countryName) {
-            const availableCities = getCities(countryName, stateName);
-            setCities(availableCities);
-        } else {
-            setCities([]);
-        }
-    };
-
-    
-    // Logic to show the report button for 'safe' or 'recovered' bikes
-    const canReportStolen = bike.status === 'safe' || bike.status === 'recovered';
-
-    if (!showForm && canReportStolen) {
-        return <Button variant="destructive" className="w-full" onClick={() => setShowForm(true)}>Reportar como Robada</Button>
-    }
-    
-    // If we can't report stolen and the form isn't shown, render nothing.
-    if (!canReportStolen) {
-        return null;
-    }
-
-
-    return (
-        <Form {...form}>
-            <form action={formAction} className="space-y-4">
-                {state?.message && (
-                    <Alert variant={state.errors ? "destructive" : "default"}>
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>{state.errors ? 'Error' : 'Éxito'}</AlertTitle>
-                        <AlertDescription>{state.message}</AlertDescription>
-                    </Alert>
-                )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormField
-                        control={form.control}
-                        name="date"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Fecha del Robo</FormLabel>
-                                <FormControl>
-                                    <Input type="date" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                     <FormField
-                        control={form.control}
-                        name="time"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Hora del Robo (aprox.)</FormLabel>
-                                <FormControl>
-                                    <Input type="time" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                </div>
-                <FormField
-                    control={form.control}
-                    name="country"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>País</FormLabel>
-                            <Select onValueChange={handleCountryChange} defaultValue={field.value} name={field.name}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecciona un país" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {countries.map(country => (
-                                        <SelectItem key={country.code} value={country.name}>{country.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormField
-                        control={form.control}
-                        name="state"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Estado / Provincia</FormLabel>
-                                <Select onValueChange={handleStateChange} value={field.value || ''} disabled={!selectedCountry} name={field.name}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Selecciona un estado" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {states.map(state => (
-                                            <SelectItem key={state} value={state}>{state}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                     <FormField
-                        control={form.control}
-                        name="city"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Municipio / Ciudad</FormLabel>
-                                {cities.length > 0 ? (
-                                    <Select onValueChange={field.onChange} value={field.value || ''} disabled={!form.watch('state')} name={field.name}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Selecciona un municipio" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {cities.map(city => (
-                                                <SelectItem key={city} value={city}>{city}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                ) : (
-                                    <FormControl>
-                                        <Input placeholder="Escribe el municipio" {...field} value={field.value || ''} />
-                                    </FormControl>
-                                )}
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                </div>
-
-                <FormField
-                    control={form.control}
-                    name="zipCode"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Código Postal (Opcional)</FormLabel>
-                            <FormControl>
-                                <Input placeholder="ej. 06500 (Si lo conoces)" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-
-                <FormField
-                    control={form.control}
-                    name="location"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Ubicación (Dirección o referencia)</FormLabel>
-                            <FormControl>
-                                <Input placeholder="ej., Calle Madero esq. Reforma" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                
-                <input type="hidden" name="lat" value={form.watch('lat') || ''} />
-                <input type="hidden" name="lng" value={form.watch('lng') || ''} />
-
-                <FormField
-                    control={form.control}
-                    name="details"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Detalles del robo</FormLabel>
-                            <FormControl>
-                                <Textarea placeholder="ej., La dejé candada a las 2pm y cuando volví a las 4pm ya no estaba." {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="reward"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Recompensa (Opcional)</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="ej., 500" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <input type="hidden" name="bikeId" value={bike.id} />
-                <div className="flex flex-col-reverse sm:flex-row gap-2">
-                    {onSuccess && <Button variant="outline" type="button" onClick={onSuccess}>Cancelar</Button>}
-                    <ReportTheftButton />
-                </div>
             </form>
         </Form>
     );

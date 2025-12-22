@@ -26,6 +26,7 @@ export type Bike = {
     lat?: number; // Added field
     lng?: number; // Added field
     reward?: string; // HU-01: Campo para recompensa opcional
+    thiefDetails?: string; // <-- Campo para detalles del ladrón
   };
 };
 
