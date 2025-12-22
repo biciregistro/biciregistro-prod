@@ -3,7 +3,7 @@
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 // Arreglo para el icono por defecto de Leaflet que se rompe con Webpack
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
@@ -77,6 +77,10 @@ function MapClickHandler({ initialPosition, onLocationChange }: { initialPositio
 export default function LocationPickerMap({ onLocationSelect, onClose }: LocationPickerMapProps) {
   const [markerPosition, setMarkerPosition] = useState<L.LatLng>(new L.LatLng(19.4326, -99.1332)); // Default a CDMX
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Generamos un ID único para el contenedor cada vez que se monta el componente
+  // Esto fuerza a React a destruir y recrear el DOM del mapa, evitando el error "Map container is already initialized"
+  const mapKey = useMemo(() => Math.random().toString(36).substring(7), []);
 
   const handleLocationChange = (pos: L.LatLng) => {
     setMarkerPosition(pos);
@@ -115,7 +119,12 @@ export default function LocationPickerMap({ onLocationSelect, onClose }: Locatio
   return (
     <div className="space-y-4">
       <div style={{ height: '400px', width: '100%' }}>
-        <MapContainer center={markerPosition} zoom={13} style={{ height: '100%', width: '100%' }}>
+        <MapContainer 
+            key={mapKey} 
+            center={markerPosition} 
+            zoom={13} 
+            style={{ height: '100%', width: '100%' }}
+        >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
