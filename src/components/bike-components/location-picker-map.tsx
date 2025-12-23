@@ -20,11 +20,16 @@ const DefaultIcon = L.icon({
 });
 
 // CLASE CUSTOM PROVIDER PARA USAR NUESTRO PROXY
-// Esto evita el error de CORS/Fetch en el cliente al llamar a Nominatim directo
+// Sobrescribimos la searchUrl para que apunte a nuestra API local
 class ProxyProvider extends OpenStreetMapProvider {
+  constructor(options = {}) {
+    super(options);
+    // @ts-ignore - Sobrescribimos propiedad interna para redirigir tráfico
+    this.searchUrl = '/api/geosearch';
+  }
+
   getSearchUrl(query: string) {
-    // Apuntamos a nuestra API local
-    return `/api/geosearch?query=${encodeURIComponent(query)}`;
+    return `${this.searchUrl}?query=${encodeURIComponent(query)}`;
   }
 }
 
@@ -92,13 +97,12 @@ export default function LocationPickerMap({ onLocationSelect, onClose }: Locatio
           showMarker: false, 
           autoClose: true,
           keepResult: true,
-          searchLabel: 'Buscar ubicación...', // Label en español
+          searchLabel: 'Buscar ubicación...',
         });
         map.addControl(searchControl);
         
         map.on('geosearch/showlocation', (result: any) => {
             const pos = new L.LatLng(result.location.y, result.location.x);
-            // Usamos setView sin animación para seguridad
             map.setView(pos, 16, { animate: false });
             marker.setLatLng(pos);
             setCurrentPos(pos);
@@ -110,7 +114,6 @@ export default function LocationPickerMap({ onLocationSelect, onClose }: Locatio
             setCurrentPos(e.latlng);
         });
 
-        // Geolocalización inicial
         map.locate({ setView: false, maxZoom: 16 });
         
         const onLocationFound = (e: L.LocationEvent) => {
