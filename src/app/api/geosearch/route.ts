@@ -2,14 +2,15 @@ import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const query = searchParams.get('query');
+  // Leaflet-geosearch envía 'q' por defecto, no 'query'. Aceptamos ambos.
+  const query = searchParams.get('q') || searchParams.get('query');
 
   if (!query) {
-    return NextResponse.json({ error: 'Query parameter is required' }, { status: 400 });
+    return NextResponse.json({ error: 'Query parameter (q) is required' }, { status: 400 });
   }
 
   try {
-    const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+    const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1`;
     
     const response = await fetch(nominatimUrl, {
       headers: {
@@ -23,9 +24,6 @@ export async function GET(request: Request) {
     }
 
     const data = await response.json();
-    
-    // Transformamos la data al formato que leaflet-geosearch espera si es necesario, 
-    // pero OpenStreetMapProvider suele parsear la respuesta standard de Nominatim.
     return NextResponse.json(data);
 
   } catch (error) {

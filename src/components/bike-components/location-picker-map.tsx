@@ -27,10 +27,7 @@ class ProxyProvider extends OpenStreetMapProvider {
     // @ts-ignore - Sobrescribimos propiedad interna para redirigir tráfico
     this.searchUrl = '/api/geosearch';
   }
-
-  getSearchUrl(query: string) {
-    return `${this.searchUrl}?query=${encodeURIComponent(query)}`;
-  }
+  // Eliminado getSearchUrl para dejar que la librería use 'q' por defecto
 }
 
 type NominatimAddress = {
