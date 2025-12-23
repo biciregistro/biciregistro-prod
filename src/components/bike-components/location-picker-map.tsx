@@ -1,30 +1,28 @@
 'use client';
 
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
+import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useEffect, useState } from 'react';
+import { getReverseGeocoding } from '@/lib/actions/bike-actions';
 
-// Arreglo para el icono por defecto de Leaflet que se rompe con Webpack
-import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
-import iconUrl from 'leaflet/dist/images/marker-icon.png';
-import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
-
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: iconRetinaUrl.src,
-  iconUrl: iconUrl.src,
-  shadowUrl: shadowUrl.src,
+// SOLUCIÓN DEFINITIVA PARA ICONOS: Usar CDN
+const DefaultIcon = L.icon({
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
 });
 
-// Tipos para la respuesta de la API de Nominatim
 type NominatimAddress = {
   road?: string;
   suburb?: string;
   city?: string;
-  town?: string; // Added
-  village?: string; // Added
-  hamlet?: string; // Added for completeness
+  town?: string;
+  village?: string;
+  hamlet?: string;
   county?: string;
   state?: string;
   postcode?: string;
@@ -44,99 +42,116 @@ interface LocationPickerMapProps {
   onClose: () => void;
 }
 
-// Componente para centrar el mapa en la ubicación del usuario
-function CenterMapToUserLocation({ onInitialLocationFound }: { onInitialLocationFound: (pos: L.LatLng) => void }) {
-  const map = useMap();
-  
-  useEffect(() => {
-    map.locate({ setView: true, maxZoom: 16 });
-    map.on('locationfound', (e) => {
-      onInitialLocationFound(e.latlng);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map]);
-
-  return null;
-}
-
-// Componente para manejar los clics y el marcador
-function MapClickHandler({ initialPosition, onLocationChange }: { initialPosition: L.LatLng, onLocationChange: (pos: L.LatLng) => void }) {
-  const [position, setPosition] = useState<L.LatLng>(initialPosition);
-
-  useMapEvents({
-    click(e) {
-      setPosition(e.latlng);
-      onLocationChange(e.latlng);
-    },
-  });
-
-  return <Marker position={position} />;
-}
-
-
 export default function LocationPickerMap({ onLocationSelect, onClose }: LocationPickerMapProps) {
-  const [markerPosition, setMarkerPosition] = useState<L.LatLng>(new L.LatLng(19.4326, -99.1332)); // Default a CDMX
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const [currentPos, setCurrentPos] = useState<L.LatLng>(new L.LatLng(19.4326, -99.1332));
 
-  // Asegura que el componente solo se renderice en el cliente
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    if (!mapContainerRef.current) return;
 
-  const handleLocationChange = (pos: L.LatLng) => {
-    setMarkerPosition(pos);
-  };
+    // Limpieza defensiva del contenedor
+    const container = mapContainerRef.current as any;
+    if (container._leaflet_id) {
+        container._leaflet_id = null;
+        container.innerHTML = '';
+    }
+
+    if (!mapInstanceRef.current) {
+      try {
+        const map = L.map(mapContainerRef.current).setView([19.4326, -99.1332], 13);
+        mapInstanceRef.current = map;
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const marker = L.marker([19.4326, -99.1332], { icon: DefaultIcon }).addTo(map);
+        markerRef.current = marker;
+
+        map.on('click', (e: L.LeafletMouseEvent) => {
+            marker.setLatLng(e.latlng);
+            setCurrentPos(e.latlng);
+        });
+
+        map.locate({ setView: false, maxZoom: 16 });
+        
+        const onLocationFound = (e: L.LocationEvent) => {
+            // Verificaciones de seguridad
+            if (!mapInstanceRef.current) return;
+            if (mapInstanceRef.current !== map) return;
+            if (!map.getContainer()) return;
+
+            marker.setLatLng(e.latlng);
+            setCurrentPos(e.latlng);
+
+            requestAnimationFrame(() => {
+                if (mapInstanceRef.current && map.getContainer()) {
+                    try {
+                        map.setView(e.latlng, 16, { animate: false });
+                    } catch (err) {
+                        console.warn("Error setting view safely:", err);
+                    }
+                }
+            });
+        };
+
+        map.on('locationfound', onLocationFound);
+
+      } catch (error: any) {
+          console.error("LocationPickerMap: Error inicializando mapa:", error);
+      }
+    }
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.off('locationfound');
+        mapInstanceRef.current.stopLocate();
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        markerRef.current = null;
+      }
+    };
+  }, []);
 
   const handleConfirmLocation = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${markerPosition.lat}&lon=${markerPosition.lng}&addressdetails=1`
-      );
-      if (!response.ok) {
-        throw new Error('No se pudo obtener la dirección.');
+      // Usamos Server Action en lugar de fetch directo para evitar CORS y poner User-Agent
+      const result = await getReverseGeocoding(currentPos.lat, currentPos.lng);
+
+      if (!result.success || !result.data) {
+          throw new Error(result.error || 'Error desconocido al obtener dirección');
       }
-      const data = await response.json();
+      
+      const data = result.data;
       
       const locationData: LocationData = {
-        lat: markerPosition.lat,
-        lng: markerPosition.lng,
+        lat: currentPos.lat,
+        lng: currentPos.lng,
         address: data.address,
         display_name: data.display_name,
       };
 
       onLocationSelect(locationData);
-
     } catch (error) {
-      console.error("Error en Reverse Geocoding:", error);
+      console.error("Error Geocoding:", error);
+      // Podríamos mostrar un toast aquí si tuviéramos acceso a useToast
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (!isMounted) {
-      return <div className="h-[400px] w-full bg-muted animate-pulse flex items-center justify-center">Cargando mapa...</div>;
-  }
-
   return (
     <div className="space-y-4">
-      <div style={{ height: '400px', width: '100%' }}>
-        {/* La key asegura que si isMounted cambia (o cualquier state padre), el mapa se reinicie limpiamente */}
-        <MapContainer 
-            key={isMounted ? "mounted-map" : "loading-map"}
-            center={markerPosition} 
-            zoom={13} 
-            style={{ height: '100%', width: '100%' }}
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
-          <CenterMapToUserLocation onInitialLocationFound={setMarkerPosition} />
-          <MapClickHandler initialPosition={markerPosition} onLocationChange={handleLocationChange} />
-        </MapContainer>
-      </div>
+      <div 
+        ref={mapContainerRef} 
+        style={{ height: '400px', width: '100%', zIndex: 0 }} 
+      />
+      
       <div className="flex flex-col sm:flex-row gap-2">
         <button
             type="button"

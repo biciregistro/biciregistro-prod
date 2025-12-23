@@ -405,3 +405,29 @@ export async function saveFCMToken(token: string) {
         return { success: false };
     }
 }
+
+// NUEVA ACTION: Reverse Geocoding via Server para evitar CORS y Headers issues
+export async function getReverseGeocoding(lat: number, lng: number) {
+    try {
+        const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`,
+            {
+                headers: {
+                    'User-Agent': 'BiciRegistroApp/1.0 (contacto@biciregistro.mx)', // Importante para Nominatim
+                    'Accept-Language': 'es-MX,es;q=0.9'
+                }
+            }
+        );
+
+        if (!response.ok) {
+            return { error: 'No se pudo obtener la dirección del servidor de mapas.' };
+        }
+
+        const data = await response.json();
+        return { success: true, data };
+
+    } catch (error) {
+        console.error("Server Geocoding Error:", error);
+        return { error: 'Error de conexión con el servicio de mapas.' };
+    }
+}
