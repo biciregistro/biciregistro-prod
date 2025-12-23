@@ -21,7 +21,12 @@ export const cities: Record<string, Record<string, string[]>> = {
     "Nuevo León": ["Monterrey", "Guadalupe", "Apodaca", "San Nicolás de los Garza", "General Escobedo", "Santa Catarina", "Juárez", "García", "San Pedro Garza García", "Cadereyta Jiménez"],
     "Oaxaca": ["Oaxaca de Juárez", "San Juan Bautista Tuxtepec", "Juchitán de Zaragoza", "Santa Cruz Xoxocotlán", "Salina Cruz", "Heroica Ciudad de Huajuapan de León", "Santo Domingo Tehuantepec", "San Pedro Mixtepec", "Santa Lucía del Camino", "Santiago Pinotepa Nacional"],
     "Puebla": ["Puebla", "Tehuacán", "San Martín Texmelucan", "San Andrés Cholula", "Atlixco", "San Pedro Cholula", "Cuautlancingo", "Amozoc", "Huauchinango", "Teziutlán"],
-    "Querétaro": ["Querétaro", "San Juan del Río", "El Marqués", "Corregidora", "Pedro Escobedo", "Tequisquiapan", "Colón", "Cadereyta de Montes", "Jalpan de Serra", "Ezequiel Montes"],
+    "Querétaro": [
+        "Amealco de Bonfil", "Arroyo Seco", "Cadereyta de Montes", "Colón", "Corregidora", 
+        "El Marqués", "Ezequiel Montes", "Huimilpan", "Jalpan de Serra", "Landa de Matamoros", 
+        "Pedro Escobedo", "Peñamiller", "Pinal de Amoles", "Querétaro", "San Joaquín", 
+        "San Juan del Río", "Tequisquiapan", "Tolimán"
+    ],
     "Quintana Roo": ["Benito Juárez", "Solidaridad", "Othón P. Blanco", "Cozumel", "Tulum", "Felipe Carrillo Puerto", "Isla Mujeres", "José María Morelos", "Bacalar", "Lázaro Cárdenas", "Puerto Morelos"],
     "San Luis Potosí": ["San Luis Potosí", "Soledad de Graciano Sánchez", "Ciudad Valles", "Matehuala", "Rioverde", "Tamazunchale", "Mexquitic de Carmona", "Xilitla", "Villa de Reyes", "Aquismón"],
     "Sinaloa": ["Culiacán", "Mazatlán", "Ahome", "Guasave", "Navolato", "Salvador Alvarado", "El Fuerte", "Escuinapa", "Sinaloa", "Rosario"],
