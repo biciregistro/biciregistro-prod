@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { getReverseGeocoding } from '@/lib/actions/bike-actions';
+// Imports para la barra de búsqueda
+import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
+import 'leaflet-geosearch/dist/geosearch.css';
 
 // SOLUCIÓN DEFINITIVA PARA ICONOS: Usar CDN
 const DefaultIcon = L.icon({
@@ -15,6 +18,15 @@ const DefaultIcon = L.icon({
     popupAnchor: [1, -34],
     shadowSize: [41, 41]
 });
+
+// CLASE CUSTOM PROVIDER PARA USAR NUESTRO PROXY
+// Esto evita el error de CORS/Fetch en el cliente al llamar a Nominatim directo
+class ProxyProvider extends OpenStreetMapProvider {
+  getSearchUrl(query: string) {
+    // Apuntamos a nuestra API local
+    return `/api/geosearch?query=${encodeURIComponent(query)}`;
+  }
+}
 
 type NominatimAddress = {
   road?: string;
@@ -72,15 +84,36 @@ export default function LocationPickerMap({ onLocationSelect, onClose }: Locatio
         const marker = L.marker([19.4326, -99.1332], { icon: DefaultIcon }).addTo(map);
         markerRef.current = marker;
 
+        // --- Integración de Barra de Búsqueda con Proxy ---
+        const provider = new ProxyProvider();
+        const searchControl = GeoSearchControl({
+          provider: provider,
+          style: 'bar',
+          showMarker: false, 
+          autoClose: true,
+          keepResult: true,
+          searchLabel: 'Buscar ubicación...', // Label en español
+        });
+        map.addControl(searchControl);
+        
+        map.on('geosearch/showlocation', (result: any) => {
+            const pos = new L.LatLng(result.location.y, result.location.x);
+            // Usamos setView sin animación para seguridad
+            map.setView(pos, 16, { animate: false });
+            marker.setLatLng(pos);
+            setCurrentPos(pos);
+        });
+        // --- Fin de Integración ---
+
         map.on('click', (e: L.LeafletMouseEvent) => {
             marker.setLatLng(e.latlng);
             setCurrentPos(e.latlng);
         });
 
+        // Geolocalización inicial
         map.locate({ setView: false, maxZoom: 16 });
         
         const onLocationFound = (e: L.LocationEvent) => {
-            // Verificaciones de seguridad
             if (!mapInstanceRef.current) return;
             if (mapInstanceRef.current !== map) return;
             if (!map.getContainer()) return;
@@ -108,6 +141,7 @@ export default function LocationPickerMap({ onLocationSelect, onClose }: Locatio
 
     return () => {
       if (mapInstanceRef.current) {
+        mapInstanceRef.current.off('geosearch/showlocation');
         mapInstanceRef.current.off('locationfound');
         mapInstanceRef.current.stopLocate();
         mapInstanceRef.current.remove();
@@ -120,26 +154,20 @@ export default function LocationPickerMap({ onLocationSelect, onClose }: Locatio
   const handleConfirmLocation = async () => {
     setIsLoading(true);
     try {
-      // Usamos Server Action en lugar de fetch directo para evitar CORS y poner User-Agent
       const result = await getReverseGeocoding(currentPos.lat, currentPos.lng);
-
       if (!result.success || !result.data) {
           throw new Error(result.error || 'Error desconocido al obtener dirección');
       }
-      
       const data = result.data;
-      
       const locationData: LocationData = {
         lat: currentPos.lat,
         lng: currentPos.lng,
         address: data.address,
         display_name: data.display_name,
       };
-
       onLocationSelect(locationData);
     } catch (error) {
       console.error("Error Geocoding:", error);
-      // Podríamos mostrar un toast aquí si tuviéramos acceso a useToast
     } finally {
       setIsLoading(false);
     }
