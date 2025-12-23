@@ -1,11 +1,12 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { getDecodedSession } from '@/lib/auth';
 import { getEvent } from '@/lib/data'; 
 import { registerUserToEvent } from '@/lib/data/event-registration-data';
-
-// Separate actions file for Event Registration logic to keep files modular
+import { CURRENT_PRIVACY_POLICY_VERSION, MARKETING_CONSENT_TEXT } from '@/lib/legal-constants';
+import type { MarketingConsent } from '@/lib/types';
 
 export async function registerForEventAction(
     eventId: string, 
@@ -17,7 +18,8 @@ export async function registerForEventAction(
     insuranceInfo?: string,
     waiverSignature?: string,
     waiverAcceptedAt?: string,
-    waiverTextSnapshot?: string
+    waiverTextSnapshot?: string,
+    marketingConsentGiven?: boolean
 ): Promise<{ success: boolean; error?: string; message?: string }> {
     const session = await getDecodedSession();
     
@@ -28,7 +30,6 @@ export async function registerForEventAction(
     const event = await getEvent(eventId);
     if (!event) return { success: false, error: "Evento no encontrado." };
 
-    // Validation logic for emergency fields
     if (event.requiresEmergencyContact) {
         if (!emergencyContactName || !emergencyContactName.trim()) {
              return { success: false, error: "El nombre del contacto de emergencia es obligatorio." };
@@ -36,7 +37,6 @@ export async function registerForEventAction(
         if (!emergencyContactPhone || !emergencyContactPhone.trim()) {
              return { success: false, error: "El teléfono del contacto de emergencia es obligatorio." };
         }
-        // New validations for blood type and insurance
         if (!bloodType) {
             return { success: false, error: "El tipo de sangre es obligatorio." };
         }
@@ -45,11 +45,23 @@ export async function registerForEventAction(
         }
     }
 
-    // Validation logic for waiver (HU-LEGAL-002)
     if (event.requiresWaiver) {
         if (!waiverSignature) {
             return { success: false, error: "Debes firmar la carta responsiva para continuar." };
         }
+    }
+
+    let marketingConsent: MarketingConsent | null = null;
+    if (marketingConsentGiven) {
+        const headerList = await headers();
+        const ip = headerList.get('x-forwarded-for') ?? headerList.get('x-real-ip') ?? 'IP_NOT_FOUND';
+        marketingConsent = {
+            accepted: true,
+            timestamp: new Date().toISOString(),
+            ipAddress: ip,
+            policyVersion: CURRENT_PRIVACY_POLICY_VERSION,
+            legalText: MARKETING_CONSENT_TEXT,
+        };
     }
 
     const result = await registerUserToEvent({
@@ -63,13 +75,14 @@ export async function registerForEventAction(
         insuranceInfo,
         waiverSignature,
         waiverAcceptedAt,
-        waiverTextSnapshot
+        waiverTextSnapshot,
+        marketingConsent
     });
 
     if (result.success) {
         revalidatePath(`/events/${eventId}`);
-        revalidatePath(`/dashboard/events/${eventId}`); // Revalidate user dashboard
-        revalidatePath(`/dashboard/ong/events/${eventId}`); // Revalidate ONG dashboard to show new attendee immediately
+        revalidatePath(`/dashboard/events/${eventId}`);
+        revalidatePath(`/dashboard/ong/events/${eventId}`);
     }
 
     return result;

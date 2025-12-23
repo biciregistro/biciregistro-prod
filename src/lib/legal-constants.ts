@@ -29,3 +29,7 @@ Otorgo mi consentimiento para que EL ORGANIZADOR y BICIREGISTRO utilicen mi nomb
 Declaro que los datos proporcionados en la plataforma BICIREGISTRO (incluyendo mi tipo de sangre y contacto de emergencia) son reales y actualizados. Acepto los términos del Aviso de Privacidad disponible en la plataforma.
 
 He leído cuidadosamente este documento, entiendo su alcance legal y lo firmo de conformidad mediante mi firma electrónica, la cual reconozco como válida y vinculante.`;
+
+export const CURRENT_PRIVACY_POLICY_VERSION = "2025-12-23";
+
+export const MARKETING_CONSENT_TEXT = "Quiero recibir descuentos exclusivos, regalos y promociones de los Patrocinadores Oficiales del evento.";

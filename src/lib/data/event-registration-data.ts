@@ -1,8 +1,7 @@
 import 'server-only';
 import { adminDb } from '../firebase/server';
-// Change import source to break cycle
 import { getUser, getEvent, getBike } from './core'; 
-import { EventRegistration, EventAttendee } from '../types';
+import { EventRegistration, EventAttendee, MarketingConsent } from '../types';
 import { Event } from '../types';
 import { unstable_noStore as noStore } from 'next/cache';
 
@@ -25,16 +24,18 @@ export async function getRegistrationById(registrationId: string): Promise<Event
     }
 }
 
+type RegistrationInput = Omit<EventRegistration, 'id' | 'registrationDate' | 'status'> & {
+    marketingConsent?: MarketingConsent | null;
+};
 
 export async function registerUserToEvent(
-    registrationData: Omit<EventRegistration, 'id' | 'registrationDate' | 'status'>
+    registrationData: RegistrationInput
 ): Promise<{ success: boolean; message?: string; error?: string }> {
     const db = adminDb;
     const { eventId, userId } = registrationData;
 
     try {
         return await db.runTransaction(async (transaction) => {
-            // 1. Get Event Doc to check limits
             const eventRef = db.collection('events').doc(eventId);
             const eventDoc = await transaction.get(eventRef);
 
@@ -44,7 +45,6 @@ export async function registerUserToEvent(
 
             const eventData = eventDoc.data() as Event;
             
-            // Check capacity
             const maxParticipants = eventData.maxParticipants || 0;
             const currentParticipants = eventData.currentParticipants || 0;
 
@@ -52,7 +52,6 @@ export async function registerUserToEvent(
                 return { success: false, error: "Lo sentimos, el cupo para este evento está lleno." };
             }
 
-            // 2. Check if user is already registered
             const regQuery = db.collection('event-registrations')
                 .where('userId', '==', userId)
                 .where('eventId', '==', eventId)
@@ -65,42 +64,35 @@ export async function registerUserToEvent(
                 const doc = regSnapshot.docs[0];
                 const data = doc.data() as EventRegistration;
                 if (data.status === 'cancelled') {
-                    // Allow re-registration
                     existingRegDoc = doc;
                 } else {
                      return { success: false, error: "Ya te encuentras registrado en este evento." };
                 }
             }
 
-            // Default paymentStatus based on cost
             let paymentStatus = 'pending';
-            if (eventData.costType === 'Gratuito') {
+            if (eventData.costType === 'Gratuito' || registrationData.price === 0) {
                 paymentStatus = 'not_applicable';
-            } else if (registrationData.price === 0) {
-                 paymentStatus = 'not_applicable'; 
             }
 
             const registrationPayload = {
                 ...registrationData,
-                // Explicitly mapping emergency fields to ensure they are saved if present
                 bloodType: registrationData.bloodType || null,
                 insuranceInfo: registrationData.insuranceInfo || null,
                 registrationDate: new Date().toISOString(), 
-                status: 'confirmed',
-                paymentStatus: paymentStatus,
+                status: 'confirmed' as const,
+                paymentStatus: paymentStatus as any,
                 checkedIn: false,
+                marketingConsent: registrationData.marketingConsent || null,
             };
 
             if (existingRegDoc) {
-                // 3a. Update existing Cancelled Registration
                 transaction.update(existingRegDoc.ref, registrationPayload);
             } else {
-                // 3b. Create New Registration
                 const newRegRef = db.collection('event-registrations').doc();
                 transaction.set(newRegRef, registrationPayload);
             }
 
-            // 3c. Update User Profile
             if (registrationData.bloodType || registrationData.insuranceInfo) {
                 const userRef = db.collection('users').doc(userId);
                 const updateData: any = {};
@@ -109,7 +101,6 @@ export async function registerUserToEvent(
                 transaction.update(userRef, updateData);
             }
 
-            // 4. Increment participant count
             transaction.update(eventRef, {
                 currentParticipants: currentParticipants + 1
             });
@@ -123,7 +114,7 @@ export async function registerUserToEvent(
 }
 
 export async function getEventAttendees(eventId: string): Promise<EventAttendee[]> {
-    noStore(); // Disable caching to ensure fresh data
+    noStore();
     if (!eventId) return [];
     
     try {
@@ -150,7 +141,7 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
         const categoriesMap = new Map(event.categories?.map(c => [c.id, c.name]));
 
         const attendeesPromises = registrationsSnapshot.docs.map(async (doc) => {
-            const regData = doc.data(); // Get raw data without cast first
+            const regData = doc.data();
             const user = await getUser(regData.userId);
             
             let bikeData = undefined;
@@ -192,12 +183,11 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 checkedIn: regData.checkedIn || false,
                 price: price || 0,
                 
-                // Explicitly accessing properties safely from raw object
                 emergencyContactName: areEmergencyDetailsHidden ? '***' : (regData.emergencyContactName || null),
                 emergencyContactPhone: areEmergencyDetailsHidden ? '***' : (regData.emergencyContactPhone || null),
                 bloodType: areEmergencyDetailsHidden ? '***' : (regData.bloodType || null),
                 insuranceInfo: areEmergencyDetailsHidden ? '***' : (regData.insuranceInfo || null),
-                 waiverSigned: !!regData.waiverSignature,
+                waiverSigned: !!regData.waiverSignature,
             } as EventAttendee;
         });
 

@@ -11,11 +11,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tag, Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
 import type { Event, User, EventRegistration } from '@/lib/types';
 import dynamic from 'next/dynamic';
 
-// Dynamic import for the Waiver Modal
 const WaiverModal = dynamic(() => import('@/components/waiver-modal').then(mod => mod.WaiverModal), {
     ssr: false,
     loading: () => null
@@ -26,7 +26,7 @@ interface EventRegistrationCardProps {
     user: User | null;
     isRegistered?: boolean;
     registration?: EventRegistration | null;
-    organizerNameForWaiver?: string; // New prop for the correct organizer name
+    organizerNameForWaiver?: string;
 }
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -40,8 +40,8 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
     
     const [selectedTierId, setSelectedTierId] = useState<string | undefined>(undefined);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
+    const [marketingConsent, setMarketingConsent] = useState(false);
 
-    // Emergency Contact State
     const [emergencyName, setEmergencyName] = useState('');
     const [emergencyPhone, setEmergencyPhone] = useState('');
     const [bloodType, setBloodType] = useState<string | undefined>(undefined);
@@ -134,7 +134,8 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                 insuranceInfo,
                 waiverData?.signature,
                 waiverData ? new Date().toISOString() : undefined,
-                waiverData?.signedText
+                waiverData?.signedText,
+                marketingConsent
             );
             
             if (result.success) {
@@ -232,7 +233,6 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
             </CardContent>
         </Card>
 
-        {/* Modal 1: Confirmation & Extra Data */}
         <Dialog open={isConfirmModalOpen} onOpenChange={setIsConfirmModalOpen}>
             <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
@@ -289,6 +289,21 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                             <p className="text-[10px] text-muted-foreground italic bg-muted/30 p-2 rounded">* Tus datos médicos solo serán visibles para el organizador durante el evento y hasta 24 horas después.</p>
                         </div>
                     )}
+                    
+                    <div className="border-t pt-4 mt-4 space-y-3">
+                        <div className="flex items-start space-x-3">
+                            <Checkbox id="marketing-consent" checked={marketingConsent} onCheckedChange={(checked) => setMarketingConsent(!!checked)} />
+                            <div className="grid gap-1.5 leading-none">
+                                <label htmlFor="marketing-consent" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                    Quiero recibir descuentos exclusivos, regalos y promociones de los Patrocinadores Oficiales del evento.
+                                </label>
+                                <p className="text-xs text-muted-foreground">
+                                    Al marcar esta casilla, aceptas que tus datos de contacto sean transferidos a las marcas aliadas conforme a la sección de Transferencias de nuestro Aviso de Privacidad.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     {!isFree && selectedTier && (
                         <div className="border-t pt-3 mt-3 space-y-2 bg-muted/20 p-3 rounded-md">
                             <div className="flex justify-between text-sm items-center">
@@ -321,7 +336,6 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
             </DialogContent>
         </Dialog>
 
-        {/* Modal 2: Waiver Signature */}
         {user && event.requiresWaiver && event.waiverText && isWaiverModalOpen && (
             <WaiverModal 
                 isOpen={isWaiverModalOpen}

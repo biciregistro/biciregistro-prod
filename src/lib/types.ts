@@ -165,6 +165,14 @@ export type Event = {
 
 export type PaymentStatus = 'pending' | 'paid' | 'not_applicable';
 
+export type MarketingConsent = {
+  accepted: boolean;
+  timestamp: string; // ISO 8601
+  ipAddress: string;
+  policyVersion: string; // e.g., "2025-12-23"
+  legalText: string;
+};
+
 export type EventRegistration = {
     id: string;
     eventId: string;
@@ -200,6 +208,9 @@ export type EventRegistration = {
     waiverSignature?: string; // URL to signature image
     waiverAcceptedAt?: string; // ISO Timestamp
     waiverTextSnapshot?: string; // The exact text signed
+
+    // Marketing Consent (HU-LEGAL-003)
+    marketingConsent?: MarketingConsent | null;
 };
 
 export type EventAttendee = {
