@@ -12,7 +12,7 @@ export default function PrivacyPage() {
       <Card className="shadow-lg border-t-4 border-t-primary">
         <CardHeader className="text-center pb-2">
             <h1 className="text-3xl font-bold tracking-tight text-primary">AVISO DE PRIVACIDAD INTEGRAL</h1>
-            <p className="text-muted-foreground">Última actualización: 26 de Noviembre de 2025</p>
+            <p className="text-muted-foreground">Última actualización: 23 de Diciembre de 2025</p>
         </CardHeader>
         <CardContent className="space-y-8 p-6 md:p-10 text-justify">
             
@@ -37,10 +37,10 @@ export default function PrivacyPage() {
 
             <section className="space-y-4">
                 <h2 className="text-xl font-bold text-foreground">2. FINALIDADES DEL TRATAMIENTO DE DATOS</h2>
-                <p>Los datos personales que recabamos de usted los utilizaremos para las siguientes finalidades que son necesarias para el servicio que solicita:</p>
+                <p>Los datos personales que recabamos de usted los utilizaremos para las siguientes finalidades:</p>
                 
                 <div className="pl-4 border-l-4 border-primary/20">
-                    <h3 className="font-semibold text-lg mb-2">Finalidades Primarias:</h3>
+                    <h3 className="font-semibold text-lg mb-2">Finalidades Primarias (Necesarias para el servicio):</h3>
                     <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
                         <li>Crear su cuenta de usuario y generar la "Identidad Digital" de su bicicleta.</li>
                         <li>Validar la propiedad de la bicicleta para otorgar el estatus de verificación en el sistema.</li>
@@ -53,14 +53,15 @@ export default function PrivacyPage() {
                 </div>
 
                 <div className="pl-4 border-l-4 border-muted">
-                    <h3 className="font-semibold text-lg mb-2">Finalidades Secundarias:</h3>
+                    <h3 className="font-semibold text-lg mb-2">Finalidades Secundarias (Marketing y Comercialización):</h3>
                     <p className="mb-2">De manera adicional, utilizaremos su información personal para las siguientes finalidades que no son necesarias para el servicio solicitado, pero que nos permiten y facilitan brindarle una mejor atención:</p>
                     <ul className="list-disc pl-5 space-y-2 text-muted-foreground">
-                        <li>Envío de newsletters, promociones y publicidad de nuevos eventos ciclistas.</li>
+                        <li>Envío de newsletters, promociones y publicidad de nuevos eventos ciclistas propios o de terceros.</li>
+                        <li>Transferencia de datos de contacto a Patrocinadores y Aliados Comerciales para el envío de ofertas, beneficios exclusivos y publicidad.</li>
                         <li>Encuestas de calidad y estudios de mercado sobre la comunidad ciclista.</li>
                     </ul>
                     <p className="mt-4 text-sm text-muted-foreground italic">
-                        En caso de que no desee que sus datos personales sean tratados para estos fines secundarios, usted puede presentar desde este momento un escrito vía correo electrónico a <a href="mailto:hola@biciregistro.mx" className="text-primary hover:underline">hola@biciregistro.mx</a>
+                        En caso de que no desee que sus datos personales sean tratados para estos fines secundarios, usted podrá negar su consentimiento no marcando la casilla correspondiente ("Opt-in") en el proceso de registro, o enviando un escrito vía correo electrónico a <a href="mailto:hola@biciregistro.mx" className="text-primary hover:underline">hola@biciregistro.mx</a>.
                     </p>
                 </div>
             </section>
@@ -81,8 +82,13 @@ export default function PrivacyPage() {
                         <tbody className="divide-y">
                             <tr>
                                 <td className="p-3 font-medium">Organizadores de Eventos</td>
-                                <td className="p-3">Gestión logística, entrega de kits, cronometraje, seguridad del evento, validación de bicicletas participantes y atención en caso de emergencia.</td>
-                                <td className="p-3">NO (Es necesario para el contrato)</td>
+                                <td className="p-3">Gestión logística, entrega de kits, cronometraje, seguridad del evento, validación de bicicletas, atención de emergencias y envío de información sobre futuras ediciones de sus eventos.</td>
+                                <td className="p-3">NO (Para logística)  SÍ (Para futuros eventos)</td>
+                            </tr>
+                            <tr>
+                                <td className="p-3 font-medium">Patrocinadores y Aliados Comerciales</td>
+                                <td className="p-3">Envío de publicidad, promociones, descuentos, beneficios exclusivos y prospección comercial relacionada con productos y servicios deportivos.</td>
+                                <td className="p-3">SÍ (Mediante casilla de aceptación)</td>
                             </tr>
                             <tr>
                                 <td className="p-3 font-medium">Pasarelas de Pago (Stripe/Conekta/Otros)</td>
@@ -91,7 +97,7 @@ export default function PrivacyPage() {
                             </tr>
                             <tr>
                                 <td className="p-3 font-medium">Autoridades Competentes</td>
-                                <td className="p-3">En caso de reporte de robo de bicicleta, para colaborar en la investigación y recuperación.</td>
+                                <td className="p-3">En caso de reporte de robo de bicicleta o accidente grave, para colaborar en la investigación y recuperación.</td>
                                 <td className="p-3">NO</td>
                             </tr>
                         </tbody>
@@ -99,7 +105,7 @@ export default function PrivacyPage() {
                 </div>
 
                 <p className="text-sm bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-md border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200">
-                    <strong>Nota Importante sobre la Transferencia a Organizadores:</strong> Al inscribirse a un evento a través de BICIREGISTRO, usted acepta y autoriza que sus datos de identificación, contacto, los detalles de su bicicleta y, si el evento lo requiere, sus datos de salud (tipo de sangre, seguro) y contacto de emergencia, sean transferidos al Organizador de dicho evento para los fines logísticos y de seguridad mencionados.
+                    <strong>Nota Importante sobre el Consentimiento:</strong> Al inscribirse a un evento, usted acepta la transferencia de sus datos operativos al Organizador para fines logísticos. Respecto a la transferencia con fines comerciales a Patrocinadores, esta solo se realizará si usted ha otorgado su consentimiento expreso (por ejemplo, marcando la casilla "Quiero recibir promociones de patrocinadores" o similar) o si no ha manifestado su oposición a través de los mecanismos habilitados en la plataforma.
                 </p>
             </section>
 
@@ -133,6 +139,12 @@ export default function PrivacyPage() {
                     Nos comprometemos a mantenerlo informado sobre los cambios que pueda sufrir el presente aviso de privacidad, a través de su publicación en nuestro sitio web <strong>biciregistro.mx</strong>.
                 </p>
             </section>
+            
+            <Separator />
+            
+            <footer className="text-center text-sm text-muted-foreground">
+                <p>Biciregistro© 2025 Biciregistro. Todos los derechos reservados.</p>
+            </footer>
 
         </CardContent>
       </Card>
