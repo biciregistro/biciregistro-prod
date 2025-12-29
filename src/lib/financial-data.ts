@@ -24,7 +24,6 @@ async function _getFinancialSettingsLogic(): Promise<FinancialSettings> {
             return { ...DEFAULT_FINANCIAL_SETTINGS, ...docSnap.data() } as FinancialSettings;
         }
         
-        // If not exists, return defaults (and optionally create it, but better to just return default)
         return DEFAULT_FINANCIAL_SETTINGS;
     } catch (error) {
         console.error("Error fetching financial settings:", error);
@@ -32,7 +31,6 @@ async function _getFinancialSettingsLogic(): Promise<FinancialSettings> {
     }
 }
 
-// Cached version for performance (Revalidate every hour or via tag)
 export const getFinancialSettings = unstable_cache(
     async () => _getFinancialSettingsLogic(),
     ['financial-settings'],
@@ -72,24 +70,120 @@ export async function getEventRegistration(registrationId: string): Promise<Even
     }
 }
 
+// TRANSACTIONAL UPDATES (Must follow Read-Before-Write rule)
+
 export async function updateRegistrationManualPayment(registrationId: string, feeAmount: number, priceAmount?: number) {
     try {
-        const updateData: any = {
-            paymentStatus: 'paid',
-            paymentMethod: 'manual',
-            feeAmount: feeAmount,
-            // Track when this happened
-            manualPaymentAt: new Date().toISOString()
-        };
+        await adminDb.runTransaction(async (transaction) => {
+            // 1. READ Registration
+            const regRef = adminDb.collection('event-registrations').doc(registrationId);
+            const regDoc = await transaction.get(regRef);
+            
+            if (!regDoc.exists) throw new Error("Registration not found");
+            const regData = regDoc.data() as EventRegistration;
 
-        if (priceAmount !== undefined) {
-            updateData.price = priceAmount;
-        }
+            // 2. READ Event (Conditional - only if we might need to assign bib)
+            let nextNumber: number | null = null;
+            let eventRef: FirebaseFirestore.DocumentReference | null = null;
 
-        await adminDb.collection('event-registrations').doc(registrationId).update(updateData);
+            if (!regData.bibNumber && regData.eventId) {
+                eventRef = adminDb.collection('events').doc(regData.eventId);
+                const eventDoc = await transaction.get(eventRef);
+                
+                if (eventDoc.exists) {
+                    const eventData = eventDoc.data() as Event;
+                    const bibConfig = eventData.bibNumberConfig;
+                    if (bibConfig?.enabled && bibConfig.mode === 'automatic') {
+                        nextNumber = bibConfig.nextNumber || 1;
+                    }
+                }
+            }
+
+            // 3. WRITE Registration Update
+            const updateData: any = {
+                paymentStatus: 'paid',
+                paymentMethod: 'manual',
+                feeAmount: feeAmount,
+                manualPaymentAt: new Date().toISOString()
+            };
+
+            if (priceAmount !== undefined) {
+                updateData.price = priceAmount;
+            }
+
+            // If bib number needs assignment
+            if (nextNumber !== null) {
+                updateData.bibNumber = nextNumber;
+            }
+
+            transaction.update(regRef, updateData);
+
+            // 4. WRITE Event Update (Increment counter if assigned)
+            if (nextNumber !== null && eventRef) {
+                transaction.update(eventRef, { 'bibNumberConfig.nextNumber': nextNumber + 1 });
+                console.log(`[Auto-Assign] Assigned Bib #${nextNumber} to registration ${registrationId}`);
+            }
+        });
     } catch (error) {
         console.error("Error updating manual payment:", error);
         throw new Error("No se pudo registrar el pago manual.");
+    }
+}
+
+export async function updateRegistrationStatusInternal(
+    registrationId: string, 
+    data: { paymentStatus?: string, checkedIn?: boolean, paymentMethod?: string | null }
+) {
+    const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
+    
+    if (data.checkedIn === true) {
+        (cleanData as any).checkedInAt = new Date().toISOString();
+    }
+    
+    try {
+        await adminDb.runTransaction(async (transaction) => {
+            // 1. READ Registration
+            const regRef = adminDb.collection('event-registrations').doc(registrationId);
+            const regDoc = await transaction.get(regRef);
+            
+            if (!regDoc.exists) throw new Error("Registration not found");
+            const regData = regDoc.data() as EventRegistration;
+
+            // 2. READ Event (Conditional - check auto-assign criteria)
+            let nextNumber: number | null = null;
+            let eventRef: FirebaseFirestore.DocumentReference | null = null;
+
+            const isTransitioningToPaid = data.paymentStatus === 'paid' && regData.paymentStatus !== 'paid';
+
+            if (isTransitioningToPaid && !regData.bibNumber && regData.eventId) {
+                eventRef = adminDb.collection('events').doc(regData.eventId);
+                const eventDoc = await transaction.get(eventRef);
+                
+                if (eventDoc.exists) {
+                    const eventData = eventDoc.data() as Event;
+                    const bibConfig = eventData.bibNumberConfig;
+                    if (bibConfig?.enabled && bibConfig.mode === 'automatic') {
+                        nextNumber = bibConfig.nextNumber || 1;
+                    }
+                }
+            }
+
+            // 3. WRITE Registration Update
+            if (nextNumber !== null) {
+                (cleanData as any).bibNumber = nextNumber;
+            }
+
+            transaction.update(regRef, cleanData);
+
+            // 4. WRITE Event Update
+            if (nextNumber !== null && eventRef) {
+                transaction.update(eventRef, { 'bibNumberConfig.nextNumber': nextNumber + 1 });
+                console.log(`[Auto-Assign] Assigned Bib #${nextNumber} to registration ${registrationId}`);
+            }
+        });
+    } catch (error) {
+        console.error("Error updating registration status internal:", error);
+        throw error;
     }
 }
 
@@ -104,12 +198,10 @@ export async function getPayoutsByEvent(eventId: string): Promise<Payout[]> {
         
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payout));
     } catch (error) {
-        // Fallback or empty if index missing/error
         return [];
     }
 }
 
-// Internal helper to get sum of payouts
 async function getTotalDispersed(eventId: string): Promise<number> {
     try {
         const payouts = await getPayoutsByEvent(eventId);
@@ -119,10 +211,8 @@ async function getTotalDispersed(eventId: string): Promise<number> {
     }
 }
 
-
 // --- Admin Financial Oversight ---
 
-// Extended Type for Admin View
 export interface AdminEventFinancialView extends Event {
     ongName: string;
     totalCollected: number;
@@ -130,7 +220,6 @@ export interface AdminEventFinancialView extends Event {
     manualCollected: number;
     amountDispersed: number;
     pendingDisbursement: number;
-    // BiciRegistro Revenue Breakdown
     revenue: {
         net: number;
         iva: number;
@@ -140,13 +229,11 @@ export interface AdminEventFinancialView extends Event {
 
 export async function getAllEventsForAdmin(): Promise<AdminEventFinancialView[]> {
     try {
-        // 1. Fetch Events
         const snapshot = await adminDb.collection('events')
             .orderBy('date', 'desc')
             .limit(100)
             .get();
             
-        // 2. Fetch ONGs needed
         const ongIds = new Set<string>();
         snapshot.docs.forEach(doc => {
             const data = doc.data();
@@ -171,11 +258,9 @@ export async function getAllEventsForAdmin(): Promise<AdminEventFinancialView[]>
             });
         }
 
-        // 3. Process Events in Parallel
         const eventsPromises = snapshot.docs.map(async (doc) => {
             const data = doc.data();
             
-            // Manual timestamp conversion
             let date = data.date;
             if (date && typeof date.toDate === 'function') date = date.toDate().toISOString();
             else if (date && date instanceof Date) date = date.toISOString();
@@ -235,7 +320,7 @@ export async function getAllEventsForAdmin(): Promise<AdminEventFinancialView[]>
     }
 }
 
-// --- Event Financial Summary (Aggregation) ---
+// --- Event Financial Summary ---
 
 export interface FinancialBreakdown {
     gross: number;
@@ -250,10 +335,10 @@ export interface DetailedFinancialSummary {
     balanceToDisperse: number;
     dispersed: number;
     biciregistro: {
-        gross: number; // Total Fees Collected
-        net: number;   // Before Tax Income
-        iva: number;   // Tax portion
-        mpCost: number; // Payment Gateway Cost
+        gross: number;
+        net: number;
+        iva: number;
+        mpCost: number;
     }
 }
 
@@ -286,14 +371,10 @@ export async function getEventFinancialSummary(eventId: string): Promise<Detaile
             biciregistro: { gross: 0, net: 0, iva: 0, mpCost: 0 }
         };
 
-        // Gateway Costs Calculation Variables
         const mpRate = (settings.pasarelaRate || 3.5) / 100;
         const mpFixed = settings.pasarelaFixed || 4.0;
         const ivaRate = (settings.ivaRate || 16.0) / 100;
-        const mpIva = 1 + ivaRate; // MP fee includes IVA usually? Or is added? Assuming MP fee structure is (Price * rate + fixed) * (1+IVA)
-
-        // Correction: MP Charges (Rate + Fixed) + IVA on that charge
-        // Cost = (Amount * rate + fixed) * (1 + iva)
+        const mpIva = 1 + ivaRate;
 
         let totalMpCost = 0;
 
@@ -320,12 +401,7 @@ export async function getEventFinancialSummary(eventId: string): Promise<Detaile
             summary.total.net += net;
             summary.total.fee += fee;
 
-            // Calculate Gateway Cost if paid via platform
             if (reg.paymentMethod === 'platform' || reg.paymentMethod === undefined) { 
-                // Default to platform if paid but method missing (legacy)
-                // Note: manual payments do NOT incur MP costs for us.
-                
-                // MP Cost Formula per transaction
                 const cost = (amount * mpRate + mpFixed) * mpIva;
                 totalMpCost += cost;
 
@@ -339,16 +415,8 @@ export async function getEventFinancialSummary(eventId: string): Promise<Detaile
             }
         });
 
-        // Revenue Breakdown
-        const totalFeesCollected = summary.total.fee; // This is what we charged the ONG (Platform Fee + Manual Fee debt)
-        // Wait, Manual Fee debt is collected by ONG but owed to us. It IS revenue for us.
-        // So Revenue = Total Fees.
-        
-        // Net Income = Total Revenue - Cost of Sales (MP Fees)
+        const totalFeesCollected = summary.total.fee;
         const netIncome = totalFeesCollected - totalMpCost;
-        
-        // Breakdown Net Income into Base + IVA
-        // NetIncome = Base * (1 + ivaRate) -> Base = NetIncome / (1 + ivaRate)
         const baseIncome = netIncome / (1 + ivaRate);
         const incomeIva = netIncome - baseIncome;
 
@@ -359,7 +427,6 @@ export async function getEventFinancialSummary(eventId: string): Promise<Detaile
             iva: incomeIva
         };
 
-        // Balance Calculation (Same as before)
         const netPlatformIncome = summary.platform.gross - summary.platform.fee;
         const manualFeeDebt = summary.manual.fee;
         summary.balanceToDisperse = netPlatformIncome - manualFeeDebt - dispersedAmount;
@@ -376,18 +443,4 @@ export async function getEventFinancialSummary(eventId: string): Promise<Detaile
             biciregistro: { gross: 0, net: 0, iva: 0, mpCost: 0 }
         };
     }
-}
-
-// Helper to update registration status
-export async function updateRegistrationStatusInternal(
-    registrationId: string, 
-    data: { paymentStatus?: string, checkedIn?: boolean, paymentMethod?: string | null }
-) {
-    const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined));
-    
-    if (data.checkedIn === true) {
-        (cleanData as any).checkedInAt = new Date().toISOString();
-    }
-    
-    await adminDb.collection('event-registrations').doc(registrationId).update(cleanData);
 }

@@ -40,6 +40,8 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
         price: tier.netPrice || tier.price
     })) || [];
 
+    const isPublished = initialData?.status === 'published';
+
     const form = useForm<EventFormValues>({
         resolver: zodResolver(eventFormSchema),
         defaultValues: {
@@ -66,6 +68,16 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
             requiresBike: initialData?.requiresBike !== false,
             requiresWaiver: initialData?.requiresWaiver || false,
             waiverText: initialData?.waiverText || "",
+            // Fix for bib number config persistence
+            bibNumberConfig: initialData?.bibNumberConfig ? {
+                enabled: initialData.bibNumberConfig.enabled,
+                mode: initialData.bibNumberConfig.mode,
+                nextNumber: initialData.bibNumberConfig.nextNumber
+            } : {
+                enabled: false,
+                mode: 'automatic', // Default sensible
+                nextNumber: 1
+            },
             sponsors: initialData?.sponsors || [],
         },
     });
@@ -117,7 +129,13 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
                         ? `/admin/events/${result.eventId}`
                         : `/dashboard/ong/events/${result.eventId}`;
                     router.push(redirectUrl);
-                } else if (!isDraft && !isNewEvent) {
+                } else if (isDraft && result.eventId) {
+                    // Fix for draft saving redirecting to wrong tab
+                    const redirectUrl = pathname.startsWith('/admin')
+                        ? `/admin/events/${result.eventId}`
+                        : `/dashboard/ong/events/${result.eventId}`;
+                     router.push(redirectUrl);
+                } else if (!isDraft && !isNewEvent && result.eventId) {
                     // If editing, just go back to the event management page
                     const redirectUrl = pathname.startsWith('/admin')
                         ? `/admin/events/${result.eventId}`
@@ -151,7 +169,7 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
             <form className="space-y-8">
                 
                 <GeneralSection form={form} />
-                <ConfigurationSection form={form} />
+                <ConfigurationSection form={form} isPublished={isPublished} />
                 <LegalSection form={form} />
                 <CostSection 
                     form={form} 

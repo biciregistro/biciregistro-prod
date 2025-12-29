@@ -108,6 +108,13 @@ export type EventCategory = {
     description?: string;
 };
 
+// Bib Number Configuration (New for Feature)
+export type BibNumberConfig = {
+    enabled: boolean;
+    mode: 'automatic' | 'dynamic';
+    nextNumber: number; // For automatic assignment internal tracking
+};
+
 export type Event = {
   id: string;
   ongId: string;
@@ -152,6 +159,9 @@ export type Event = {
   // Legal / Waiver Configuration (HU-LEGAL-001)
   requiresWaiver?: boolean;
   waiverText?: string;
+  
+  // Bib Number Configuration (New Field)
+  bibNumberConfig?: BibNumberConfig;
 
   // Sponsors
   sponsors?: string[]; // Array of image URLs
@@ -197,6 +207,9 @@ export type EventRegistration = {
     categoryName?: string;
     bikeId?: string;
     
+    // Bib Number (New Field)
+    bibNumber?: number | null;
+    
     // Emergency Contact Data
     emergencyContactName?: string;
     emergencyContactPhone?: string;
@@ -232,6 +245,9 @@ export type EventAttendee = {
     feeAmount?: number;
 
     checkedIn: boolean;
+    
+    // Bib Number (New Field)
+    bibNumber?: number | null;
     
     bike?: {
         id: string;
@@ -392,6 +408,7 @@ export type LandingEventsSolution = {
     id: string;
     title: string;
     description: string;
+    imageUrl: string; // Added field based on usage
 };
 
 export type LandingEventsFeature = {

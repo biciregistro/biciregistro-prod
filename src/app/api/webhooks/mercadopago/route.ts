@@ -91,10 +91,12 @@ export async function POST(req: NextRequest) {
                 const registrationId = metadata?.registration_id;
                 
                 if (registrationId) {
+                    // Update registration status internal will now handle auto-assigning bib number
                     await updateRegistrationStatusInternal(registrationId, {
                         paymentStatus: 'paid',
                         paymentMethod: 'platform',
                     });
+                    
                     console.log(`Pago aprobado y registrado para ID: ${registrationId}`);
                 } else {
                     console.warn(`Pago ${paymentId} aprobado pero sin registration_id en metadata.`);

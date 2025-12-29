@@ -140,6 +140,13 @@ export const eventFormSchema = z.object({
     // Legal / Waiver Configuration
     requiresWaiver: z.boolean().optional(),
     waiverText: z.string().optional(),
+    
+    // Bib Number Configuration
+    bibNumberConfig: z.object({
+        enabled: z.boolean(),
+        mode: z.enum(['automatic', 'dynamic']),
+        nextNumber: z.number().optional()
+    }).optional(),
 
     // Sponsors
     sponsors: z.array(z.string().url()).optional(),
@@ -181,6 +188,14 @@ export const eventFormSchema = z.object({
             code: z.ZodIssueCode.custom,
             message: "Si solicitas carta responsiva, el texto debe tener al menos 50 caracteres.",
             path: ["waiverText"],
+        });
+    }
+    
+    if (data.bibNumberConfig?.enabled && !data.bibNumberConfig.mode) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Debes seleccionar un modo de asignación si habilitas números de corredor.",
+            path: ["bibNumberConfig.mode"],
         });
     }
 });

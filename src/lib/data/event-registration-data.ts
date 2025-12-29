@@ -71,9 +71,23 @@ export async function registerUserToEvent(
             }
 
             let paymentStatus = 'pending';
+            // Logic for free events or 0 price tiers
             if (eventData.costType === 'Gratuito' || registrationData.price === 0) {
                 paymentStatus = 'not_applicable';
             }
+
+            // --- BIB NUMBER ASSIGNMENT LOGIC (For Free/Direct Confirmation) ---
+            let assignedBibNumber = null;
+            if (
+                paymentStatus === 'not_applicable' && 
+                eventData.bibNumberConfig?.enabled && 
+                eventData.bibNumberConfig.mode === 'automatic'
+            ) {
+                assignedBibNumber = eventData.bibNumberConfig.nextNumber || 1;
+                // Increment next number in event
+                transaction.update(eventRef, { 'bibNumberConfig.nextNumber': assignedBibNumber + 1 });
+            }
+            // ------------------------------------------------------------------
 
             const registrationPayload = {
                 ...registrationData,
@@ -84,6 +98,7 @@ export async function registerUserToEvent(
                 paymentStatus: paymentStatus as any,
                 checkedIn: false,
                 marketingConsent: registrationData.marketingConsent || null,
+                bibNumber: assignedBibNumber // Save assigned number
             };
 
             if (existingRegDoc) {
@@ -182,6 +197,9 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 paymentStatus: paymentStatus as any,
                 checkedIn: regData.checkedIn || false,
                 price: price || 0,
+                
+                // Add bib number mapping
+                bibNumber: regData.bibNumber || null,
                 
                 emergencyContactName: areEmergencyDetailsHidden ? '***' : (regData.emergencyContactName || null),
                 emergencyContactPhone: areEmergencyDetailsHidden ? '***' : (regData.emergencyContactPhone || null),

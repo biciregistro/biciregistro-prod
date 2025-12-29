@@ -112,6 +112,11 @@ export async function saveEvent(eventData: any, isDraft: boolean): Promise<Actio
             status: status,
             ...data,
             costTiers: data.costTiers || [],
+            bibNumberConfig: data.bibNumberConfig ? {
+                enabled: data.bibNumberConfig.enabled,
+                mode: data.bibNumberConfig.mode,
+                nextNumber: data.bibNumberConfig.nextNumber ?? 1
+            } : undefined
         };
 
         if (eventId) {
@@ -120,8 +125,13 @@ export async function saveEvent(eventData: any, isDraft: boolean): Promise<Actio
             eventId = await createEvent(payload);
         }
         
+        // Revalidate Dashboard Paths
         revalidatePath('/dashboard/ong');
         revalidatePath(`/dashboard/ong/events/${eventId}`);
+        
+        // Revalidate Public Event Page
+        revalidatePath(`/events/${eventId}`);
+
         if (user.role === 'admin') {
              revalidatePath('/admin');
         }
@@ -135,5 +145,46 @@ export async function saveEvent(eventData: any, isDraft: boolean): Promise<Actio
     } catch (error: any) {
         console.error("Save event error:", error);
         return { error: 'Ocurrió un error al guardar el evento.' };
+    }
+}
+
+export async function assignBibNumber(registrationId: string, eventId: string, number: number) {
+    const user = await getAuthenticatedUser();
+    
+    if (!user) {
+        return { success: false, message: "No autorizado." };
+    }
+
+    if (user.role !== 'ong' && user.role !== 'admin') {
+        return { success: false, message: "No autorizado." };
+    }
+    
+    // Check for duplicate number in the same event
+    try {
+        const existingRef = await db.collection('event-registrations')
+            .where('eventId', '==', eventId)
+            .where('bibNumber', '==', number)
+            .get();
+
+        if (!existingRef.empty) {
+            // Check if it's the same registration (idempotency, though UI handles it)
+            const doc = existingRef.docs[0];
+            if (doc.id !== registrationId) {
+                return { success: false, message: `El número ${number} ya está asignado a otro participante.` };
+            }
+        }
+
+        await db.collection('event-registrations').doc(registrationId).update({
+            bibNumber: number
+        });
+        
+        revalidatePath(`/dashboard/ong/events/${eventId}`);
+        // Also revalidate the public page so the user sees their number immediately if they check
+        revalidatePath(`/events/${eventId}`);
+        
+        return { success: true };
+    } catch (error) {
+        console.error("Error assigning bib number:", error);
+        return { success: false, message: "Error de base de datos." };
     }
 }

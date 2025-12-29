@@ -208,6 +208,32 @@ export default async function EventPage({ params }: EventPageProps) {
                             <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-tight">
                                 {event.name}
                             </h1>
+                            
+                            {/* Bib Number Display for User */}
+                            {isRegistered && event.bibNumberConfig?.enabled && (
+                                <div className="p-4 bg-muted/30 border border-muted rounded-lg flex items-center gap-4">
+                                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl">
+                                        #
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground font-medium uppercase tracking-wide">
+                                            Tu Número de Corredor
+                                        </p>
+                                        <p className="text-xl font-bold">
+                                            {registration?.bibNumber ? (
+                                                 <span className="text-primary font-mono text-2xl">#{registration.bibNumber}</span>
+                                            ) : (
+                                                 <span className="text-muted-foreground text-base italic">
+                                                     {event.bibNumberConfig.mode === 'automatic' 
+                                                         ? (registration?.paymentStatus === 'paid' ? 'Asignando...' : 'Completa tu pago para obtener número') 
+                                                         : 'Se asignará en la entrega de kits'
+                                                     }
+                                                 </span>
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             <Separator />
 

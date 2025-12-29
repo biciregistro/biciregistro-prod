@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy, Hash, AlertCircle, CheckCircle2, Package } from 'lucide-react';
 import { EventActionCard } from '@/components/dashboard/event-action-card';
 import { EventBikeSelector } from '@/components/dashboard/event-bike-selector';
 import { PaymentStatusHandler } from '@/components/payment-status-handler';
@@ -24,7 +24,6 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
   const registration = await getUserRegistrationForEvent(user.id, eventId);
 
   if (!registration) {
-      // If user is not registered, redirect to public event page or dashboard
       redirect(`/events/${eventId}`);
   }
 
@@ -34,8 +33,6 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
   const isFinished = eventDate < now;
   const userBikes = await getBikes(user.id);
 
-  // Resolve names from IDs if they are not stored in registration (which they currently aren't fully reliable)
-  // But for now we use what we have or map from event
   const tier = event.costTiers?.find(t => t.id === registration.tierId);
   const category = event.categories?.find(c => c.id === registration.categoryId);
 
@@ -48,10 +45,8 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
     ? `https://wa.me/${ongProfile.contactWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(whatsappMessage)}`
     : '#';
 
-  // --- Lógica de Estado Visual (Badge) ---
   let badgeText = registration.status === 'confirmed' ? 'Registro Confirmado' : registration.status;
   let badgeVariant: "default" | "secondary" | "destructive" | "outline" = registration.status === 'confirmed' ? 'default' : 'secondary';
-  // Clases base para el badge
   let badgeClassName = "text-base px-3 py-1 capitalize";
 
   if (isFinished) {
@@ -62,20 +57,19 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
       if (event.costType === 'Con Costo') {
           if (registration.paymentStatus === 'paid') {
               badgeText = "Registro Confirmado y Pagado";
-              // Verde explícito para éxito de pago
               badgeClassName = cn(badgeClassName, "bg-green-600 hover:bg-green-700 text-white border-transparent");
           } else {
               badgeText = "Pago Pendiente";
               badgeVariant = "secondary";
-              // Amarillo para alerta/pendiente
               badgeClassName = cn(badgeClassName, "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-200");
           }
       }
-      // Si es gratuito, se queda con el default (Registro Confirmado, variant default)
   } else if (registration.status === 'cancelled') {
       badgeText = "Cancelado";
-      badgeVariant = "destructive"; // O secondary, según preferencia, pero destructive es claro
+      badgeVariant = "destructive";
   }
+
+  const showBibNumber = event.bibNumberConfig?.enabled;
 
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
@@ -149,12 +143,11 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                 </CardContent>
             </Card>
 
-            {/* Bike Selector Card - Conditionally Rendered */}
+            {/* Bike Selector Card */}
             {event.requiresBike !== false && !isFinished && (
                 <EventBikeSelector userBikes={userBikes} registration={registration} eventId={event.id} />
             )}
             
-            {/* Bike Selector Card - Read Only for Finished Events */}
             {event.requiresBike !== false && isFinished && registration.bikeId && (
                  <Card>
                     <CardHeader>
@@ -178,30 +171,71 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                     <CardTitle>Tu Inscripción</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div>
-                            <p className="text-sm text-muted-foreground mb-1 flex items-center gap-1"><Tag className="h-3 w-3" /> Nivel de Acceso</p>
+                    <div className={cn("grid grid-cols-1 gap-4", showBibNumber ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+                        {/* 1. Nivel de Acceso */}
+                        <div className="flex flex-col border rounded-lg p-4 bg-card shadow-sm">
+                            <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1"><Tag className="h-3 w-3" /> Nivel de Acceso</p>
                             <p className="text-lg font-semibold">{tierName}</p>
-                            {price > 0 && <p className="text-sm font-medium text-primary">${price} MXN</p>}
+                            {price > 0 && <p className="text-sm font-medium text-primary mb-2">${price} MXN</p>}
                             
                             {tier?.includes && (
-                                <div className="mt-2 p-2 bg-muted rounded-md">
-                                    <p className="text-xs font-semibold mb-1">Incluye (Kit):</p>
-                                    <p className="text-xs text-muted-foreground">{tier.includes}</p>
+                                <div className="mt-auto pt-2 border-t text-xs">
+                                    <span className="font-semibold mb-1 text-muted-foreground flex items-center gap-1">
+                                        <Package className="h-3 w-3" /> Incluye:
+                                    </span>
+                                    <span className="text-foreground">{tier.includes}</span>
                                 </div>
                             )}
                         </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground mb-1 flex items-center gap-1"><Trophy className="h-3 w-3" /> Categoría</p>
-                            <p className="text-lg font-semibold">{categoryName}</p>
+
+                        {/* 2. Categoría */}
+                        <div className="flex flex-col border rounded-lg p-4 bg-card shadow-sm">
+                            <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1"><Trophy className="h-3 w-3" /> Categoría</p>
+                            <p className="text-lg font-semibold mb-2">{categoryName}</p>
                             
                             {category?.description && (
-                                <div className="mt-2 p-2 bg-muted rounded-md">
-                                    <p className="text-xs font-semibold mb-1">Detalles:</p>
-                                    <p className="text-xs text-muted-foreground">{category.description}</p>
+                                <div className="mt-auto pt-2 border-t text-xs">
+                                    <span className="font-semibold block mb-0.5 text-muted-foreground">Detalles:</span>
+                                    <span className="text-foreground">{category.description}</span>
                                 </div>
                             )}
                         </div>
+
+                        {/* 3. Número de Corredor */}
+                        {showBibNumber && (
+                            <div className="flex flex-col border rounded-lg p-4 bg-card shadow-sm relative overflow-hidden">
+                                <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1">
+                                    <Hash className="h-3 w-3" /> No. Corredor
+                                </p>
+                                
+                                {registration.bibNumber ? (
+                                    <div className="flex flex-col items-center justify-center flex-1 py-2">
+                                        <p className="text-5xl font-mono font-bold tracking-tighter text-primary leading-none">
+                                            #{registration.bibNumber.toString().padStart(3, '0')}
+                                        </p>
+                                        <div className="flex items-center gap-1 mt-2 text-green-600 text-xs font-medium">
+                                            <CheckCircle2 className="h-3 w-3" />
+                                            Asignado
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="mt-auto bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 p-3 rounded-md">
+                                        <div className="flex gap-2">
+                                            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                                            {event.bibNumberConfig!.mode === 'automatic' ? (
+                                                registration.paymentStatus === 'paid' ? (
+                                                    <p className="text-xs text-amber-800 dark:text-amber-400 font-medium leading-tight">Asignando tu número...</p>
+                                                ) : (
+                                                    <p className="text-xs text-amber-800 dark:text-amber-400 font-medium leading-tight">Completa tu pago para obtener tu número.</p>
+                                                )
+                                            ) : (
+                                                <p className="text-xs text-amber-800 dark:text-amber-400 font-medium leading-tight">Se asignará en entrega de kits.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                     
                     <Separator />
@@ -213,7 +247,11 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                                 {event.paymentDetails}
                             </div>
                         ) : (
-                            <p className="text-sm text-muted-foreground">Este evento es gratuito o el pago se realiza en sitio.</p>
+                             event.costType === 'Gratuito' ? (
+                                <p className="text-sm text-muted-foreground">Este evento es gratuito.</p>
+                             ) : (
+                                <p className="text-sm text-muted-foreground">Puedes realizar tu pago a través de las opciones disponibles.</p>
+                             )
                         )}
                     </div>
                 </CardContent>

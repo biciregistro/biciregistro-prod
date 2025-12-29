@@ -46,6 +46,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import dynamic from 'next/dynamic';
+import { EditableBibCell } from './editable-bib-cell';
 
 // Dynamic import for the PDF download modal
 const WaiverDownloadModal = dynamic(() => import('./waiver-download-modal').then(mod => mod.WaiverDownloadModal), {
@@ -61,9 +62,13 @@ interface AttendeeManagementProps {
     showBikeInfo?: boolean;
     showWaiverInfo?: boolean; // New prop to control waiver column
     isBlocked?: boolean; // Bloqueo administrativo
+    bibConfig?: {
+        enabled: boolean;
+        mode: 'automatic' | 'dynamic';
+    };
 }
 
-export function AttendeeManagement({ attendees, eventId, eventName, showEmergencyContact, showBikeInfo, showWaiverInfo, isBlocked }: AttendeeManagementProps) {
+export function AttendeeManagement({ attendees, eventId, eventName, showEmergencyContact, showBikeInfo, showWaiverInfo, isBlocked, bibConfig }: AttendeeManagementProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -225,6 +230,9 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-[50px]">Check-in</TableHead>
+                             {bibConfig?.enabled && (
+                                <TableHead className="w-[100px]">No. Corredor</TableHead>
+                            )}
                             <TableHead>Participante</TableHead>
                             <TableHead>Contacto</TableHead>
                             {showEmergencyContact && <TableHead>Info Médica</TableHead>}
@@ -252,6 +260,21 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                                             disabled={isUpdating === attendee.id || attendee.status === 'cancelled' || isBlocked}
                                         />
                                     </TableCell>
+                                    {bibConfig?.enabled && (
+                                        <TableCell>
+                                            {bibConfig.mode === 'automatic' ? (
+                                                <span className="font-mono font-medium">
+                                                    {attendee.bibNumber ? `#${attendee.bibNumber.toString().padStart(3, '0')}` : '-'}
+                                                </span>
+                                            ) : (
+                                                <EditableBibCell 
+                                                    registrationId={attendee.id}
+                                                    eventId={eventId}
+                                                    initialBibNumber={attendee.bibNumber}
+                                                />
+                                            )}
+                                        </TableCell>
+                                    )}
                                     <TableCell>
                                         <div className="flex flex-col">
                                             <span className={cn("font-medium", attendee.status === 'cancelled' && "line-through text-muted-foreground")}>
@@ -372,7 +395,7 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={showBikeInfo ? (showEmergencyContact ? 8 : 7) : (showEmergencyContact ? 7 : 6)} className="h-24 text-center">
+                                <TableCell colSpan={showBikeInfo ? (showEmergencyContact ? 9 : 8) : (showEmergencyContact ? 8 : 7)} className="h-24 text-center">
                                     No se encontraron participantes.
                                 </TableCell>
                             </TableRow>

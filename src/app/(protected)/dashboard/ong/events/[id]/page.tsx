@@ -193,6 +193,7 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
                     showBikeInfo={showBikeInfo}
                     showWaiverInfo={showWaiverInfo}
                     isBlocked={event.isBlocked}
+                    bibConfig={event.bibNumberConfig}
                 />
             </CardContent>
           </Card>
