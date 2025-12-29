@@ -137,16 +137,16 @@ export const eventFormSchema = z.object({
     // Bike Requirement
     requiresBike: z.boolean().optional(),
 
-    // Legal / Waiver Configuration
-    requiresWaiver: z.boolean().optional(),
-    waiverText: z.string().optional(),
-    
-    // Bib Number Configuration
+    // Bib Number Configuration (Moved up)
     bibNumberConfig: z.object({
         enabled: z.boolean(),
         mode: z.enum(['automatic', 'dynamic']),
         nextNumber: z.number().optional()
     }).optional(),
+
+    // Legal / Waiver Configuration
+    requiresWaiver: z.boolean().optional(),
+    waiverText: z.string().optional(),
 
     // Sponsors
     sponsors: z.array(z.string().url()).optional(),
