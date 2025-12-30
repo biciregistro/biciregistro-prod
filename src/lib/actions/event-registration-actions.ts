@@ -21,7 +21,8 @@ export async function registerForEventAction(
     waiverTextSnapshot?: string,
     marketingConsentGiven?: boolean,
     jerseyModel?: string,
-    jerseySize?: string
+    jerseySize?: string,
+    allergies?: string
 ): Promise<{ success: boolean; error?: string; message?: string }> {
     const session = await getDecodedSession();
     
@@ -84,7 +85,8 @@ export async function registerForEventAction(
         waiverTextSnapshot,
         marketingConsent,
         jerseyModel,
-        jerseySize
+        jerseySize,
+        allergies
     });
 
     if (result.success) {

@@ -93,6 +93,7 @@ export async function registerUserToEvent(
                 ...registrationData,
                 bloodType: registrationData.bloodType || null,
                 insuranceInfo: registrationData.insuranceInfo || null,
+                allergies: registrationData.allergies || null,
                 registrationDate: new Date().toISOString(), 
                 status: 'confirmed' as const,
                 paymentStatus: paymentStatus as any,
@@ -110,11 +111,12 @@ export async function registerUserToEvent(
                 transaction.set(newRegRef, registrationPayload);
             }
 
-            if (registrationData.bloodType || registrationData.insuranceInfo) {
+            if (registrationData.bloodType || registrationData.insuranceInfo || registrationData.allergies) {
                 const userRef = db.collection('users').doc(userId);
                 const updateData: any = {};
                 if (registrationData.bloodType) updateData.bloodType = registrationData.bloodType;
                 if (registrationData.insuranceInfo) updateData.insuranceInfo = registrationData.insuranceInfo;
+                if (registrationData.allergies) updateData.allergies = registrationData.allergies;
                 transaction.update(userRef, updateData);
             }
 
@@ -211,6 +213,7 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 emergencyContactPhone: areEmergencyDetailsHidden ? '***' : (regData.emergencyContactPhone || null),
                 bloodType: areEmergencyDetailsHidden ? '***' : (regData.bloodType || null),
                 insuranceInfo: areEmergencyDetailsHidden ? '***' : (regData.insuranceInfo || null),
+                allergies: areEmergencyDetailsHidden ? '***' : (regData.allergies || null),
                 waiverSigned: !!regData.waiverSignature,
             } as EventAttendee;
         });

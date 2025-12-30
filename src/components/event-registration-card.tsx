@@ -51,11 +51,13 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
     const [emergencyPhone, setEmergencyPhone] = useState('');
     const [bloodType, setBloodType] = useState<string | undefined>(undefined);
     const [insuranceInfo, setInsuranceInfo] = useState('');
+    const [allergies, setAllergies] = useState('');
 
     useEffect(() => {
         if (user) {
             if (user.bloodType) setBloodType(user.bloodType);
             if (user.insuranceInfo) setInsuranceInfo(user.insuranceInfo);
+            if (user.allergies) setAllergies(user.allergies);
         }
     }, [user]);
 
@@ -161,7 +163,8 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                 waiverData?.signedText,
                 marketingConsent,
                 selectedJerseyConfig?.name, // Send Jersey Model Name
-                selectedJerseySize // Send Jersey Size
+                selectedJerseySize, // Send Jersey Size
+                allergies // Send Allergies
             );
             
             if (result.success) {
@@ -357,6 +360,10 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                                 <div className="space-y-2 col-span-2">
                                     <Label htmlFor="e-insurance">Seguro Médico / Póliza</Label>
                                     <Input id="e-insurance" value={insuranceInfo} onChange={(e) => setInsuranceInfo(e.target.value)} placeholder="Ej. IMSS, GNP - Poliza 12345, o 'Sin seguro'" className="h-9" />
+                                </div>
+                                <div className="space-y-2 col-span-2">
+                                    <Label htmlFor="e-allergies">Alergias</Label>
+                                    <Input id="e-allergies" value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder="Ej. Penicilina, látex, o 'Ninguna'" className="h-9" />
                                 </div>
                             </div>
                             <p className="text-[10px] text-muted-foreground italic bg-muted/30 p-2 rounded">* Tus datos médicos solo serán visibles para el organizador durante el evento y hasta 24 horas después.</p>

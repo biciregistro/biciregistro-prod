@@ -58,6 +58,7 @@ export type User = {
   // Emergency Info (HU-EVENT-005)
   bloodType?: string;
   insuranceInfo?: string;
+  allergies?: string; // New field for medical allergies
   // HU-02: FCM Tokens for Push Notifications
   fcmTokens?: string[];
 };
@@ -241,6 +242,7 @@ export type EventRegistration = {
     // Extended Emergency Info (HU-EVENT-005)
     bloodType?: string | null;
     insuranceInfo?: string | null;
+    allergies?: string | null; // New field for medical allergies
 
     // Legal Waiver Evidence (HU-LEGAL-002)
     waiverSignature?: string; // URL to signature image
@@ -290,6 +292,7 @@ export type EventAttendee = {
     // Extended Emergency Info (HU-EVENT-005)
     bloodType?: string | null;
     insuranceInfo?: string | null;
+    allergies?: string | null; // New field for medical allergies
 
     // Legal Waiver Status
     waiverSigned?: boolean;

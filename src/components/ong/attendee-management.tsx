@@ -31,7 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, MoreHorizontal, Check, AlertCircle, CreditCard, UserCheck, Bike, XCircle, Wallet, HeartPulse, ShieldAlert, Phone, FileText, Shirt, Download, Table as TableIcon } from 'lucide-react';
+import { MessageCircle, MoreHorizontal, Check, AlertCircle, CreditCard, UserCheck, Bike, XCircle, Wallet, HeartPulse, ShieldAlert, Phone, FileText, Shirt, Download, Table as TableIcon, Ban } from 'lucide-react';
 import { EventAttendee, PaymentStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { toggleCheckInStatus, cancelRegistrationManuallyAction } from '@/lib/actions';
@@ -522,6 +522,14 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                                 <div className="space-y-1">
                                     <p className="text-sm font-medium leading-none">Tipo de Sangre</p>
                                     <p className="text-lg font-bold">{selectedEmergencyData.bloodType || 'No especificado'}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-start gap-4 p-4 border rounded-md bg-muted/20">
+                                <Ban className="h-5 w-5 text-orange-500 mt-1" />
+                                <div className="space-y-1">
+                                    <p className="text-sm font-medium leading-none">Alergias Conocidas</p>
+                                    <p className="text-base font-semibold">{selectedEmergencyData.allergies || 'Ninguna / No especificada'}</p>
                                 </div>
                             </div>
 
