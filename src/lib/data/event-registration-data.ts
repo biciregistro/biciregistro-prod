@@ -98,7 +98,9 @@ export async function registerUserToEvent(
                 paymentStatus: paymentStatus as any,
                 checkedIn: false,
                 marketingConsent: registrationData.marketingConsent || null,
-                bibNumber: assignedBibNumber // Save assigned number
+                bibNumber: assignedBibNumber, // Save assigned number
+                jerseyModel: registrationData.jerseyModel || null, // Save Jersey selection
+                jerseySize: registrationData.jerseySize || null
             };
 
             if (existingRegDoc) {
@@ -200,6 +202,10 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 
                 // Add bib number mapping
                 bibNumber: regData.bibNumber || null,
+                
+                // Add jersey mapping
+                jerseyModel: regData.jerseyModel || null,
+                jerseySize: regData.jerseySize || null,
                 
                 emergencyContactName: areEmergencyDetailsHidden ? '***' : (regData.emergencyContactName || null),
                 emergencyContactPhone: areEmergencyDetailsHidden ? '***' : (regData.emergencyContactPhone || null),

@@ -19,7 +19,9 @@ export async function registerForEventAction(
     waiverSignature?: string,
     waiverAcceptedAt?: string,
     waiverTextSnapshot?: string,
-    marketingConsentGiven?: boolean
+    marketingConsentGiven?: boolean,
+    jerseyModel?: string,
+    jerseySize?: string
 ): Promise<{ success: boolean; error?: string; message?: string }> {
     const session = await getDecodedSession();
     
@@ -51,6 +53,10 @@ export async function registerForEventAction(
         }
     }
 
+    if (event.hasJersey && (!jerseyModel || !jerseySize)) {
+        return { success: false, error: "Debes seleccionar un modelo y talla de jersey." };
+    }
+
     let marketingConsent: MarketingConsent | null = null;
     if (marketingConsentGiven) {
         const headerList = await headers();
@@ -76,7 +82,9 @@ export async function registerForEventAction(
         waiverSignature,
         waiverAcceptedAt,
         waiverTextSnapshot,
-        marketingConsent
+        marketingConsent,
+        jerseyModel,
+        jerseySize
     });
 
     if (result.success) {

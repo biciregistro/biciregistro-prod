@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
     Table, 
@@ -25,12 +25,13 @@ import {
     DialogDescription,
     DialogFooter
 } from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, MoreHorizontal, Check, AlertCircle, CreditCard, UserCheck, Bike, XCircle, Wallet, HeartPulse, ShieldAlert, Phone, FileText } from 'lucide-react';
+import { MessageCircle, MoreHorizontal, Check, AlertCircle, CreditCard, UserCheck, Bike, XCircle, Wallet, HeartPulse, ShieldAlert, Phone, FileText, Shirt, Download, Table as TableIcon } from 'lucide-react';
 import { EventAttendee, PaymentStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { toggleCheckInStatus, cancelRegistrationManuallyAction } from '@/lib/actions';
@@ -66,9 +67,10 @@ interface AttendeeManagementProps {
         enabled: boolean;
         mode: 'automatic' | 'dynamic';
     };
+    hasJersey?: boolean; // New Prop
 }
 
-export function AttendeeManagement({ attendees, eventId, eventName, showEmergencyContact, showBikeInfo, showWaiverInfo, isBlocked, bibConfig }: AttendeeManagementProps) {
+export function AttendeeManagement({ attendees, eventId, eventName, showEmergencyContact, showBikeInfo, showWaiverInfo, isBlocked, bibConfig, hasJersey }: AttendeeManagementProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -82,6 +84,8 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
     const [waiverModalOpen, setWaiverModalOpen] = useState(false);
     const [selectedParticipantForWaiver, setSelectedParticipantForWaiver] = useState<{ id: string, name: string } | null>(null);
 
+    // Jersey Order Modal State
+    const [jerseyModalOpen, setJerseyModalOpen] = useState(false);
 
     const { toast } = useToast();
     const router = useRouter();
@@ -92,6 +96,44 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
         attendee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (attendee.bike?.serialNumber && attendee.bike.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+
+    // --- JERSEY LOGIC ---
+    const jerseyStats = useMemo(() => {
+        if (!hasJersey) return { total: 0, breakdown: [] };
+
+        const breakdownMap = new Map<string, number>();
+        let total = 0;
+
+        attendees.forEach(att => {
+            if (att.status !== 'cancelled' && att.jerseyModel && att.jerseySize) {
+                const key = `${att.jerseyModel}|${att.jerseySize}`;
+                breakdownMap.set(key, (breakdownMap.get(key) || 0) + 1);
+                total++;
+            }
+        });
+
+        const breakdown = Array.from(breakdownMap.entries()).map(([key, count]) => {
+            const [model, size] = key.split('|');
+            return { model, size, count };
+        }).sort((a, b) => a.model.localeCompare(b.model) || a.size.localeCompare(b.size));
+
+        return { total, breakdown };
+    }, [attendees, hasJersey]);
+
+    const downloadJerseyCSV = () => {
+        const csvContent = "data:text/csv;charset=utf-8," 
+            + "Modelo de Jersey,Talla,Cantidad\n"
+            + jerseyStats.breakdown.map(e => `${e.model},${e.size},${e.count}`).join("\n");
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `orden_jerseys_${eventName.replace(/[\s/]/g, '_')}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+    // --------------------
 
     const handlePaymentChange = async (registrationId: string, newStatus: PaymentStatus) => {
         setIsUpdating(registrationId);
@@ -213,6 +255,30 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
 
     return (
         <div className="space-y-4">
+            
+            {/* Jersey Summary Card */}
+            {hasJersey && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4 animate-in fade-in slide-in-from-top-2">
+                    <Card className="bg-muted/30 border-dashed border-primary/20">
+                        <CardContent className="p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-primary/10 rounded-full text-primary">
+                                    <Shirt className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase font-semibold">Jerseys Solicitados</p>
+                                    <p className="text-2xl font-bold">{jerseyStats.total}</p>
+                                </div>
+                            </div>
+                            <Button size="sm" variant="outline" onClick={() => setJerseyModalOpen(true)}>
+                                <TableIcon className="h-4 w-4 mr-2" />
+                                Ver Orden
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
                 <Input
                     placeholder="Buscar por nombre, email o serie..."
@@ -237,6 +303,7 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                             <TableHead>Contacto</TableHead>
                             {showEmergencyContact && <TableHead>Info Médica</TableHead>}
                             {showBikeInfo && <TableHead>Bicicleta</TableHead>}
+                            {hasJersey && <TableHead>Jersey</TableHead>}
                             {showWaiverInfo && <TableHead>Responsiva</TableHead>}
                             <TableHead>Nivel/Cat.</TableHead>
                             <TableHead>Pago</TableHead>
@@ -325,6 +392,18 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                                             )}
                                         </TableCell>
                                     )}
+                                    {hasJersey && (
+                                        <TableCell>
+                                            {attendee.jerseyModel ? (
+                                                <div className="flex flex-col text-xs">
+                                                    <span className="font-medium">{attendee.jerseyModel}</span>
+                                                    <span className="text-muted-foreground">Talla: {attendee.jerseySize}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">-</span>
+                                            )}
+                                        </TableCell>
+                                    )}
                                      {showWaiverInfo && (
                                         <TableCell>
                                             {attendee.waiverSigned ? (
@@ -395,7 +474,7 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={showBikeInfo ? (showEmergencyContact ? 9 : 8) : (showEmergencyContact ? 8 : 7)} className="h-24 text-center">
+                                <TableCell colSpan={showBikeInfo ? (showEmergencyContact ? (hasJersey ? 10 : 9) : (hasJersey ? 9 : 8)) : (showEmergencyContact ? (hasJersey ? 9 : 8) : (hasJersey ? 8 : 7))} className="h-24 text-center">
                                     No se encontraron participantes.
                                 </TableCell>
                             </TableRow>
@@ -494,6 +573,57 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                     participantName={selectedParticipantForWaiver.name}
                 />
             )}
+
+            {/* Jersey Production Order Modal */}
+            <Dialog open={jerseyModalOpen} onOpenChange={setJerseyModalOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Orden de Producción de Jerseys</DialogTitle>
+                        <DialogDescription>
+                            Detalle de tallas y modelos solicitados por asistentes confirmados.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="py-4">
+                        <div className="rounded-md border max-h-[300px] overflow-y-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Modelo</TableHead>
+                                        <TableHead>Talla</TableHead>
+                                        <TableHead className="text-right">Cantidad</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {jerseyStats.breakdown.length > 0 ? (
+                                        jerseyStats.breakdown.map((item, idx) => (
+                                            <TableRow key={idx}>
+                                                <TableCell className="font-medium">{item.model}</TableCell>
+                                                <TableCell>{item.size}</TableCell>
+                                                <TableCell className="text-right font-bold">{item.count}</TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={3} className="text-center h-24 text-muted-foreground">
+                                                No hay órdenes aún.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setJerseyModalOpen(false)}>Cerrar</Button>
+                        <Button onClick={downloadJerseyCSV} className="gap-2">
+                            <Download className="h-4 w-4" />
+                            Descargar CSV
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

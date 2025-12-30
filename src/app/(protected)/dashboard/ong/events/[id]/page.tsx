@@ -41,6 +41,7 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
   const showEmergencyContact = event.requiresEmergencyContact;
   const showBikeInfo = event.requiresBike !== false;
   const showWaiverInfo = event.requiresWaiver === true;
+  const hasJersey = event.hasJersey === true;
 
   const totalCheckedIn = attendees.filter(a => a.checkedIn).length;
   const attendancePercentage = event.currentParticipants && event.currentParticipants > 0 
@@ -194,6 +195,7 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
                     showWaiverInfo={showWaiverInfo}
                     isBlocked={event.isBlocked}
                     bibConfig={event.bibNumberConfig}
+                    hasJersey={hasJersey}
                 />
             </CardContent>
           </Card>

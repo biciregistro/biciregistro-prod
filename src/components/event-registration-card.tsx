@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tag, Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Tag, Loader2, ShieldCheck, ArrowRight, Shirt } from 'lucide-react';
 import type { Event, User, EventRegistration } from '@/lib/types';
 import dynamic from 'next/dynamic';
 
@@ -40,6 +40,11 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
     
     const [selectedTierId, setSelectedTierId] = useState<string | undefined>(undefined);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
+    
+    // Jersey Selection State
+    const [selectedJerseyId, setSelectedJerseyId] = useState<string | undefined>(undefined);
+    const [selectedJerseySize, setSelectedJerseySize] = useState<string | undefined>(undefined);
+
     const [marketingConsent, setMarketingConsent] = useState(false);
 
     const [emergencyName, setEmergencyName] = useState('');
@@ -54,8 +59,15 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
         }
     }, [user]);
 
+    // Reset jersey size if model changes
+    useEffect(() => {
+        setSelectedJerseySize(undefined);
+    }, [selectedJerseyId]);
+
     const tiers = event.costTiers || [];
     const categories = event.categories || [];
+    const jerseyConfigs = event.jerseyConfigs || [];
+    const hasJersey = event.hasJersey && jerseyConfigs.length > 0;
     
     const isSoldOut = (event.maxParticipants || 0) > 0 && (event.currentParticipants || 0) >= (event.maxParticipants || 0);
     
@@ -75,6 +87,7 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
     
     const selectedTier = tiers.find(t => t.id === selectedTierId);
     const selectedCategory = categories.find(c => c.id === selectedCategoryId);
+    const selectedJerseyConfig = jerseyConfigs.find(j => j.id === selectedJerseyId);
     
     const price = selectedTier ? selectedTier.price : 0;
     const isFree = event.costType === 'Gratuito' || (tiers.length === 0);
@@ -88,6 +101,17 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
         if (event.hasCategories && categories.length > 0 && !selectedCategoryId) {
             toast({ variant: "destructive", title: "Selección requerida", description: "Por favor selecciona una categoría." });
             return;
+        }
+
+        if (hasJersey) {
+            if (!selectedJerseyId) {
+                toast({ variant: "destructive", title: "Selección requerida", description: "Por favor selecciona un modelo de Jersey." });
+                return;
+            }
+            if (!selectedJerseySize) {
+                toast({ variant: "destructive", title: "Selección requerida", description: "Por favor selecciona una talla de Jersey." });
+                return;
+            }
         }
 
         setIsConfirmModalOpen(true);
@@ -135,7 +159,9 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                 waiverData?.signature,
                 waiverData ? new Date().toISOString() : undefined,
                 waiverData?.signedText,
-                marketingConsent
+                marketingConsent,
+                selectedJerseyConfig?.name, // Send Jersey Model Name
+                selectedJerseySize // Send Jersey Size
             );
             
             if (result.success) {
@@ -192,6 +218,40 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                                         {categories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
+                            </div>
+                        )}
+
+                        {/* Jersey Selection Section */}
+                        {hasJersey && (
+                             <div className="space-y-3 bg-muted/20 p-3 rounded-md border border-dashed border-primary/20">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Shirt className="h-4 w-4 text-primary" />
+                                    <Label className="text-primary font-semibold">Selección de Jersey</Label>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                    <Label className="text-xs">Modelo</Label>
+                                    <Select onValueChange={setSelectedJerseyId} value={selectedJerseyId}>
+                                        <SelectTrigger className="h-9"><SelectValue placeholder="Elige el modelo" /></SelectTrigger>
+                                        <SelectContent>
+                                            {jerseyConfigs.map(j => <SelectItem key={j.id} value={j.id}>{j.name} ({j.type})</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {selectedJerseyId && selectedJerseyConfig && (
+                                    <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
+                                        <Label className="text-xs">Talla</Label>
+                                        <Select onValueChange={setSelectedJerseySize} value={selectedJerseySize}>
+                                            <SelectTrigger className="h-9"><SelectValue placeholder="Elige tu talla" /></SelectTrigger>
+                                            <SelectContent>
+                                                {selectedJerseyConfig.sizes.map(size => (
+                                                    <SelectItem key={size} value={size}>{size}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -260,6 +320,19 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                             <span className="col-span-2 font-medium">{selectedCategory.name}</span>
                         </div>
                     )}
+                    
+                    {/* Jersey Confirmation Summary */}
+                    {hasJersey && selectedJerseyConfig && selectedJerseySize && (
+                        <div className="grid grid-cols-3 items-center gap-4 bg-muted/20 p-2 rounded">
+                            <span className="font-semibold text-sm text-muted-foreground flex items-center gap-1">
+                                <Shirt className="h-3 w-3" /> Jersey:
+                            </span>
+                            <span className="col-span-2 font-medium text-sm">
+                                {selectedJerseyConfig.name} - Talla {selectedJerseySize}
+                            </span>
+                        </div>
+                    )}
+
                     {event.requiresEmergencyContact && (
                         <div className="space-y-4 pt-3 border-t mt-2">
                             <h4 className="font-semibold text-sm text-destructive">Información de Emergencia (Obligatorio)</h4>

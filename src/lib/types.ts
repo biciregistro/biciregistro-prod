@@ -121,6 +121,17 @@ export type BibNumberConfig = {
     nextNumber: number; // For automatic assignment internal tracking
 };
 
+// --- Jersey Types (New for Feature) ---
+export type JerseyType = 'Enduro' | 'XC' | 'Ruta';
+export type JerseySize = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
+
+export type JerseyConfig = {
+    id: string;
+    name: string;
+    type: JerseyType;
+    sizes: JerseySize[];
+};
+
 export type Event = {
   id: string;
   ongId: string;
@@ -168,6 +179,10 @@ export type Event = {
   
   // Bib Number Configuration (New Field)
   bibNumberConfig?: BibNumberConfig;
+  
+  // Jersey Configuration (New Field)
+  hasJersey?: boolean;
+  jerseyConfigs?: JerseyConfig[];
 
   // Sponsors
   sponsors?: string[]; // Array of image URLs
@@ -216,6 +231,10 @@ export type EventRegistration = {
     // Bib Number (New Field)
     bibNumber?: number | null;
     
+    // Jersey Selection (New Field)
+    jerseyModel?: string; // Stores the JerseyConfig name or ID
+    jerseySize?: string;
+
     // Emergency Contact Data
     emergencyContactName?: string;
     emergencyContactPhone?: string;
@@ -254,6 +273,10 @@ export type EventAttendee = {
     
     // Bib Number (New Field)
     bibNumber?: number | null;
+
+    // Jersey Selection (New Field)
+    jerseyModel?: string; 
+    jerseySize?: string;
     
     bike?: {
         id: string;

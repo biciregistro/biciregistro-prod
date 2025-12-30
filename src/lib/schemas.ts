@@ -150,6 +150,17 @@ export const eventFormSchema = z.object({
         nextNumber: z.number().optional()
     }).optional(),
 
+    // Jersey Configuration (New Field)
+    hasJersey: z.boolean().optional(),
+    jerseyConfigs: z.array(z.object({
+        id: z.string(),
+        name: z.string().min(1, "El nombre del modelo es obligatorio."),
+        type: z.enum(['Enduro', 'XC', 'Ruta'], {
+            required_error: "Debes seleccionar un tipo de jersey."
+        }),
+        sizes: z.array(z.enum(['XS', 'S', 'M', 'L', 'XL', 'XXL'])).min(1, "Debes seleccionar al menos una talla.")
+    })).optional(),
+
     // Legal / Waiver Configuration
     requiresWaiver: z.boolean().optional(),
     waiverText: z.string().optional(),
@@ -198,6 +209,14 @@ export const eventFormSchema = z.object({
                     });
                 }
             }
+        });
+    }
+
+    if (data.hasJersey && (!data.jerseyConfigs || data.jerseyConfigs.length === 0)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Debes configurar al menos un modelo de jersey si habilitaste esta opción.",
+            path: ["jerseyConfigs"],
         });
     }
 

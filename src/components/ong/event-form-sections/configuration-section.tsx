@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { PlusCircle, Trash2, AlertCircle, Clock } from 'lucide-react';
+import { PlusCircle, Trash2, AlertCircle, Clock, Shirt } from 'lucide-react';
 import { eventFormSchema } from '@/lib/schemas';
 import { z } from "zod";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -32,17 +34,25 @@ export function ConfigurationSection({ form, isPublished }: ConfigurationSection
         name: "categories",
     });
 
+    const { fields: jerseyFields, append: appendJersey, remove: removeJersey } = useFieldArray({
+        control: form.control,
+        name: "jerseyConfigs",
+    });
+
     const hasDeadline = useWatch({ control: form.control, name: "hasRegistrationDeadline" });
     const requiresBike = useWatch({ control: form.control, name: "requiresBike" });
     const requiresEmergency = useWatch({ control: form.control, name: "requiresEmergencyContact" });
     const hasCategories = useWatch({ control: form.control, name: "hasCategories" });
     const bibEnabled = useWatch({ control: form.control, name: "bibNumberConfig.enabled" });
+    const hasJersey = useWatch({ control: form.control, name: "hasJersey" });
 
     // Watch all categories to handle conditional rendering of age inputs
     const watchedCategories = useWatch({
         control: form.control,
         name: "categories"
     });
+
+    const JERSEY_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const;
     
     return (
         <div className="space-y-4">
@@ -215,6 +225,164 @@ export function ConfigurationSection({ form, isPublished }: ConfigurationSection
                                 </FormItem>
                             )}
                         />
+                    </div>
+                )}
+            </div>
+
+            {/* Jersey Configuration - NEW SECTION */}
+            <div className="space-y-4 border rounded-lg p-4 bg-muted/5 mt-6">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-lg font-medium flex items-center gap-2">
+                            <Shirt className="h-5 w-5 text-primary" />
+                            Jerseys del Evento
+                        </h3>
+                        <p className="text-sm text-muted-foreground">¿El evento incluye Jersey para los participantes?</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <FormLabel className="font-normal cursor-pointer" htmlFor="jersey-toggle">
+                            {hasJersey ? "Sí" : "No"}
+                        </FormLabel>
+                        <Switch
+                            id="jersey-toggle"
+                            checked={hasJersey}
+                            onCheckedChange={(checked) => {
+                                form.setValue('hasJersey', checked);
+                                if (!checked) {
+                                    form.setValue('jerseyConfigs', []);
+                                }
+                            }}
+                        />
+                    </div>
+                </div>
+
+                {hasJersey && (
+                    <div className="space-y-4 mt-4 animate-in fade-in slide-in-from-top-2">
+                        <div className="flex items-center justify-between">
+                            <FormLabel>Modelos Disponibles</FormLabel>
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => appendJersey({ 
+                                    id: crypto.randomUUID(), 
+                                    name: '', 
+                                    type: 'Enduro',
+                                    sizes: ['S', 'M', 'L'] 
+                                })}
+                            >
+                                <PlusCircle className="mr-2 h-3 w-3" /> Agregar Jersey
+                            </Button>
+                        </div>
+                        
+                        {jerseyFields.map((field, index) => (
+                            <Card key={field.id} className="overflow-hidden">
+                                <CardContent className="p-4 space-y-4">
+                                    <div className="flex justify-between items-center border-b pb-2 mb-2">
+                                        <h4 className="text-sm font-semibold flex items-center gap-2">
+                                            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px]">
+                                                {index + 1}
+                                            </span>
+                                            Modelo
+                                        </h4>
+                                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => removeJersey(index)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-4">
+                                            <FormField
+                                                control={form.control}
+                                                name={`jerseyConfigs.${index}.name`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-xs"><RequiredLabel>Nombre del Modelo</RequiredLabel></FormLabel>
+                                                        <FormControl><Input placeholder="Ej. Edición Especial 2024" {...field} /></FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`jerseyConfigs.${index}.type`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-xs"><RequiredLabel>Tipo de Corte</RequiredLabel></FormLabel>
+                                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                            <FormControl>
+                                                                <SelectTrigger>
+                                                                    <SelectValue placeholder="Selecciona un tipo" />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                <SelectItem value="Enduro">Enduro (Holgado)</SelectItem>
+                                                                <SelectItem value="XC">XC (Ajustado)</SelectItem>
+                                                                <SelectItem value="Ruta">Ruta (Lycra)</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <FormLabel className="text-xs"><RequiredLabel>Tallas Disponibles</RequiredLabel></FormLabel>
+                                            <div className="grid grid-cols-3 gap-3 p-3 border rounded-md bg-muted/30">
+                                                {JERSEY_SIZES.map((size) => (
+                                                    <FormField
+                                                        key={size}
+                                                        control={form.control}
+                                                        name={`jerseyConfigs.${index}.sizes`}
+                                                        render={({ field }) => {
+                                                            return (
+                                                                <FormItem
+                                                                    key={size}
+                                                                    className="flex flex-row items-start space-x-2 space-y-0"
+                                                                >
+                                                                    <FormControl>
+                                                                        <Checkbox
+                                                                            checked={field.value?.includes(size)}
+                                                                            onCheckedChange={(checked) => {
+                                                                                return checked
+                                                                                    ? field.onChange([...field.value, size])
+                                                                                    : field.onChange(
+                                                                                        field.value?.filter(
+                                                                                            (value) => value !== size
+                                                                                        )
+                                                                                    )
+                                                                            }}
+                                                                        />
+                                                                    </FormControl>
+                                                                    <FormLabel className="font-normal text-xs cursor-pointer">
+                                                                        {size}
+                                                                    </FormLabel>
+                                                                </FormItem>
+                                                            )
+                                                        }}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <FormMessage>
+                                                {form.formState.errors.jerseyConfigs?.[index]?.sizes?.message}
+                                            </FormMessage>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                        
+                        {jerseyFields.length === 0 && (
+                            <p className="text-sm text-destructive text-center py-4">
+                                Debes configurar al menos un modelo si la opción está habilitada.
+                            </p>
+                        )}
+                         {form.formState.errors.jerseyConfigs && (
+                            <p className="text-sm font-medium text-destructive">
+                                {form.formState.errors.jerseyConfigs.message}
+                            </p>
+                        )}
                     </div>
                 )}
             </div>
