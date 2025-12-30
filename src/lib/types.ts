@@ -106,6 +106,12 @@ export type EventCategory = {
     id: string; // for React key prop
     name: string;
     description?: string;
+    ageConfig?: {
+        isRestricted: boolean;
+        minAge?: number;
+        maxAge?: number;
+    };
+    startTime?: string;
 };
 
 // Bib Number Configuration (New for Feature)
@@ -307,17 +313,17 @@ export type HomepageSection =
       items: [SecurityFeature, SecurityFeature, SecurityFeature];
     }
   | {
+      id: 'allies';
+      title: string;
+      sponsors: { name?: string; url: string }[];
+    }
+  | {
       id: 'cta';
       title: string;
       subtitle: string;
       buttonText?: string;
       imageUrl?: string;
-    }
-  | {
-      id: 'allies';
-      title: string;
-      sponsors: { name?: string; url: string }[];
-  };
+    };
 
 
 // Type for server action form state

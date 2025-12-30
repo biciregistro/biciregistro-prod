@@ -125,6 +125,12 @@ export const eventFormSchema = z.object({
         id: z.string(),
         name: z.string().min(1, "El nombre de la categoría es obligatorio."),
         description: z.string().optional(),
+        ageConfig: z.object({
+            isRestricted: z.boolean().default(false),
+            minAge: z.coerce.number().optional(),
+            maxAge: z.coerce.number().optional(),
+        }).optional(),
+        startTime: z.string().optional(), // Formato HH:MM
     })).optional(),
 
     // Registration Deadline
@@ -164,6 +170,34 @@ export const eventFormSchema = z.object({
             code: z.ZodIssueCode.custom,
             message: "Debes agregar al menos una categoría si habilitaste las categorías.",
             path: ["categories"],
+        });
+    }
+
+    if (data.hasCategories && data.categories) {
+        data.categories.forEach((category, index) => {
+            if (category.ageConfig?.isRestricted) {
+                if (category.ageConfig.minAge === undefined || category.ageConfig.minAge === null) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: "La edad mínima es obligatoria si hay restricción.",
+                        path: ["categories", index, "ageConfig", "minAge"],
+                    });
+                }
+                if (category.ageConfig.maxAge === undefined || category.ageConfig.maxAge === null) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: "La edad máxima es obligatoria si hay restricción.",
+                        path: ["categories", index, "ageConfig", "maxAge"],
+                    });
+                }
+                if (category.ageConfig.minAge !== undefined && category.ageConfig.maxAge !== undefined && category.ageConfig.maxAge < category.ageConfig.minAge) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: "La edad máxima debe ser mayor o igual a la mínima.",
+                        path: ["categories", index, "ageConfig", "maxAge"],
+                    });
+                }
+            }
         });
     }
 

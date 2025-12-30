@@ -7,11 +7,10 @@ import { getEvent, getAuthenticatedUser, getOngProfile, getOngCommunityCount, ge
 import { EventRegistrationCard } from '@/components/event-registration-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, MapPin, Clock, Trophy, Route, Tag, AlertTriangle, Users, MessageCircle } from 'lucide-react';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { Calendar, MapPin, Clock, Trophy, Route, AlertTriangle, Users, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EventRegistration } from '@/lib/types';
 import { PricingTierCard } from '@/components/pricing-tier-card';
@@ -324,11 +323,38 @@ export default async function EventPage({ params }: EventPageProps) {
                         </div>
                         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
                             {event.categories.map((cat, idx) => (
-                                <Card key={idx} className="bg-card hover:bg-accent/5 transition-colors border-muted-foreground/20">
-                                    <CardContent className="p-4">
-                                        <h3 className="font-bold text-lg mb-1 text-primary">{cat.name}</h3>
+                                <Card key={idx} className="bg-card hover:bg-accent/5 transition-colors border-muted-foreground/20 overflow-hidden flex flex-col">
+                                    <CardContent className="p-4 flex-1 flex flex-col gap-3">
+                                        <h3 className="font-bold text-lg text-primary leading-tight">{cat.name}</h3>
+                                        
+                                        <div className="space-y-2">
+                                            {/* Age Range */}
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                <span className="font-medium">
+                                                    {cat.ageConfig?.isRestricted 
+                                                        ? `${cat.ageConfig.minAge} a ${cat.ageConfig.maxAge} años` 
+                                                        : "Edad Libre"
+                                                    }
+                                                </span>
+                                            </div>
+
+                                            {/* Start Time (Conditional) */}
+                                            {cat.startTime && (
+                                                <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-500 font-medium animate-in fade-in">
+                                                    <Clock className="h-4 w-4 shrink-0" />
+                                                    <span>Salida: {cat.startTime}</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Additional Info (Conditional) */}
                                         {cat.description && (
-                                            <p className="text-sm text-muted-foreground">{cat.description}</p>
+                                            <div className="pt-2 border-t border-muted mt-auto">
+                                                <p className="text-xs text-muted-foreground line-clamp-3 italic">
+                                                    {cat.description}
+                                                </p>
+                                            </div>
                                         )}
                                     </CardContent>
                                 </Card>
