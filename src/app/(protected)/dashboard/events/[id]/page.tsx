@@ -10,6 +10,8 @@ import { EventActionCard } from '@/components/dashboard/event-action-card';
 import { EventBikeSelector } from '@/components/dashboard/event-bike-selector';
 import { PaymentStatusHandler } from '@/components/payment-status-handler';
 import { SponsorsCarousel } from '@/components/shared/sponsors-carousel';
+import { PaymentTimerBanner } from '@/components/dashboard/payment-timer-banner';
+import { FloatingPaymentButton } from '@/components/dashboard/floating-payment-button';
 import { cn } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 
@@ -59,6 +61,8 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
   let badgeVariant: "default" | "secondary" | "destructive" | "outline" = registration.status === 'confirmed' ? 'default' : 'secondary';
   let badgeClassName = "text-base px-3 py-1 capitalize";
 
+  const isPendingPayment = event.costType === 'Con Costo' && registration.paymentStatus === 'pending' && registration.status === 'confirmed';
+
   if (isFinished) {
       badgeText = "Evento Finalizado";
       badgeClassName = cn(badgeClassName, "bg-slate-500 text-white hover:bg-slate-600 border-transparent");
@@ -87,6 +91,15 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
     <div className="container max-w-5xl mx-auto py-8 px-4">
       <PaymentStatusHandler />
       
+      {/* Mobile Floating Payment CTA */}
+      {isPendingPayment && !isFinished && (
+          <FloatingPaymentButton 
+            eventId={event.id} 
+            registrationId={registration.id} 
+            price={price} 
+          />
+      )}
+
       {/* --- HEADER --- */}
       <div className="mb-8 space-y-4">
         <Link href="/dashboard" className="text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2 text-sm font-medium w-fit">
@@ -129,6 +142,11 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
         {/* --- MAIN CONTENT COLUMN --- */}
         <div className="lg:col-span-2 space-y-8">
             
+            {/* 0. TIMER BANNER (Only if pending payment) */}
+            {isPendingPayment && !isFinished && (
+                <PaymentTimerBanner registrationDate={registration.registrationDate} />
+            )}
+
             {/* 1. TARJETA DE IDENTIDAD (Dorsal + Datos) */}
             <Card className="overflow-hidden border-t-4 border-t-primary shadow-sm">
                 <CardHeader className="bg-muted/10 pb-4">
