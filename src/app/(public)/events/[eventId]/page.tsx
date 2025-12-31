@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { EventRegistration } from '@/lib/types';
 import { PricingTierCard } from '@/components/pricing-tier-card';
 import { SponsorsCarousel } from '@/components/shared/sponsors-carousel';
+import { MobileRegistrationButton } from '@/components/public/mobile-registration-button';
 
 type EventPageProps = {
   params: Promise<{
@@ -123,13 +124,22 @@ export default async function EventPage({ params }: EventPageProps) {
   const isRegistered = !!registration && registration.status !== 'cancelled';
 
   const eventDate = new Date(event.date);
-  
+  const isFinished = eventDate < new Date();
+  const isSoldOut = (event.maxParticipants || 0) > 0 && (event.currentParticipants || 0) >= (event.maxParticipants || 0);
+
   // Define organizer name for waiver, with fallback
   const waiverOrganizerName = ongProfile?.contactPerson || ongProfile?.organizationName || 'El Organizador';
 
 
   return (
     <div className="min-h-screen bg-muted/5 pb-12">
+      {/* Mobile Floating CTA */}
+      <MobileRegistrationButton 
+         targetId="registration-section" 
+         isVisible={!isRegistered && !isFinished && !isSoldOut && event.status !== 'draft'}
+         text="¡Regístrate Ahora!"
+      />
+
       {/* Draft Warning Banner */}
       {event.status === 'draft' && (
         <div className="bg-yellow-100 dark:bg-yellow-900/30 border-b border-yellow-200 dark:border-yellow-700 py-2 text-center sticky top-16 z-50">
@@ -334,8 +344,7 @@ export default async function EventPage({ params }: EventPageProps) {
                                                 <span className="font-medium">
                                                     {cat.ageConfig?.isRestricted 
                                                         ? `${cat.ageConfig.minAge} a ${cat.ageConfig.maxAge} años` 
-                                                        : "Edad Libre"
-                                                    }
+                                                        : "Edad Libre"}
                                                 </span>
                                             </div>
 
@@ -416,7 +425,7 @@ export default async function EventPage({ params }: EventPageProps) {
             </div>
 
             {/* Right Column: Sticky Sidebar for Actions */}
-            <div className="space-y-6">
+            <div className="space-y-6" id="registration-section">
                 <EventRegistrationCard 
                     event={event} 
                     user={user} 
