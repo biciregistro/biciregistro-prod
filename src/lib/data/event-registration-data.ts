@@ -28,9 +28,10 @@ type RegistrationInput = Omit<EventRegistration, 'id' | 'registrationDate' | 'st
     marketingConsent?: MarketingConsent | null;
 };
 
+// Return type updated to include registrationId on success
 export async function registerUserToEvent(
     registrationData: RegistrationInput
-): Promise<{ success: boolean; message?: string; error?: string }> {
+): Promise<{ success: true; registrationId: string; message: string } | { success: false; error: string }> {
     const db = adminDb;
     const { eventId, userId } = registrationData;
 
@@ -71,12 +72,10 @@ export async function registerUserToEvent(
             }
 
             let paymentStatus = 'pending';
-            // Logic for free events or 0 price tiers
             if (eventData.costType === 'Gratuito' || registrationData.price === 0) {
                 paymentStatus = 'not_applicable';
             }
 
-            // --- BIB NUMBER ASSIGNMENT LOGIC (For Free/Direct Confirmation) ---
             let assignedBibNumber = null;
             if (
                 paymentStatus === 'not_applicable' && 
@@ -84,10 +83,8 @@ export async function registerUserToEvent(
                 eventData.bibNumberConfig.mode === 'automatic'
             ) {
                 assignedBibNumber = eventData.bibNumberConfig.nextNumber || 1;
-                // Increment next number in event
                 transaction.update(eventRef, { 'bibNumberConfig.nextNumber': assignedBibNumber + 1 });
             }
-            // ------------------------------------------------------------------
 
             const registrationPayload = {
                 ...registrationData,
@@ -99,16 +96,19 @@ export async function registerUserToEvent(
                 paymentStatus: paymentStatus as any,
                 checkedIn: false,
                 marketingConsent: registrationData.marketingConsent || null,
-                bibNumber: assignedBibNumber, // Save assigned number
-                jerseyModel: registrationData.jerseyModel || null, // Save Jersey selection
+                bibNumber: assignedBibNumber,
+                jerseyModel: registrationData.jerseyModel || null,
                 jerseySize: registrationData.jerseySize || null
             };
-
+            
+            let registrationId: string;
             if (existingRegDoc) {
                 transaction.update(existingRegDoc.ref, registrationPayload);
+                registrationId = existingRegDoc.id;
             } else {
                 const newRegRef = db.collection('event-registrations').doc();
                 transaction.set(newRegRef, registrationPayload);
+                registrationId = newRegRef.id;
             }
 
             if (registrationData.bloodType || registrationData.insuranceInfo || registrationData.allergies) {
@@ -124,7 +124,7 @@ export async function registerUserToEvent(
                 currentParticipants: currentParticipants + 1
             });
 
-            return { success: true, message: "¡Registro exitoso!" };
+            return { success: true, message: "¡Registro exitoso!", registrationId: registrationId };
         });
     } catch (error) {
         console.error("Transaction failure:", error);
@@ -202,10 +202,7 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 checkedIn: regData.checkedIn || false,
                 price: price || 0,
                 
-                // Add bib number mapping
                 bibNumber: regData.bibNumber || null,
-                
-                // Add jersey mapping
                 jerseyModel: regData.jerseyModel || null,
                 jerseySize: regData.jerseySize || null,
                 
