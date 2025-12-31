@@ -33,3 +33,5 @@ env:
     secret: mp-webhook-secret
   - variable: GOOGLE_GENAI_API_KEY
     secret: google-genai-api-key
+  - variable: RESEND_API_KEY
+    secret: resend-api-key
