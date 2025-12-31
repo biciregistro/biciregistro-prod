@@ -178,15 +178,16 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
         });
     };
     
-    const eventUrl = `/events/${event.id}`;
-    const loginUrl = `/login?callbackUrl=${encodeURIComponent(eventUrl)}`;
-    const signupUrl = `/signup?callbackUrl=${encodeURIComponent(eventUrl)}`;
+    // Add #registration-section to callbackUrl to ensure user returns exactly to the form
+    const eventUrlWithAnchor = `/events/${event.id}#registration-section`;
+    const loginUrl = `/login?callbackUrl=${encodeURIComponent(eventUrlWithAnchor)}`;
+    const signupUrl = `/signup?callbackUrl=${encodeURIComponent(eventUrlWithAnchor)}`;
 
     return (
         <>
         <Card className="shadow-lg sticky top-24 z-10 border-t-4 border-t-secondary">
             <CardHeader className="pb-2">
-                <CardTitle className="text-xl">Inscripción</CardTitle>
+                <CardTitle className="text-xl">Regístrate al evento</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6 pt-4">
                 <div className="flex items-center justify-between pb-4 border-b last:border-0 last:pb-0">
@@ -283,13 +284,12 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                         )
                     ) : (
                         <div className="space-y-3">
-                            <Button size="lg" variant="outline" className="w-full font-semibold border-primary/50 hover:bg-primary/5" asChild>
-                                <Link href={loginUrl}>Iniciar Sesión</Link>
+                            <Button size="lg" className="w-full font-bold shadow-md bg-blue-600 hover:bg-blue-700 text-white" asChild>
+                                <Link href={signupUrl}>¡Regístrate ahora!</Link>
                             </Button>
-                            <Button size="lg" className="w-full font-bold shadow-md" asChild>
-                                <Link href={signupUrl}>Crear Cuenta</Link>
+                            <Button size="lg" variant="outline" className="w-full font-medium border-muted-foreground/30 text-muted-foreground hover:bg-muted/10 text-xs sm:text-sm h-auto py-2 whitespace-normal" asChild>
+                                <Link href={loginUrl}>Registrarme con mi cuenta de Biciregistro</Link>
                             </Button>
-                            <p className="text-xs text-center text-muted-foreground mt-2">Para inscribirte al evento necesitas una cuenta.</p>
                         </div>
                     )}
                 </div>
