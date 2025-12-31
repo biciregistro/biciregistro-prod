@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { MessageCircle, CreditCard, Loader2, XCircle, CheckCircle2, Clock } from 'lucide-react';
+import { MessageCircle, CreditCard, Loader2, XCircle, CheckCircle2, Clock, Eye } from 'lucide-react';
 import type { Event, EventRegistration } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
@@ -80,7 +80,7 @@ export function EventActionCard({ event, registration, ongProfile, whatsappUrl, 
 
     return (
         <>
-            <Card className="border-primary/20 shadow-md">
+            <Card className="border-primary/20 shadow-md sticky top-4">
                 <CardHeader>
                     <CardTitle className="text-lg">Acciones</CardTitle>
                     <CardDescription>Gestiona tu participación</CardDescription>
@@ -96,25 +96,25 @@ export function EventActionCard({ event, registration, ongProfile, whatsappUrl, 
                         </Alert>
                     ) : (
                         <>
-                            {/* Botón de Whatsapp para comprobante manual (solo si no está pagado por plataforma) */}
-                            {!isCancelled && !isPaid && ongProfile?.contactWhatsapp && (
-                                <Button variant="outline" className="w-full border-green-600 text-green-700 hover:bg-green-50" asChild>
-                                    <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-                                        <MessageCircle className="mr-2 h-4 w-4" />
-                                        Enviar Comprobante de Pago
-                                    </Link>
-                                </Button>
-                            )}
-                            
                             {/* Botón de Pago en Línea */}
                             {!isCancelled && hasCost && !isPaid && (
                                 <Button 
-                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md animate-pulse" 
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md animate-pulse h-12 text-lg font-bold" 
                                     onClick={handlePayClick}
                                     disabled={isPaymentPending}
                                 >
-                                    {isPaymentPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                                    {isPaymentPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CreditCard className="mr-2 h-5 w-5" />}
                                     Pagar Ahora en Línea
+                                </Button>
+                            )}
+
+                            {/* Botón de Whatsapp (Contacto Directo) */}
+                            {!isCancelled && ongProfile?.contactWhatsapp && (
+                                <Button variant="outline" className="w-full border-green-600 text-green-700 hover:bg-green-50 h-10" asChild>
+                                    <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                                        <MessageCircle className="mr-2 h-4 w-4" />
+                                        Contactar al Organizador
+                                    </Link>
                                 </Button>
                             )}
                         </>
@@ -122,7 +122,7 @@ export function EventActionCard({ event, registration, ongProfile, whatsappUrl, 
 
                     {/* Estado Pagado */}
                     {!isCancelled && isPaid && (
-                        <div className="flex items-center justify-center p-3 bg-green-100 text-green-800 rounded-md font-medium">
+                        <div className="flex items-center justify-center p-3 bg-green-100 text-green-800 rounded-md font-medium border border-green-200">
                             <CheckCircle2 className="mr-2 h-5 w-5" />
                             Pago Confirmado
                         </div>
@@ -130,6 +130,7 @@ export function EventActionCard({ event, registration, ongProfile, whatsappUrl, 
 
                     <Button variant="ghost" className="w-full" asChild>
                         <Link href={`/events/${event.id}`}>
+                            <Eye className="mr-2 h-4 w-4" />
                             Ver Página Pública
                         </Link>
                     </Button>

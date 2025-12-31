@@ -5,11 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy, Hash, AlertCircle, CheckCircle2, Package } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy, Hash, AlertCircle, CheckCircle2, Package, User, Phone, Globe, HeartPulse, FileText, Download, Shirt, TriangleAlert } from 'lucide-react';
 import { EventActionCard } from '@/components/dashboard/event-action-card';
 import { EventBikeSelector } from '@/components/dashboard/event-bike-selector';
 import { PaymentStatusHandler } from '@/components/payment-status-handler';
+import { SponsorsCarousel } from '@/components/shared/sponsors-carousel';
 import { cn } from '@/lib/utils';
+import dynamic from 'next/dynamic';
+
+// Helper component for client-side waiver download trigger
+import { WaiverDownloadButton } from './waiver-download-button-client'; 
 
 export default async function EventRegistrationDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthenticatedUser();
@@ -35,12 +40,17 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
 
   const tier = event.costTiers?.find(t => t.id === registration.tierId);
   const category = event.categories?.find(c => c.id === registration.categoryId);
+  // Find selected Jersey if any
+  let jerseyConfig = undefined;
+  if (event.hasJersey && registration.jerseyModel && event.jerseyConfigs) {
+      jerseyConfig = event.jerseyConfigs.find(jc => jc.name === registration.jerseyModel || jc.id === registration.jerseyModel);
+  }
 
   const tierName = tier ? tier.name : (event.costType === 'Gratuito' ? 'Gratuito' : 'N/A');
   const categoryName = category ? category.name : 'N/A';
   const price = tier ? tier.price : 0;
 
-  const whatsappMessage = `Hola Soy ${user.name}, me inscribí al evento ${event.name}, en la categoría ${categoryName} y en el nivel ${tierName}. Te comparto mi comprobante.`;
+  const whatsappMessage = `Hola Soy ${user.name}, me inscribí al evento ${event.name}, en la categoría ${categoryName} y en el nivel ${tierName}. Tengo una duda.`;
   const whatsappUrl = ongProfile?.contactWhatsapp 
     ? `https://wa.me/${ongProfile.contactWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(whatsappMessage)}`
     : '#';
@@ -70,195 +80,330 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
   }
 
   const showBibNumber = event.bibNumberConfig?.enabled;
+  const userPhone = user.phone || user.whatsapp;
+  const isProfileComplete = userPhone && user.city && user.state && user.country;
 
   return (
-    <div className="container max-w-4xl mx-auto py-8 px-4">
+    <div className="container max-w-5xl mx-auto py-8 px-4">
       <PaymentStatusHandler />
       
-      <div className="mb-6">
-        <Link href="/dashboard" className="text-muted-foreground hover:text-foreground flex items-center gap-1 mb-4 text-sm">
+      {/* --- HEADER --- */}
+      <div className="mb-8 space-y-4">
+        <Link href="/dashboard" className="text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2 text-sm font-medium w-fit">
             <ArrowLeft className="h-4 w-4" /> Volver a Mi Dashboard
         </Link>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <h1 className="text-3xl font-bold">{event.name}</h1>
-            <Badge variant={badgeVariant} className={badgeClassName}>
-                {badgeText}
-            </Badge>
+        
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4 pb-4 border-b">
+            <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-3">
+                    <h1 className="text-3xl font-extrabold tracking-tight lg:text-4xl">{event.name}</h1>
+                    <Badge variant={badgeVariant} className={badgeClassName}>
+                        {badgeText}
+                    </Badge>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-primary" />
+                        <span className="font-medium text-foreground">{eventDate.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-primary" />
+                        <span className="font-medium text-foreground">{eventDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-primary" />
+                        <span className="font-medium text-foreground">{event.state}, {event.country}</span>
+                    </div>
+                    {event.googleMapsUrl && (
+                        <Link href={event.googleMapsUrl} target="_blank" className="text-primary hover:underline font-medium text-xs flex items-center gap-1">
+                            (Ver Mapa)
+                        </Link>
+                    )}
+                </div>
+            </div>
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Main Details Column */}
-        <div className="md:col-span-2 space-y-6">
+      <div className="grid gap-8 lg:grid-cols-3">
+        {/* --- MAIN CONTENT COLUMN --- */}
+        <div className="lg:col-span-2 space-y-8">
             
-            {/* Event Info Card */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Detalles del Evento</CardTitle>
+            {/* 1. TARJETA DE IDENTIDAD (Dorsal + Datos) */}
+            <Card className="overflow-hidden border-t-4 border-t-primary shadow-sm">
+                <CardHeader className="bg-muted/10 pb-4">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                        <User className="h-5 w-5 text-primary" /> 
+                        Identidad del Participante
+                    </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                                <Calendar className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase text-muted-foreground">Fecha</p>
-                                <p className="font-medium">{eventDate.toLocaleDateString()}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                                <Clock className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase text-muted-foreground">Hora</p>
-                                <p className="font-medium">{eventDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3 sm:col-span-2">
-                            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                                <MapPin className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase text-muted-foreground">Ubicación</p>
-                                <p className="font-medium">{event.state}, {event.country}</p>
-                            </div>
-                        </div>
-                        
-                        {event.googleMapsUrl && (
-                            <div className="flex items-center gap-3 sm:col-span-2">
-                                <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                                    <MapPin className="h-5 w-5" />
+                <CardContent className="p-6 space-y-6">
+                    {/* Fila 1: Número de Corredor (Si aplica) */}
+                    {showBibNumber && (
+                        <div className="flex flex-col items-center justify-center p-6 bg-muted/20 rounded-xl border border-dashed border-primary/20">
+                            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Tu Número de Corredor</p>
+                            {registration.bibNumber ? (
+                                <div className="text-center">
+                                    <span className="text-6xl font-black text-primary font-mono tracking-tighter">
+                                        #{registration.bibNumber.toString().padStart(3, '0')}
+                                    </span>
+                                    <div className="mt-2 flex items-center justify-center gap-1 text-green-600 font-medium text-sm">
+                                        <CheckCircle2 className="h-4 w-4" /> Asignado Oficialmente
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-xs font-semibold uppercase text-muted-foreground">Punto de Partida</p>
-                                    <Link href={event.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">
-                                        Ver en Google Maps
-                                    </Link>
+                            ) : (
+                                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-2 rounded-lg">
+                                    <AlertCircle className="h-5 w-5" />
+                                    <span className="font-medium">
+                                        {event.bibNumberConfig?.mode === 'automatic' 
+                                            ? "Pendiente de asignación (Completa tu pago)" 
+                                            : "Se asignará en la entrega de kits"}
+                                    </span>
                                 </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Fila 2: Datos Personales */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <p className="text-xs text-muted-foreground font-medium uppercase mb-1">Nombre Completo</p>
+                            <p className="text-lg font-semibold">{user.name} {user.lastName}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground font-medium uppercase mb-1">Contacto</p>
+                            <div className="flex items-center gap-2">
+                                <Phone className="h-3 w-3 text-muted-foreground" />
+                                <p className="font-medium">{userPhone || <span className="text-muted-foreground italic">No registrado</span>}</p>
                             </div>
-                        )}
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground font-medium uppercase mb-1">Ubicación</p>
+                            <div className="flex items-center gap-2">
+                                <Globe className="h-3 w-3 text-muted-foreground" />
+                                <p className="font-medium">
+                                    {user.city && user.state ? `${user.city}, ${user.state}` : <span className="text-muted-foreground italic">No registrada</span>}
+                                </p>
+                            </div>
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground font-medium uppercase mb-1">Género</p>
+                            <p className="font-medium capitalize">{user.gender || <span className="text-muted-foreground italic">No especificado</span>}</p>
+                        </div>
                     </div>
+
+                    {/* Alerta de Perfil Incompleto */}
+                    {!isProfileComplete && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
+                            <div className="flex items-start gap-3">
+                                <TriangleAlert className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-semibold text-amber-800">Tu perfil está incompleto</p>
+                                    <p className="text-sm text-amber-700">Para facilitar la logística y seguridad del evento, por favor completa tus datos de contacto.</p>
+                                </div>
+                            </div>
+                            <Button size="sm" variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-100 bg-white" asChild>
+                                <Link href="/dashboard/profile">Completar Perfil</Link>
+                            </Button>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
-            {/* Bike Selector Card */}
-            {event.requiresBike !== false && !isFinished && (
-                <EventBikeSelector userBikes={userBikes} registration={registration} eventId={event.id} />
-            )}
-            
-            {event.requiresBike !== false && isFinished && registration.bikeId && (
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Bicicleta Registrada</CardTitle>
-                        <CardDescription>La bicicleta que usaste en este evento.</CardDescription>
+            {/* 2. TARJETA DE CATEGORÍA Y JERSEY (Si aplica) */}
+            {(category || (event.hasJersey && registration.jerseyModel)) && (
+                <Card className="overflow-hidden shadow-sm">
+                    <CardHeader className="bg-muted/10 pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <Trophy className="h-5 w-5 text-primary" />
+                            Detalles de Participación
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <p className="text-sm font-medium">
-                            {userBikes.find(b => b.id === registration.bikeId)?.make} {userBikes.find(b => b.id === registration.bikeId)?.model}
-                        </p>
-                         <p className="text-xs text-muted-foreground">
-                            Serie: {userBikes.find(b => b.id === registration.bikeId)?.serialNumber}
-                        </p>
+                    <CardContent className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {/* Columna Categoría */}
+                            {category && (
+                                <div className="space-y-3">
+                                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                                        <Tag className="h-4 w-4 text-muted-foreground" />
+                                        Categoría Inscrita
+                                    </h4>
+                                    <div className="bg-secondary/20 p-4 rounded-lg border border-secondary/30">
+                                        <p className="text-xl font-bold text-primary mb-1">{category.name}</p>
+                                        <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                                            <span className="flex items-center gap-1 bg-background px-2 py-1 rounded shadow-sm">
+                                                <User className="h-3 w-3" />
+                                                {category.ageConfig?.isRestricted 
+                                                    ? `${category.ageConfig.minAge} - ${category.ageConfig.maxAge} años` 
+                                                    : "Edad Libre"}
+                                            </span>
+                                            {category.startTime && (
+                                                <span className="flex items-center gap-1 bg-background px-2 py-1 rounded shadow-sm text-green-700 font-medium">
+                                                    <Clock className="h-3 w-3" />
+                                                    Salida: {category.startTime}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground mt-2">
+                                        <span className="font-semibold">Nivel de Acceso:</span> {tierName} {tier?.price ? `($${tier.price})` : '(Gratuito)'}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Columna Jersey */}
+                            {event.hasJersey && registration.jerseyModel && (
+                                <div className="space-y-3">
+                                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                                        <Shirt className="h-4 w-4 text-muted-foreground" />
+                                        Kit / Jersey
+                                    </h4>
+                                    <div className="bg-secondary/20 p-4 rounded-lg border border-secondary/30 flex items-center gap-4">
+                                        <div className="h-12 w-12 bg-background rounded-full flex items-center justify-center shadow-sm">
+                                            <Shirt className="h-6 w-6 text-primary" />
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-foreground">{jerseyConfig?.name || registration.jerseyModel}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                Talla: <span className="font-bold text-foreground bg-background px-2 rounded ml-1">{registration.jerseySize}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </CardContent>
                 </Card>
             )}
 
-            {/* Registration Details Card */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Tu Inscripción</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className={cn("grid grid-cols-1 gap-4", showBibNumber ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
-                        {/* 1. Nivel de Acceso */}
-                        <div className="flex flex-col border rounded-lg p-4 bg-card shadow-sm">
-                            <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1"><Tag className="h-3 w-3" /> Nivel de Acceso</p>
-                            <p className="text-lg font-semibold">{tierName}</p>
-                            {price > 0 && <p className="text-sm font-medium text-primary mb-2">${price} MXN</p>}
-                            
-                            {tier?.includes && (
-                                <div className="mt-auto pt-2 border-t text-xs">
-                                    <span className="font-semibold mb-1 text-muted-foreground flex items-center gap-1">
-                                        <Package className="h-3 w-3" /> Incluye:
-                                    </span>
-                                    <span className="text-foreground">{tier.includes}</span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* 2. Categoría */}
-                        <div className="flex flex-col border rounded-lg p-4 bg-card shadow-sm">
-                            <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1"><Trophy className="h-3 w-3" /> Categoría</p>
-                            <p className="text-lg font-semibold mb-2">{categoryName}</p>
-                            
-                            {category?.description && (
-                                <div className="mt-auto pt-2 border-t text-xs">
-                                    <span className="font-semibold block mb-0.5 text-muted-foreground">Detalles:</span>
-                                    <span className="text-foreground">{category.description}</span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* 3. Número de Corredor */}
-                        {showBibNumber && (
-                            <div className="flex flex-col border rounded-lg p-4 bg-card shadow-sm relative overflow-hidden">
-                                <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1">
-                                    <Hash className="h-3 w-3" /> No. Corredor
-                                </p>
-                                
-                                {registration.bibNumber ? (
-                                    <div className="flex flex-col items-center justify-center flex-1 py-2">
-                                        <p className="text-5xl font-mono font-bold tracking-tighter text-primary leading-none">
-                                            #{registration.bibNumber.toString().padStart(3, '0')}
+            {/* 3. TARJETA DE BICICLETA */}
+            {(event.requiresBike !== false) && (
+                <div className="space-y-2">
+                    {!isFinished && (
+                        <EventBikeSelector userBikes={userBikes} registration={registration} eventId={event.id} />
+                    )}
+                    
+                    {/* Si finalizó, mostrar tarjeta estática */}
+                    {isFinished && registration.bikeId && (
+                        <Card>
+                            <CardHeader className="bg-muted/10 pb-4">
+                                <CardTitle className="flex items-center gap-2 text-lg">
+                                    <Package className="h-5 w-5 text-primary" />
+                                    Bicicleta Registrada
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="bg-primary/10 p-3 rounded-full">
+                                        <Package className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <div>
+                                        <p className="text-lg font-bold">
+                                            {userBikes.find(b => b.id === registration.bikeId)?.make} {userBikes.find(b => b.id === registration.bikeId)?.model}
                                         </p>
-                                        <div className="flex items-center gap-1 mt-2 text-green-600 text-xs font-medium">
-                                            <CheckCircle2 className="h-3 w-3" />
-                                            Asignado
+                                        <p className="text-sm font-mono text-muted-foreground">
+                                            Serie: {userBikes.find(b => b.id === registration.bikeId)?.serialNumber}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1">Color: {userBikes.find(b => b.id === registration.bikeId)?.color}</p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+            )}
+
+            {/* 4. TARJETA MÉDICA Y LEGAL (Si aplica) */}
+            {(event.requiresEmergencyContact || event.requiresWaiver) && (
+                <Card className="overflow-hidden shadow-sm">
+                    <CardHeader className="bg-red-50/50 dark:bg-red-950/10 pb-4 border-b border-red-100 dark:border-red-900/30">
+                        <CardTitle className="flex items-center gap-2 text-lg text-red-700 dark:text-red-400">
+                            <HeartPulse className="h-5 w-5" />
+                            Información Médica y Legal
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            
+                            {/* Columna Médica */}
+                            {event.requiresEmergencyContact && (
+                                <div className="space-y-4">
+                                    <h4 className="font-semibold text-foreground text-sm uppercase tracking-wide">Datos de Emergencia</h4>
+                                    <div className="space-y-3 text-sm">
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <span className="text-muted-foreground font-medium">Contacto:</span>
+                                            <span className="col-span-2 font-medium">{registration.emergencyContactName}</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <span className="text-muted-foreground font-medium">Teléfono:</span>
+                                            <span className="col-span-2 font-mono">{registration.emergencyContactPhone}</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <span className="text-muted-foreground font-medium">Sangre:</span>
+                                            <span className="col-span-2 font-bold text-red-600">{registration.bloodType}</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <span className="text-muted-foreground font-medium">Alergias:</span>
+                                            <span className="col-span-2 text-orange-600 font-medium">{registration.allergies || "Ninguna"}</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <span className="text-muted-foreground font-medium">Seguro:</span>
+                                            <span className="col-span-2">{registration.insuranceInfo}</span>
                                         </div>
                                     </div>
-                                ) : (
-                                    <div className="mt-auto bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 p-3 rounded-md">
-                                        <div className="flex gap-2">
-                                            <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                                            {event.bibNumberConfig!.mode === 'automatic' ? (
-                                                registration.paymentStatus === 'paid' ? (
-                                                    <p className="text-xs text-amber-800 dark:text-amber-400 font-medium leading-tight">Asignando tu número...</p>
-                                                ) : (
-                                                    <p className="text-xs text-amber-800 dark:text-amber-400 font-medium leading-tight">Completa tu pago para obtener tu número.</p>
-                                                )
-                                            ) : (
-                                                <p className="text-xs text-amber-800 dark:text-amber-400 font-medium leading-tight">Se asignará en entrega de kits.</p>
-                                            )}
-                                        </div>
+                                    <div className="bg-muted p-3 rounded text-[10px] text-muted-foreground italic flex gap-2 items-start">
+                                        <ShieldAlert className="h-3 w-3 mt-0.5 shrink-0" />
+                                        Esta información es confidencial y solo accesible para el organizador durante el evento (se elimina 24h después).
                                     </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                    
-                    <Separator />
-                    
-                    <div>
-                        <p className="text-sm font-semibold mb-2">Información de Pago del Organizador:</p>
-                        {event.paymentDetails ? (
-                            <div className="bg-muted p-4 rounded-md text-sm whitespace-pre-line">
-                                {event.paymentDetails}
-                            </div>
-                        ) : (
-                             event.costType === 'Gratuito' ? (
-                                <p className="text-sm text-muted-foreground">Este evento es gratuito.</p>
-                             ) : (
-                                <p className="text-sm text-muted-foreground">Puedes realizar tu pago a través de las opciones disponibles.</p>
-                             )
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
+                                </div>
+                            )}
+
+                            {/* Columna Legal */}
+                            {event.requiresWaiver && (
+                                <div className="space-y-4 md:border-l md:pl-8">
+                                    <h4 className="font-semibold text-foreground text-sm uppercase tracking-wide">Documentación Legal</h4>
+                                    
+                                    {registration.waiverSignature ? (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg border border-green-100">
+                                                <FileText className="h-5 w-5" />
+                                                <div>
+                                                    <p className="font-bold text-sm">Responsiva Firmada</p>
+                                                    <p className="text-xs opacity-80">
+                                                        Fecha: {registration.waiverAcceptedAt ? new Date(registration.waiverAcceptedAt).toLocaleDateString() : 'N/A'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Client-side wrapper for download logic */}
+                                            <WaiverDownloadButton 
+                                                registrationId={registration.id}
+                                                eventName={event.name}
+                                                participantName={`${user.name} ${user.lastName}`}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="bg-amber-50 p-3 rounded text-amber-800 text-sm">
+                                            Pendiente de firma. (Generalmente se firma al completar el registro).
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* PATROCINADORES */}
+            {event.sponsors && event.sponsors.length > 0 && (
+                <div className="mt-8">
+                    <SponsorsCarousel sponsors={event.sponsors} title="Patrocinadores del Evento" />
+                </div>
+            )}
+
         </div>
 
-        {/* Actions Sidebar */}
+        {/* --- SIDEBAR ACTIONS --- */}
         <div className="space-y-6">
             <EventActionCard 
                 event={event} 
@@ -271,4 +416,26 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
       </div>
     </div>
   );
+}
+
+// Simple Alert Icon needed for medical card
+function ShieldAlert(props: any) {
+    return (
+      <svg
+        {...props}
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
+        <path d="M12 8v4" />
+        <path d="M12 16h.01" />
+      </svg>
+    )
 }

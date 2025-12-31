@@ -42,6 +42,7 @@ export type User = {
   name: string;
   lastName?: string;
   email: string;
+  phone?: string; // Added missing phone field
   role: UserRole;
   avatarUrl?: string;
   logoUrl?: string; // Added for ONG compatibility

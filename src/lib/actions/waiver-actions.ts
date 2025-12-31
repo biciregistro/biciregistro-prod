@@ -38,11 +38,12 @@ export async function getWaiverDetailsAction(registrationId: string): Promise<{ 
         return { success: false, error: "No se encontró el evento asociado." };
     }
 
-    // 3. Authorization Check: User must be the ONG that organized the event or an Admin
+    // 3. Authorization Check: User must be the ONG that organized the event or an Admin OR the participant themselves
     const isOrganizer = event.ongId === session.uid;
     const isAdmin = session.role === 'admin';
+    const isParticipant = registration.userId === session.uid;
 
-    if (!isOrganizer && !isAdmin) {
+    if (!isOrganizer && !isAdmin && !isParticipant) {
         return { success: false, error: "No tienes permiso para ver esta responsiva." };
     }
 
