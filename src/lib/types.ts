@@ -249,6 +249,8 @@ export type EventRegistration = {
     waiverSignature?: string; // URL to signature image
     waiverAcceptedAt?: string; // ISO Timestamp
     waiverTextSnapshot?: string; // The exact text signed
+    waiverIp?: string; // New: IP address from where it was signed
+    waiverHash?: string; // New: Crypto hash for integrity
 
     // Marketing Consent (HU-LEGAL-003)
     marketingConsent?: MarketingConsent | null;

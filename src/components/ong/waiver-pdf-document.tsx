@@ -50,24 +50,32 @@ const styles = StyleSheet.create({
   },
   footer: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 20, // Reduced bottom margin slightly to fit more content
     left: 40,
     right: 40,
     borderTopWidth: 1,
     borderTopColor: '#ccc',
-    paddingTop: 10,
+    paddingTop: 5,
   },
   footerText: {
     fontSize: 8,
     color: 'grey',
     textAlign: 'center',
+    marginBottom: 2,
   },
   metadata: {
-    fontSize: 8,
+    fontSize: 7, // Slightly smaller for technical details
     color: 'grey',
-    marginTop: 5,
+    marginTop: 1,
     textAlign: 'center',
   },
+  hashText: {
+    fontSize: 6, // Even smaller for the long hash
+    color: '#999',
+    marginTop: 1,
+    textAlign: 'center',
+    fontFamily: 'Courier', // Monospace if available, fallback to standard
+  }
 });
 
 interface WaiverPDFProps {
@@ -77,6 +85,8 @@ interface WaiverPDFProps {
   eventName: string;
   acceptedAt: string;
   registrationId: string;
+  ipAddress?: string;     // New Prop
+  securityHash?: string;  // New Prop
 }
 
 export const WaiverPDFDocument = ({
@@ -86,6 +96,8 @@ export const WaiverPDFDocument = ({
   eventName,
   acceptedAt,
   registrationId,
+  ipAddress,
+  securityHash,
 }: WaiverPDFProps) => {
   const formattedDate = new Date(acceptedAt).toLocaleString('es-MX', {
     dateStyle: 'long',
@@ -122,6 +134,14 @@ export const WaiverPDFDocument = ({
           </Text>
           <Text style={styles.metadata}>
             ID de Registro: {registrationId} | Plataforma: BiciRegistro.mx
+          </Text>
+          
+          {/* New Security Fields */}
+          <Text style={styles.metadata}>
+            IP de Origen: {ipAddress || 'No registrada (Firma anterior)'}
+          </Text>
+          <Text style={styles.hashText}>
+             Huella Digital (Hash SHA-256): {securityHash || 'No generado (Firma anterior)'}
           </Text>
         </View>
       </Page>

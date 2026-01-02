@@ -8,6 +8,7 @@ import { getRegistrationById, registerUserToEvent } from '@/lib/data/event-regis
 import { CURRENT_PRIVACY_POLICY_VERSION, MARKETING_CONSENT_TEXT } from '@/lib/legal-constants';
 import { sendRegistrationEmail } from '@/lib/email/resend-service';
 import type { MarketingConsent } from '@/lib/types';
+import crypto from 'crypto';
 
 export async function registerForEventAction(
     eventId: string, 
@@ -44,17 +45,31 @@ export async function registerForEventAction(
     if (event.hasJersey && (!jerseyModel || !jerseySize)) return { success: false, error: "Debes seleccionar un modelo y talla de jersey." };
 
     let marketingConsent: MarketingConsent | null = null;
+    const headerList = await headers();
+    const clientIp = headerList.get('x-forwarded-for') ?? headerList.get('x-real-ip') ?? 'IP_NOT_FOUND';
+
     if (marketingConsentGiven) {
-        const headerList = await headers();
-        const ip = headerList.get('x-forwarded-for') ?? headerList.get('x-real-ip') ?? 'IP_NOT_FOUND';
         marketingConsent = {
             accepted: true,
             timestamp: new Date().toISOString(),
-            ipAddress: ip,
+            ipAddress: clientIp,
             policyVersion: CURRENT_PRIVACY_POLICY_VERSION,
             legalText: MARKETING_CONSENT_TEXT,
         };
     }
+
+    // --- Waiver Security Enhancement ---
+    let waiverIp: string | undefined;
+    let waiverHash: string | undefined;
+
+    if (waiverSignature && waiverTextSnapshot && waiverAcceptedAt) {
+        waiverIp = clientIp;
+        // Generate cryptographic hash for traceability
+        // Input: UserID + EventID + Timestamp + Text + IP
+        const hashInput = `${session.uid}|${eventId}|${waiverAcceptedAt}|${waiverTextSnapshot}|${waiverIp}`;
+        waiverHash = crypto.createHash('sha256').update(hashInput).digest('hex');
+    }
+    // ------------------------------------
 
     const registrationInput = {
         eventId,
@@ -68,6 +83,8 @@ export async function registerForEventAction(
         waiverSignature,
         waiverAcceptedAt,
         waiverTextSnapshot,
+        waiverIp,    // New field
+        waiverHash,  // New field
         marketingConsent,
         jerseyModel,
         jerseySize,

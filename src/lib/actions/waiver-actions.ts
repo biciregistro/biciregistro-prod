@@ -13,6 +13,8 @@ export type WaiverDetails = {
     event: { name: string };
     acceptedAt: string;
     registrationId: string;
+    waiverIp?: string;   // New field
+    waiverHash?: string; // New field
 };
 
 // Server Action to get the details of a signed waiver for PDF generation
@@ -69,6 +71,8 @@ export async function getWaiverDetailsAction(registrationId: string): Promise<{ 
         },
         acceptedAt: registration.waiverAcceptedAt,
         registrationId: registration.id,
+        waiverIp: registration.waiverIp,     // New field mapping
+        waiverHash: registration.waiverHash, // New field mapping
     };
 
     return { success: true, data: waiverDetails };
