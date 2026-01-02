@@ -9,6 +9,20 @@ import { createPreference } from '@/lib/mercadopago';
 import { adminStorage, adminDb } from '@/lib/firebase/server';
 import { randomUUID } from 'crypto';
 
+// Helper para verificar rol de admin de forma consistente con admin/page.tsx
+async function isUserAdmin(uid: string, sessionAdminClaim?: boolean): Promise<boolean> {
+    if (sessionAdminClaim === true) return true;
+    
+    try {
+        // Fallback: Verificar el rol en el documento de usuario
+        const userDoc = await adminDb.collection('users').doc(uid).get();
+        return userDoc.exists && userDoc.data()?.role === 'admin';
+    } catch (error) {
+        console.error("Error verifying admin role in DB:", error);
+        return false;
+    }
+}
+
 export async function registerManualPaymentAction(registrationId: string, eventId: string): Promise<{ success: boolean; error?: string }> {
     const session = await getDecodedSession();
     if (!session?.uid || session.role !== 'ong') {
@@ -51,7 +65,14 @@ export async function registerManualPaymentAction(registrationId: string, eventI
 
 export async function updateRegistrationPaymentStatusAction(registrationId: string, eventId: string, newStatus: PaymentStatus): Promise<{ success: boolean; error?: string }> {
     const session = await getDecodedSession();
-    if (!session?.uid || (session.role !== 'ong' && session.admin !== true)) {
+    
+    // Check permission: ONG or Admin
+    let hasPermission = session?.role === 'ong';
+    if (!hasPermission && session?.uid) {
+        hasPermission = await isUserAdmin(session.uid, session.admin);
+    }
+
+    if (!session?.uid || !hasPermission) {
         return { success: false, error: "No tienes permiso para realizar esta acción." };
     }
 
@@ -61,11 +82,6 @@ export async function updateRegistrationPaymentStatusAction(registrationId: stri
         if (newStatus === 'paid') {
             updateData.paymentMethod = 'platform';
         } else {
-            // Explicitly clear paymentMethod if status is not paid (e.g., reverting to pending)
-            // In Firestore update, we can use FieldValue.delete() but since I cannot import it here easily without admin SDK,
-            // setting to null is a safe alternative if the type allows it, or just ignoring it.
-            // Let's use null which updateRegistrationStatusInternal will clean if we don't handle it, 
-            // but wait, updateRegistrationStatusInternal filters undefined. Null is valid json.
             updateData.paymentMethod = null; 
         }
 
@@ -81,7 +97,9 @@ export async function updateRegistrationPaymentStatusAction(registrationId: stri
 
 export async function toggleEventBlockAction(eventId: string, isBlocked: boolean): Promise<{ success: boolean; error?: string }> {
     const session = await getDecodedSession();
-    if (!session?.uid || session.admin !== true) {
+    const isAdmin = session?.uid ? await isUserAdmin(session.uid, session.admin) : false;
+
+    if (!session?.uid || !isAdmin) {
         return { success: false, error: "No tienes permisos de administrador." };
     }
 
@@ -149,8 +167,6 @@ export async function createPaymentPreferenceAction(eventId: string, registratio
         const user = await getAuthenticatedUser(); // Usa la cookie de sesión actual
         
         // Construir URLs de retorno dinámicas
-        // NOTA: Se usa una URL base por defecto si la variable de entorno no está definida
-        // Es crucial configurar NEXT_PUBLIC_BASE_URL en producción
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx'; 
         // CORRECCIÓN: Apuntar al Dashboard
         const backUrl = `${baseUrl}/dashboard/events/${eventId}`;
@@ -191,12 +207,8 @@ export async function createPaymentPreferenceAction(eventId: string, registratio
 
 /**
  * Verifica activamente el estado de un pago en Mercado Pago y actualiza la DB
- * Se usa como fallback cuando los webhooks fallan.
  */
 export async function verifyPaymentAction(paymentId: string): Promise<{ success: boolean; error?: string }> {
-    // No requerimos sesión obligatoria estricta, cualquier usuario con el ID de pago válido
-    // debería poder gatillar la actualización si el pago es real y aprobado.
-    
     try {
         const accessToken = process.env.MP_ACCESS_TOKEN;
         if (!accessToken) {
@@ -252,7 +264,12 @@ export async function verifyPaymentAction(paymentId: string): Promise<{ success:
  */
 export async function registerPayoutAction(formData: FormData): Promise<{ success: boolean; error?: string }> {
     const session = await getDecodedSession();
-    if (!session?.uid || session.admin !== true) {
+    
+    // CORRECCIÓN: Validación consistente con admin/page.tsx
+    // Si el claim falla, verificamos en DB
+    const isAdmin = session?.uid ? await isUserAdmin(session.uid, session.admin) : false;
+
+    if (!session?.uid || !isAdmin) {
         return { success: false, error: "No tienes permisos de administrador." };
     }
 
@@ -293,7 +310,7 @@ export async function registerPayoutAction(formData: FormData): Promise<{ succes
             }
         });
 
-        // Generar URL firmada de larga duración (Solución para Uniform Bucket-Level Access)
+        // Generar URL firmada de larga duración
         const [proofUrl] = await fileRef.getSignedUrl({
             action: 'read',
             expires: '03-01-2500', // Fecha lejana
