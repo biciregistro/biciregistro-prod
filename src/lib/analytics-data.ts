@@ -462,7 +462,7 @@ export const getFraudPreventionStats = unstable_cache(
     { revalidate: 1, tags: ['analytics'] }
 );
 
-// NEW: Marketing Potential Stats
+// NEW: Marketing Potential Stats (Ubicación real ejecutable: Marketing + FCM Tokens)
 export const getMarketingPotential = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
@@ -472,10 +472,20 @@ export const getMarketingPotential = unstable_cache(
         const totalSnapshot = await query.count().get();
         const totalUsers = totalSnapshot.data().count;
 
-        // Count users with marketing consent
-        const consentQuery = query.where('notificationPreferences.marketing', '==', true);
-        const consentSnapshot = await consentQuery.count().get();
-        const contactableUsers = consentSnapshot.data().count;
+        // Get users with tokens and marketing consent
+        // We use select to keep it efficient
+        const usersSnapshot = await query.select('fcmTokens', 'notificationPreferences').get();
+        
+        let contactableUsers = 0;
+        usersSnapshot.forEach(doc => {
+            const data = doc.data();
+            const hasTokens = Array.isArray(data.fcmTokens) && data.fcmTokens.length > 0;
+            const marketingConsent = data.notificationPreferences?.marketing !== false; // Default to true if undefined
+
+            if (hasTokens && marketingConsent) {
+                contactableUsers++;
+            }
+        });
 
         return {
             totalUsers,

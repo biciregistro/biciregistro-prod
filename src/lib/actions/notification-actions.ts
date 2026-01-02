@@ -7,15 +7,18 @@ import { sendMulticastNotification } from '@/lib/firebase/server-messaging';
 import { FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 
-type FilterParams = z.infer<typeof notificationCampaignSchema>['filters'];
+type CampaignData = z.infer<typeof notificationCampaignSchema>;
+type FilterParams = CampaignData['filters'];
 
 // Helper logic shared between estimation and sending
-async function getTargetTokens(filters: FilterParams): Promise<string[]> {
+async function getTargetTokens(filters: FilterParams, campaignType: 'marketing' | 'safety' = 'marketing'): Promise<string[]> {
     const db = adminDb;
         
     // 1. Fetch Bikes if bike filters are present
     let bikeUserIds: Set<string> | null = null;
-    const hasBikeFilters = filters.bikeMake || filters.bikeModality || filters.targetGroup === 'with_bike';
+    const hasBikeFilters = !!(filters.bikeMake && filters.bikeMake !== "none") || 
+                          !!(filters.bikeModality && filters.bikeModality !== "none") || 
+                          filters.targetGroup === 'with_bike';
     const excludeBikes = filters.targetGroup === 'without_bike';
 
     if (hasBikeFilters || excludeBikes) {
@@ -74,14 +77,21 @@ async function getTargetTokens(filters: FilterParams): Promise<string[]> {
                 includeUser = true;
             }
         } else {
-            // No specific bike filter, just count the user
             includeUser = true;
         }
 
         if (includeUser) {
-            // Check marketing preference (default true)
-            if (data.notificationPreferences?.marketing !== false) {
-                 targetTokens.push(...data.fcmTokens);
+            // Check preferences based on campaign type
+            // Default to true (not false) if preference is undefined
+            const prefs = data.notificationPreferences;
+            if (campaignType === 'marketing') {
+                if (prefs?.marketing !== false) {
+                    targetTokens.push(...data.fcmTokens);
+                }
+            } else if (campaignType === 'safety') {
+                if (prefs?.safety !== false) {
+                    targetTokens.push(...data.fcmTokens);
+                }
             }
         }
     });
@@ -91,11 +101,13 @@ async function getTargetTokens(filters: FilterParams): Promise<string[]> {
 }
 
 
-export async function estimateAudienceSize(filters: FilterParams): Promise<number> {
+export async function estimateAudienceSize(filters: FilterParams, campaignType: 'marketing' | 'safety' = 'marketing'): Promise<number> {
     try {
         const db = adminDb;
         let bikeUserIds: Set<string> | null = null;
-        const hasBikeFilters = filters.bikeMake || filters.bikeModality || filters.targetGroup === 'with_bike';
+        const hasBikeFilters = !!(filters.bikeMake && filters.bikeMake !== "none") || 
+                              !!(filters.bikeModality && filters.bikeModality !== "none") || 
+                              filters.targetGroup === 'with_bike';
         const excludeBikes = filters.targetGroup === 'without_bike';
 
         if (hasBikeFilters || excludeBikes) {
@@ -121,8 +133,13 @@ export async function estimateAudienceSize(filters: FilterParams): Promise<numbe
             const hasTokens = Array.isArray(data.fcmTokens) && data.fcmTokens.length > 0;
             if (!hasTokens) return;
             
-            // Check marketing preference
-            if (data.notificationPreferences?.marketing === false) return;
+            // Check preferences based on campaign type
+            const prefs = data.notificationPreferences;
+            if (campaignType === 'marketing') {
+                if (prefs?.marketing === false) return;
+            } else if (campaignType === 'safety') {
+                if (prefs?.safety === false) return;
+            }
 
             if (filters.targetGroup === 'without_bike') {
                 if (!bikeUserIds?.has(userId)) userCount++;
@@ -141,10 +158,10 @@ export async function estimateAudienceSize(filters: FilterParams): Promise<numbe
     }
 }
 
-export async function sendNotificationCampaign(data: z.infer<typeof notificationCampaignSchema>) {
+export async function sendNotificationCampaign(data: CampaignData) {
     try {
         // 1. Get Tokens
-        const tokens = await getTargetTokens(data.filters);
+        const tokens = await getTargetTokens(data.filters, data.campaignType);
         
         if (tokens.length === 0) {
             return { success: false, message: "No se encontraron destinatarios válidos." };
@@ -156,7 +173,7 @@ export async function sendNotificationCampaign(data: z.infer<typeof notification
             data.title,
             data.body,
             {
-                type: 'marketing_campaign',
+                type: data.campaignType === 'marketing' ? 'marketing_campaign' : 'priority_alert',
                 link: data.link || '',
             }
         );
@@ -167,11 +184,12 @@ export async function sendNotificationCampaign(data: z.infer<typeof notification
             body: data.body,
             link: data.link,
             filters: data.filters,
+            campaignType: data.campaignType,
             sentAt: FieldValue.serverTimestamp(),
             recipientCount: tokens.length, // Devices targeted
             successCount,
             failureCount,
-            type: 'marketing'
+            type: data.campaignType // Kept for backward compatibility if needed
         };
 
         await adminDb.collection('notification_campaigns').add(campaignLog);

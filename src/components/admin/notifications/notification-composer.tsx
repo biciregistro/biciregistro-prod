@@ -37,7 +37,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Send, Users, MessageSquare, History } from 'lucide-react';
+import { Loader2, Send, Users, MessageSquare, History, ShieldAlert, Megaphone } from 'lucide-react';
 import { PreviewPhone } from './preview-phone';
 import { estimateAudienceSize, sendNotificationCampaign, getCampaignHistory } from '@/lib/actions/notification-actions';
 import { useToast } from '@/hooks/use-toast';
@@ -45,6 +45,8 @@ import { CampaignHistory } from './campaign-history';
 import { bikeBrands } from '@/lib/bike-brands';
 import { modalityOptions } from '@/lib/bike-types';
 import { countries } from '@/lib/countries';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 const STATES = [
     "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas", "Chihuahua",
@@ -71,6 +73,7 @@ export function NotificationComposer() {
             title: "",
             body: "",
             link: "",
+            campaignType: 'marketing',
             filters: {
                 targetGroup: 'all',
                 country: "México",
@@ -82,6 +85,11 @@ export function NotificationComposer() {
     const watchedFilters = useWatch({
         control: form.control,
         name: "filters",
+    });
+
+    const watchedCampaignType = useWatch({
+        control: form.control,
+        name: "campaignType",
     });
 
     const watchedTitle = useWatch({ control: form.control, name: "title" });
@@ -99,7 +107,7 @@ export function NotificationComposer() {
             setIsEstimating(true);
             try {
                 const cleanFilters = JSON.parse(JSON.stringify(watchedFilters));
-                const count = await estimateAudienceSize(cleanFilters);
+                const count = await estimateAudienceSize(cleanFilters, watchedCampaignType);
                 setEstimatedAudience(count);
             } catch (error) {
                 console.error("Failed to estimate audience:", error);
@@ -109,7 +117,7 @@ export function NotificationComposer() {
         }, 1500);
 
         return () => clearTimeout(timer);
-    }, [watchedFilters]);
+    }, [watchedFilters, watchedCampaignType]);
 
     const handleSendClick = async () => {
         const isValid = await form.trigger();
@@ -122,7 +130,7 @@ export function NotificationComposer() {
             return;
         }
 
-        if (!estimatedAudience || estimatedAudience === 0) {
+        if (estimatedAudience === 0) {
             toast({
                 variant: "destructive",
                 title: "Audiencia vacía",
@@ -203,6 +211,40 @@ export function NotificationComposer() {
                             <Form {...form}>
                                 <form className="space-y-6 h-full flex flex-col">
                                     <TabsContent value="content" className="mt-0 space-y-4 animate-in fade-in slide-in-from-left-4 duration-300">
+                                        
+                                        <FormField
+                                            control={form.control}
+                                            name="campaignType"
+                                            render={({ field }) => (
+                                                <FormItem className="space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                                    <FormLabel>Tipo de Notificación</FormLabel>
+                                                    <FormControl>
+                                                        <RadioGroup
+                                                            onValueChange={field.onChange}
+                                                            defaultValue={field.value}
+                                                            className="flex flex-col space-y-1"
+                                                        >
+                                                            <div className="flex items-center space-x-3 space-y-0">
+                                                                <RadioGroupItem value="marketing" id="marketing" />
+                                                                <Label htmlFor="marketing" className="flex items-center gap-2 font-normal cursor-pointer">
+                                                                    <Megaphone className="h-4 w-4 text-blue-500" />
+                                                                    Marketing (Novedades, beneficios y promociones)
+                                                                </Label>
+                                                            </div>
+                                                            <div className="flex items-center space-x-3 space-y-0">
+                                                                <RadioGroupItem value="safety" id="safety" />
+                                                                <Label htmlFor="safety" className="flex items-center gap-2 font-normal cursor-pointer">
+                                                                    <ShieldAlert className="h-4 w-4 text-amber-500" />
+                                                                    Seguridad / Prioritaria (Alertas de robos, avisos urgentes)
+                                                                </Label>
+                                                            </div>
+                                                        </RadioGroup>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
                                         <FormField
                                             control={form.control}
                                             name="title"
@@ -418,6 +460,9 @@ export function NotificationComposer() {
                                                     </span>
                                                 )}
                                                 <p className="text-sm text-slate-500">Usuarios Estimados</p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    (Con dispositivo registrado y permisos de {watchedCampaignType === 'marketing' ? 'marketing' : 'seguridad'})
+                                                </p>
                                             </CardContent>
                                         </Card>
 
@@ -471,7 +516,7 @@ export function NotificationComposer() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Enviar notificación masiva?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Estás a punto de enviar esta notificación a <strong>{estimatedAudience} usuarios</strong>.
+                            Estás a punto de enviar una notificación de tipo <strong>{watchedCampaignType === 'marketing' ? 'Marketing' : 'Seguridad/Prioritaria'}</strong> a <strong>{estimatedAudience} usuarios</strong>.
                             Esta acción no se puede deshacer.
                         </AlertDialogDescription>
                     </AlertDialogHeader>

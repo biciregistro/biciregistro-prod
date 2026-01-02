@@ -265,6 +265,7 @@ export const notificationCampaignSchema = z.object({
     title: z.string().min(5, "El título debe tener al menos 5 caracteres.").max(100, "El título es demasiado largo."),
     body: z.string().min(10, "El mensaje debe tener al menos 10 caracteres.").max(500, "El mensaje es demasiado largo."),
     link: z.string().url("El link debe ser una URL válida.").optional().or(z.literal('')),
+    campaignType: z.enum(['marketing', 'safety']).default('marketing'),
     
     // Filters
     filters: z.object({
