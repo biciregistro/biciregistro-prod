@@ -154,20 +154,37 @@ export default function LocationPickerMap({ onLocationSelect, onClose }: Locatio
   const handleConfirmLocation = async () => {
     setIsLoading(true);
     try {
+      // Default fallback data
+      let addressData = { 
+          display_name: `Ubicación seleccionada (Lat: ${currentPos.lat.toFixed(4)}, Lng: ${currentPos.lng.toFixed(4)})`, 
+          address: {} 
+      };
+      
       const result = await getReverseGeocoding(currentPos.lat, currentPos.lng);
-      if (!result.success || !result.data) {
-          throw new Error(result.error || 'Error desconocido al obtener dirección');
+      
+      if (result.success && result.data) {
+          addressData = result.data;
+      } else {
+          console.warn("Geocoding service unavailable, proceeding with raw coordinates:", result.error);
+          // No lanzamos error, usamos los datos por defecto (coordenadas)
       }
-      const data = result.data;
+
       const locationData: LocationData = {
         lat: currentPos.lat,
         lng: currentPos.lng,
-        address: data.address,
-        display_name: data.display_name,
+        address: addressData.address,
+        display_name: addressData.display_name,
       };
       onLocationSelect(locationData);
     } catch (error) {
-      console.error("Error Geocoding:", error);
+      console.error("Critical Error in Location Confirmation:", error);
+      // Fallback final en caso de error inesperado en el bloque try
+      onLocationSelect({
+          lat: currentPos.lat,
+          lng: currentPos.lng,
+          address: {},
+          display_name: `Ubicación (Lat: ${currentPos.lat.toFixed(4)}, Lng: ${currentPos.lng.toFixed(4)})`
+      });
     } finally {
       setIsLoading(false);
     }

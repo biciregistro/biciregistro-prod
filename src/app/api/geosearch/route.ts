@@ -20,7 +20,9 @@ export async function GET(request: Request) {
     });
 
     if (!response.ok) {
-        throw new Error(`Nominatim error: ${response.statusText}`);
+        console.warn(`Nominatim service warning: ${response.status} ${response.statusText}`);
+        // Return empty array instead of throwing 500 error to ensure UI stability
+        return NextResponse.json([]); 
     }
 
     const data = await response.json();
@@ -28,6 +30,7 @@ export async function GET(request: Request) {
 
   } catch (error) {
     console.error('Geosearch Error:', error);
-    return NextResponse.json({ error: 'Failed to fetch location data' }, { status: 500 });
+    // Return empty array on network/server error too
+    return NextResponse.json([], { status: 200 }); 
   }
 }

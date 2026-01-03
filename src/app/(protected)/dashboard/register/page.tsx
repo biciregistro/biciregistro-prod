@@ -11,7 +11,7 @@ export default async function RegisterBikePage() {
   return (
     <div className="container pt-2 pb-6 md:pt-4 md:pb-8">
       <div className="max-w-2xl mx-auto">
-        <RegisterWizard />
+        <RegisterWizard userRole={user.role} />
       </div>
     </div>
   );

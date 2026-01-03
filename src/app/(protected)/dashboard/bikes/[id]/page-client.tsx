@@ -148,11 +148,13 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
 
   const isTransferable = bike.status === 'safe' || bike.status === 'recovered';
 
+  const backUrl = user.role === 'ong' ? '/dashboard/ong?tab=garage' : '/dashboard';
+
   return (
     <div className="container py-6 md:py-8">
       <div className="mb-6 flex flex-col sm:flex-row items-center justify-between px-4 sm:px-0 gap-4">
         <Button asChild variant="outline" className="w-full sm:w-auto hover:bg-primary hover:text-primary-foreground">
-          <Link href="/dashboard">
+          <Link href={backUrl}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver al Garaje
           </Link>

@@ -30,7 +30,11 @@ type WizardData = {
   value: string;
 };
 
-export function RegisterWizard() {
+interface RegisterWizardProps {
+    userRole?: string;
+}
+
+export function RegisterWizard({ userRole }: RegisterWizardProps) {
   const [step, setStep] = useState(0); // Inicia en 0 (Bienvenida)
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<WizardData>({
@@ -224,7 +228,8 @@ export function RegisterWizard() {
 
     if (result.success) {
         toast({ title: "¡Registro Exitoso!", description: "Tu bicicleta está protegida.", className: "bg-green-600 text-white" });
-        router.push('/dashboard');
+        const redirectPath = userRole === 'ong' ? '/dashboard/ong?tab=garage' : '/dashboard';
+        router.push(redirectPath);
     } else {
         toast({ variant: "destructive", title: "Error", description: result.message });
     }
@@ -238,12 +243,8 @@ export function RegisterWizard() {
     val = val.replace(/[^0-9.,]/g, '');
 
     // 2. Si hay separadores (punto o coma), cortar el string para tomar solo la parte entera.
-    // Esto previene errores de decimales flotantes y soluciona el caso 999.00 -> 99900
     if (val.match(/[.,]/)) {
         val = val.split(/[.,]/)[0];
-        
-        // Opcional: Podríamos mostrar un toast informativo si detectamos que intentó poner decimales
-        // if (val.length > 0) toast({ description: "Solo ingresa números enteros.", duration: 2000 });
     }
 
     setFormData({...formData, value: val});

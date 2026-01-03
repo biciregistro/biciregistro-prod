@@ -17,7 +17,8 @@ export default async function BikeDetailsPage({ params }: { params: Promise<{ id
   // If the bike is not found (e.g., wrong ID or user does not have access),
   // redirect them to the main dashboard page instead of showing a 404.
   if (!bike) {
-    redirect('/dashboard');
+    const redirectPath = user.role === 'ong' ? '/dashboard/ong?tab=garage' : '/dashboard';
+    redirect(redirectPath);
   }
 
   return <BikeDetailsPageClient user={user} bike={bike} />;

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -11,16 +10,18 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Info, Copy, Check, CalendarPlus, Edit, MessageCircle, Settings } from 'lucide-react';
+import { Info, Copy, Check, CalendarPlus, Edit, MessageCircle, Settings, PlusCircle, Bike as BikeIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { EventCard } from '@/components/ong/event-card';
-import type { Event, OngUser } from '@/lib/types';
+import { BikeCard } from '@/components/bike-card';
+import type { Event, OngUser, Bike } from '@/lib/types';
 
 interface OngDashboardTabsProps {
     ongProfile: OngUser;
     events: Event[];
     communityMembers: any[];
-    statsContent?: React.ReactNode; // New Prop
+    bikes?: Bike[];
+    statsContent?: React.ReactNode;
 }
 
 function CopyButton({ textToCopy }: { textToCopy: string }) {
@@ -138,14 +139,13 @@ function CommunityTable({ members }: { members: any[] }) {
     );
 }
 
-function OngDashboardTabsContent({ ongProfile, events, communityMembers, statsContent }: OngDashboardTabsProps) {
+function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes = [], statsContent }: OngDashboardTabsProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
 
-    const defaultTab = 'community';
-    const currentTab = searchParams.get('tab') || defaultTab;
-    const [activeTab, setActiveTab] = useState(currentTab);
+    const defaultTab = searchParams.get('tab') || 'community';
+    const [activeTab, setActiveTab] = useState(defaultTab);
 
     useEffect(() => {
         const tab = searchParams.get('tab');
@@ -166,14 +166,46 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, statsCo
             <WelcomeCard ongProfile={ongProfile} />
 
             <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-                <TabsList className="grid w-full grid-cols-3 mb-8">
-                    <TabsTrigger value="community">Mi Comunidad</TabsTrigger>
-                    <TabsTrigger value="events">Mis Eventos</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-4 mb-8">
+                    <TabsTrigger value="community">Comunidad</TabsTrigger>
+                    <TabsTrigger value="garage">Mi Garaje</TabsTrigger>
+                    <TabsTrigger value="events">Eventos</TabsTrigger>
                     <TabsTrigger value="stats">Indicadores</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="community" className="space-y-4">
                     <CommunityTable members={communityMembers} />
+                </TabsContent>
+
+                <TabsContent value="garage" className="space-y-4">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-semibold flex items-center gap-2">
+                            <BikeIcon className="h-5 w-5" />
+                            Garaje de la Organización ({bikes.length})
+                        </h2>
+                        <Link href="/dashboard/register">
+                            <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Registrar Bici
+                            </Button>
+                        </Link>
+                    </div>
+
+                    {bikes.length === 0 ? (
+                        <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>No hay bicicletas registradas</AlertTitle>
+                            <AlertDescription>
+                                Comienza a registrar las bicicletas de tu organización para tener un mejor control de tu flota.
+                            </AlertDescription>
+                        </Alert>
+                    ) : (
+                        <div className="space-y-4">
+                            {bikes.map((bike) => (
+                                <BikeCard key={bike.id} bike={bike} />
+                            ))}
+                        </div>
+                    )}
                 </TabsContent>
 
                 <TabsContent value="events" className="space-y-4">
