@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getAuthenticatedUser, getOngProfile, getEventsByOngId, getOngCommunityMembers, getBikes } from '@/lib/data';
 import { OngDashboardTabs } from '@/components/ong/ong-dashboard-tabs';
+import OngAnalyticsView from '@/components/ong/ong-analytics-view';
 
 export default async function OngDashboardPage() {
     const user = await getAuthenticatedUser();
@@ -37,6 +38,7 @@ export default async function OngDashboardPage() {
                 events={events}
                 communityMembers={communityMembers}
                 bikes={bikes}
+                statsContent={<OngAnalyticsView />}
             />
         </div>
     );
