@@ -382,26 +382,40 @@ export async function getEventFinancialSummary(eventId: string): Promise<Detaile
             const reg = doc.data() as EventRegistration;
             if (reg.status !== 'confirmed' || reg.paymentStatus !== 'paid') return;
 
-            let amount = reg.price;
-            let fee = reg.feeAmount;
-            let net = reg.netPrice;
+            // --- FINANCIAL SNAPSHOT LOGIC (MVP Phase 1) ---
+            let amount: number = 0;
+            let fee: number = 0;
+            let net: number = 0;
 
-            if ((amount === undefined || amount === 0) && reg.tierId && tiersMap.has(reg.tierId)) {
-                const tier = tiersMap.get(reg.tierId)!;
-                amount = tier.price;
-                if (fee === undefined) fee = tier.fee;
-                if (net === undefined) net = tier.netPrice;
+            if (reg.financialSnapshot) {
+                // If the registration has a snapshot, use it as the source of truth
+                amount = reg.financialSnapshot.amountPaid;
+                fee = reg.financialSnapshot.platformFee;
+                net = reg.financialSnapshot.organizerNet;
+            } else {
+                // Fallback for older registrations (pre-snapshot era)
+                let tempAmount = reg.price;
+                let tempFee = reg.feeAmount;
+                let tempNet = reg.netPrice;
+
+                if ((!tempAmount || tempAmount === 0) && reg.tierId && tiersMap.has(reg.tierId)) {
+                    const tier = tiersMap.get(reg.tierId)!;
+                    tempAmount = tier.price;
+                    if (tempFee === undefined) tempFee = tier.fee;
+                    if (tempNet === undefined) tempNet = tier.netPrice;
+                }
+
+                amount = tempAmount || 0;
+                fee = tempFee || 0;
+                net = tempNet !== undefined ? tempNet : (amount - fee);
             }
-
-            amount = amount || 0;
-            fee = fee || 0;
-            net = net !== undefined ? net : (amount - fee);
 
             summary.total.gross += amount;
             summary.total.net += net;
             summary.total.fee += fee;
 
             if (reg.paymentMethod === 'platform' || reg.paymentMethod === undefined) { 
+                // We still calculate MP cost based on the real amount processed
                 const cost = (amount * mpRate + mpFixed) * mpIva;
                 totalMpCost += cost;
 

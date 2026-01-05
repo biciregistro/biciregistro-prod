@@ -386,18 +386,27 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
 
                     {!isFree && selectedTier && (
                         <div className="border-t pt-3 mt-3 space-y-2 bg-muted/20 p-3 rounded-md">
-                            <div className="flex justify-between text-sm items-center">
-                                <span className="text-muted-foreground">Inscripción Evento:</span>
-                                <span>${(selectedTier.netPrice ?? selectedTier.price).toFixed(2)}</span>
-                            </div>
-                            {(selectedTier.fee || (selectedTier.netPrice && selectedTier.price > selectedTier.netPrice)) && (
-                                <div className="flex justify-between text-sm items-center">
-                                    <span className="text-muted-foreground flex items-center gap-1.5">
-                                        <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
-                                        <span>Gestión y Protección Digital</span>
-                                    </span>
-                                    <span>${(selectedTier.fee ?? (selectedTier.price - (selectedTier.netPrice ?? 0))).toFixed(2)}</span>
+                            {selectedTier.absorbFee ? (
+                                <div className="flex justify-between text-sm items-center font-medium">
+                                    <span className="text-muted-foreground">Inscripción (Cargos incluidos):</span>
+                                    <span>${selectedTier.price.toFixed(2)}</span>
                                 </div>
+                            ) : (
+                                <>
+                                    <div className="flex justify-between text-sm items-center">
+                                        <span className="text-muted-foreground">Inscripción Evento:</span>
+                                        <span>${(selectedTier.netPrice ?? selectedTier.price).toFixed(2)}</span>
+                                    </div>
+                                    {(selectedTier.fee || (selectedTier.netPrice && selectedTier.price > selectedTier.netPrice)) && (
+                                        <div className="flex justify-between text-sm items-center">
+                                            <span className="text-muted-foreground flex items-center gap-1.5">
+                                                <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
+                                                <span>Gestión y Protección Digital</span>
+                                            </span>
+                                            <span>${(selectedTier.fee ?? (selectedTier.price - (selectedTier.netPrice ?? 0))).toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}

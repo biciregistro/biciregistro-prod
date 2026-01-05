@@ -72,9 +72,22 @@ export async function registerUserToEvent(
             }
 
             let paymentStatus = 'pending';
-            if (eventData.costType === 'Gratuito' || registrationData.price === 0) {
+            // Determine price and financial snapshot from the event configuration at this moment
+            const selectedTier = eventData.costTiers?.find(t => t.id === registrationData.tierId);
+            const price = selectedTier?.price ?? 0;
+
+            if (eventData.costType === 'Gratuito' || price === 0) {
                 paymentStatus = 'not_applicable';
             }
+
+            // --- FINANCIAL SNAPSHOTTING (MVP Phase 1) ---
+            const financialSnapshot = selectedTier ? {
+                amountPaid: selectedTier.price,
+                platformFee: selectedTier.fee || 0,
+                organizerNet: selectedTier.netPrice ?? selectedTier.price,
+                isFeeAbsorbed: !!selectedTier.absorbFee,
+                calculatedAt: new Date().toISOString()
+            } : undefined;
 
             let assignedBibNumber = null;
             if (
@@ -88,6 +101,8 @@ export async function registerUserToEvent(
 
             const registrationPayload = {
                 ...registrationData,
+                price: price, // Re-write with current price from DB config for safety
+                financialSnapshot, // Persist the truth of this transaction
                 bloodType: registrationData.bloodType || null,
                 insuranceInfo: registrationData.insuranceInfo || null,
                 allergies: registrationData.allergies || null,
@@ -160,7 +175,7 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
         const categoriesMap = new Map(event.categories?.map(c => [c.id, c.name]));
 
         const attendeesPromises = registrationsSnapshot.docs.map(async (doc) => {
-            const regData = doc.data();
+            const regData = doc.data() as EventRegistration;
             const user = await getUser(regData.userId);
             
             let bikeData = undefined;
@@ -176,7 +191,8 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 }
             }
             
-            let price = regData.price;
+            // PRIORITY: Use persisted snapshot if available, otherwise fallback to current tier config
+            let price = regData.financialSnapshot?.amountPaid ?? regData.price;
             if (price === undefined && regData.tierId) {
                 price = tiersPriceMap.get(regData.tierId);
             }

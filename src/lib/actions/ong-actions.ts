@@ -7,7 +7,8 @@ import { getAuthenticatedUser } from "@/lib/data";
 import { createEvent, updateEvent } from "@/lib/data";
 import { ongProfileSchema, financialProfileSchema, eventFormSchema } from "@/lib/schemas";
 import { adminDb as db } from "@/lib/firebase/server";
-import { updateOngFinancialData } from "@/lib/financial-data";
+import { updateOngFinancialData, getFinancialSettings } from "@/lib/financial-data";
+import { calculateGrossUp, calculateFeeBreakdown, calculateAbsorbedFee } from "@/lib/utils";
 import type { ActionFormState, Event } from "@/lib/types";
 
 
@@ -107,11 +108,45 @@ export async function saveEvent(eventData: any, isDraft: boolean): Promise<Actio
     try {
         let eventId = eventData.id;
         
+        // FINANCIAL SNAPSHOTTING: Fetch current settings to persist calculations
+        const financialSettings = await getFinancialSettings();
+
+        const processedTiers = data.costTiers?.map(tier => {
+            if (data.costType === 'Gratuito') return tier;
+            
+            const val = Number(tier.price);
+            let netPrice: number;
+            let totalPrice: number;
+            let fee: number;
+
+            if (tier.absorbFee) {
+                // ONG defined the FINAL public price
+                const breakdown = calculateAbsorbedFee(val, financialSettings);
+                totalPrice = val;
+                netPrice = breakdown.netAmount;
+                fee = breakdown.feeAmount;
+            } else {
+                // ONG defined their DESIRED net income
+                totalPrice = calculateGrossUp(val, financialSettings);
+                const breakdown = calculateFeeBreakdown(totalPrice, val);
+                netPrice = val;
+                fee = breakdown.feeAmount;
+            }
+
+            return {
+                ...tier,
+                price: totalPrice,   // Always store public price as the main 'price'
+                netPrice: netPrice,  // Snapshot of what the ONG will receive
+                fee: fee,            // Snapshot of the total service fee
+                absorbFee: !!tier.absorbFee
+            };
+        }) || [];
+
         const payload: Omit<Event, 'id'> = {
             ongId: user.id,
             status: status,
             ...data,
-            costTiers: data.costTiers || [],
+            costTiers: processedTiers as any, // Use calculated tiers
             bibNumberConfig: data.bibNumberConfig ? {
                 enabled: data.bibNumberConfig.enabled,
                 mode: data.bibNumberConfig.mode,

@@ -117,6 +117,7 @@ export const eventFormSchema = z.object({
         netPrice: z.coerce.number().optional(),
         fee: z.coerce.number().optional(),
         includes: z.string().min(1, "Debes detallar qué incluye este nivel."),
+        absorbFee: z.boolean().optional().default(false), // NUEVO: MVP Comisión Absorbida
     })).optional(),
     
     // Categories

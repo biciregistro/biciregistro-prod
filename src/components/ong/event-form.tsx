@@ -12,7 +12,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Form } from "@/components/ui/form";
 import { Loader2 } from 'lucide-react';
-import { calculateGrossUp, calculateFeeBreakdown } from '@/lib/utils';
 import type { Event, FinancialSettings, OngUser } from '@/lib/types';
 
 import { GeneralSection } from './event-form-sections/general-section';
@@ -35,10 +34,18 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
     const router = useRouter();
     const pathname = usePathname();
 
-    const initialTiers = initialData?.costTiers?.map(tier => ({
-        ...tier,
-        price: tier.netPrice || tier.price
-    })) || [];
+    // Determine the correct display price for the form input based on the strategy used
+    const initialTiers = initialData?.costTiers?.map(tier => {
+        // If fee was absorbed, the user input was the final price (tier.price)
+        // If fee was NOT absorbed, the user input was the net price (tier.netPrice)
+        const displayPrice = tier.absorbFee ? tier.price : (tier.netPrice || tier.price);
+        
+        return {
+            ...tier,
+            price: displayPrice,
+            absorbFee: !!tier.absorbFee
+        };
+    }) || [];
 
     const isPublished = initialData?.status === 'published';
 
@@ -87,25 +94,12 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
             const isCostEnabled = data.costType === 'Con Costo';
             const isNewEvent = !initialData?.id;
 
-            const processedTiers = data.costTiers?.map(tier => {
-                if (!isCostEnabled) return tier;
-                
-                const netPrice = Number(tier.price);
-                const totalGrossPrice = calculateGrossUp(netPrice, financialSettings);
-                const breakdown = calculateFeeBreakdown(totalGrossPrice, netPrice);
-
-                return {
-                    ...tier,
-                    price: totalGrossPrice,
-                    netPrice: netPrice,
-                    fee: breakdown.feeAmount
-                };
-            }) || [];
-
+            // We send the data "as is" (raw input). 
+            // The Server Action handles the financial calculations (GrossUp vs Absorbed).
             const submitData = { 
                 ...data, 
                 id: initialData?.id,
-                costTiers: isCostEnabled ? processedTiers : [],
+                costTiers: isCostEnabled ? data.costTiers : [],
             };
             
             if (!isCostEnabled) {

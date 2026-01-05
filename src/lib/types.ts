@@ -98,10 +98,11 @@ export type EventLevel = 'Principiante' | 'Intermedio' | 'Avanzado';
 export type CostTier = {
   id: string; // for React key prop
   name: string;
-  price: number; // PRECIO TOTAL (Gross-up)
-  netPrice?: number; // PRECIO NETO (Lo que el organizador ingresó)
+  price: number; // PRECIO TOTAL (Gross-up o Flat si se absorbe)
+  netPrice?: number; // PRECIO NETO (Meta del organizador)
   fee?: number; // Monto de la comisión total
   includes: string;
+  absorbFee?: boolean; // NUEVO: True si la ONG paga la comisión
 };
 
 export type EventCategory = {
@@ -219,6 +220,15 @@ export type EventRegistration = {
     paymentMethod?: 'platform' | 'manual'; 
     feeAmount?: number; 
     netPrice?: number;
+
+    // Financial Snapshot (NUEVO: HU Comisión Compartida)
+    financialSnapshot?: {
+        amountPaid: number;      // Total cobrado al usuario
+        platformFee: number;     // Comisión total (BiciRegistro + Pasarela)
+        organizerNet: number;    // Neto real para la ONG
+        isFeeAbsorbed: boolean;  // Estrategia usada
+        calculatedAt: string;    // Fecha del cálculo (ISO)
+    };
 
     checkedIn?: boolean;
     checkedInAt?: string; // ISO String

@@ -67,3 +67,29 @@ export function calculateFeeBreakdown(totalAmount: number, netAmount: number) {
         netAmount: Number(netAmount.toFixed(2))
     };
 }
+
+/**
+ * Calculates the breakdown when the organizer decides to absorb the fee.
+ * In this case, the 'totalAmount' is the price seen by the public.
+ */
+export function calculateAbsorbedFee(totalAmount: number, settings: FinancialSettings) {
+    if (totalAmount <= 0) return { feeAmount: 0, netAmount: 0 };
+
+    const t_br = settings.commissionRate / 100;
+    const t_pas = settings.pasarelaRate / 100;
+    const iva_factor = 1 + (settings.ivaRate / 100);
+    const f_pas = settings.pasarelaFixed;
+
+    // Fee BR = Total * T_br * IVA
+    const feeBR = totalAmount * t_br * iva_factor;
+    // Fee Pasarela = (Total * T_pas * IVA) + (F_pas * IVA)
+    const feePas = (totalAmount * t_pas * iva_factor) + (f_pas * iva_factor);
+
+    const totalFee = feeBR + feePas;
+    const netAmount = totalAmount - totalFee;
+
+    return {
+        feeAmount: Number(totalFee.toFixed(2)),
+        netAmount: Number(netAmount.toFixed(2))
+    };
+}
