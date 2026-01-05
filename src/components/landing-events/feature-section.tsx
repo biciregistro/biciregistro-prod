@@ -1,6 +1,5 @@
 // src/components/landing-events/feature-section.tsx
 import { LandingEventsFeature } from '@/lib/types';
-import Image from 'next/image';
 
 interface FeatureSectionProps {
   content: LandingEventsFeature;
@@ -15,17 +14,15 @@ export function FeatureSection({ content }: FeatureSectionProps) {
           <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl drop-shadow-md">
             {content.title}
           </h2>
-          <p className="mt-4 text-lg text-gray-300">
+          <p className="mt-4 text-lg text-gray-300 leading-relaxed">
             {content.description}
           </p>
         </div>
-        <div className="rounded-lg bg-gray-800 p-2">
-           <Image
+        <div className="rounded-xl bg-gray-800/50 p-2 backdrop-blur-sm border border-white/10 overflow-hidden shadow-2xl">
+           <img
             src={content.imageUrl}
             alt="Dashboard de Event Manager"
-            width={1200}
-            height={800}
-            className="rounded-md shadow-2xl"
+            className="rounded-lg w-full h-auto"
           />
         </div>
       </div>

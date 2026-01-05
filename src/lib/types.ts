@@ -437,13 +437,14 @@ export type LandingEventsPainPoint = {
     id: string;
     title: string;
     description: string;
+    imageUrl?: string; // Added field for GIF support
 };
 
 export type LandingEventsSolution = {
     id: string;
     title: string;
     description: string;
-    imageUrl: string; // Added field based on usage
+    imageUrl?: string; // Changed to optional for schema compatibility
 };
 
 export type LandingEventsFeature = {

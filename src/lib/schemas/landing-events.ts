@@ -1,6 +1,12 @@
 // src/lib/schemas/landing-events.ts
 import { z } from "zod";
 
+// Helper para URL opcional que permite string vacío
+const optionalUrl = z.union([
+    z.string().url("La URL de la imagen no es válida."),
+    z.literal("")
+]).optional();
+
 export const landingEventsHeroSchema = z.object({
     title: z.string().min(10, "El título es muy corto."),
     subtitle: z.string().min(10, "El subtítulo es muy corto."),
@@ -13,12 +19,14 @@ export const landingEventsPainPointSchema = z.object({
     id: z.string(),
     title: z.string().min(5, "El título es muy corto."),
     description: z.string().min(10, "La descripción es muy corta."),
+    imageUrl: optionalUrl,
 });
 
 export const landingEventsSolutionSchema = z.object({
     id: z.string(),
     title: z.string().min(5, "El título es muy corto."),
     description: z.string().min(10, "La descripción es muy corta."),
+    imageUrl: optionalUrl,
 });
 
 export const landingEventsFeatureSchema = z.object({

@@ -15,7 +15,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
 
 interface FeatureFormProps {
   initialData: LandingEventsFeature;
@@ -80,29 +79,28 @@ export function FeatureForm({ initialData }: FeatureFormProps) {
                 />
                 
                 <div className="space-y-4">
-                <FormLabel>Imagen del Dashboard (Mockup)</FormLabel>
+                <FormLabel>Imagen o GIF del Dashboard (Mockup)</FormLabel>
                 
                 {imageUrl && (
                     <div className="mb-4">
-                    <p className="text-sm text-muted-foreground mb-2">Imagen Actual:</p>
-                    <div className="relative w-full h-64 rounded-md overflow-hidden border">
-                        <Image 
-                        src={imageUrl} 
-                        alt="Feature mockup" 
-                        fill 
-                        className="object-contain bg-gray-100" 
-                        />
-                    </div>
+                        <p className="text-sm text-muted-foreground mb-2">Previsualización:</p>
+                        <div className="relative w-full h-64 rounded-md overflow-hidden border bg-muted group">
+                            <img 
+                                src={imageUrl} 
+                                alt="Feature mockup" 
+                                className="object-contain w-full h-full transition-transform group-hover:scale-105" 
+                            />
+                        </div>
                     </div>
                 )}
 
                 <ImageUpload
                     storagePath="landing-events/features"
                     onUploadSuccess={(url) => {
-                    setValue('imageUrl', url, { shouldDirty: true, shouldValidate: true });
+                        setValue('imageUrl', url, { shouldDirty: true, shouldValidate: true });
                     }}
-                    buttonText="Subir Mockup"
-                    guidelinesText="Recomendado: 1200x800px. Captura de pantalla o diseño de alta fidelidad."
+                    buttonText="Subir Mockup / GIF"
+                    guidelinesText="Recomendado: 1200x800px. Soporta GIF para previsualizaciones animadas."
                 />
 
                 <FormField
@@ -111,7 +109,7 @@ export function FeatureForm({ initialData }: FeatureFormProps) {
                     render={({ field }) => (
                     <FormItem className="hidden">
                         <FormControl>
-                        <Input {...field} />
+                            <Input {...field} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
