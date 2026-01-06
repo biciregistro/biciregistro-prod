@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { analyzeSerialNumberAction, analyzeBikeImageAction } from '@/lib/actions/ai-actions';
 import { registerBikeWizardAction, validateSerialNumberAction } from '@/lib/actions'; 
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { bikeBrands } from '@/lib/bike-brands';
 import { modalityOptions } from '@/lib/bike-types';
 
@@ -51,6 +51,8 @@ export function RegisterWizard({ userRole }: RegisterWizardProps) {
   });
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
 
   // --- GENERACIÓN DE AÑOS DINÁMICA ---
   const currentYear = new Date().getFullYear();
@@ -228,6 +230,12 @@ export function RegisterWizard({ userRole }: RegisterWizardProps) {
 
     if (result.success) {
         toast({ title: "¡Registro Exitoso!", description: "Tu bicicleta está protegida.", className: "bg-green-600 text-white" });
+        
+        if (returnTo) {
+            router.push(returnTo);
+            return;
+        }
+
         const redirectPath = userRole === 'ong' ? '/dashboard/ong?tab=garage' : '/dashboard';
         router.push(redirectPath);
     } else {

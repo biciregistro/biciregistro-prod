@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
 import { selectEventBikeAction } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Bike, Loader2, AlertCircle } from 'lucide-react';
+import { Bike, Loader2, AlertTriangle } from 'lucide-react';
 import type { Bike as BikeType, EventRegistration } from '@/lib/types';
 
 interface EventBikeSelectorProps {
@@ -24,6 +24,13 @@ export function EventBikeSelector({ userBikes, registration, eventId }: EventBik
     
     const currentBike = userBikes.find(b => b.id === registration.bikeId);
     const isCancelled = registration.status === 'cancelled';
+
+    // CA6: Auto-select bike if it's the only one and none is selected
+    useEffect(() => {
+        if (userBikes.length === 1 && !registration.bikeId && !isPending) {
+            handleBikeSelect(userBikes[0].id);
+        }
+    }, [userBikes, registration.bikeId]);
 
     const handleBikeSelect = (bikeId: string) => {
         setSelectedBikeId(bikeId);
@@ -56,15 +63,22 @@ export function EventBikeSelector({ userBikes, registration, eventId }: EventBik
             </CardHeader>
             <CardContent>
                 {userBikes.length === 0 ? (
-                    <div className="text-center space-y-4 py-2">
-                        <div className="flex justify-center text-yellow-600">
-                            <AlertCircle className="h-8 w-8" />
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex flex-col space-y-4 animate-in fade-in zoom-in-95 duration-300">
+                        <div className="flex gap-3">
+                            <AlertTriangle className="h-5 w-5 text-yellow-600 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <h4 className="font-bold text-yellow-900 leading-tight">
+                                    Registra tu bicicleta para completar tu registro
+                                </h4>
+                                <p className="text-sm text-yellow-800 leading-relaxed">
+                                    Por tu seguridad y la de los demás asistentes, el organizador requiere que registres tu bicicleta con la que participarás.
+                                </p>
+                            </div>
                         </div>
-                        <p className="text-sm text-muted-foreground px-4">
-                            Aún no has registrado tu bici, registrar tu bici te protege. Por favor registra la bici con la que participarás para poder hacer check-in el día del evento.
-                        </p>
-                        <Button asChild variant="outline" className="w-full">
-                            <Link href="/dashboard/register">Registrar Bicicleta</Link>
+                        <Button asChild className="w-full bg-yellow-600 hover:bg-yellow-700 text-white border-none shadow-sm">
+                            <Link href={`/dashboard/register?returnTo=/dashboard/events/${eventId}`}>
+                                Registrar Bicicleta
+                            </Link>
                         </Button>
                     </div>
                 ) : (
@@ -102,7 +116,12 @@ export function EventBikeSelector({ userBikes, registration, eventId }: EventBik
                             </SelectContent>
                         </Select>
                         
-                        {isPending && <p className="text-xs text-muted-foreground text-center animate-pulse">Guardando selección...</p>}
+                        {isPending && (
+                            <div className="flex items-center justify-center gap-2 pt-2 text-xs text-muted-foreground animate-pulse">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span>Guardando selección...</span>
+                            </div>
+                        )}
                     </div>
                 )}
             </CardContent>
