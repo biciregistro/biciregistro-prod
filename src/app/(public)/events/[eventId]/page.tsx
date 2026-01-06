@@ -127,8 +127,9 @@ export default async function EventPage({ params }: EventPageProps) {
   const isFinished = eventDate < new Date();
   const isSoldOut = (event.maxParticipants || 0) > 0 && (event.currentParticipants || 0) >= (event.maxParticipants || 0);
 
-  // Define organizer name for waiver, with fallback
-  const waiverOrganizerName = ongProfile?.contactPerson || ongProfile?.organizationName || 'El Organizador';
+  // Define organizer name for waiver and confidence text
+  const organizationName = ongProfile?.organizationName || 'el organizador';
+  const waiverOrganizerName = ongProfile?.contactPerson || organizationName;
 
 
   return (
@@ -431,6 +432,7 @@ export default async function EventPage({ params }: EventPageProps) {
                     user={user} 
                     isRegistered={isRegistered}
                     organizerNameForWaiver={waiverOrganizerName}
+                    organizerName={organizationName}
                 />
             </div>
         </div>

@@ -1,11 +1,11 @@
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getAuthenticatedUser, getEvent, getUserRegistrationForEvent, getOngProfile, getBikes } from '@/lib/data';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy, Hash, AlertCircle, CheckCircle2, Package, User, Phone, Globe, HeartPulse, FileText, Download, Shirt, TriangleAlert } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy, Hash, AlertCircle, CheckCircle2, Package, User, Phone, Globe, HeartPulse, FileText, Download, Shirt, TriangleAlert, ShieldCheck, QrCode } from 'lucide-react';
 import { EventActionCard } from '@/components/dashboard/event-action-card';
 import { EventBikeSelector } from '@/components/dashboard/event-bike-selector';
 import { PaymentStatusHandler } from '@/components/payment-status-handler';
@@ -14,6 +14,9 @@ import { PaymentTimerBanner } from '@/components/dashboard/payment-timer-banner'
 import { FloatingPaymentButton } from '@/components/dashboard/floating-payment-button';
 import { cn } from '@/lib/utils';
 import dynamic from 'next/dynamic';
+
+// Registration QR Component (Client Component) - Renamed file import
+import { RegistrationQRCode } from '@/components/dashboard/RegistrationQrCode';
 
 // Helper component for client-side waiver download trigger
 import { WaiverDownloadButton } from './waiver-download-button-client'; 
@@ -57,38 +60,36 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
     ? `https://wa.me/${ongProfile.contactWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(whatsappMessage)}`
     : '#';
 
-  let badgeText = registration.status === 'confirmed' ? 'Registro Confirmado' : registration.status;
+  let badgeText = registration.status === 'confirmed' ? 'Confirmado' : registration.status;
   let badgeVariant: "default" | "secondary" | "destructive" | "outline" = registration.status === 'confirmed' ? 'default' : 'secondary';
-  let badgeClassName = "text-base px-3 py-1 capitalize";
+  let badgeClassName = "text-xs px-2 py-0.5 capitalize";
 
   const isPendingPayment = event.costType === 'Con Costo' && registration.paymentStatus === 'pending' && registration.status === 'confirmed';
+  const isPaid = registration.status === 'confirmed' && (event.costType === 'Gratuito' || registration.paymentStatus === 'paid');
 
   if (isFinished) {
-      badgeText = "Evento Finalizado";
-      badgeClassName = cn(badgeClassName, "bg-slate-500 text-white hover:bg-slate-600 border-transparent");
+      badgeText = "Finalizado";
+      badgeClassName = cn(badgeClassName, "bg-slate-500 text-white border-transparent");
       badgeVariant = "secondary";
   } else if (registration.status === 'confirmed') {
       if (event.costType === 'Con Costo') {
           if (registration.paymentStatus === 'paid') {
-              badgeText = "Registro Confirmado y Pagado";
-              badgeClassName = cn(badgeClassName, "bg-green-600 hover:bg-green-700 text-white border-transparent");
+              badgeText = "Pagado";
+              badgeClassName = cn(badgeClassName, "bg-green-600 text-white border-transparent");
           } else {
               badgeText = "Pago Pendiente";
               badgeVariant = "secondary";
-              badgeClassName = cn(badgeClassName, "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-200");
+              badgeClassName = cn(badgeClassName, "bg-yellow-100 text-yellow-800 border-yellow-200");
           }
       }
-  } else if (registration.status === 'cancelled') {
-      badgeText = "Cancelado";
-      badgeVariant = "destructive";
   }
 
   const showBibNumber = event.bibNumberConfig?.enabled;
   const userPhone = user.phone || user.whatsapp;
-  const isProfileComplete = userPhone && user.city && user.state && user.country;
+  const isProfileComplete = !!(userPhone && user.city && user.state && user.country);
 
   return (
-    <div className="container max-w-5xl mx-auto py-8 px-4">
+    <div className="container max-w-4xl mx-auto py-6 md:py-10 px-4">
       <PaymentStatusHandler />
       
       {/* Mobile Floating Payment CTA */}
@@ -100,329 +101,278 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
           />
       )}
 
-      {/* --- HEADER --- */}
-      <div className="mb-8 space-y-4">
-        <Link href="/dashboard" className="text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2 text-sm font-medium w-fit">
-            <ArrowLeft className="h-4 w-4" /> Volver a Mi Dashboard
-        </Link>
-        
-        <div className="flex flex-col md:flex-row justify-between items-start gap-4 pb-4 border-b">
-            <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-3">
-                    <h1 className="text-3xl font-extrabold tracking-tight lg:text-4xl">{event.name}</h1>
-                    <Badge variant={badgeVariant} className={badgeClassName}>
+      {/* TICKET DIGITAL PRINCIPAL */}
+      <div className="max-w-2xl mx-auto">
+        <Card className="overflow-hidden border-none shadow-2xl relative bg-card ticket-shape">
+            {/* Cabecera del Ticket */}
+            <div className="bg-primary text-primary-foreground p-6 md:p-8 space-y-4">
+                <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                        <p className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-80">Ticket de Inscripción</p>
+                        <h1 className="text-2xl md:text-3xl font-black leading-tight uppercase italic text-white">{event.name}</h1>
+                    </div>
+                    <Badge className={cn("text-sm py-1 px-3 bg-white text-primary border-none shadow-sm", badgeClassName)}>
                         {badgeText}
                     </Badge>
                 </div>
                 
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-primary" />
-                        <span className="font-medium text-foreground">{eventDate.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs md:text-sm font-medium opacity-90">
+                    <div className="flex items-center gap-1.5">
+                        <Calendar className="h-4 w-4" />
+                        <span>{eventDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase()}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-primary" />
-                        <span className="font-medium text-foreground">{eventDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    <div className="flex items-center gap-1.5">
+                        <Clock className="h-4 w-4" />
+                        <span>{eventDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-primary" />
-                        <span className="font-medium text-foreground">{event.state}, {event.country}</span>
+                    <div className="flex items-center gap-1.5">
+                        <MapPin className="h-4 w-4" />
+                        <span className="line-clamp-1">{event.state}, {event.country}</span>
                     </div>
-                    {event.googleMapsUrl && (
-                        <Link href={event.googleMapsUrl} target="_blank" className="text-primary hover:underline font-medium text-xs flex items-center gap-1">
-                            (Ver Mapa)
-                        </Link>
-                    )}
                 </div>
             </div>
-        </div>
-      </div>
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* --- MAIN CONTENT COLUMN --- */}
-        <div className="lg:col-span-2 space-y-8">
-            
-            {/* 0. TIMER BANNER (Only if pending payment) */}
-            {isPendingPayment && !isFinished && (
-                <PaymentTimerBanner registrationDate={registration.registrationDate} />
-            )}
-
-            {/* 1. TARJETA DE IDENTIDAD (Dorsal + Datos) */}
-            <Card className="overflow-hidden border-t-4 border-t-primary shadow-sm">
-                <CardHeader className="bg-muted/10 pb-4">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                        <User className="h-5 w-5 text-primary" /> 
-                        Identidad del Participante
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-6">
-                    {/* Fila 1: Número de Corredor (Si aplica) */}
-                    {showBibNumber && (
-                        <div className="flex flex-col items-center justify-center p-6 bg-muted/20 rounded-xl border border-dashed border-primary/20">
-                            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Tu Número de Corredor</p>
-                            {registration.bibNumber ? (
-                                <div className="text-center">
-                                    <span className="text-6xl font-black text-primary font-mono tracking-tighter">
-                                        #{registration.bibNumber.toString().padStart(3, '0')}
-                                    </span>
-                                    <div className="mt-2 flex items-center justify-center gap-1 text-green-600 font-medium text-sm">
-                                        <CheckCircle2 className="h-4 w-4" /> Asignado Oficialmente
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-2 rounded-lg">
-                                    <AlertCircle className="h-5 w-5" />
-                                    <span className="font-medium">
-                                        {event.bibNumberConfig?.mode === 'automatic' 
-                                            ? "Pendiente de asignación (Completa tu pago)" 
-                                            : "Se asignará en la entrega de kits"}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Fila 2: Datos Personales */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <p className="text-xs text-muted-foreground font-medium uppercase mb-1">Nombre Completo</p>
-                            <p className="text-lg font-semibold">{user.name} {user.lastName}</p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground font-medium uppercase mb-1">Contacto</p>
-                            <div className="flex items-center gap-2">
-                                <Phone className="h-3 w-3 text-muted-foreground" />
-                                <p className="font-medium">{userPhone || <span className="text-muted-foreground italic">No registrado</span>}</p>
+            <CardContent className="p-0">
+                {/* 0. BLOQUE CONDICIONAL: BLINDAJE o PAGO PENDIENTE */}
+                {isPaid ? (
+                    <div className="p-6 md:p-8 bg-blue-50/50 dark:bg-blue-900/10 space-y-4">
+                        <div className="flex gap-4">
+                            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                                <ShieldCheck className="h-7 w-7" />
                             </div>
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground font-medium uppercase mb-1">Ubicación</p>
-                            <div className="flex items-center gap-2">
-                                <Globe className="h-3 w-3 text-muted-foreground" />
-                                <p className="font-medium">
-                                    {user.city && user.state ? `${user.city}, ${user.state}` : <span className="text-muted-foreground italic">No registrada</span>}
+                            <div className="space-y-1">
+                                <h3 className="font-bold text-blue-900 dark:text-blue-300">A partir de este momento tú y tu bicicleta están blindados para el evento.</h3>
+                                <p className="text-sm text-blue-800/80 dark:text-blue-400 leading-relaxed">
+                                    Tu Pasaporte Ciclista ya está activo. Presenta este ticket digital en el check-in. 
+                                    <span className="block mt-1 font-semibold">Recuerda: este evento protege tu patrimonio. Al terminar, nuestro staff validará tu identidad para que tu bici regrese segura a casa contigo.</span>
                                 </p>
                             </div>
                         </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground font-medium uppercase mb-1">Género</p>
-                            <p className="font-medium capitalize">{user.gender || <span className="text-muted-foreground italic">No especificado</span>}</p>
-                        </div>
-                    </div>
-
-                    {/* Alerta de Perfil Incompleto */}
-                    {!isProfileComplete && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
-                            <div className="flex items-start gap-3">
-                                <TriangleAlert className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-semibold text-amber-800">Tu perfil está incompleto</p>
-                                    <p className="text-sm text-amber-700">Para facilitar la logística y seguridad del evento, por favor completa tus datos de contacto.</p>
-                                </div>
-                            </div>
-                            <Button size="sm" variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-100 bg-white" asChild>
-                                <Link href="/dashboard/profile">Completar Perfil</Link>
+                        <div className="mt-4">
+                            <Button variant="outline" asChild className="w-full text-blue-700 border-blue-200 hover:bg-blue-100 hover:text-blue-800 font-medium">
+                                <Link href="/dashboard">
+                                    <ArrowLeft className="mr-2 h-4 w-4" /> Volver a mi Garage
+                                </Link>
                             </Button>
                         </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            {/* 2. TARJETA DE CATEGORÍA Y JERSEY (Si aplica) */}
-            {(category || (event.hasJersey && registration.jerseyModel)) && (
-                <Card className="overflow-hidden shadow-sm">
-                    <CardHeader className="bg-muted/10 pb-4">
-                        <CardTitle className="flex items-center gap-2 text-lg">
-                            <Trophy className="h-5 w-5 text-primary" />
-                            Detalles de Participación
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            {/* Columna Categoría */}
-                            {category && (
-                                <div className="space-y-3">
-                                    <h4 className="font-semibold text-foreground flex items-center gap-2">
-                                        <Tag className="h-4 w-4 text-muted-foreground" />
-                                        Categoría Inscrita
-                                    </h4>
-                                    <div className="bg-secondary/20 p-4 rounded-lg border border-secondary/30">
-                                        <p className="text-xl font-bold text-primary mb-1">{category.name}</p>
-                                        <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                                            <span className="flex items-center gap-1 bg-background px-2 py-1 rounded shadow-sm">
-                                                <User className="h-3 w-3" />
-                                                {category.ageConfig?.isRestricted 
-                                                    ? `${category.ageConfig.minAge} - ${category.ageConfig.maxAge} años` 
-                                                    : "Edad Libre"}
-                                            </span>
-                                            {category.startTime && (
-                                                <span className="flex items-center gap-1 bg-background px-2 py-1 rounded shadow-sm text-green-700 font-medium">
-                                                    <Clock className="h-3 w-3" />
-                                                    Salida: {category.startTime}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="text-xs text-muted-foreground mt-2">
-                                        <span className="font-semibold">Nivel de Acceso:</span> {tierName} {tier?.price ? `($${tier.price})` : '(Gratuito)'}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Columna Jersey */}
-                            {event.hasJersey && registration.jerseyModel && (
-                                <div className="space-y-3">
-                                    <h4 className="font-semibold text-foreground flex items-center gap-2">
-                                        <Shirt className="h-4 w-4 text-muted-foreground" />
-                                        Kit / Jersey
-                                    </h4>
-                                    <div className="bg-secondary/20 p-4 rounded-lg border border-secondary/30 flex items-center gap-4">
-                                        <div className="h-12 w-12 bg-background rounded-full flex items-center justify-center shadow-sm">
-                                            <Shirt className="h-6 w-6 text-primary" />
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-foreground">{jerseyConfig?.name || registration.jerseyModel}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                Talla: <span className="font-bold text-foreground bg-background px-2 rounded ml-1">{registration.jerseySize}</span>
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+                    </div>
+                ) : isPendingPayment ? (
+                    <div className="p-6 md:p-8 bg-amber-50/50 dark:bg-amber-900/10 space-y-4">
+                        {/* Remove default margin from PaymentTimerBanner inside here */}
+                        <div className="[&>div]:mb-0 [&>div]:shadow-sm">
+                            <PaymentTimerBanner registrationDate={registration.registrationDate} />
                         </div>
-                    </CardContent>
-                </Card>
-            )}
+                        
+                        <div className="flex gap-4 pt-2">
+                            <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                                <ShieldCheck className="h-7 w-7 opacity-50" />
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className="font-bold text-amber-900 dark:text-amber-300">Tu blindaje está en pausa.</h3>
+                                <p className="text-sm text-amber-800/80 dark:text-amber-400 leading-relaxed">
+                                    Completa tu pago para activar tu Pasaporte Ciclista y asegurar la protección de tu bicicleta durante el evento.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <Button variant="outline" asChild className="w-full text-amber-700 border-amber-200 hover:bg-amber-100 hover:text-amber-800 font-medium">
+                                <Link href="/dashboard">
+                                    <ArrowLeft className="mr-2 h-4 w-4" /> Volver a mi Garage
+                                </Link>
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    // Fallback for cancelled or other states
+                    <div className="p-4 flex justify-end">
+                         <Button variant="ghost" size="sm" asChild>
+                            <Link href="/dashboard">
+                                <ArrowLeft className="mr-2 h-4 w-4" /> Volver
+                            </Link>
+                        </Button>
+                    </div>
+                )}
 
-            {/* 3. TARJETA DE BICICLETA */}
-            {(event.requiresBike !== false) && (
-                <div className="space-y-2">
-                    {!isFinished && (
-                        <EventBikeSelector userBikes={userBikes} registration={registration} eventId={event.id} />
-                    )}
-                    
-                    {/* Si finalizó, mostrar tarjeta estática */}
-                    {isFinished && registration.bikeId && (
-                        <Card>
-                            <CardHeader className="bg-muted/10 pb-4">
-                                <CardTitle className="flex items-center gap-2 text-lg">
-                                    <Package className="h-5 w-5 text-primary" />
-                                    Bicicleta Registrada
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-6">
-                                <div className="flex items-center gap-4">
-                                    <div className="bg-primary/10 p-3 rounded-full">
-                                        <Package className="h-6 w-6 text-primary" />
+                <Separator className="border-dashed border-muted-foreground/30" />
+
+                {/* 1. SECCIÓN PASAPORTE CICLISTA */}
+                <div className="p-6 md:p-8 space-y-6">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-bold uppercase tracking-wider flex items-center gap-2">
+                             <Hash className="h-5 w-5 text-primary" /> Pasaporte Ciclista
+                        </h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                         {/* Dorsal Destacado */}
+                         {showBibNumber && (
+                            <div className="flex flex-col items-center justify-center p-4 bg-muted/30 rounded-xl border border-dashed border-primary/20 aspect-square max-w-[150px] mx-auto md:mx-0">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Dorsal</p>
+                                {registration.bibNumber ? (
+                                    <span className="text-5xl font-black text-primary font-mono tracking-tighter">
+                                        #{registration.bibNumber.toString().padStart(3, '0')}
+                                    </span>
+                                ) : (
+                                    <span className="text-sm text-center text-amber-600 font-medium">PENDIENTE</span>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            <div>
+                                <p className="text-[10px] text-muted-foreground font-bold uppercase mb-0.5">Nombre del Ciclista</p>
+                                <p className="text-xl font-black uppercase">{user.name} {user.lastName}</p>
+                                
+                                {/* ALERTA PERFIL INCOMPLETO (CA1) - MODIFIED FOR CONSISTENCY */}
+                                {!isProfileComplete && (
+                                    <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex flex-col space-y-3 animate-in fade-in">
+                                        <div className="flex gap-3">
+                                            <TriangleAlert className="h-5 w-5 text-yellow-600 shrink-0 mt-0.5" />
+                                            <div className="space-y-1">
+                                                <h4 className="font-bold text-yellow-900 leading-tight text-sm">
+                                                    Perfil Incompleto
+                                                </h4>
+                                                <p className="text-xs text-yellow-800 leading-relaxed">
+                                                    Para completar tu registro y asegurar tu lugar, necesitamos tus datos de contacto.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Button size="sm" className="w-full bg-yellow-600 hover:bg-yellow-700 text-white border-none shadow-sm" asChild>
+                                            <Link href={`/dashboard/profile?returnTo=/dashboard/events/${event.id}`}>
+                                                Completar Perfil
+                                            </Link>
+                                        </Button>
                                     </div>
-                                    <div>
-                                        <p className="text-lg font-bold">
-                                            {userBikes.find(b => b.id === registration.bikeId)?.make} {userBikes.find(b => b.id === registration.bikeId)?.model}
-                                        </p>
-                                        <p className="text-sm font-mono text-muted-foreground">
-                                            Serie: {userBikes.find(b => b.id === registration.bikeId)?.serialNumber}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground mt-1">Color: {userBikes.find(b => b.id === registration.bikeId)?.color}</p>
-                                    </div>
+                                )}
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p className="text-[10px] text-muted-foreground font-bold uppercase mb-0.5">Nivel</p>
+                                    <p className="font-bold text-sm">{tierName}</p>
                                 </div>
-                            </CardContent>
-                        </Card>
+                                <div>
+                                    <p className="text-[10px] text-muted-foreground font-bold uppercase mb-0.5">Categoría</p>
+                                    <p className="font-bold text-sm">{categoryName}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <Separator className="border-dashed border-muted-foreground/30" />
+
+                {/* 2. SECCIÓN BICICLETA */}
+                <div className="p-6 md:p-8 bg-muted/5">
+                     <h3 className="text-lg font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <Package className="h-5 w-5 text-primary" /> Bicicleta Blindada
+                    </h3>
+                    {!isFinished ? (
+                        <EventBikeSelector userBikes={userBikes} registration={registration} eventId={event.id} />
+                    ) : (
+                         <div className="p-4 border rounded-lg bg-background">
+                            <p className="text-lg font-bold">
+                                {userBikes.find(b => b.id === registration.bikeId)?.make} {userBikes.find(b => b.id === registration.bikeId)?.model}
+                            </p>
+                            <p className="text-sm font-mono text-muted-foreground">
+                                Serie: {userBikes.find(b => b.id === registration.bikeId)?.serialNumber}
+                            </p>
+                        </div>
                     )}
                 </div>
-            )}
 
-            {/* 4. TARJETA MÉDICA Y LEGAL (Si aplica) */}
-            {(event.requiresEmergencyContact || event.requiresWaiver) && (
-                <Card className="overflow-hidden shadow-sm">
-                    <CardHeader className="bg-red-50/50 dark:bg-red-950/10 pb-4 border-b border-red-100 dark:border-red-900/30">
-                        <CardTitle className="flex items-center gap-2 text-lg text-red-700 dark:text-red-400">
-                            <HeartPulse className="h-5 w-5" />
-                            Información Médica y Legal
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            
-                            {/* Columna Médica */}
-                            {event.requiresEmergencyContact && (
-                                <div className="space-y-4">
-                                    <h4 className="font-semibold text-foreground text-sm uppercase tracking-wide">Datos de Emergencia</h4>
-                                    <div className="space-y-3 text-sm">
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <span className="text-muted-foreground font-medium">Contacto:</span>
-                                            <span className="col-span-2 font-medium">{registration.emergencyContactName}</span>
-                                        </div>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <span className="text-muted-foreground font-medium">Teléfono:</span>
-                                            <span className="col-span-2 font-mono">{registration.emergencyContactPhone}</span>
-                                        </div>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <span className="text-muted-foreground font-medium">Sangre:</span>
-                                            <span className="col-span-2 font-bold text-red-600">{registration.bloodType}</span>
-                                        </div>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <span className="text-muted-foreground font-medium">Alergias:</span>
-                                            <span className="col-span-2 text-orange-600 font-medium">{registration.allergies || "Ninguna"}</span>
-                                        </div>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <span className="text-muted-foreground font-medium">Seguro:</span>
-                                            <span className="col-span-2">{registration.insuranceInfo}</span>
-                                        </div>
-                                    </div>
-                                    <div className="bg-muted p-3 rounded text-[10px] text-muted-foreground italic flex gap-2 items-start">
-                                        <ShieldAlert className="h-3 w-3 mt-0.5 shrink-0" />
-                                        Esta información es confidencial y solo accesible para el organizador durante el evento (se elimina 24h después).
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Columna Legal */}
-                            {event.requiresWaiver && (
-                                <div className="space-y-4 md:border-l md:pl-8">
-                                    <h4 className="font-semibold text-foreground text-sm uppercase tracking-wide">Documentación Legal</h4>
-                                    
-                                    {registration.waiverSignature ? (
-                                        <div className="space-y-3">
-                                            <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg border border-green-100">
-                                                <FileText className="h-5 w-5" />
-                                                <div>
-                                                    <p className="font-bold text-sm">Responsiva Firmada</p>
-                                                    <p className="text-xs opacity-80">
-                                                        Fecha: {registration.waiverAcceptedAt ? new Date(registration.waiverAcceptedAt).toLocaleDateString() : 'N/A'}
-                                                    </p>
-                                                </div>
+                {/* 3. SECCIÓN INFORMACIÓN ADICIONAL (MÉDICA Y LEGAL) - INTEGRADA */}
+                {(event.requiresEmergencyContact || event.requiresWaiver) && (
+                    <>
+                        <Separator className="border-dashed border-muted-foreground/30" />
+                        <div className="p-6 md:p-8">
+                            <h3 className="text-lg font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <HeartPulse className="h-5 w-5 text-primary" /> Información Adicional
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm">
+                                {event.requiresEmergencyContact && (
+                                    <div className="space-y-4">
+                                        <h4 className="font-bold text-muted-foreground text-xs uppercase tracking-wide">Datos de Emergencia</h4>
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between border-b pb-1 border-dashed border-muted-foreground/20">
+                                                <span className="text-muted-foreground">Contacto:</span>
+                                                <span className="font-medium">{registration.emergencyContactName}</span>
                                             </div>
-                                            
-                                            {/* Client-side wrapper for download logic */}
+                                            <div className="flex justify-between border-b pb-1 border-dashed border-muted-foreground/20">
+                                                <span className="text-muted-foreground">Teléfono:</span>
+                                                <span className="font-mono">{registration.emergencyContactPhone}</span>
+                                            </div>
+                                            <div className="flex justify-between border-b pb-1 border-dashed border-muted-foreground/20">
+                                                <span className="text-muted-foreground">Sangre:</span>
+                                                <span className="font-bold text-red-600">{registration.bloodType}</span>
+                                            </div>
+                                            <div className="flex justify-between border-b pb-1 border-dashed border-muted-foreground/20">
+                                                <span className="text-muted-foreground">Alergias:</span>
+                                                <span className="font-medium">{registration.allergies || "Ninguna"}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                {event.requiresWaiver && registration.waiverSignature && (
+                                    <div className="space-y-4">
+                                        <h4 className="font-bold text-muted-foreground text-xs uppercase tracking-wide">Documentación Legal</h4>
+                                        <div className="bg-muted/30 p-4 rounded-lg flex items-center justify-between border border-muted">
+                                            <div className="flex items-center gap-2">
+                                                <FileText className="h-4 w-4 text-primary" />
+                                                <span className="font-medium">Carta Responsiva</span>
+                                            </div>
+                                            <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50 text-[10px]">FIRMADA</Badge>
+                                        </div>
+                                        <div className="flex justify-end">
                                             <WaiverDownloadButton 
                                                 registrationId={registration.id}
                                                 eventName={event.name}
                                                 participantName={`${user.name} ${user.lastName}`}
                                             />
                                         </div>
-                                    ) : (
-                                        <div className="bg-amber-50 p-3 rounded text-amber-800 text-sm">
-                                            Pendiente de firma. (Generalmente se firma al completar el registro).
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </CardContent>
-                </Card>
-            )}
+                    </>
+                )}
 
-            {/* PATROCINADORES */}
-            {event.sponsors && event.sponsors.length > 0 && (
-                <div className="mt-8">
-                    <SponsorsCarousel sponsors={event.sponsors} title="Patrocinadores del Evento" />
+                <Separator className="border-dashed border-muted-foreground/30" />
+
+                {/* 4. SECCIÓN CHECK-IN (QR) */}
+                <div className="p-8 bg-muted/20 flex flex-col md:flex-row items-center justify-between gap-8">
+                    <div className="space-y-3 flex-1 text-center md:text-left">
+                        <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                            <QrCode className="h-3 w-3" /> Check-in Digital
+                        </div>
+                        <h4 className="text-xl font-black">Escanea en la entrada</h4>
+                        <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+                            Presenta este código al staff del evento para validar tu asistencia y el blindaje de tu bicicleta.
+                        </p>
+                        {isPendingPayment && (
+                             <p className="text-xs text-destructive font-bold animate-pulse">
+                                * PAGO PENDIENTE: Completa tu pago para activar el Check-in.
+                             </p>
+                        )}
+                    </div>
+                    
+                    <div className="shrink-0 shadow-xl p-2 bg-white rounded-xl border-4 border-primary/20">
+                        <RegistrationQRCode registrationId={registration.id} />
+                    </div>
                 </div>
-            )}
+            </CardContent>
+            
+            {/* Pie del Ticket decorativo */}
+            <div className="h-4 bg-primary flex items-center justify-center gap-2 overflow-hidden">
+                {[...Array(20)].map((_, i) => (
+                    <div key={i} className="h-1 w-8 bg-primary-foreground/20 rounded-full" />
+                ))}
+            </div>
+        </Card>
+      </div>
 
-        </div>
-
-        {/* --- SIDEBAR ACTIONS --- */}
-        <div className="space-y-6">
+      {/* --- OTRAS ACCIONES (Fuera del Ticket) --- */}
+      <div className="max-w-2xl mx-auto mt-12 grid grid-cols-1 md:grid-cols-2 gap-6">
             <EventActionCard 
                 event={event} 
                 registration={registration} 
@@ -430,30 +380,14 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                 whatsappUrl={whatsappUrl}
                 isFinished={isFinished}
             />
-        </div>
       </div>
+
+      {/* PATROCINADORES */}
+      {event.sponsors && event.sponsors.length > 0 && (
+          <div className="max-w-2xl mx-auto mt-12">
+              <SponsorsCarousel sponsors={event.sponsors} title="Patrocinadores" />
+          </div>
+      )}
     </div>
   );
-}
-
-// Simple Alert Icon needed for medical card
-function ShieldAlert(props: any) {
-    return (
-      <svg
-        {...props}
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-        <path d="M12 8v4" />
-        <path d="M12 16h.01" />
-      </svg>
-    )
 }

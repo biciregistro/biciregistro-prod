@@ -27,11 +27,12 @@ interface EventRegistrationCardProps {
     isRegistered?: boolean;
     registration?: EventRegistration | null;
     organizerNameForWaiver?: string;
+    organizerName?: string; // New Prop
 }
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-export function EventRegistrationCard({ event, user, isRegistered = false, registration, organizerNameForWaiver }: EventRegistrationCardProps) {
+export function EventRegistrationCard({ event, user, isRegistered = false, registration, organizerNameForWaiver, organizerName }: EventRegistrationCardProps) {
     const router = useRouter();
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
@@ -185,9 +186,14 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
 
     return (
         <>
-        <Card className="shadow-lg sticky top-24 z-10 border-t-4 border-t-secondary">
-            <CardHeader className="pb-2">
-                <CardTitle className="text-xl">Regístrate al evento</CardTitle>
+        <Card className="shadow-lg sticky top-24 z-10 border-t-4 border-t-secondary overflow-hidden">
+            <CardHeader className="pb-3 bg-muted/10">
+                <div className="space-y-2">
+                    <CardTitle className="text-xl">Regístrate al evento</CardTitle>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed animate-in fade-in slide-in-from-top-1">
+                        Este evento de <span className="font-semibold text-foreground">{organizerName || 'el organizador'}</span> está comprometido con la protección de tu bici. Tu acceso incluye el respaldo de Biciregistro para blindarte contra el robo y el mercado negro.
+                    </p>
+                </div>
             </CardHeader>
             <CardContent className="space-y-6 pt-4">
                 <div className="flex items-center justify-between pb-4 border-b last:border-0 last:pb-0">
