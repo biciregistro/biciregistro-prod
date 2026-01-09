@@ -21,8 +21,9 @@ import {
 import { updateFinancialSettings } from './financial-data';
 import { deleteSession, getDecodedSession } from './auth';
 import { ActionFormState, HomepageSection, Event, PaymentStatus, BikeFormState } from './types';
-import { userFormSchema, ongUserFormSchema, financialSettingsSchema } from './schemas'; // Removed financialProfileSchema
+import { userFormSchema, ongUserFormSchema, financialSettingsSchema } from './schemas';
 import { adminAuth } from './firebase/server';
+import { sendWelcomeEmail } from './email/resend-service'; // Importar el servicio de correo
 
 // Import implementations from bike-actions
 import { 
@@ -148,6 +149,10 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         );
 
         await createFirestoreUser(cleanUserData as any);
+
+        // Send welcome email (fire-and-forget)
+        sendWelcomeEmail({ name: name, email: email })
+            .catch(err => console.error("Failed to send welcome email:", err));
         
         return { success: true, customToken: customToken };
         
@@ -209,6 +214,10 @@ export async function createOngUser(prevState: ActionFormState, formData: FormDa
             role: 'ong',
             createdAt: new Date().toISOString(),
         });
+
+        // Send a welcome email for ONGs too, can be a different template in the future
+        sendWelcomeEmail({ name: organizationName, email: email })
+            .catch(err => console.error("Failed to send welcome email to ONG:", err));
 
     } catch (error: any) {
         if (error.code === 'auth/uid-already-exists') {
@@ -451,7 +460,7 @@ export async function selectEventBikeAction(eventId: string, bikeId: string): Pr
 export async function updateRegistrationPaymentStatus(registrationId: string, eventId: string, newStatus: PaymentStatus): Promise<{ success: boolean; error?: string }> {
     const session = await getDecodedSession();
     if (!session?.uid || (session.role !== 'ong' && session.admin !== true)) {
-        return { success: false, error: "No tienes permiso para realizar esta acción." };
+        return { success: false, error: "No tienes permisos para realizar esta acción." };
     }
 
     try {
