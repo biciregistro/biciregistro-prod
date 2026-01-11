@@ -2,9 +2,10 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "crypto";
 
 import { getAuthenticatedUser } from "@/lib/data";
-import { createEvent, updateEvent } from "@/lib/data";
+import { createEvent, updateEvent, getEvent } from "@/lib/data";
 import { ongProfileSchema, financialProfileSchema, eventFormSchema } from "@/lib/schemas";
 import { adminDb as db } from "@/lib/firebase/server";
 import { updateOngFinancialData, getFinancialSettings } from "@/lib/financial-data";
@@ -221,5 +222,74 @@ export async function assignBibNumber(registrationId: string, eventId: string, n
     } catch (error) {
         console.error("Error assigning bib number:", error);
         return { success: false, message: "Error de base de datos." };
+    }
+}
+
+export async function cloneEvent(originalEventId: string) {
+    const user = await getAuthenticatedUser();
+    if (!user || (user.role !== 'ong' && user.role !== 'admin')) {
+        return { success: false, message: "No estás autenticado o no tienes permisos." };
+    }
+
+    try {
+        const originalEvent = await getEvent(originalEventId);
+        if (!originalEvent) {
+            return { success: false, message: "El evento original no existe." };
+        }
+
+        // Check ownership if not admin
+        if (user.role !== 'admin' && originalEvent.ongId !== user.id) {
+            return { success: false, message: "No tienes permisos para clonar este evento." };
+        }
+
+        // Prepare new event data
+        const { id, currentParticipants, pageViews, createdAt, registrationDeadline, ...eventData } = originalEvent as any;
+        
+        // Regenerate IDs for sub-collections within the document to avoid React key conflicts later
+        const newCostTiers = eventData.costTiers?.map((tier: any) => ({
+            ...tier,
+            id: randomUUID()
+        }));
+
+        const newCategories = eventData.categories?.map((cat: any) => ({
+            ...cat,
+            id: randomUUID()
+        }));
+        
+         const newJerseyConfigs = eventData.jerseyConfigs?.map((config: any) => ({
+            ...config,
+            id: randomUUID()
+        }));
+
+        const clonedEvent: Omit<Event, 'id'> = {
+            ...eventData,
+            name: `Copia de ${eventData.name}`,
+            status: 'draft',
+            currentParticipants: 0,
+            pageViews: 0,
+            costTiers: newCostTiers,
+            categories: newCategories,
+            jerseyConfigs: newJerseyConfigs,
+            registrationDeadline: undefined, // Reset deadline
+        };
+
+        // Sanitize to remove undefined values which Firestore dislikes (JSON trick)
+        const cleanPayload = JSON.parse(JSON.stringify(clonedEvent));
+
+        const newEventId = await createEvent(cleanPayload);
+
+        // Small delay to ensure consistency before redirection
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        revalidatePath('/dashboard/ong');
+        
+        return { 
+            success: true, 
+            message: "Evento clonado correctamente como borrador.",
+            eventId: newEventId 
+        };
+    } catch (error) {
+        console.error("Clone event error:", error);
+        return { success: false, message: "Ocurrió un error al clonar el evento." };
     }
 }

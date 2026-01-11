@@ -1,15 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import type { Event } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, Eye, Settings } from 'lucide-react';
+import { Calendar, Eye, Settings, Copy } from 'lucide-react';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { useToast } from '@/hooks/use-toast';
+import { cloneEvent } from '@/lib/actions/ong-actions';
 
 const statusStyles: { [key: string]: string } = {
   draft: 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-900/50 dark:text-gray-300 dark:border-gray-700',
@@ -28,6 +31,10 @@ export function EventCard({ event, basePath = '/dashboard/ong/events' }: EventCa
   const [displayDate, setDisplayDate] = useState<string>('');
   const [isFinished, setIsFinished] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
 
   useEffect(() => {
     const eventDate = new Date(event.date);
@@ -37,6 +44,25 @@ export function EventCard({ event, basePath = '/dashboard/ong/events' }: EventCa
     setDisplayDate(eventDate.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }));
     setIsClient(true);
   }, [event.date]);
+
+  const handleClone = async () => {
+    startTransition(async () => {
+        const result = await cloneEvent(event.id);
+        if (result.success && result.eventId) {
+            toast({
+                title: "Evento clonado",
+                description: "Redirigiendo a la edición del nuevo evento...",
+            });
+            router.push(`/dashboard/ong/events/${result.eventId}/edit`);
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: result.message || "No se pudo clonar el evento.",
+            });
+        }
+    });
+  };
 
   const displayStatus = isFinished ? 'finished' : event.status;
   const statusLabel = isFinished ? 'Finalizado' : (event.status === 'draft' ? 'Borrador' : 'Publicado');
@@ -79,14 +105,18 @@ export function EventCard({ event, basePath = '/dashboard/ong/events' }: EventCa
             </div>
         </div>
 
-        <CardFooter className="p-0 pt-4 mt-4 border-t grid grid-cols-2 gap-3">
-          <Button asChild variant="outline" size="sm" className="w-full">
+        <CardFooter className="p-0 pt-4 mt-4 border-t flex gap-2">
+          <Button asChild variant="outline" size="sm" className="flex-1">
             <Link href={`/events/${event.id}`} target="_blank" title="Ver página pública">
                 <Eye className="mr-2 h-4 w-4" />
                 Ver
             </Link>
           </Button>
-          <Button asChild size="sm" className="w-full">
+          <Button variant="outline" size="sm" className="flex-1" onClick={handleClone} disabled={isPending} title="Duplicar evento">
+              <Copy className="mr-2 h-4 w-4" />
+              {isPending ? '...' : 'Clonar'}
+          </Button>
+          <Button asChild size="sm" className="flex-1">
             <Link href={`${basePath}/${event.id}`}> 
               <Settings className="mr-2 h-4 w-4" />
               Gestionar

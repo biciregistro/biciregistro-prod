@@ -18,21 +18,25 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
     redirect('/dashboard');
   }
 
-  // Fetch data in parallel
-  const [event, financialSettings, ongProfile] = await Promise.all([
-    getEvent(id),
-    getFinancialSettings(),
-    getOngProfile(user.id)
-  ]);
+  // 1. Fetch Event first to handle 404s gracefully
+  const event = await getEvent(id);
 
   if (!event) {
+    console.error(`[EditEventPage] Event ${id} not found for user ${user.id}`);
     notFound();
   }
 
   if (event.ongId !== user.id) {
-    // Prevent editing events that don't belong to the organization
     redirect('/dashboard/ong');
   }
+
+  // 2. Fetch other dependencies
+  // We fetch these sequentially or in parallel AFTER validating the event exists
+  // If getFinancialSettings fails, it should have fallback logic inside, but let's be safe.
+  const [financialSettings, ongProfile] = await Promise.all([
+    getFinancialSettings(),
+    getOngProfile(user.id)
+  ]);
 
   const hasFinancialData = !!(ongProfile?.financialData?.clabe);
 
@@ -56,7 +60,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <EventForm initialData={event} financialSettings={financialSettings} hasFinancialData={hasFinancialData} />
+            <EventForm initialData={event} financialSettings={financialSettings} hasFinancialData={hasFinancialData} ongProfile={ongProfile || {}} />
           </CardContent>
         </Card>
       </div>
