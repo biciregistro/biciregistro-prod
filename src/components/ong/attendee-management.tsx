@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import dynamic from 'next/dynamic';
 import { EditableBibCell } from './editable-bib-cell';
+import { AttendeeExportModal } from './attendee-export-modal';
 
 // Dynamic import for the PDF download modal
 const WaiverDownloadModal = dynamic(() => import('./waiver-download-modal').then(mod => mod.WaiverDownloadModal), {
@@ -286,9 +287,16 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="max-w-sm"
                 />
-                <div className="text-sm text-muted-foreground">
-                    Mostrando {filteredAttendees.length} de {attendees.length} inscritos
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                    <AttendeeExportModal attendees={attendees} eventName={eventName} />
+                    <div className="text-sm text-muted-foreground whitespace-nowrap hidden sm:block">
+                        Mostrando {filteredAttendees.length} de {attendees.length} inscritos
+                    </div>
                 </div>
+            </div>
+
+            <div className="text-sm text-muted-foreground sm:hidden mb-2">
+                Mostrando {filteredAttendees.length} de {attendees.length} inscritos
             </div>
 
             <div className="rounded-md border overflow-x-auto">
@@ -373,7 +381,7 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                                             <Button 
                                                 variant="outline" 
                                                 size="sm" 
-                                                className="h-8 text-xs gap-1 border-red-200 text-red-700 bg-red-50 hover:bg-red-100 hover:text-red-800 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400"
+                                                className="h-8 text-xs gap-1 border-red-200 text-blue-700 bg-red-50 hover:bg-red-100 hover:text-red-800 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400"
                                                 onClick={() => openEmergencyModal(attendee)}
                                             >
                                                 <HeartPulse className="h-3 w-3" /> Ver Datos
