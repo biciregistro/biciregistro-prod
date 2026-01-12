@@ -85,6 +85,9 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
                 mode: 'automatic', // Default sensible
                 nextNumber: 1
             },
+            // Fix for Jersey config persistence
+            hasJersey: initialData?.hasJersey || false,
+            jerseyConfigs: initialData?.jerseyConfigs || [],
             sponsors: initialData?.sponsors || [],
         },
     });
