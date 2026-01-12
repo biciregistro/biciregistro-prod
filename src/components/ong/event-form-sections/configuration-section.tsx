@@ -412,6 +412,15 @@ export function ConfigurationSection({ form, isPublished }: ConfigurationSection
 
                 {hasCategories && (
                     <div className="space-y-4 mt-4 animate-in fade-in slide-in-from-top-2">
+                        
+                        {/* WARNING LABEL FOR CATEGORY NAMES */}
+                        <Alert className="bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-900 mb-4">
+                            <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                            <AlertDescription className="text-yellow-700 dark:text-yellow-300 text-xs">
+                                <strong>Importante:</strong> Asegúrate que los nombres de las categorías que ingresas aquí coincidan exactamente con los nombres de las categorías dadas de alta en tu sistema de cronometraje.
+                            </AlertDescription>
+                        </Alert>
+
                         <div className="flex items-center justify-between">
                             <FormLabel>Lista de Categorías</FormLabel>
                             <Button 
