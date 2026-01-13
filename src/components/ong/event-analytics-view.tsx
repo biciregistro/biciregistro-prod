@@ -7,20 +7,15 @@ import { GenderDistributionChart } from '@/components/admin/charts/gender-distri
 import { TopBrandsList } from '@/components/admin/charts/top-brands-list';
 import { ModalitiesList } from '@/components/admin/charts/modalities-list';
 import { TopUserLocationsList } from '@/components/admin/charts/top-user-locations-list';
+import { GenerationsChart } from '@/components/admin/charts/generations-chart';
+import { GenerationInsightsCard } from '@/components/admin/charts/generation-insights-card';
+import { BikeRangesChart } from '@/components/admin/charts/bike-ranges-chart';
+import { BikeProfileCard } from '@/components/admin/charts/bike-profile-card';
 import { Separator } from '@/components/ui/separator';
 
 // --- NUEVOS COMPONENTES COMBINADOS ---
 
-/**
- * Tarjeta consolidada que muestra el total de inscritos, los asistentes reales (check-in)
- * y el porcentaje de participación del evento.
- * AHORA INCLUYE: Visitas a la página y Tasa de Conversión.
- */
 function AttendanceSummaryCard({ total, checkedIn, rate, pageViews }: { total: number; checkedIn: number; rate: number; pageViews: number }) {
-    // Calcular tasa de conversión: (Inscritos / Visitas) * 100
-    // Si pageViews es 0, la tasa es 0 para evitar división por cero.
-    // Si pageViews es menor que total (ej. datos legados), capamos al 100% o mostramos real > 100%?
-    // Mostremos real, puede ser curioso ver >100% si hay registros manuales sin visita web.
     const conversionRate = pageViews > 0 ? ((total / pageViews) * 100).toFixed(1) : 0;
 
     return (
@@ -75,10 +70,6 @@ function AttendanceSummaryCard({ total, checkedIn, rate, pageViews }: { total: n
     );
 }
 
-/**
- * Tarjeta consolidada que muestra la edad promedio de los participantes y
- * desglosa la distribución de asistentes por rango de edad.
- */
 function DemographicsAgeCard({ averageAge, ageRanges, usersWithAge }: { averageAge: number; ageRanges: { name: string; value: number }[], usersWithAge: number }) {
     return (
         <Card className="h-full">
@@ -118,8 +109,6 @@ function DemographicsAgeCard({ averageAge, ageRanges, usersWithAge }: { averageA
     );
 }
 
-// --- COMPONENTE DE VISTA PRINCIPAL ---
-
 function StatCard({ title, value, icon: Icon, description }: any) {
     return (
         <Card>
@@ -148,7 +137,7 @@ export function EventAnalyticsView({ data, pageViews = 0 }: { data: EventAnalyti
         style: 'currency', currency: 'MXN'
     }).format(market.averageAssetValue);
 
-    // Adaptar datos para los componentes de gráficos reutilizados
+    // Adaptar datos para los componentes de gráficos
     const locationData = general.userLocations.map(item => ({ name: item.name, count: item.value }));
     const brandData = market.topBrands.map(item => ({ name: item.name, count: item.value }));
     const totalModalities = market.topModalities.reduce((sum, item) => sum + item.value, 0);
@@ -158,9 +147,34 @@ export function EventAnalyticsView({ data, pageViews = 0 }: { data: EventAnalyti
         percentage: totalModalities > 0 ? (item.value / totalModalities) * 100 : 0
     }));
 
+    // Generaciones
+    const genLabels: Record<string, string> = {
+        'gen_z': 'Gen Z',
+        'millennials': 'Millennials',
+        'gen_x': 'Gen X',
+        'boomers': 'Boomers'
+    };
+    const genData = Object.entries(general.generationsDistribution).map(([id, value]) => ({
+        name: genLabels[id] || id,
+        value
+    }));
+
+    const dominantGen = Object.entries(general.generationsDistribution).length > 0
+        ? Object.entries(general.generationsDistribution).reduce((a, b) => (a[1] > b[1] ? a : b))[0]
+        : 'unknown';
+
+    // NUEVO: Gamas de Bicicleta
+    const rangesData = Object.entries(market.rangesDistribution || {}).map(([name, value]) => ({
+        name, value
+    }));
+    
+    const dominantRange = Object.entries(market.rangesDistribution || {}).length > 0
+        ? Object.entries(market.rangesDistribution || {}).reduce((a, b) => (a[1] > b[1] ? a : b))[0]
+        : 'unknown';
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Sección: Indicadores Generales (Refactorizada) */}
+            {/* Sección: Indicadores Generales */}
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
@@ -181,6 +195,16 @@ export function EventAnalyticsView({ data, pageViews = 0 }: { data: EventAnalyti
                     />
                     <div className="lg:col-span-2">
                         <GenderDistributionChart data={general.genderDistribution} />
+                    </div>
+                </div>
+
+                {/* Perfiles Generacionales */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 pt-4">
+                     <div className="lg:col-span-1">
+                        <GenerationsChart data={genData} />
+                    </div>
+                    <div className="lg:col-span-2">
+                        <GenerationInsightsCard dominantGenerationId={dominantGen} />
                     </div>
                 </div>
 
@@ -214,12 +238,18 @@ export function EventAnalyticsView({ data, pageViews = 0 }: { data: EventAnalyti
                         />
                     </div>
                     
+                    {/* NUEVO: Distribución por Gama y Perfil */}
                     <div className="md:col-span-1">
-                        <TopBrandsList data={brandData} />
+                        <BikeRangesChart data={rangesData} />
                     </div>
                     <div className="md:col-span-1">
-                        <ModalitiesList data={modalityData} />
+                        <BikeProfileCard dominantRangeId={dominantRange} />
                     </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                    <TopBrandsList data={brandData} />
+                    <ModalitiesList data={modalityData} />
                 </div>
             </div>
         </div>

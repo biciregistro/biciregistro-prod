@@ -1,6 +1,8 @@
 import { adminDb } from '@/lib/firebase/server';
 import { unstable_cache } from 'next/cache';
 import { EventRegistration, User, Bike } from '@/lib/types';
+import { getGenerationId } from '@/lib/constants/generations';
+import { getBikeRangeId } from '@/lib/constants/bike-ranges'; // NUEVO IMPORT
 
 export interface EventAnalyticsData {
   general: {
@@ -12,12 +14,14 @@ export interface EventAnalyticsData {
     userLocations: { name: string; value: number }[];
     ageRanges: { name: string; value: number }[];
     usersWithAge: number; // NUEVO CAMPO: Total de usuarios con edad registrada
+    generationsDistribution: Record<string, number>; // NEW
   };
   market: {
     totalAssetValue: number;
     averageAssetValue: number;
     topBrands: { name: string; value: number }[];
     topModalities: { name: string; value: number }[];
+    rangesDistribution: Record<string, number>; // NUEVO CAMPO
   };
 }
 
@@ -37,10 +41,11 @@ export const getEventAnalytics = unstable_cache(
         return {
              general: { 
                  totalRegistrations: 0, checkedInCount: 0, attendanceRate: 0, 
-                 averageAge: 0, genderDistribution: [], userLocations: [], ageRanges: [], usersWithAge: 0
+                 averageAge: 0, genderDistribution: [], userLocations: [], ageRanges: [], 
+                 usersWithAge: 0, generationsDistribution: { 'gen_z': 0, 'millennials': 0, 'gen_x': 0, 'boomers': 0 }
              },
              market: { 
-                 totalAssetValue: 0, averageAssetValue: 0, topBrands: [], topModalities: [] 
+                 totalAssetValue: 0, averageAssetValue: 0, topBrands: [], topModalities: [], rangesDistribution: {}
              }
         };
       }
@@ -63,12 +68,6 @@ export const getEventAnalytics = unstable_cache(
 
       // 3. Fetch Bicicletas específicas del evento
       const bikes: Bike[] = [];
-      
-      // Optimizacion: Leer las bicicletas individualmente mediante un Promise.all controlado
-      // dado que no podemos filtrar fácilmente por un array de objetos {userId, bikeId} en Firestore
-      // y los bikeIds pueden pertenecer a diferentes usuarios.
-      // Asumimos la colección raiz 'bikes' según la investigación.
-      
       const bikePromises = bikeIds.map(async ({ bikeId }) => {
           const doc = await adminDb.collection('bikes').doc(bikeId).get();
           if (doc.exists) return doc.data() as Bike;
@@ -89,6 +88,9 @@ export const getEventAnalytics = unstable_cache(
       const locationCounts: Record<string, number> = {};
       const ageRangesCounts: Record<string, number> = {
           '18-24': 0, '25-34': 0, '35-44': 0, '45-54': 0, '55+': 0
+      };
+      const generationsDistribution: Record<string, number> = {
+          'gen_z': 0, 'millennials': 0, 'gen_x': 0, 'boomers': 0
       };
 
       users.forEach(u => {
@@ -112,6 +114,11 @@ export const getEventAnalytics = unstable_cache(
                 else if (age >= 35 && age <= 44) ageRangesCounts['35-44']++;
                 else if (age >= 45 && age <= 54) ageRangesCounts['45-54']++;
                 else if (age >= 55) ageRangesCounts['55+']++;
+
+                const genId = getGenerationId(u.birthDate);
+                if (genId !== 'unknown') {
+                    generationsDistribution[genId]++;
+                }
             }
         }
       });
@@ -137,6 +144,9 @@ export const getEventAnalytics = unstable_cache(
 
       const brandCounts: Record<string, number> = {};
       const modalityCounts: Record<string, number> = {};
+      const rangesDistribution: Record<string, number> = {
+          'entry': 0, 'mid': 0, 'mid_high': 0, 'high': 0, 'superbike': 0
+      };
 
       bikes.forEach(b => {
           const brand = b.make || 'Desconocida';
@@ -144,6 +154,14 @@ export const getEventAnalytics = unstable_cache(
 
           const modality = b.modality || 'Desconocida';
           modalityCounts[modality] = (modalityCounts[modality] || 0) + 1;
+
+          // NUEVO: Clasificación por Gama (Precio)
+          if (b.appraisedValue) {
+             const rangeId = getBikeRangeId(b.appraisedValue);
+             if (rangeId !== 'unknown') {
+                 rangesDistribution[rangeId] = (rangesDistribution[rangeId] || 0) + 1;
+             }
+          }
       });
 
       const topBrands = Object.entries(brandCounts)
@@ -165,13 +183,15 @@ export const getEventAnalytics = unstable_cache(
             genderDistribution,
             userLocations,
             ageRanges,
-            usersWithAge
+            usersWithAge,
+            generationsDistribution
         },
         market: {
             totalAssetValue,
             averageAssetValue,
             topBrands,
-            topModalities
+            topModalities,
+            rangesDistribution // RETORNAR DATA
         }
       };
 
@@ -180,6 +200,6 @@ export const getEventAnalytics = unstable_cache(
       return null;
     }
   },
-  ['event-analytics-v1'], 
+  ['event-analytics-v3'], 
   { revalidate: 3600 } // 1 hora de caché
 );

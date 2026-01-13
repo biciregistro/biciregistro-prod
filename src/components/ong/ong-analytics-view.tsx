@@ -17,6 +17,8 @@ import { TheftByModalityChart } from '@/components/admin/charts/theft-by-modalit
 import { TopTheftLocationsChart } from '@/components/admin/charts/top-theft-locations';
 import { ModalitiesList } from '@/components/admin/charts/modalities-list';
 import { TopUserLocationsList } from '@/components/admin/charts/top-user-locations-list';
+import { GenerationsChart } from '@/components/admin/charts/generations-chart';
+import { GenerationInsightsCard } from '@/components/admin/charts/generation-insights-card';
 
 // --- Local Helpers ---
 
@@ -71,6 +73,25 @@ const toModalityData = (record: Record<string, number>) => {
         .sort((a, b) => b.count - a.count);
 };
 
+const getDominantGeneration = (record: Record<string, number>) => {
+    const entries = Object.entries(record);
+    if (entries.length === 0) return 'unknown';
+    return entries.reduce((a, b) => (a[1] > b[1] ? a : b))[0];
+};
+
+const toGenData = (record: Record<string, number>) => {
+    const labels: Record<string, string> = {
+        'gen_z': 'Gen Z',
+        'millennials': 'Millennials',
+        'gen_x': 'Gen X',
+        'boomers': 'Boomers'
+    };
+    return Object.entries(record).map(([id, value]) => ({
+        name: labels[id] || id,
+        value
+    }));
+};
+
 // --- Main Component ---
 
 export default async function OngAnalyticsView() {
@@ -100,6 +121,7 @@ export default async function OngAnalyticsView() {
   }
 
   const { general, market, security } = data;
+  const dominantGen = getDominantGeneration(general.generationsDistribution);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -120,10 +142,23 @@ export default async function OngAnalyticsView() {
                 averageAge={general.averageAge} 
                 averageAgeByGender={general.averageAgeByGender} 
             />
-            {/* Gender Chart requires 'value' */}
             <GenderDistributionChart data={toValueData(general.genderDistribution)} />
-            {/* Location List requires 'count' */}
             <TopUserLocationsList data={toCountData(general.userLocations)} />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-2xl font-bold tracking-tight mb-4 text-primary flex items-center gap-2">
+            Perfiles Generacionales
+            <Badge variant="outline" className="text-[10px] uppercase">Nuevo</Badge>
+        </h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="lg:col-span-1">
+                <GenerationsChart data={toGenData(general.generationsDistribution)} />
+            </div>
+            <div className="lg:col-span-2">
+                <GenerationInsightsCard dominantGenerationId={dominantGen} />
+            </div>
         </div>
       </section>
 
@@ -153,4 +188,8 @@ export default async function OngAnalyticsView() {
       </section>
     </div>
   );
+}
+
+function Badge({ children, variant, className }: any) {
+    return <span className={`px-2 py-0.5 rounded text-xs font-medium ${variant === 'outline' ? 'border border-primary text-primary' : 'bg-primary text-primary-foreground'} ${className}`}>{children}</span>;
 }

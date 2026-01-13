@@ -2,7 +2,7 @@
 import { adminDb } from '@/lib/firebase/server';
 import { Bike, User } from '@/lib/types';
 import { unstable_cache } from 'next/cache';
-import { FieldPath } from 'firebase-admin/firestore';
+import { getGenerationId } from '@/lib/constants/generations';
 
 // Interface matching the needs of the UI components
 export interface OngAnalyticsData {
@@ -13,6 +13,7 @@ export interface OngAnalyticsData {
     genderDistribution: Record<string, number>;
     userLocations: Record<string, number>;
     averageAgeByGender: { gender: string; average: number }[];
+    generationsDistribution: Record<string, number>; // NEW
   };
   market: {
     assetValue: number;
@@ -65,6 +66,12 @@ export const getOngAnalytics = unstable_cache(
       const agesByGenderMap: Record<string, number[]> = {};
       const genderDistribution: Record<string, number> = {};
       const userLocations: Record<string, number> = {};
+      const generationsDistribution: Record<string, number> = {
+          'gen_z': 0,
+          'millennials': 0,
+          'gen_x': 0,
+          'boomers': 0
+      };
 
       users.forEach(u => {
           if (u.birthDate) {
@@ -76,6 +83,11 @@ export const getOngAnalytics = unstable_cache(
                       const gender = u.gender || 'No especificado';
                       if (!agesByGenderMap[gender]) agesByGenderMap[gender] = [];
                       agesByGenderMap[gender].push(age);
+                      
+                      const genId = getGenerationId(u.birthDate);
+                      if (genId !== 'unknown') {
+                          generationsDistribution[genId]++;
+                      }
                   }
               }
           }
@@ -137,7 +149,10 @@ export const getOngAnalytics = unstable_cache(
       }, {} as Record<string, number>);
 
       return {
-        general: { totalUsers, totalBikes, averageAge, genderDistribution, userLocations, averageAgeByGender },
+        general: { 
+            totalUsers, totalBikes, averageAge, genderDistribution, userLocations, 
+            averageAgeByGender, generationsDistribution 
+        },
         market: { assetValue, averageValue, topBrands, modalities },
         security: { 
             counts: { safe: safeBikes, stolen: stolenBikes.length, recovered: recoveredBikes.length },
@@ -153,6 +168,6 @@ export const getOngAnalytics = unstable_cache(
       return null;
     }
   },
-  ['ong-analytics-v3'], // Updated Cache key
+  ['ong-analytics-v4'], // Updated Cache key
   { revalidate: 3600 }
 );
