@@ -12,6 +12,7 @@ import { PaymentStatusHandler } from '@/components/payment-status-handler';
 import { SponsorsCarousel } from '@/components/shared/sponsors-carousel';
 import { PaymentTimerBanner } from '@/components/dashboard/payment-timer-banner';
 import { FloatingPaymentButton } from '@/components/dashboard/floating-payment-button';
+import { EventCategoryDisplay } from '@/components/dashboard/event-category-display';
 import { cn } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 
@@ -44,7 +45,7 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
   const userBikes = await getBikes(user.id);
 
   const tier = event.costTiers?.find(t => t.id === registration.tierId);
-  const category = event.categories?.find(c => c.id === registration.categoryId);
+  
   // Find selected Jersey if any
   let jerseyConfig = undefined;
   if (event.hasJersey && registration.jerseyModel && event.jerseyConfigs) {
@@ -52,10 +53,9 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
   }
 
   const tierName = tier ? tier.name : (event.costType === 'Gratuito' ? 'Gratuito' : 'N/A');
-  const categoryName = category ? category.name : 'N/A';
   const price = tier ? tier.price : 0;
 
-  const whatsappMessage = `Hola Soy ${user.name}, me inscribí al evento ${event.name}, en la categoría ${categoryName} y en el nivel ${tierName}. Tengo una duda.`;
+  const whatsappMessage = `Hola Soy ${user.name}, me inscribí al evento ${event.name}, tengo una duda.`;
   const whatsappUrl = ongProfile?.contactWhatsapp 
     ? `https://wa.me/${ongProfile.contactWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(whatsappMessage)}`
     : '#';
@@ -253,7 +253,13 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                                 </div>
                                 <div>
                                     <p className="text-[10px] text-muted-foreground font-bold uppercase mb-0.5">Categoría</p>
-                                    <p className="font-bold text-sm">{categoryName}</p>
+                                    {/* NUEVO COMPONENTE: Selector de Categoría y Hora de Salida */}
+                                    <EventCategoryDisplay 
+                                        registrationId={registration.id}
+                                        currentCategoryId={registration.categoryId}
+                                        availableCategories={event.categories}
+                                        isEditable={!isFinished && event.hasCategories}
+                                    />
                                 </div>
                             </div>
                         </div>
