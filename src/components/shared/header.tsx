@@ -30,7 +30,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const navLinks = [
   { href: '/', label: 'Inicio', auth: false },
-  { href: '/events', label: 'Eventos', auth: false }, // Nuevo enlace a Eventos
+  { href: '/events', label: 'Eventos', auth: false },
   { href: '/search', label: 'Buscar Bicis', auth: false },
 ];
 
@@ -40,6 +40,12 @@ function UserNavLinks({ user }: { user: UserType }) {
 
     return (
         <>
+            <DropdownMenuItem asChild>
+                <Link href="/events" className="font-medium text-primary">
+                    Próximos Eventos
+                </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
                 <Link href={dashboardHome}>
                     {user.role === 'ciclista' ? 'Mi Garaje' : 'Panel de Control'}

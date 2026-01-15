@@ -54,16 +54,20 @@ function LoginFormContent() {
 
             toast({ title: "¡Éxito!", description: "Has iniciado sesión correctamente." });
 
+            // Robust redirect strategy: Use window.location.href to avoid Next.js router client-side transition hangs
+            // caused by potential chunk loading errors or hydration mismatches.
+            let targetUrl = '/dashboard';
+            
             if (callbackUrl) {
-                router.push(callbackUrl);
+                targetUrl = callbackUrl;
             } else if (sessionData.isAdmin) {
-                router.push('/admin');
+                targetUrl = '/admin';
             } else if (sessionData.isOng) {
-                router.push('/dashboard/ong');
+                targetUrl = '/dashboard/ong';
             }
-            else {
-                router.push('/dashboard');
-            }
+            
+            // Force browser navigation
+            window.location.href = targetUrl;
 
         } catch (error: any) {
             console.error("Login failed:", error);
@@ -71,7 +75,6 @@ function LoginFormContent() {
                 ? 'Credenciales no válidas. Por favor, revisa tu correo y contraseña.'
                 : error.message || 'Ocurrió un error inesperado.';
             setError(errorMessage);
-        } finally {
             setIsLoading(false);
         }
     };
