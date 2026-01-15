@@ -30,6 +30,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const navLinks = [
   { href: '/', label: 'Inicio', auth: false },
+  { href: '/events', label: 'Eventos', auth: false }, // Nuevo enlace a Eventos
   { href: '/search', label: 'Buscar Bicis', auth: false },
 ];
 
@@ -53,7 +54,7 @@ function UserNavLinks({ user }: { user: UserType }) {
             {user.role === 'ciclista' && (
                 <>
                     <DropdownMenuItem asChild>
-                        <Link href="/dashboard?tab=events">Mis Eventos</Link>
+                        <Link href="/dashboard?tab=events">Mis Inscripciones</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                         <Link href="/dashboard/register">Registrar Bici</Link>
@@ -115,6 +116,11 @@ export function Header({ user }: { user: UserType | null }) {
                     </div>
                 ) : user ? (
                     <div className="flex items-center gap-4">
+                        {/* Botón explícito hacia Eventos para usuarios logueados, adicional al nav */}
+                        <Button asChild variant="ghost" className="hidden lg:inline-flex">
+                            <Link href="/events">Explorar Eventos</Link>
+                        </Button>
+
                         <Button asChild className="hidden md:inline-flex">
                             <Link href={dashboardHome}>Panel</Link>
                         </Button>
