@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 
 import {
     updateHomepageSectionData,
@@ -23,7 +24,9 @@ import { deleteSession, getDecodedSession } from './auth';
 import { ActionFormState, HomepageSection, Event, PaymentStatus, BikeFormState } from './types';
 import { userFormSchema, ongUserFormSchema, financialSettingsSchema } from './schemas';
 import { adminAuth } from './firebase/server';
-import { sendWelcomeEmail } from './email/resend-service'; // Importar el servicio de correo
+import { sendWelcomeEmail } from './email/resend-service';
+import { processReferral } from './actions/referral-actions';
+import { REFERRAL_COOKIE_NAME } from './gamification/constants';
 
 // Import implementations from bike-actions
 import { 
@@ -38,7 +41,6 @@ import {
 } from './actions/bike-actions';
 
 // --- WRAPPERS FOR BIKE ACTIONS ---
-// Necessary to satisfy 'use server' re-export limitations
 
 export async function registerBike(prevState: BikeFormState, formData: FormData) {
     return registerBikeImpl(prevState, formData);
@@ -89,7 +91,6 @@ const featureItemSchema = z.object({
     imageUrl: z.string().url('La URL de la imagen no es válida'),
 });
 
-// Helper to ensure dates are saved as ISO YYYY-MM-DD
 const normalizeDateToISO = (dateStr: string | undefined): string | undefined => {
     if (!dateStr) return dateStr;
     if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
@@ -150,7 +151,21 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
 
         await createFirestoreUser(cleanUserData as any);
 
-        // Send welcome email (fire-and-forget)
+        // --- REFERRAL SYSTEM INTEGRATION ---
+        try {
+            const cookieStore = await cookies();
+            const referralCode = cookieStore.get(REFERRAL_COOKIE_NAME)?.value;
+            
+            if (referralCode) {
+                // Process the referral logic (update referrer stats, link users)
+                // We await this to ensure it runs within the function execution time limit
+                await processReferral(referralCode, userRecord.uid);
+            }
+        } catch (refError) {
+            console.error("[Signup] Referral processing error (non-blocking):", refError);
+        }
+        // -----------------------------------
+
         sendWelcomeEmail({ name: name, email: email })
             .catch(err => console.error("Failed to send welcome email:", err));
         
@@ -215,7 +230,6 @@ export async function createOngUser(prevState: ActionFormState, formData: FormDa
             createdAt: new Date().toISOString(),
         });
 
-        // Send a welcome email for ONGs too, can be a different template in the future
         sendWelcomeEmail({ name: organizationName, email: email })
             .catch(err => console.error("Failed to send welcome email to ONG:", err));
 

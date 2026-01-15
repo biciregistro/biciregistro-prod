@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { FeedbackButton } from "@/components/shared/feedback-button";
 import { InstallPrompt } from "@/components/shared/install-prompt";
 import { GoogleAnalytics } from "@/components/shared/google-analytics";
+import { ReferralTracker } from '@/components/shared/referral-tracker';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default function RootLayout({
         {/* Next.js inyectará automáticamente el link al manifest generado por src/app/manifest.ts */}
       </head>
       <body className="antialiased min-h-screen flex flex-col">
+        <ReferralTracker />
         {children}
         <InstallPrompt />
         <FeedbackButton />

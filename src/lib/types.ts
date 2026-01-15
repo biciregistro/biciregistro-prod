@@ -1,3 +1,5 @@
+import { GamificationProfile } from './gamification/gamification-types';
+
 export type BikeStatus = 'safe' | 'stolen' | 'in_transfer' | 'recovered';
 
 export type Bike = {
@@ -62,6 +64,11 @@ export type User = {
   allergies?: string; // New field for medical allergies
   // HU-02: FCM Tokens for Push Notifications
   fcmTokens?: string[];
+
+  // --- Gamification & Referral System (Feature: Gamification Infrastructure) ---
+  referralCode?: string; // Código único (nanoid 7 chars)
+  referredBy?: string;   // UID del usuario que lo invitó
+  gamification?: GamificationProfile; // Perfil extensible de logros y stats
 };
 
 export type OngUser = {
