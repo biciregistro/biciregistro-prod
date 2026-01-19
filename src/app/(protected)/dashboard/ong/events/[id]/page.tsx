@@ -14,6 +14,7 @@ import { EventStatusBadge } from '@/components/ong/event-status-badge';
 import { AttendeeManagement } from '@/components/ong/attendee-management';
 import { EventFinancialSummary } from '@/components/ong/event-financial-summary';
 import { EventAnalyticsView } from '@/components/ong/event-analytics-view';
+import { EventShareMenu } from '@/components/dashboard/event-share-menu';
 
 export default async function EventDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -73,6 +74,13 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
             {!isFinished && (
                 <EventStatusButton eventId={event.id} currentStatus={event.status} />
             )}
+
+            {/* Nuevo Botón de Compartir en la cabecera */}
+            <EventShareMenu 
+                eventName={event.name}
+                eventDate={event.date}
+                eventUrl={publicUrl}
+            />
             
             <Button variant="outline" asChild className="flex-1 md:flex-none">
                 <Link href={`/events/${event.id}`} target="_blank">
@@ -150,12 +158,19 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
                       <CardTitle className="text-sm font-medium">Compartir</CardTitle>
                       <Share2 className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-3">
                       <div className="flex items-center gap-2">
                           <div className="text-xs text-muted-foreground truncate flex-1 bg-muted p-1 rounded">
                               {publicUrl}
                           </div>
                           <CopyButton textToCopy={publicUrl} />
+                      </div>
+                      <div className="pt-2">
+                        <EventShareMenu 
+                            eventName={event.name}
+                            eventDate={event.date}
+                            eventUrl={publicUrl}
+                        />
                       </div>
                   </CardContent>
               </Card>

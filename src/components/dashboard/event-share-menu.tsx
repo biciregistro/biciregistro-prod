@@ -1,0 +1,146 @@
+"use client"
+
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Share2, Facebook, Link as LinkIcon, Instagram, MessageCircle, Twitter } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
+
+interface EventShareMenuProps {
+  eventName: string
+  eventDate: Date | string
+  eventUrl: string
+}
+
+export function EventShareMenu({ eventName, eventDate, eventUrl }: EventShareMenuProps) {
+  
+  // Formatear fecha para el texto de manera segura
+  const formatDate = (dateInput: Date | string) => {
+    try {
+      const dateObj = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+      // Verificar si la fecha es válida
+      if (isNaN(dateObj.getTime())) return "Fecha por confirmar";
+      
+      // Forzamos la zona horaria a Ciudad de México para evitar que se muestre en UTC o en la hora local del usuario si es diferente
+      return dateObj.toLocaleDateString('es-MX', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/Mexico_City'
+      });
+    } catch (e) {
+      return "Próximamente";
+    }
+  }
+
+  const formattedDate = formatDate(eventDate);
+
+  // Texto optimizado para compartir
+  const shareText = `🚴 ¡No te pierdas este evento!\n\n🏆 ${eventName}\n📅 ${formattedDate}\n\n👉 Regístrate aquí: ${eventUrl}\n\n#Biciregistro #Ciclismo`;
+
+  const handleNativeShare = async () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: eventName,
+          text: shareText,
+          url: eventUrl,
+        })
+      } catch (error) {
+        console.error("Error compartiendo:", error)
+      }
+    } else {
+      handleCopyLink()
+    }
+  }
+
+  const handleFacebookShare = () => {
+    // Facebook usa og:image de la web
+    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(eventUrl)}`
+    window.open(url, '_blank', 'width=600,height=400')
+  }
+  
+  const handleTwitterShare = () => {
+    const text = `¡Participa en ${eventName}! 🚴‍♂️\n📅 ${formattedDate}\n📍 Regístrate aquí:`;
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(eventUrl)}&hashtags=Ciclismo,Biciregistro`;
+    window.open(url, '_blank', 'width=600,height=400')
+  }
+
+  const handleWhatsAppShare = () => {
+    const url = `https://wa.me/?text=${encodeURIComponent(shareText)}`
+    window.open(url, '_blank')
+  }
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(eventUrl)
+    toast({
+      title: "Enlace copiado",
+      description: "El enlace al evento ha sido copiado al portapapeles.",
+    })
+  }
+
+  const handleCopyForInstagram = () => {
+    navigator.clipboard.writeText(shareText)
+    toast({
+      title: "Texto copiado",
+      description: "Pega este texto en tu historia o post de Instagram.",
+    })
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2 h-9">
+          <Share2 className="h-4 w-4" />
+          <span className="hidden sm:inline">Compartir</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Difundir Evento</DropdownMenuLabel>
+        
+        <DropdownMenuItem onClick={handleNativeShare} className="cursor-pointer md:hidden">
+          <Share2 className="mr-2 h-4 w-4" />
+          <span>Compartir (Móvil)</span>
+        </DropdownMenuItem>
+        
+        <DropdownMenuSeparator className="md:hidden" />
+
+        <DropdownMenuItem onClick={handleWhatsAppShare} className="cursor-pointer">
+          <MessageCircle className="mr-2 h-4 w-4" />
+          <span>WhatsApp</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem onClick={handleFacebookShare} className="cursor-pointer">
+          <Facebook className="mr-2 h-4 w-4" />
+          <span>Facebook</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem onClick={handleTwitterShare} className="cursor-pointer">
+            <Twitter className="mr-2 h-4 w-4" />
+            <span>X (Twitter)</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem onClick={handleCopyForInstagram} className="cursor-pointer">
+          <Instagram className="mr-2 h-4 w-4" />
+          <span>Copiar para Instagram</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem onClick={handleCopyLink} className="cursor-pointer">
+          <LinkIcon className="mr-2 h-4 w-4" />
+          <span>Copiar Enlace</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
