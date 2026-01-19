@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Share2, Facebook, Link as LinkIcon, Instagram, MessageCircle, AlertTriangle, Download } from "lucide-react"
+import { Share2, Facebook, Link as LinkIcon, Instagram, MessageCircle, AlertTriangle } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { Bike, User } from "@/lib/types"
 
@@ -103,8 +103,8 @@ Link de la bicicleta: ${bikeUrl}
     });
 
     try {
-      // 2. Descargar Imagen usando ruta relativa para evitar errores CORS
-      const imageUrl = getOgImageUrl(true); // <--- CORRECCIÓN: Usar true para obtener ruta relativa
+      // 2. Descargar Imagen usando ruta relativa
+      const imageUrl = getOgImageUrl(true);
       const response = await fetch(imageUrl);
       
       if (!response.ok) throw new Error('Error de red al obtener imagen');
@@ -119,15 +119,26 @@ Link de la bicicleta: ${bikeUrl}
       link.click();
       document.body.removeChild(link);
 
-      // 3. Abrir Instagram (Delay para permitir descarga)
+      // 3. Abrir Instagram con lógica de Intención Nativa (Deep Links)
       setTimeout(() => {
-         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-         if (isMobile) {
-             window.location.href = "instagram://camera"; 
+         const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+         const isAndroid = /android/i.test(userAgent);
+         const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+
+         if (isAndroid) {
+             // Intent de Android: fuerza la apertura en la app de Instagram
+             window.location.href = "intent://instagram.com/#Intent;package=com.instagram.android;scheme=https;end";
+         } else if (isIOS) {
+             // Esquema iOS directo
+             window.location.href = "instagram://app";
+             // Fallback web si el esquema falla después de 2 segundos
              setTimeout(() => {
-                 window.open("https://www.instagram.com/", '_blank');
+                if (document.hasFocus()) {
+                    window.open("https://www.instagram.com/", '_blank');
+                }
              }, 2000);
          } else {
+             // Desktop
              window.open("https://www.instagram.com/", '_blank');
          }
          
@@ -144,7 +155,6 @@ Link de la bicicleta: ${bikeUrl}
         title: "Error",
         description: "No pudimos descargar la imagen automáticamente. Intenta tomar una captura.",
       });
-      // Aún así abrimos Instagram
       window.open("https://www.instagram.com/", '_blank');
     }
   }
