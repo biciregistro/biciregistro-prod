@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const reward = searchParams.get('reward');
     const location = searchParams.get('location');
     
-    // URL base para el logo (Asumimos que el usuario subirá logo-white-bg.png)
+    // URL base para el logo
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
     const logoUrl = `${baseUrl}/logo-white-bg.png`;
 
@@ -38,13 +38,13 @@ export async function GET(request: NextRequest) {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'flex-start', // Cambiado a flex-start para controlar mejor el flujo vertical
+            justifyContent: 'flex-start',
             background: bgGradient,
             color: 'white',
             fontFamily: 'sans-serif',
             position: 'relative',
             overflow: 'hidden',
-            paddingTop: 40, // Padding superior fijo
+            paddingTop: 30, // Reducido un poco para aprovechar espacio
           }}
         >
           {/* Marco de Alerta */}
@@ -63,33 +63,55 @@ export async function GET(request: NextRequest) {
             />
           )}
 
-          {/* Header Compacto */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20, zIndex: 2 }}>
-            <h1
-              style={{
-                fontSize: 70, // Reducido un poco para ganar espacio
-                fontWeight: 900,
-                margin: 0,
-                color: isStolen ? '#fca5a5' : '#e2e8f0',
-                textTransform: 'uppercase',
-                lineHeight: 1,
-                textShadow: '0 4px 8px rgba(0,0,0,0.5)',
-              }}
-            >
-              {titleText}
-            </h1>
-            <p style={{ fontSize: 20, color: '#94a3b8', margin: '5px 0 0 0', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
-              {subtitleText}
-            </p>
+          {/* CABECERA NUEVA: Título + Logo alineados */}
+          <div style={{ 
+              display: 'flex', 
+              flexDirection: 'row', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              marginBottom: 15, 
+              zIndex: 2,
+              gap: 30, // Espacio entre texto y logo
+              width: '90%' // Ancho contenido para no pegar a bordes
+          }}>
+            {/* Texto Header */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <h1
+                style={{
+                    fontSize: 70,
+                    fontWeight: 900,
+                    margin: 0,
+                    color: isStolen ? '#fca5a5' : '#e2e8f0',
+                    textTransform: 'uppercase',
+                    lineHeight: 0.9,
+                    textShadow: '0 4px 8px rgba(0,0,0,0.5)',
+                }}
+                >
+                {titleText}
+                </h1>
+                <p style={{ fontSize: 20, color: '#94a3b8', margin: '5px 0 0 5px', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 'bold' }}>
+                {subtitleText}
+                </p>
+            </div>
+
+            {/* Logo BiciRegistro (Alineado a la derecha del título) */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src={logoUrl}
+                alt="BiciRegistro"
+                width="120" // Un poco más grande para destacar en cabecera
+                height="120"
+                style={{ objectFit: 'contain' }}
+            />
           </div>
 
-          {/* Imagen de la Bici (Ajustada para dejar espacio abajo) */}
+          {/* Imagen de la Bici */}
           <div
             style={{
               display: 'flex',
               position: 'relative',
-              width: 750, // Reducido ancho
-              height: 380, // Reducido alto (antes 400)
+              width: 800, // Recuperamos un poco de ancho (antes 750) ya que ganamos altura quitando footer
+              height: 420, // Recuperamos altura (antes 380)
               borderRadius: 16,
               overflow: 'hidden',
               boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
@@ -98,7 +120,7 @@ export async function GET(request: NextRequest) {
               zIndex: 2,
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: 20, // Espacio antes del footer
+              marginBottom: 10,
             }}
           >
             {image ? (
@@ -125,63 +147,39 @@ export async function GET(request: NextRequest) {
                   left: 0,
                   right: 0,
                   background: 'rgba(220, 38, 38, 0.95)',
-                  padding: '8px 0',
+                  padding: '10px 0',
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
                 }}
               >
-                <span style={{ fontSize: 36, fontWeight: 'bold', color: 'white', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: 40, fontWeight: 'bold', color: 'white', textTransform: 'uppercase' }}>
                   RECOMPENSA: ${reward}
                 </span>
               </div>
             )}
           </div>
 
-          {/* Footer Info (Ajustado para no cortarse) */}
+          {/* Footer Info Simplificado (Marca/Modelo/Lugar) */}
           <div style={{ 
               display: 'flex', 
               width: '100%', 
               justifyContent: 'center', 
               gap: 40, 
               zIndex: 2,
-              paddingBottom: 30 // Espacio inferior seguro
+              paddingBottom: 20 
           }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span style={{ color: '#cbd5e1', fontSize: 16, textTransform: 'uppercase' }}>Marca</span>
-              <span style={{ fontSize: 28, fontWeight: 'bold' }}>{brand}</span>
+              <span style={{ color: '#cbd5e1', fontSize: 16, textTransform: 'uppercase' }}>Bicicleta</span>
+              <span style={{ fontSize: 24, fontWeight: 'bold' }}>{brand} {model}</span>
             </div>
-            {model && (
-               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <span style={{ color: '#cbd5e1', fontSize: 16, textTransform: 'uppercase' }}>Modelo</span>
-                <span style={{ fontSize: 28, fontWeight: 'bold' }}>{model}</span>
-              </div>
-            )}
              {isStolen && location && (
                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <span style={{ color: '#cbd5e1', fontSize: 16, textTransform: 'uppercase' }}>Visto en</span>
-                <span style={{ fontSize: 28, fontWeight: 'bold', color: '#fca5a5' }}>{location}</span>
+                <span style={{ color: '#cbd5e1', fontSize: 16, textTransform: 'uppercase' }}>Ubicación</span>
+                <span style={{ fontSize: 24, fontWeight: 'bold', color: '#fca5a5' }}>{location}</span>
               </div>
             )}
           </div>
-          
-          {/* Logo Branding - Ajustado para no superponerse */}
-           <div style={{ 
-               position: 'absolute', 
-               bottom: 20, 
-               right: 25, 
-               display: 'flex', 
-               zIndex: 10,
-           }}>
-             {/* eslint-disable-next-line @next/next/no-img-element */}
-             <img
-               src={logoUrl}
-               alt="BiciRegistro"
-               width="100"
-               height="100"
-               style={{ objectFit: 'contain' }}
-             />
-           </div>
         </div>
       ),
       {
