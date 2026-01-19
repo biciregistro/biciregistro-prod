@@ -1,8 +1,8 @@
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
-import { getAuthenticatedUser, getHomepageData, getUsers, getOngUsers, getEventsByOngId } from '@/lib/data';
+import { getAuthenticatedUser, getHomepageData, getUsers, getOngUsers, getEventsByOngId, getAllStolenBikes } from '@/lib/data';
 import { getFinancialSettings, getAllEventsForAdmin } from '@/lib/financial-data';
-import { getLandingEventsContent } from '@/lib/data/landing-events-data'; // Import the new data fetcher
+import { getLandingEventsContent } from '@/lib/data/landing-events-data'; 
 import type { HomepageSection, DashboardFilters, LandingEventsContent } from '@/lib/types';
 import { AdminDashboardTabs } from '@/components/admin-dashboard-tabs';
 import { StatsTabContent } from '@/components/admin/stats-tab-content';
@@ -33,23 +33,25 @@ export default async function AdminPage({
   const query = typeof resolvedSearchParams['query'] === 'string' ? resolvedSearchParams['query'] : undefined;
   const pageToken = typeof resolvedSearchParams['pageToken'] === 'string' ? resolvedSearchParams['pageToken'] : undefined;
 
-  // Parallel data fetching including the new landing page content
+  // Parallel data fetching
   const [
     homepageData, 
-    landingEventsContent, // Fetch new data
+    landingEventsContent, 
     usersData, 
     ongs, 
     adminEvents, 
     financialSettings, 
-    allEvents
+    allEvents,
+    stolenBikes // NUEVO: Obtener todas las bicis robadas
   ] = await Promise.all([
     getHomepageData(),
-    getLandingEventsContent(), // Call the new function
+    getLandingEventsContent(), 
     getUsers({ query, pageToken }),
     getOngUsers(),
     getEventsByOngId(user.id),
     getFinancialSettings(),
     getAllEventsForAdmin(),
+    getAllStolenBikes(),
   ]);
 
   const { users, nextPageToken } = usersData;
@@ -75,13 +77,14 @@ export default async function AdminPage({
         <AdminDashboardTabs 
           initialTab={initialTab}
           homepageSections={homepageSections} 
-          landingEventsContent={landingEventsContent} // Pass the new data to the component
+          landingEventsContent={landingEventsContent} 
           users={users} 
           nextPageToken={nextPageToken} 
           ongs={ongs}
           events={adminEvents}
           financialSettings={financialSettings}
           allEvents={allEvents}
+          stolenBikes={stolenBikes} // NUEVO: Pasar datos
           statsContent={
             <Suspense key={JSON.stringify(filters)} fallback={<Skeleton className="h-[400px] w-full" />}>
               <StatsTabContent filters={filters} />

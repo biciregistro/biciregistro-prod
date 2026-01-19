@@ -15,13 +15,9 @@ import {
     convertEventTimestamps 
 } from './data/core';
 
-// Re-export core functions to maintain public API and resolve circular dependencies
 export { getUser, getEvent, getBike };
 
-// Export from sub-modules to keep this file clean
 export { registerUserToEvent, getEventAttendees } from './data/event-registration-data';
-
-// --- Helper Functions ---
 
 const normalizeSerialNumber = (serial: string): string => {
     return serial.replace(/[\s-]+/g, '').toUpperCase();
@@ -62,8 +58,6 @@ export async function isSerialNumberUnique(serial: string, excludeBikeId?: strin
     return false;
 }
 
-// --- User Management ---
-
 export async function getAuthenticatedUser(): Promise<User | null> {
     const session = await getDecodedSession();
     if (!session?.uid) return null;
@@ -79,31 +73,21 @@ export async function getAuthenticatedUser(): Promise<User | null> {
         const userRole = (session.role as UserRole) || 'ciclista';
 
         if (userRole === 'ong') {
-            // FIX: Self-healing logic for old ONG profiles.
-            // If the user document doesn't exist but the user is an ONG,
-            // try to fetch the profile from 'ong-profiles' and recreate the 'users' doc.
             const ongProfile = await getOngProfile(session.uid);
             
             if (ongProfile) {
-                console.log(`[Self-Healing] Creating missing 'users' doc for ONG: ${session.uid}`);
-                
                 const recoveredUser: User = {
                     id: firebaseUser.uid,
                     email: firebaseUser.email!,
-                    name: ongProfile.organizationName, // Use the correct name from profile
-                    lastName: '', // ONGs usually don't have last names in this context
+                    name: ongProfile.organizationName, 
+                    lastName: '', 
                     role: 'ong',
                     avatarUrl: ongProfile.logoUrl,
                     createdAt: new Date().toISOString(),
                 };
-                
-                // Save the recovered document
                 await db.collection('users').doc(recoveredUser.id).set(recoveredUser);
-                
                 return recoveredUser;
             }
-            
-            // Fallback for completely broken state (should happen rarely)
             const tempUser: User = {
                 id: firebaseUser.uid,
                 email: firebaseUser.email!,
@@ -175,7 +159,6 @@ export async function updateUserData(userId: string, data: Partial<Omit<User, 'i
     }
 }
 
-// --- ONG / Community Management ---
 export async function getOngProfile(id: string): Promise<Omit<OngUser, 'email' | 'role'> | null> {
     try {
         const db = adminDb;
@@ -203,7 +186,6 @@ export async function getOngFollowersCount(ongId: string): Promise<number> {
     }
 }
 
-// --- Admin User Management ---
 export async function getUsers({
   query,
   maxResults = 100,
@@ -264,7 +246,6 @@ export async function getOngUsers(): Promise<OngUser[]> {
     }
 }
 
-// --- Bike Management ---
 export async function getBikes(userId: string): Promise<Bike[]> {
     if (!userId) return [];
     const db = adminDb;
@@ -282,6 +263,37 @@ export async function getBikeBySerial(serial: string): Promise<Bike | null> {
     if (snapshot.empty) return null;
     const doc = snapshot.docs[0];
     return { id: doc.id, ...convertBikeTimestamps(doc.data()) } as Bike;
+}
+
+// NUEVA FUNCIÓN PARA ADMIN: Obtener todas las bicicletas robadas con sus dueños
+export async function getAllStolenBikes(): Promise<(Bike & { owner?: User })[]> {
+    try {
+        const db = adminDb;
+        const snapshot = await db.collection('bikes')
+            .where('status', '==', 'stolen')
+            .get();
+        
+        if (snapshot.empty) return [];
+
+        const bikes = snapshot.docs.map(doc => ({ id: doc.id, ...convertBikeTimestamps(doc.data()) } as Bike));
+        
+        // Adjuntar datos del dueño para cada bici (en paralelo)
+        const bikesWithOwners = await Promise.all(bikes.map(async (bike) => {
+            const owner = await getUser(bike.userId);
+            return { ...bike, owner: owner || undefined };
+        }));
+
+        // Ordenar por fecha de robo (descendente)
+        return bikesWithOwners.sort((a, b) => {
+            const dateA = a.theftReport?.date ? new Date(a.theftReport.date).getTime() : 0;
+            const dateB = b.theftReport?.date ? new Date(b.theftReport.date).getTime() : 0;
+            return dateB - dateA;
+        });
+
+    } catch (error) {
+        console.error("Error fetching all stolen bikes:", error);
+        return [];
+    }
 }
 
 export async function getAllBikeSerials(): Promise<string[]> {
@@ -327,7 +339,6 @@ export async function updateBikeStatus(bikeId: string, status: BikeStatus, theft
     await db.collection('bikes').doc(bikeId).update(updateData);
 }
 
-// --- Event Management ---
 export async function getEventsByOngId(ongId: string): Promise<Event[]> {
     if (!ongId) return [];
     const db = adminDb;
@@ -365,7 +376,6 @@ export async function incrementEventPageView(eventId: string) {
     });
 }
 
-// --- Homepage Content Management ---
 export async function getHomepageData(): Promise<{ [key: string]: HomepageSection }> {
     const db = adminDb;
     const snapshot = await db.collection('homepage').get();
@@ -379,12 +389,9 @@ export async function getHomepageData(): Promise<{ [key: string]: HomepageSectio
         sectionsFromDb[doc.id] = doc.data();
     });
 
-    // Merge DB data on top of defaults to ensure new sections are included
     const mergedData = { ...defaultHomepageData };
     for (const key in sectionsFromDb) {
         if (Object.prototype.hasOwnProperty.call(mergedData, key)) {
-            // Shallow merge is not enough for sections with arrays like 'features' or 'items'
-            // We need to merge them correctly.
             const dbSection = sectionsFromDb[key];
             const defaultSection = mergedData[key];
             mergedData[key] = { ...defaultSection, ...dbSection } as HomepageSection;
@@ -402,7 +409,6 @@ export async function updateHomepageSectionData(data: HomepageSection) {
     await db.collection('homepage').doc(id).set(sectionData, { merge: true });
 }
 
-// --- Event Registration ---
 export async function getUserRegistrationForEvent(userId: string, eventId: string): Promise<any | null> {
     if (!userId || !eventId) return null;
     try {
@@ -573,7 +579,6 @@ export async function getUserEventRegistrations(userId: string): Promise<UserEve
     }
 }
 
-// MODIFIED: This function will now ONLY fetch DIRECT members.
 export async function getOngCommunityMembers(ongId: string): Promise<any[]> {
     if (!ongId) return [];
     try {

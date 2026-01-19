@@ -7,36 +7,39 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HomepageEditor, UsersTable, OngUsersTable } from '@/components/admin-components';
 import { FinancialSettingsForm } from '@/components/admin/financial-settings-form';
 import { AdminEventFinancialList } from '@/components/admin/admin-event-financial-list';
-import { HomepageSection, User, OngUser, Event, FinancialSettings, LandingEventsContent } from '@/lib/types';
+import { HomepageSection, User, OngUser, Event, FinancialSettings, LandingEventsContent, Bike } from '@/lib/types';
 import { EventCard } from '@/components/ong/event-card';
-import { UserPlus, CalendarPlus } from 'lucide-react';
+import { UserPlus, CalendarPlus, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardFilterBar } from '@/components/admin/dashboard-filter-bar';
 import { NotificationComposer } from '@/components/admin/notifications/notification-composer';
 import { LandingEventsEditor } from './admin/landing-editor/landing-events-editor';
+import { StolenBikesList } from './admin/stolen-bikes-list';
 
 interface AdminDashboardTabsProps {
   homepageSections: HomepageSection[];
-  landingEventsContent: LandingEventsContent; // Added prop
+  landingEventsContent: LandingEventsContent;
   users: User[];
   nextPageToken?: string;
   ongs: OngUser[];
   events: Event[];
   financialSettings: FinancialSettings;
-  allEvents: any[]; // Relaxed type to accept AdminEventFinancialView
+  allEvents: any[];
+  stolenBikes: (Bike & { owner?: User })[]; // Nuevo prop
   statsContent: React.ReactNode;
   initialTab?: string;
 }
 
 function AdminDashboardTabsContent({ 
   homepageSections, 
-  landingEventsContent, // Added prop
+  landingEventsContent,
   users, 
   nextPageToken, 
   ongs, 
   events, 
   financialSettings, 
   allEvents,
+  stolenBikes, // Nuevo prop
   statsContent,
   initialTab = 'stats'
 }: AdminDashboardTabsProps) {
@@ -62,7 +65,6 @@ function AdminDashboardTabsContent({
     setActiveTab(value);
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', value);
-    // Reset subtab when changing main tabs
     params.delete('subtab'); 
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
@@ -77,8 +79,12 @@ function AdminDashboardTabsContent({
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-      <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7 mb-8 h-auto">
+      <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8 mb-8 h-auto">
         <TabsTrigger value="stats">Indicadores</TabsTrigger>
+        <TabsTrigger value="thefts" className="gap-1.5">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            Alertas
+        </TabsTrigger>
         <TabsTrigger value="content">Contenido</TabsTrigger>
         <TabsTrigger value="users">Usuarios</TabsTrigger>
         <TabsTrigger value="ongs">ONGs</TabsTrigger>
@@ -90,6 +96,14 @@ function AdminDashboardTabsContent({
       <TabsContent value="stats" className="space-y-4">
         <DashboardFilterBar />
         {statsContent}
+      </TabsContent>
+
+      <TabsContent value="thefts" className="space-y-6">
+          <div className="flex flex-col gap-2 mb-6">
+              <h2 className="text-2xl font-bold">Alertas de Robo de la Comunidad</h2>
+              <p className="text-muted-foreground">Difunde los reportes de robo activos en las redes sociales oficiales.</p>
+          </div>
+          <StolenBikesList bikes={stolenBikes} />
       </TabsContent>
 
       <TabsContent value="content" className="space-y-4">

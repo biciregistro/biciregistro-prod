@@ -16,6 +16,8 @@ export type Bike = {
   ownershipProof?: string; // URL to a single ownership document/proof
   appraisedValue?: number; // Approximate value of the bike
   createdAt?: string; // ISO string format of the creation date
+  // Seguimiento de difusión administrativa
+  adminSharedAt?: string; // ISO string de cuándo el admin compartió el robo
   theftReport?: {
     date: string;
     time?: string;
@@ -23,12 +25,12 @@ export type Bike = {
     details: string;
     country?: string;
     state?: string;
-    city?: string; // Added field
-    zipCode?: string; // Added field (optional)
-    lat?: number; // Added field
-    lng?: number; // Added field
-    reward?: string; // HU-01: Campo para recompensa opcional
-    thiefDetails?: string; // <-- Campo para detalles del ladrón
+    city?: string;
+    zipCode?: string;
+    lat?: number;
+    lng?: number;
+    reward?: string;
+    thiefDetails?: string;
   };
 };
 
@@ -44,35 +46,31 @@ export type User = {
   name: string;
   lastName?: string;
   email: string;
-  phone?: string; // Added missing phone field
+  phone?: string; 
   role: UserRole;
   avatarUrl?: string;
-  logoUrl?: string; // Added for ONG compatibility
+  logoUrl?: string; 
   country?: string;
   state?: string;
-  city?: string; // Added field
+  city?: string; 
   birthDate?: string;
   gender?: 'masculino' | 'femenino' | 'otro';
   postalCode?: string;
   whatsapp?: string;
-  communityId?: string; // ID of the ONG the user is affiliated with
+  communityId?: string; 
   notificationPreferences?: NotificationPreferences;
-  createdAt?: string; // Added for analytics
-  // Emergency Info (HU-EVENT-005)
+  createdAt?: string;
   bloodType?: string;
   insuranceInfo?: string;
-  allergies?: string; // New field for medical allergies
-  // HU-02: FCM Tokens for Push Notifications
+  allergies?: string; 
   fcmTokens?: string[];
-
-  // --- Gamification & Referral System (Feature: Gamification Infrastructure) ---
-  referralCode?: string; // Código único (nanoid 7 chars)
-  referredBy?: string;   // UID del usuario que lo invitó
-  gamification?: GamificationProfile; // Perfil extensible de logros y stats
+  referralCode?: string; 
+  referredBy?: string;   
+  gamification?: GamificationProfile; 
 };
 
 export type OngUser = {
-  id: string; // Custom UID based on organization name
+  id: string; 
   role: 'ong';
   email: string;
   organizationName: string;
@@ -85,35 +83,32 @@ export type OngUser = {
   country: string;
   state: string;
   avatarUrl?: string;
-  logoUrl?: string; // Added field
-  description?: string; // Added field
-  invitationLink: string; // The unique invitation link for the ONG
-  // Financial Data for Payouts
+  logoUrl?: string; 
+  description?: string; 
+  invitationLink: string; 
   financialData?: {
     bankName: string;
     accountHolder: string;
-    clabe: string; // 18 digits
+    clabe: string; 
   };
 };
-
-// --- Event Types ---
 
 export type EventStatus = 'draft' | 'published';
 export type EventType = 'Rodada' | 'Competencia' | 'Taller' | 'Conferencia';
 export type EventLevel = 'Principiante' | 'Intermedio' | 'Avanzado';
 
 export type CostTier = {
-  id: string; // for React key prop
+  id: string; 
   name: string;
-  price: number; // PRECIO TOTAL (Gross-up o Flat si se absorbe)
-  netPrice?: number; // PRECIO NETO (Meta del organizador)
-  fee?: number; // Monto de la comisión total
+  price: number; 
+  netPrice?: number; 
+  fee?: number; 
   includes: string;
-  absorbFee?: boolean; // NUEVO: True si la ONG paga la comisión
+  absorbFee?: boolean; 
 };
 
 export type EventCategory = {
-    id: string; // for React key prop
+    id: string; 
     name: string;
     description?: string;
     ageConfig?: {
@@ -124,14 +119,12 @@ export type EventCategory = {
     startTime?: string;
 };
 
-// Bib Number Configuration (New for Feature)
 export type BibNumberConfig = {
     enabled: boolean;
     mode: 'automatic' | 'dynamic';
-    nextNumber: number; // For automatic assignment internal tracking
+    nextNumber: number; 
 };
 
-// --- Jersey Types (New for Feature) ---
 export type JerseyType = 'Enduro' | 'XC' | 'Ruta';
 export type JerseySize = 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL';
 
@@ -146,17 +139,13 @@ export type Event = {
   id: string;
   ongId: string;
   status: EventStatus;
-  
-  // Required fields
   name: string;
   eventType: EventType;
-  date: string; // ISO string for date and time
+  date: string; 
   country: string;
-  state: string; // 'state' is used in the codebase for state/province
+  state: string; 
   modality: string;
   description: string;
-
-  // Optional fields
   imageUrl?: string;
   googleMapsUrl?: string;
   level?: EventLevel;
@@ -166,51 +155,31 @@ export type Event = {
   paymentDetails?: string;
   organizerName?: string;
   organizerFollowers?: number;
-  
-  // New fields for categories and limits
   hasCategories?: boolean;
   categories?: EventCategory[];
   maxParticipants?: number;
   currentParticipants?: number;
-
-  // Registration Deadline Fields
   hasRegistrationDeadline?: boolean;
-  registrationDeadline?: string; // ISO string for date and time
-
-  // Emergency Contact Configuration
+  registrationDeadline?: string; 
   requiresEmergencyContact?: boolean;
-
-  // Bike Requirement
-  requiresBike?: boolean; // Defaults to true if undefined
-
-  // Legal / Waiver Configuration (HU-LEGAL-001)
+  requiresBike?: boolean; 
   requiresWaiver?: boolean;
   waiverText?: string;
-  
-  // Bib Number Configuration (New Field)
   bibNumberConfig?: BibNumberConfig;
-  
-  // Jersey Configuration (New Field)
   hasJersey?: boolean;
   jerseyConfigs?: JerseyConfig[];
-
-  // Sponsors
-  sponsors?: string[]; // Array of image URLs
-
-  // Administrative Control
-  isBlocked?: boolean; // Bloqueo manual por administrador
-
-  // Analytics
-  pageViews?: number; // Contador de visitas a la página pública
+  sponsors?: string[]; 
+  isBlocked?: boolean; 
+  pageViews?: number; 
 };
 
 export type PaymentStatus = 'pending' | 'paid' | 'not_applicable';
 
 export type MarketingConsent = {
   accepted: boolean;
-  timestamp: string; // ISO 8601
+  timestamp: string; 
   ipAddress: string;
-  policyVersion: string; // e.g., "2025-12-23"
+  policyVersion: string; 
   legalText: string;
 };
 
@@ -218,63 +187,45 @@ export type EventRegistration = {
     id: string;
     eventId: string;
     userId: string;
-    registrationDate: string; // ISO String
+    registrationDate: string; 
     status: 'confirmed' | 'cancelled';
-    
-    // Financial & Attendance Status
     paymentStatus?: PaymentStatus;
-    // Hybrid Payment Support
     paymentMethod?: 'platform' | 'manual'; 
     feeAmount?: number; 
     netPrice?: number;
-
-    // Financial Snapshot (NUEVO: HU Comisión Compartida)
     financialSnapshot?: {
-        amountPaid: number;      // Total cobrado al usuario
-        platformFee: number;     // Comisión total (BiciRegistro + Pasarela)
-        organizerNet: number;    // Neto real para la ONG
-        isFeeAbsorbed: boolean;  // Estrategia usada
-        calculatedAt: string;    // Fecha del cálculo (ISO)
+        amountPaid: number;      
+        platformFee: number;     
+        organizerNet: number;    
+        isFeeAbsorbed: boolean;  
+        calculatedAt: string;    
     };
-
     checkedIn?: boolean;
-    checkedInAt?: string; // ISO String
-
+    checkedInAt?: string; 
     tierId?: string;
     tierName?: string;
     price?: number;
     categoryId?: string;
     categoryName?: string;
     bikeId?: string;
-    
-    // Bib Number (New Field)
     bibNumber?: number | null;
-    
-    // Jersey Selection (New Field)
-    jerseyModel?: string; // Stores the JerseyConfig name or ID
+    jerseyModel?: string; 
     jerseySize?: string;
-
-    // Emergency Contact Data
     emergencyContactName?: string;
     emergencyContactPhone?: string;
-    // Extended Emergency Info (HU-EVENT-005)
     bloodType?: string | null;
     insuranceInfo?: string | null;
-    allergies?: string | null; // New field for medical allergies
-
-    // Legal Waiver Evidence (HU-LEGAL-002)
-    waiverSignature?: string; // URL to signature image
-    waiverAcceptedAt?: string; // ISO Timestamp
-    waiverTextSnapshot?: string; // The exact text signed
-    waiverIp?: string; // New: IP address from where it was signed
-    waiverHash?: string; // New: Crypto hash for integrity
-
-    // Marketing Consent (HU-LEGAL-003)
+    allergies?: string | null; 
+    waiverSignature?: string; 
+    waiverAcceptedAt?: string; 
+    waiverTextSnapshot?: string; 
+    waiverIp?: string; 
+    waiverHash?: string; 
     marketingConsent?: MarketingConsent | null;
 };
 
 export type EventAttendee = {
-    id: string; // Registration ID
+    id: string; 
     userId: string;
     name: string;
     lastName: string;
@@ -283,47 +234,32 @@ export type EventAttendee = {
     registrationDate: string;
     tierName: string;
     categoryName: string;
-    price?: number; // Added for revenue calculation
+    price?: number; 
     status: 'confirmed' | 'cancelled';
-    
-    // Financial & Attendance Status
     paymentStatus: PaymentStatus;
     paymentMethod?: 'platform' | 'manual';
     feeAmount?: number;
-
     checkedIn: boolean;
-    
-    // Bib Number (New Field)
     bibNumber?: number | null;
-
-    // Jersey Selection (New Field)
     jerseyModel?: string; 
     jerseySize?: string;
-    
     bike?: {
         id: string;
         make: string;
         model: string;
         serialNumber: string;
     };
-    // Emergency Contact Data
     emergencyContactName?: string | null;
     emergencyContactPhone?: string | null;
-    // Extended Emergency Info (HU-EVENT-005)
     bloodType?: string | null;
     insuranceInfo?: string | null;
-    allergies?: string | null; // New field for medical allergies
-
-    // Legal Waiver Status
+    allergies?: string | null; 
     waiverSigned?: boolean;
 };
 
 export type UserEventRegistration = EventRegistration & {
     event: Event;
 };
-
-
-// --- Homepage Content Types (Corrected) ---
 
 export type Feature = {
   title: string;
@@ -337,7 +273,6 @@ export type SecurityFeature = {
   imageUrl: string;
 };
 
-// Use a discriminated union for more type-safe sections
 export type HomepageSection =
   | {
       id: 'hero';
@@ -371,8 +306,6 @@ export type HomepageSection =
       imageUrl?: string;
     };
 
-
-// Type for server action form state
 export type ActionFormState = {
   error?: string;
   errors?: Record<string, string[]>;
@@ -382,22 +315,19 @@ export type ActionFormState = {
   passwordChanged?: boolean;
 } | null;
 
-// Standardized type for bike registration/update form state
 export type BikeFormState = {
     success: boolean;
     message: string;
     errors?: Record<string, string[]>;
 } | null;
 
-// Financial Configuration Type
 export type FinancialSettings = {
-    commissionRate: number; // Porcentaje de comisión de BiciRegistro (Ej. 3.5)
-    pasarelaRate: number; // Porcentaje de comisión de la pasarela (Ej. 3.5)
-    pasarelaFixed: number; // Monto fijo de la pasarela (Ej. 4.50)
-    ivaRate: number; // Tasa de IVA (Ej. 16.0)
+    commissionRate: number; 
+    pasarelaRate: number; 
+    pasarelaFixed: number; 
+    ivaRate: number; 
 };
 
-// --- Dashboard Filters ---
 export type DashboardFilters = {
     country?: string;
     state?: string;
@@ -406,20 +336,18 @@ export type DashboardFilters = {
     gender?: string;
 };
 
-// --- Payout Management ---
 export type Payout = {
     id: string;
     eventId: string;
     ongId: string;
     amount: number;
-    date: string; // ISO String
+    date: string; 
     proofUrl: string;
-    proofPath: string; // For storage management
+    proofPath: string; 
     notes?: string;
-    createdBy: string; // Admin UID
+    createdBy: string; 
 };
 
-// --- HU-02: Notifications ---
 export type NotificationTemplate = {
     id: 'theft_alert';
     type: 'theft_alert';
@@ -432,15 +360,13 @@ export type NotificationTemplate = {
 export type NotificationLog = {
     id: string;
     type: 'theft_alert';
-    relatedId: string; // e.g. bikeId
+    relatedId: string; 
     sentAt: string;
     recipientCount: number;
     successCount: number;
     failureCount: number;
-    city: string; // **FIXED**: Changed from 'location' to 'city' for consistency
+    city: string; 
 };
-
-// --- Events Manager Landing Page Content Types ---
 
 export type LandingEventsHero = {
     title: string;
@@ -454,14 +380,14 @@ export type LandingEventsPainPoint = {
     id: string;
     title: string;
     description: string;
-    imageUrl?: string; // Added field for GIF support
+    imageUrl?: string; 
 };
 
 export type LandingEventsSolution = {
     id: string;
     title: string;
     description: string;
-    imageUrl?: string; // Changed to optional for schema compatibility
+    imageUrl?: string; 
 };
 
 export type LandingEventsFeature = {

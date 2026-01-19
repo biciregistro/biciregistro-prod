@@ -45,7 +45,7 @@ const theftReportSchema = z.object({
     lng: z.coerce.number().optional(),
     location: z.string().min(1, "La ubicación es obligatoria."),
     details: z.string().min(1, "Los detalles son obligatorios."),
-    thiefDetails: z.string().optional(), // <-- NUEVO CAMPO
+    thiefDetails: z.string().optional(), 
     reward: z.preprocess(
         (val) => val || undefined,
         z.string()
@@ -204,17 +204,14 @@ export async function reportTheft(prevState: any, formData: FormData) {
         return { errors: validatedFields.error.flatten().fieldErrors, message: 'Faltan campos. No se pudo reportar el robo.' };
     }
 
-    // El objeto theftData ahora incluye lat, lng, y thiefDetails si existen.
     const { bikeId, ...theftData } = validatedFields.data;
 
     try {
-        // 1. Update Bike Status
         await updateBikeData(bikeId, {
             status: 'stolen',
-            theftReport: theftData, // Guardamos el objeto completo.
+            theftReport: theftData, 
         });
 
-        // 2. HU-02: Send Push Notification (No changes needed here)
         try {
             const bike = await getBike(session.uid, bikeId);
             if (bike) {
@@ -241,6 +238,7 @@ export async function reportTheft(prevState: any, formData: FormData) {
 
         revalidatePath('/dashboard');
         revalidatePath(`/dashboard/bikes/${bikeId}`);
+        revalidatePath('/admin'); // Revalidar admin panel para ver la nueva alerta
         return { message: 'El robo ha sido reportado exitosamente.' };
     } catch (error) {
         console.error("Error reporting theft:", error);
@@ -260,8 +258,37 @@ export async function markAsRecovered(bikeId: string) {
         });
         revalidatePath('/dashboard');
         revalidatePath(`/dashboard/bikes/${bikeId}`);
+        revalidatePath('/admin');
     } catch (error) {
         console.error("Failed to mark as recovered:", error);
+    }
+}
+
+// NUEVA ACCIÓN PARA ADMIN: Marcar bicicleta como compartida socialmente
+export async function markBikeAsSharedAction(bikeId: string) {
+    const session = await getDecodedSession();
+    if (!session?.uid) {
+        return { success: false, message: 'No estás autenticado.' };
+    }
+
+    try {
+        // Solo administradores pueden marcar como compartido (Verificación simple de rol en Firestore)
+        const userDoc = await adminDb.collection('users').doc(session.uid).get();
+        const userData = userDoc.data();
+        
+        if (userData?.role !== 'admin') {
+            return { success: false, message: 'No tienes permisos para realizar esta acción.' };
+        }
+
+        await updateBikeData(bikeId, {
+            adminSharedAt: new Date().toISOString()
+        });
+
+        revalidatePath('/admin');
+        return { success: true };
+    } catch (error) {
+        console.error("Error marking bike as shared:", error);
+        return { success: false, message: 'No se pudo actualizar el estado de difusión.' };
     }
 }
 
@@ -406,14 +433,13 @@ export async function saveFCMToken(token: string) {
     }
 }
 
-// NUEVA ACTION: Reverse Geocoding via Server para evitar CORS y Headers issues
 export async function getReverseGeocoding(lat: number, lng: number) {
     try {
         const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`,
             {
                 headers: {
-                    'User-Agent': 'BiciRegistroApp/1.0 (contacto@biciregistro.mx)', // Importante para Nominatim
+                    'User-Agent': 'BiciRegistroApp/1.0 (contacto@biciregistro.mx)', 
                     'Accept-Language': 'es-MX,es;q=0.9'
                 }
             }
