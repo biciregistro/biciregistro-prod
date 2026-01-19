@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Share2, Facebook, Link as LinkIcon, Instagram, MessageCircle, AlertTriangle } from "lucide-react"
+import { Share2, Facebook, Link as LinkIcon, Instagram, MessageCircle, AlertTriangle, Download } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { Bike, User } from "@/lib/types"
 
@@ -24,7 +24,9 @@ export function BikeTheftShareMenu({ bike, user }: BikeTheftShareMenuProps) {
 
   const report = bike.theftReport;
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
-  const bikeUrl = `${baseUrl}/bikes/${bike.serialNumber}`;
+  
+  // Añadimos timestamp para romper caché de OG
+  const bikeUrl = `${baseUrl}/bikes/${bike.serialNumber}?v=${new Date().getTime().toString().slice(0, 8)}`;
   
   // Formatear recompensa
   const formattedReward = report.reward && report.reward !== '0'
@@ -50,10 +52,24 @@ Link de la bicicleta: ${bikeUrl}
 
 #Biciregistro #Ciclismo #Deporte #Amigos #MTB #Ruta #Trek #Giant #TotalBike #Sacalabici`;
 
-  const handleFacebookShare = () => {
-    // Truco de UX: Copiamos el texto al portapapeles antes de abrir Facebook
-    navigator.clipboard.writeText(shareText);
+  // Construir URL de la imagen dinámica para descargar
+  const getOgImageUrl = (relative = false) => {
+    const params = new URLSearchParams({
+      brand: bike.make,
+      model: bike.model || '',
+      status: bike.status,
+      image: bike.photos[0] || '',
+    });
     
+    if (report.reward) params.append('reward', report.reward.toString());
+    if (report.location) params.append('location', report.location);
+    
+    const path = `/api/og/bike?${params.toString()}`;
+    return relative ? path : `${baseUrl}${path}`;
+  };
+
+  const handleFacebookShare = () => {
+    navigator.clipboard.writeText(shareText);
     toast({
       title: "Alerta copiada",
       description: "Pega el mensaje en Facebook para difundir el robo.",
@@ -78,12 +94,59 @@ Link de la bicicleta: ${bikeUrl}
     })
   }
 
-  const handleCopyForInstagram = () => {
-    navigator.clipboard.writeText(shareText)
+  const handleInstagramShare = async () => {
+    // 1. Copiar texto
+    navigator.clipboard.writeText(shareText);
     toast({
-      title: "Alerta copiada",
-      description: "Pega este texto en tu historia o post de Instagram.",
-    })
+      title: "Preparando Instagram...",
+      description: "Texto copiado. Descargando imagen de alerta...",
+    });
+
+    try {
+      // 2. Descargar Imagen usando ruta relativa para evitar errores CORS
+      const imageUrl = getOgImageUrl(true); // <--- CORRECCIÓN: Usar true para obtener ruta relativa
+      const response = await fetch(imageUrl);
+      
+      if (!response.ok) throw new Error('Error de red al obtener imagen');
+
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `ALERTA-ROBO-${bike.serialNumber}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // 3. Abrir Instagram (Delay para permitir descarga)
+      setTimeout(() => {
+         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+         if (isMobile) {
+             window.location.href = "instagram://camera"; 
+             setTimeout(() => {
+                 window.open("https://www.instagram.com/", '_blank');
+             }, 2000);
+         } else {
+             window.open("https://www.instagram.com/", '_blank');
+         }
+         
+         toast({
+            title: "¡Todo listo!",
+            description: "Imagen descargada. Sube la foto y pega el texto en Instagram.",
+         });
+      }, 1500);
+
+    } catch (error) {
+      console.error("Error descargando imagen:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No pudimos descargar la imagen automáticamente. Intenta tomar una captura.",
+      });
+      // Aún así abrimos Instagram
+      window.open("https://www.instagram.com/", '_blank');
+    }
   }
 
   return (
@@ -108,9 +171,9 @@ Link de la bicicleta: ${bikeUrl}
           <span>Facebook (Copia mensaje)</span>
         </DropdownMenuItem>
 
-        <DropdownMenuItem onClick={handleCopyForInstagram} className="cursor-pointer">
+        <DropdownMenuItem onClick={handleInstagramShare} className="cursor-pointer">
           <Instagram className="mr-2 h-4 w-4" />
-          <span>Instagram (Copia mensaje)</span>
+          <span>Instagram (Descarga + Copia)</span>
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />

@@ -13,6 +13,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || 'active';
     const reward = searchParams.get('reward');
     const location = searchParams.get('location');
+    
+    // URL base para el logo
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
+    const logoUrl = `${baseUrl}/logo.png`;
 
     const isStolen = status === 'stolen';
 
@@ -152,9 +156,16 @@ export async function GET(request: NextRequest) {
             )}
           </div>
           
-          {/* Branding sutil */}
-           <div style={{ position: 'absolute', bottom: 20, right: 30, fontSize: 20, color: '#475569', fontWeight: 'bold' }}>
-             biciregistro.mx
+          {/* Logo Branding en esquina inferior derecha */}
+           <div style={{ position: 'absolute', bottom: 30, right: 30, display: 'flex', zIndex: 10 }}>
+             {/* eslint-disable-next-line @next/next/no-img-element */}
+             <img
+               src={logoUrl}
+               alt="BiciRegistro"
+               width="100"
+               height="100"
+               style={{ objectFit: 'contain' }}
+             />
            </div>
         </div>
       ),
