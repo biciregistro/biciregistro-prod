@@ -16,9 +16,19 @@ interface EventShareMenuProps {
   eventName: string
   eventDate: Date | string
   eventUrl: string
+  eventType?: string
+  eventLevel?: string
+  eventModality?: string
 }
 
-export function EventShareMenu({ eventName, eventDate, eventUrl }: EventShareMenuProps) {
+export function EventShareMenu({ 
+  eventName, 
+  eventDate, 
+  eventUrl,
+  eventType = "evento",
+  eventLevel = "Todos",
+  eventModality = "Ciclismo"
+}: EventShareMenuProps) {
   
   // Formatear fecha para el texto de manera segura
   const formatDate = (dateInput: Date | string) => {
@@ -27,7 +37,7 @@ export function EventShareMenu({ eventName, eventDate, eventUrl }: EventShareMen
       // Verificar si la fecha es válida
       if (isNaN(dateObj.getTime())) return "Fecha por confirmar";
       
-      // Forzamos la zona horaria a Ciudad de México para evitar que se muestre en UTC o en la hora local del usuario si es diferente
+      // Forzamos la zona horaria a Ciudad de México para evitar errores de UTC/Local
       return dateObj.toLocaleDateString('es-MX', { 
         weekday: 'long', 
         year: 'numeric', 
@@ -44,8 +54,17 @@ export function EventShareMenu({ eventName, eventDate, eventUrl }: EventShareMen
 
   const formattedDate = formatDate(eventDate);
 
-  // Texto optimizado para compartir
-  const shareText = `🚴 ¡No te pierdas este evento!\n\n🏆 ${eventName}\n📅 ${formattedDate}\n\n👉 Regístrate aquí: ${eventUrl}\n\n#Biciregistro #Ciclismo`;
+  // Texto optimizado según requerimiento
+  const shareText = `¡Te invitamos a nuestra próxima ${eventType.toLowerCase()}! ¡No te lo puedes perder!
+
+🏁 ${eventName}
+📅 ${formattedDate}
+🏆 Nivel: ${eventLevel}
+🚵‍♂️ Modalidad: ${eventModality}
+
+👉 Regístrate y conoce todos los detalles aquí: ${eventUrl}
+
+#Biciregistro #Ciclismo #Deporte #Amigos #MTB #Ruta #Trek #Giant #TotalBike #Sacalabici`;
 
   const handleNativeShare = async () => {
     if (typeof navigator !== 'undefined' && navigator.share) {
@@ -64,14 +83,27 @@ export function EventShareMenu({ eventName, eventDate, eventUrl }: EventShareMen
   }
 
   const handleFacebookShare = () => {
-    // Facebook usa og:image de la web
-    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(eventUrl)}`
-    window.open(url, '_blank', 'width=600,height=400')
+    // Truco de UX: Copiamos el texto al portapapeles antes de abrir Facebook
+    navigator.clipboard.writeText(shareText);
+    
+    toast({
+      title: "Texto copiado",
+      description: "Pega el mensaje en Facebook para compartir los detalles.",
+      duration: 3000,
+    });
+
+    setTimeout(() => {
+        const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(eventUrl)}`
+        window.open(url, '_blank', 'width=600,height=400')
+    }, 500);
   }
   
   const handleTwitterShare = () => {
-    const text = `¡Participa en ${eventName}! 🚴‍♂️\n📅 ${formattedDate}\n📍 Regístrate aquí:`;
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(eventUrl)}&hashtags=Ciclismo,Biciregistro`;
+    // Twitter tiene límite de caracteres, versión acortada
+    const shortText = `¡Te invitamos a nuestra próxima ${eventType}! 🚴‍♂️\n\n🏁 ${eventName}\n📅 ${formattedDate}\n\n👉 Regístrate aquí:`;
+    const hashtags = "Biciregistro,Ciclismo,Deporte,MTB"; 
+    
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shortText)}&url=${encodeURIComponent(eventUrl)}&hashtags=${hashtags}`;
     window.open(url, '_blank', 'width=600,height=400')
   }
 

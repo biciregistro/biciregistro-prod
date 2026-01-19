@@ -75,11 +75,13 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
                 <EventStatusButton eventId={event.id} currentStatus={event.status} />
             )}
 
-            {/* Nuevo Botón de Compartir en la cabecera */}
             <EventShareMenu 
                 eventName={event.name}
                 eventDate={event.date}
                 eventUrl={publicUrl}
+                eventType={event.eventType}
+                eventLevel={event.level}
+                eventModality={event.modality}
             />
             
             <Button variant="outline" asChild className="flex-1 md:flex-none">
@@ -170,6 +172,9 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
                             eventName={event.name}
                             eventDate={event.date}
                             eventUrl={publicUrl}
+                            eventType={event.eventType}
+                            eventLevel={event.level}
+                            eventModality={event.modality}
                         />
                       </div>
                   </CardContent>
