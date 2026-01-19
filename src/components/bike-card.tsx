@@ -11,7 +11,7 @@ import { debounce } from 'lodash';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 
-import type { Bike, BikeFormState, BikeStatus } from '@/lib/types';
+import type { Bike, BikeFormState, BikeStatus, User } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,7 +39,8 @@ import { BikeRegistrationSchema } from '@/lib/schemas';
 import { auth } from '@/lib/firebase/client';
 import { modalityOptions } from '@/lib/bike-types';
 import { RecoverBikeButton } from '@/components/bike-components/recover-bike-button';
-import { TheftReportForm } from '@/components/bike-components/theft-report-form'; // Import the new component
+import { TheftReportForm } from '@/components/bike-components/theft-report-form';
+import { BikeTheftShareMenu } from '@/components/dashboard/bike-theft-share-menu';
 
 const bikeStatusStyles: { [key in BikeStatus]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -73,7 +74,7 @@ function BikeDetailItem({ label, value }: { label: string; value: string | undef
     );
 }
 
-export function BikeCard({ bike }: { bike: Bike }) {
+export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const bikeImage = bike.photos[0] || PlaceHolderImages.find(p => p.id === 'bike-1')?.imageUrl || '';
 
@@ -88,7 +89,7 @@ export function BikeCard({ bike }: { bike: Bike }) {
     }, [bike.status]);
 
     return (
-        <Card className="overflow-hidden transition-all hover:shadow-lg w-full">
+        <Card className={cn("overflow-hidden transition-all hover:shadow-lg w-full", bike.status === 'stolen' && "border-destructive/50 shadow-md shadow-destructive/10")}>
             <div className="flex flex-col md:flex-row">
                 {/* Image Section */}
                 <div className="md:w-1/3 relative aspect-video md:aspect-square">
@@ -122,14 +123,18 @@ export function BikeCard({ bike }: { bike: Bike }) {
 
                     {/* Footer with Actions */}
                     <div className="flex flex-col sm:flex-row gap-2 mt-auto pt-4 border-t">
-                        <Button asChild variant="outline" className="w-full">
-                            <Link href={`/dashboard/bikes/${bike.id}`}>Ver Detalles Completos</Link>
+                        <Button asChild variant="outline" className="flex-1">
+                            <Link href={`/dashboard/bikes/${bike.id}`}>Detalles</Link>
                         </Button>
                         
+                        {bike.status === 'stolen' && user && (
+                            <BikeTheftShareMenu bike={bike} user={user} />
+                        )}
+
                         {canReportStolen && (
                             <Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>
                                 <DialogTrigger asChild>
-                                    <Button variant="destructive" className="w-full">
+                                    <Button variant="destructive" className="flex-1">
                                         <ShieldAlert className="mr-2 h-4 w-4" /> Reportar Robo
                                     </Button>
                                 </DialogTrigger>
@@ -141,7 +146,6 @@ export function BikeCard({ bike }: { bike: Bike }) {
                                             Por favor, proporciona los detalles del incidente.
                                         </DialogDescription>
                                     </DialogHeader>
-                                    {/* Usamos el nuevo componente modularizado */}
                                     <TheftReportForm 
                                         bike={bike} 
                                         onSuccess={() => setIsReportModalOpen(false)}

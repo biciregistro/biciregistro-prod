@@ -4,14 +4,13 @@ import { getBikeBySerial } from '@/lib/data';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { Bike } from '@/lib/types';
+import type { Bike, BikeStatus } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import type { Metadata } from 'next';
 
 // This function generates dynamic metadata for each bike page
 export async function generateMetadata({ params }: { params: Promise<{ serial: string }> }): Promise<Metadata> {
-  // Await params before accessing properties
   const { serial } = await params;
   const bike = await getBikeBySerial(serial);
 
@@ -22,17 +21,59 @@ export async function generateMetadata({ params }: { params: Promise<{ serial: s
     };
   }
 
-  const statusText = bike.status === 'stolen' ? 'Reportada como ROBADA' : 'Marcada como Segura';
+  const isStolen = bike.status === 'stolen';
+  const statusText = isStolen ? 'Reportada como ROBADA' : 'Marcada como Segura';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
+  
+  // Construir URL para la imagen dinámica OG
+  const ogSearchParams = new URLSearchParams({
+    brand: bike.make,
+    model: bike.model || '',
+    status: bike.status,
+    image: bike.photos[0] || '',
+  });
+  
+  if (isStolen && bike.theftReport) {
+    if (bike.theftReport.reward) {
+        ogSearchParams.append('reward', bike.theftReport.reward.toString());
+    }
+    if (bike.theftReport.location) {
+        ogSearchParams.append('location', bike.theftReport.location);
+    }
+  }
+
+  const ogImageUrl = `${baseUrl}/api/og/bike?${ogSearchParams.toString()}`;
+  const title = `Bicicleta ${bike.make} ${bike.model} - Serie: ${bike.serialNumber} | BiciRegistro`;
+  const description = isStolen 
+    ? `🚨 ¡ALERTA! Bicicleta ${bike.make} ${bike.model} reportada como ROBADA. Serie: ${bike.serialNumber}. Ayúdanos a localizarla.`
+    : `Verifica el estado de la bicicleta ${bike.make} ${bike.model} con número de serie ${bike.serialNumber}. Estado actual: ${statusText}.`;
 
   return {
-    title: `Bicicleta ${bike.make} ${bike.model} - Serie: ${bike.serialNumber} | BiciRegistro`,
-    description: `Verifica el estado de la bicicleta ${bike.make} ${bike.model} con número de serie ${bike.serialNumber}. Estado actual: ${statusText}. Consulta nuestra base de datos pública.`,
+    title: title,
+    description: description,
     keywords: ['bicicleta', 'registro', 'robo', 'verificar', 'seguridad', bike.make, bike.model, bike.serialNumber],
+    openGraph: {
+        title: isStolen ? `🚨 ¡ROBADA! ${bike.make} ${bike.model}` : title,
+        description: description,
+        images: [{
+            url: ogImageUrl,
+            width: 1200,
+            height: 630,
+            alt: `Bicicleta ${bike.make} ${bike.model}`,
+        }],
+        type: 'website',
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: isStolen ? `🚨 ¡ROBADA! ${bike.make} ${bike.model}` : title,
+        description: description,
+        images: [ogImageUrl],
+    }
   };
 }
 
 
-const bikeStatusStyles: { [key in Bike['status']]: string } = {
+const bikeStatusStyles: { [key in BikeStatus]: string } = {
     safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
     stolen: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700',
     in_transfer: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700',

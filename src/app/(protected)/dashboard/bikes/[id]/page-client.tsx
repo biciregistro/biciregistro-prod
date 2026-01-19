@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import QRCodeGenerator from '@/components/bike-components/qr-code-generator';
 import { auth } from '@/lib/firebase/client';
 import { RecoverBikeButton } from '@/components/bike-components/recover-bike-button';
+import { BikeTheftShareMenu } from '@/components/dashboard/bike-theft-share-menu';
 
 // Dynamic import for PDF downloader
 const BikePDFDownloader = dynamic(
@@ -30,7 +31,6 @@ const BikePDFDownloader = dynamic(
   }
 );
 
-// --- CORRECTED MAPPINGS ---
 // Style mapping for the status badge
 const bikeStatusStyles: { [key in BikeStatus]: string } = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
@@ -46,7 +46,6 @@ const bikeStatusTexts: { [key in BikeStatus]: string } = {
   in_transfer: 'En Transferencia',
   recovered: 'Recuperada',
 };
-// --- END CORRECTION ---
 
 function DetailItem({ label, value }: { label: string; value: React.ReactNode }) {
     if (!value && value !== 0) return null;
@@ -160,6 +159,9 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
           </Link>
         </Button>
         <div className="w-full sm:w-auto flex flex-col sm:flex-row items-center gap-2">
+            {bike.status === 'stolen' && (
+                <BikeTheftShareMenu bike={bike} user={user} />
+            )}
             <Button variant="secondary" onClick={() => setIsEditing(!isEditing)} className="w-full sm:w-auto">
               <Pencil className="mr-2 h-4 w-4" />
               {isEditing ? 'Cancelar Edición' : 'Editar Detalles'}
@@ -204,11 +206,9 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                           {bike.serialNumber}
                       </CardDescription>
                       <div className="pt-2">
-                        {/* --- CORRECTED BADGE LOGIC --- */}
                         <Badge className={cn(bikeStatusStyles[bike.status], "text-base")}>
                             Estado: {bikeStatusTexts[bike.status]}
                         </Badge>
-                        {/* --- END CORRECTION --- */}
                       </div>
                   </CardHeader>
                   <CardContent className="grid grid-cols-2 gap-4">
@@ -236,9 +236,12 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
               <OwnershipProofSection bike={bike} />
 
               {bike.status === 'stolen' && bike.theftReport && (
-                   <Card className="border-destructive">
-                      <CardHeader>
-                          <CardTitle className="text-destructive">Detalles del Reporte de Robo</CardTitle>
+                   <Card className="border-destructive shadow-lg shadow-destructive/5">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                          <div>
+                            <CardTitle className="text-destructive">Detalles del Reporte de Robo</CardTitle>
+                          </div>
+                          <BikeTheftShareMenu bike={bike} user={user} />
                       </CardHeader>
                       <CardContent className="space-y-4">
                           <div className="grid grid-cols-2 gap-4">

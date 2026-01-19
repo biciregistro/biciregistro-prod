@@ -20,7 +20,7 @@ interface DashboardTabsProps {
     isProfileComplete: boolean;
 }
 
-function DashboardTabsContent({ bikes, registrations, isProfileComplete }: DashboardTabsProps) {
+function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }: DashboardTabsProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
@@ -65,7 +65,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete }: Dashb
                 ) : (
                     <div className="space-y-4">
                         {bikes.map((bike: Bike) => (
-                            <BikeCard key={bike.id} bike={bike} />
+                            <BikeCard key={bike.id} bike={bike} user={user} />
                         ))}
                     </div>
                 )}
