@@ -132,10 +132,10 @@ export function PasswordStrengthIndicator({ password = "" }: { password?: string
     );
 }
 
-function ProfileFormContent({ user, communityId }: { user?: User, communityId?: string }) {
+function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }: { user?: User, communityId?: string, callbackUrl?: string }) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const callbackUrl = searchParams.get('callbackUrl');
+    const callbackUrl = propCallbackUrl || searchParams.get('callbackUrl');
     const formRef = useRef<HTMLFormElement>(null);
     const [isPending, startTransition] = useTransition();
     const isEditing = !!user;
@@ -806,10 +806,10 @@ function ProfileFormContent({ user, communityId }: { user?: User, communityId?: 
     );
 }
 
-export function ProfileForm({ user, communityId }: { user?: User, communityId?: string }) {
+export function ProfileForm({ user, communityId, callbackUrl }: { user?: User, communityId?: string, callbackUrl?: string }) {
     return (
         <Suspense fallback={<div>Cargando formulario...</div>}>
-            <ProfileFormContent user={user} communityId={communityId} />
+            <ProfileFormContent user={user} communityId={communityId} callbackUrl={callbackUrl} />
         </Suspense>
     );
 }
