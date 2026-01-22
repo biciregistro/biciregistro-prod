@@ -56,6 +56,7 @@ export function OngProfileForm({ ongProfile }: OngProfileFormProps) {
       country: ongProfile.country || "",
       state: ongProfile.state || "",
       logoUrl: ongProfile.logoUrl || "",
+      coverUrl: ongProfile.coverUrl || "",
       description: ongProfile.description || "",
     },
   });
@@ -121,46 +122,82 @@ export function OngProfileForm({ ongProfile }: OngProfileFormProps) {
                   )}
                 />
                 
-                {/* Logo Upload Field */}
-                <FormField
-                    control={form.control}
-                    name="logoUrl"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Logo de la Organización</FormLabel>
-                            <FormControl>
-                                <div className="space-y-4">
-                                    {field.value && (
-                                        <div className="relative w-32 h-32 border rounded-md overflow-hidden group">
-                                            <Image 
-                                                src={field.value} 
-                                                alt="Logo actual" 
-                                                fill 
-                                                className="object-cover"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => field.onChange("")}
-                                                className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <Trash2 className="h-6 w-6 text-white" />
-                                            </button>
-                                        </div>
-                                    )}
-                                    <ImageUpload
-                                        storagePath={`ongs/${ongProfile.id}/logos`}
-                                        onUploadSuccess={(url) => field.onChange(url)}
-                                        buttonText={field.value ? "Cambiar Logo" : "Subir Logo"}
-                                    />
-                                </div>
-                            </FormControl>
-                            <FormDescription>
-                                Sube o actualiza el logo de tu organización.
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                {/* Logo and Cover Upload Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                        control={form.control}
+                        name="logoUrl"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Logo (Perfil)</FormLabel>
+                                <FormControl>
+                                    <div className="space-y-4">
+                                        {field.value && (
+                                            <div className="relative w-full aspect-square max-w-[120px] border rounded-md overflow-hidden group">
+                                                <Image 
+                                                    src={field.value} 
+                                                    alt="Logo actual" 
+                                                    fill 
+                                                    className="object-cover"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => field.onChange("")}
+                                                    className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <Trash2 className="h-6 w-6 text-white" />
+                                                </button>
+                                            </div>
+                                        )}
+                                        <ImageUpload
+                                            storagePath={`ongs/${ongProfile.id}/logos`}
+                                            onUploadSuccess={(url) => field.onChange(url)}
+                                            buttonText={field.value ? "Cambiar Logo" : "Subir Logo"}
+                                        />
+                                    </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    <FormField
+                        control={form.control}
+                        name="coverUrl"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Foto de Portada</FormLabel>
+                                <FormControl>
+                                    <div className="space-y-4">
+                                        {field.value && (
+                                            <div className="relative w-full aspect-video border rounded-md overflow-hidden group">
+                                                <Image 
+                                                    src={field.value} 
+                                                    alt="Portada actual" 
+                                                    fill 
+                                                    className="object-cover"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => field.onChange("")}
+                                                    className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <Trash2 className="h-6 w-6 text-white" />
+                                                </button>
+                                            </div>
+                                        )}
+                                        <ImageUpload
+                                            storagePath={`ongs/${ongProfile.id}/covers`}
+                                            onUploadSuccess={(url) => field.onChange(url)}
+                                            buttonText={field.value ? "Cambiar Portada" : "Subir Portada"}
+                                        />
+                                    </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
 
                 <FormField
                   control={form.control}

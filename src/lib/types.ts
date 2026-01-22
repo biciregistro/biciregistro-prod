@@ -84,6 +84,7 @@ export type OngUser = {
   state: string;
   avatarUrl?: string;
   logoUrl?: string; 
+  coverUrl?: string;
   description?: string; 
   invitationLink: string; 
   financialData?: {

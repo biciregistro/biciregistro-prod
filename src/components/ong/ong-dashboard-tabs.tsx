@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Info, Copy, Check, CalendarPlus, Edit, MessageCircle, Settings, PlusCircle, Bike as BikeIcon } from 'lucide-react';
+import { Info, Copy, Check, CalendarPlus, Edit, MessageCircle, Settings, PlusCircle, Bike as BikeIcon, ExternalLink, Share2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { EventCard } from '@/components/ong/event-card';
 import { BikeCard } from '@/components/bike-card';
@@ -24,26 +24,43 @@ interface OngDashboardTabsProps {
     statsContent?: React.ReactNode;
 }
 
-function CopyButton({ textToCopy }: { textToCopy: string }) {
-    const [isCopied, setIsCopied] = useState(false);
+function ShareButton({ url }: { url: string }) {
     const { toast } = useToast();
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            setIsCopied(true);
-            toast({ title: "¡Copiado!", description: "El link de invitación ha sido copiado." });
-            setTimeout(() => setIsCopied(false), 2000);
-        });
+    const handleShare = async () => {
+        // Construct full URL if relative
+        const fullUrl = url.startsWith('http') ? url : `${window.location.origin}${url}`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: 'Únete a mi comunidad en Biciregistro',
+                    text: 'Regístrate y participa en mis eventos.',
+                    url: fullUrl,
+                });
+            } catch (error) {
+                console.log('Share cancelled');
+            }
+        } else {
+             navigator.clipboard.writeText(fullUrl).then(() => {
+                toast({ title: "¡Copiado!", description: "El enlace al perfil ha sido copiado al portapapeles." });
+            });
+        }
     };
 
     return (
-        <Button variant="outline" size="icon" onClick={handleCopy} className="shrink-0">
-            {isCopied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+        <Button variant="secondary" onClick={handleShare}>
+            <Share2 className="mr-2 h-4 w-4" />
+            Compartir
         </Button>
     );
 }
 
 function WelcomeCard({ ongProfile }: { ongProfile: OngUser }) {
+    // Determine the public profile URL
+    // Ideally use invitationLink if valid, otherwise construct it
+    const profileUrl = ongProfile.invitationLink || `/join/${ongProfile.id}`;
+
     return (
         <Card className="mb-8 bg-primary/5 border-primary/20">
             <CardContent className="pt-6">
@@ -61,15 +78,15 @@ function WelcomeCard({ ongProfile }: { ongProfile: OngUser }) {
                                 Administrar Perfil
                             </Link>
                         </Button>
-                        <div className="flex items-center gap-2 bg-background p-1 rounded-md border w-full sm:w-auto">
-                            <span className="text-xs font-medium px-2 text-muted-foreground whitespace-nowrap">Tu Link:</span>
-                            <Input 
-                                value={ongProfile.invitationLink || 'No disponible'} 
-                                readOnly 
-                                className="h-8 border-0 bg-transparent focus-visible:ring-0 px-0 min-w-[200px]"
-                            />
-                            <CopyButton textToCopy={ongProfile.invitationLink || ''} />
-                        </div>
+                        
+                        <Button variant="outline" asChild>
+                            <Link href={`/join/${ongProfile.id}`} target="_blank">
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Ver Perfil Público
+                            </Link>
+                        </Button>
+
+                        <ShareButton url={profileUrl} />
                     </div>
                 </div>
             </CardContent>
