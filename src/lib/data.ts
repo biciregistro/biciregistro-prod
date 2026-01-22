@@ -376,6 +376,7 @@ export async function incrementEventPageView(eventId: string) {
     });
 }
 
+// RESTAURANDO VERSIÓN SIN CACHÉ PARA EVITAR DEADLOCK
 export async function getHomepageData(): Promise<{ [key: string]: HomepageSection }> {
     const db = adminDb;
     const snapshot = await db.collection('homepage').get();

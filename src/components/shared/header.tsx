@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu } from 'lucide-react';
+import { Menu, AlertTriangle } from 'lucide-react';
 import type { User as UserType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -111,6 +111,14 @@ export function Header({ user }: { user: UserType | null }) {
                         {link.label}
                     </Link>
                     ))}
+                    
+                    {/* Botón de Reporte de Robo en Desktop */}
+                    <Button asChild variant="destructive" size="sm" className="bg-red-600 hover:bg-red-700 text-white shadow-sm">
+                        <Link href="/reportar-robo" className="flex items-center gap-1">
+                            <AlertTriangle className="w-4 h-4" />
+                            Reportar Robo
+                        </Link>
+                    </Button>
                 </nav>
             </div>
             
@@ -175,36 +183,57 @@ export function Header({ user }: { user: UserType | null }) {
                                 <Link href="/signup">Registra Tu Bici</Link>
                             </Button>
                         </nav>
+                    </>
+                )}
 
-                        {/* Mobile Navigation */}
-                        <div className="md:hidden">
-                            <Sheet>
-                                <SheetTrigger asChild>
-                                    <Button variant="ghost" size="icon">
-                                        <Menu className="h-6 w-6" />
-                                        <span className="sr-only">Menú</span>
+                {/* Mobile Navigation & Report Button */}
+                <div className="md:hidden flex items-center gap-2">
+                     {/* Botón Reportar Robo Mobile (Visible siempre, incluso logueado) */}
+                    <Button asChild variant="destructive" size="sm" className="h-8 bg-red-600 hover:bg-red-700 text-white text-xs px-2 shadow-sm">
+                        <Link href="/reportar-robo" className="flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3" />
+                            Reportar
+                        </Link>
+                    </Button>
+
+                    <Sheet>
+                        <SheetTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <Menu className="h-6 w-6" />
+                                <span className="sr-only">Menú</span>
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="right">
+                            <SheetHeader>
+                                <SheetTitle className="text-left">Menú</SheetTitle>
+                            </SheetHeader>
+                            <div className="flex flex-col gap-4 mt-6">
+                                {navLinks.map(link => (
+                                    <SheetClose asChild key={link.href}>
+                                        <Link
+                                            href={link.href}
+                                            className={cn(
+                                                'text-lg font-medium transition-colors hover:text-primary',
+                                                pathname === link.href ? 'text-primary' : 'text-foreground/60'
+                                            )}
+                                        >
+                                            {link.label}
+                                        </Link>
+                                    </SheetClose>
+                                ))}
+                                <div className="border-t my-2" />
+                                
+                                <SheetClose asChild>
+                                    <Button asChild variant="destructive" className="w-full justify-start text-lg bg-red-600 hover:bg-red-700 text-white">
+                                        <Link href="/reportar-robo">
+                                            <AlertTriangle className="w-5 h-5 mr-2" />
+                                            Reportar Robo
+                                        </Link>
                                     </Button>
-                                </SheetTrigger>
-                                <SheetContent side="right">
-                                    <SheetHeader>
-                                        <SheetTitle className="text-left">Menú</SheetTitle>
-                                    </SheetHeader>
-                                    <div className="flex flex-col gap-4 mt-6">
-                                        {navLinks.map(link => (
-                                            <SheetClose asChild key={link.href}>
-                                                <Link
-                                                    href={link.href}
-                                                    className={cn(
-                                                        'text-lg font-medium transition-colors hover:text-primary',
-                                                        pathname === link.href ? 'text-primary' : 'text-foreground/60'
-                                                    )}
-                                                >
-                                                    {link.label}
-                                                </Link>
-                                            </SheetClose>
-                                        ))}
-                                        <div className="border-t my-2" />
-                                        
+                                </SheetClose>
+
+                                {!user && (
+                                    <>
                                         <SheetClose asChild>
                                             <Button asChild variant="outline" className="w-full justify-start text-lg border-primary text-primary">
                                                 <Link href="/events-manager">Soy Organizador</Link>
@@ -221,12 +250,20 @@ export function Header({ user }: { user: UserType | null }) {
                                                 <Link href="/signup">Registra Tu Bici</Link>
                                             </Button>
                                         </SheetClose>
-                                    </div>
-                                </SheetContent>
-                            </Sheet>
-                        </div>
-                    </>
-                )}
+                                    </>
+                                )}
+                                
+                                {user && (
+                                     <SheetClose asChild>
+                                        <Button asChild className="w-full">
+                                            <Link href={dashboardHome}>Ir a mi Panel</Link>
+                                        </Button>
+                                    </SheetClose>
+                                )}
+                            </div>
+                        </SheetContent>
+                    </Sheet>
+                </div>
             </div>
             </div>
       </div>

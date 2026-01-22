@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, Bike, QrCode } from 'lucide-react';
+import { ShieldCheck, Bike, QrCode, AlertTriangle } from 'lucide-react';
 import type { HomepageSection } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -86,7 +86,15 @@ export function HeroSection({ section }: { section?: Extract<HomepageSection, { 
             </p>
             <div className="mt-8 max-w-lg mx-auto space-y-4">
                <BikeSearchForm />
-               {section.buttonText && <Button asChild><Link href="/signup">{section.buttonText}</Link></Button>}
+               
+               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                   {section.buttonText && <Button asChild><Link href="/signup">{section.buttonText}</Link></Button>}
+                   
+                   <Link href="/reportar-robo" className="text-sm font-semibold text-red-600 hover:text-red-700 flex items-center gap-2 hover:underline underline-offset-4 bg-red-50 px-3 py-2 rounded-md border border-red-100 transition-colors hover:bg-red-100">
+                        <AlertTriangle className="w-4 h-4" />
+                        ¿Te robaron tu bici? Repórtala aquí
+                   </Link>
+               </div>
             </div>
           </div>
         </div>
