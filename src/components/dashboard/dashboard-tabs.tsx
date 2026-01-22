@@ -9,7 +9,7 @@ import { BikeCard } from '@/components/bike-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, ArrowRight } from 'lucide-react';
+import { Calendar, MapPin, ArrowRight, Compass } from 'lucide-react';
 import type { Bike, UserEventRegistration, User } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -72,6 +72,16 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }:
             </TabsContent>
             
             <TabsContent value="events" className="space-y-4">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold hidden sm:block">Eventos</h2>
+                    <Button asChild variant="outline" size="sm" className="ml-auto sm:ml-0">
+                        <Link href="/events">
+                            <Compass className="mr-2 h-4 w-4 text-primary" />
+                            Explorar eventos
+                        </Link>
+                    </Button>
+                </div>
+
                 {!isProfileComplete ? (
                     <Alert className="bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-200">
                         <AlertTitle className="text-lg font-semibold mb-2">Perfil Incompleto</AlertTitle>
@@ -88,7 +98,12 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }:
                     <Alert>
                         <AlertTitle>No tienes eventos próximos</AlertTitle>
                         <AlertDescription>
-                            Explora los eventos disponibles y regístrate para participar.
+                            <p className="mb-4">Aún no te has registrado en ningún evento.</p>
+                            <Button asChild size="sm">
+                                <Link href="/events">
+                                    Ver eventos disponibles
+                                </Link>
+                            </Button>
                         </AlertDescription>
                     </Alert>
                 ) : (
