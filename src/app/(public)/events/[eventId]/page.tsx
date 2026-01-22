@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, MapPin, Clock, Trophy, Route, AlertTriangle, Users, MessageCircle } from 'lucide-react';
+import { Calendar, MapPin, Clock, Trophy, Route, AlertTriangle, Users, MessageCircle, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EventRegistration } from '@/lib/types';
 import { PricingTierCard } from '@/components/pricing-tier-card';
@@ -411,14 +411,22 @@ export default async function EventPage({ params }: EventPageProps) {
                                         <span>miembros en la comunidad</span>
                                     </div>
                                 </div>
-                                {ongProfile.contactWhatsapp && (
-                                    <Button size="lg" variant="secondary" className="bg-green-600 text-white hover:bg-green-700 shadow-sm" asChild>
-                                        <Link href={`https://wa.me/${ongProfile.contactWhatsapp}`} target="_blank" rel="noopener noreferrer">
-                                            <MessageCircle className="mr-2 h-5 w-5" />
-                                            Contactar
+                                <div className="flex flex-col gap-2 w-full sm:w-auto">
+                                    {ongProfile.contactWhatsapp && (
+                                        <Button size="lg" variant="secondary" className="bg-green-600 text-white hover:bg-green-700 shadow-sm w-full" asChild>
+                                            <Link href={`https://wa.me/${ongProfile.contactWhatsapp}`} target="_blank" rel="noopener noreferrer">
+                                                <MessageCircle className="mr-2 h-5 w-5" />
+                                                Contactar
+                                            </Link>
+                                        </Button>
+                                    )}
+                                    <Button size="lg" variant="outline" className="w-full" asChild>
+                                        <Link href={`/join/${ongProfile.id}`}>
+                                            <CalendarDays className="mr-2 h-5 w-5" />
+                                            Ver más eventos del organizador
                                         </Link>
                                     </Button>
-                                )}
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
