@@ -42,6 +42,29 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }:
         router.push(`${pathname}?tab=${value}`, { scroll: false });
     };
 
+    // --- Events Sorting Logic ---
+    const now = new Date();
+    
+    const sortedRegistrations = [...registrations].sort((a, b) => {
+        const dateA = new Date(a.event.date);
+        const dateB = new Date(b.event.date);
+        const isFinishedA = dateA < now;
+        const isFinishedB = dateB < now;
+
+        // If one is finished and the other isn't, put the non-finished first
+        if (!isFinishedA && isFinishedB) return -1;
+        if (isFinishedA && !isFinishedB) return 1;
+
+        // If both are same status
+        if (!isFinishedA && !isFinishedB) {
+            // Both upcoming: Ascending (closest first)
+            return dateA.getTime() - dateB.getTime();
+        } else {
+            // Both finished: Descending (most recently finished first)
+            return dateB.getTime() - dateA.getTime();
+        }
+    });
+
     return (
         <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-8">
@@ -72,11 +95,11 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }:
             </TabsContent>
             
             <TabsContent value="events" className="space-y-4">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold hidden sm:block">Eventos</h2>
-                    <Button asChild variant="outline" size="sm" className="ml-auto sm:ml-0">
+                <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                    <h2 className="text-xl font-semibold hidden sm:block">Mis Eventos</h2>
+                    <Button asChild className="w-full sm:w-auto">
                         <Link href="/events">
-                            <Compass className="mr-2 h-4 w-4 text-primary" />
+                            <Compass className="mr-2 h-4 w-4" />
                             Explorar eventos
                         </Link>
                     </Button>
@@ -108,10 +131,9 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }:
                     </Alert>
                 ) : (
                     <div className="grid gap-4 md:grid-cols-2">
-                        {registrations.map((reg) => {
+                        {sortedRegistrations.map((reg) => {
                             // Lógica de Finalizado
                             const eventDate = new Date(reg.event.date);
-                            const now = new Date();
                             const isFinished = eventDate < now;
 
                             // Lógica de estado visual (Badge)
