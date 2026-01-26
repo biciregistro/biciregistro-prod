@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { getRegistrationEmailTemplate } from './templates/registration';
 import { getWelcomeEmailTemplate } from './templates/welcome';
+import { getOrganizerNotificationEmailTemplate } from './templates/organizer-notification';
 import { Event, User, EventRegistration } from '@/lib/types';
 
 // Initialize Resend only if API key is present
@@ -99,6 +100,63 @@ export async function sendWelcomeEmail({ name, email }: WelcomeEmailData) {
         return { success: true, id: data?.id };
     } catch (error) {
         console.error("Email Service Exception (Welcome):", error);
+        return { success: false, error };
+    }
+}
+
+interface OrganizerNotificationData {
+    organizerEmail: string;
+    organizerName: string;
+    eventName: string;
+    eventImageUrl: string;
+    attendeeName: string;
+    eventId: string;
+}
+
+export async function sendOrganizerNewParticipantEmail({
+    organizerEmail,
+    organizerName,
+    eventName,
+    eventImageUrl,
+    attendeeName,
+    eventId
+}: OrganizerNotificationData) {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
+    const dashboardUrl = `${baseUrl}/dashboard/ong/events/${eventId}`;
+
+    const { subject, html, text } = getOrganizerNotificationEmailTemplate({
+        organizerName,
+        eventName,
+        attendeeName,
+        eventImageUrl,
+        dashboardUrl,
+    });
+
+    if (!resend) {
+        console.log('--- [MOCK ORGANIZER NOTIFICATION EMAIL] ---');
+        console.log(`To: ${organizerEmail}`);
+        console.log(`Subject: ${subject}`);
+        console.log('-------------------------------------------');
+        return { success: true, id: 'mock-org-notify-id' };
+    }
+
+    try {
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [organizerEmail],
+            subject: subject,
+            html: html,
+            text: text,
+        });
+
+        if (error) {
+            console.error("Resend API Error (Organizer Notification):", error);
+            return { success: false, error };
+        }
+
+        return { success: true, id: data?.id };
+    } catch (error) {
+        console.error("Email Service Exception (Organizer Notification):", error);
         return { success: false, error };
     }
 }

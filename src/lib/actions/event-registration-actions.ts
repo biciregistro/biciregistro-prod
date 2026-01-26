@@ -7,7 +7,7 @@ import { adminDb } from '@/lib/firebase/server';
 import { getEvent, getUser } from '@/lib/data'; 
 import { getRegistrationById, registerUserToEvent } from '@/lib/data/event-registration-data';
 import { CURRENT_PRIVACY_POLICY_VERSION, MARKETING_CONSENT_TEXT } from '@/lib/legal-constants';
-import { sendRegistrationEmail } from '@/lib/email/resend-service';
+import { sendRegistrationEmail, sendOrganizerNewParticipantEmail } from '@/lib/email/resend-service';
 import type { MarketingConsent, EventCategory } from '@/lib/types';
 import crypto from 'crypto';
 
@@ -107,10 +107,28 @@ export async function registerForEventAction(
             ]);
 
             if (user && registration) {
+                // Notificación al Ciclista
                 await sendRegistrationEmail({ event, user, registration });
+
+                // NUEVA: Notificación al Organizador
+                try {
+                    const organizer = await getUser(event.ongId);
+                    if (organizer && organizer.email) {
+                        await sendOrganizerNewParticipantEmail({
+                            organizerEmail: organizer.email,
+                            organizerName: organizer.name,
+                            eventName: event.name,
+                            eventImageUrl: event.imageUrl || '',
+                            attendeeName: `${user.name} ${user.lastName || ''}`.trim(),
+                            eventId: event.id
+                        });
+                    }
+                } catch (orgEmailError) {
+                    console.error(`[NON-CRITICAL] Failed to notify organizer for event: ${event.id}`, orgEmailError);
+                }
             }
         } catch (emailError) {
-            console.error(`[CRITICAL] Failed to send registration email for regId: ${result.registrationId}`, emailError);
+            console.error(`[CRITICAL] Failed to send registration emails for regId: ${result.registrationId}`, emailError);
         }
 
         return { success: true, message: result.message };
