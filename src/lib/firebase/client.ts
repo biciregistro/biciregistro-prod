@@ -3,7 +3,7 @@ import { getAuth, signInWithCustomToken, type Auth, type AuthError } from "fireb
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getMessaging, type Messaging, isSupported } from "firebase/messaging";
-import { initializeAppCheck, ReCaptchaV3Provider, onTokenChanged, AppCheck } from "firebase/app-check";
+import { initializeAppCheck, ReCaptchaV3Provider, AppCheck } from "firebase/app-check";
 
 // This object is the single source of truth for the Firebase configuration.
 export const firebaseConfig = {
@@ -24,7 +24,8 @@ let storage: FirebaseStorage;
 let messaging: Messaging | undefined; // Messaging might not be supported
 let appCheck: AppCheck | undefined;
 
-// This promise will be resolved once Firebase and App Check are fully initialized.
+// This promise will be resolved once Firebase services are initialized.
+// Note: We don't wait for App Check token here to avoid blocking UI on token errors.
 let firebaseInitializationPromise: Promise<{ app: FirebaseApp; auth: Auth; db: Firestore; storage: FirebaseStorage; messaging?: Messaging; appCheck?: AppCheck; }> | null = null;
 
 function initializeClientApp(): Promise<{ app: FirebaseApp; auth: Auth; db: Firestore; storage: FirebaseStorage; messaging?: Messaging; appCheck?: AppCheck; }> {
@@ -36,7 +37,6 @@ function initializeClientApp(): Promise<{ app: FirebaseApp; auth: Auth; db: Fire
     // This function should only be executed in the browser.
     if (typeof window === 'undefined') {
       console.warn("Firebase client initialization skipped on the server.");
-      // Resolve with empty/null services for server-side compatibility if needed
       return resolve({} as any);
     }
     
@@ -44,53 +44,53 @@ function initializeClientApp(): Promise<{ app: FirebaseApp; auth: Auth; db: Fire
     if (!firebaseConfig.apiKey || !process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY) {
       const errorMsg = "Missing Firebase config or reCAPTCHA site key.";
       console.error(errorMsg);
-      return reject(new Error(errorMsg));
+      // We resolve anyway to prevent app crash, but log error
+      // return reject(new Error(errorMsg)); 
     }
 
-    if (getApps().length === 0) {
-      app = initializeApp(firebaseConfig);
-    } else {
-      app = getApp();
-    }
-    
-    // Assign services immediately
-    auth = getAuth(app);
-    db = getFirestore(app);
-    storage = getStorage(app);
-
-    // Initialize Messaging if supported
     try {
-        const supported = await isSupported();
-        if (supported) {
-            messaging = getMessaging(app);
+        if (getApps().length === 0) {
+          app = initializeApp(firebaseConfig);
+        } else {
+          app = getApp();
         }
-    } catch (e) {
-        console.warn("Firebase Messaging not supported in this environment", e);
-    }
+        
+        // Assign services immediately
+        auth = getAuth(app);
+        db = getFirestore(app);
+        storage = getStorage(app);
 
-    // Initialize App Check and wait for the token.
-    try {
-      if (process.env.NODE_ENV === "development") {
-        (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-      }
-      
-      appCheck = initializeAppCheck(app, {
-        provider: new ReCaptchaV3Provider(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY),
-        isTokenAutoRefreshEnabled: true
-      });
-      
-      // Listen for the first token to be ready.
-      const unsubscribe = onTokenChanged(appCheck, (token) => {
-        if (token) {
-          console.log("App Check token received, Firebase is ready.");
-          unsubscribe();
-          resolve({ app, auth, db, storage, messaging, appCheck });
+        // Initialize Messaging if supported (async but non-blocking)
+        isSupported().then(supported => {
+            if (supported) {
+                messaging = getMessaging(app);
+            }
+        }).catch(e => console.warn("Messaging support check failed", e));
+
+        // Initialize App Check (Non-blocking)
+        if (process.env.NODE_ENV === "development") {
+            // Prioritize env var for debug token if set, otherwise true (auto-generate)
+            (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = 
+                process.env.NEXT_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN || true;
         }
-      });
-      
+        
+        try {
+            appCheck = initializeAppCheck(app, {
+                provider: new ReCaptchaV3Provider(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!),
+                isTokenAutoRefreshEnabled: true
+            });
+            console.log("App Check initialized.");
+        } catch (appCheckError) {
+            console.error("Error initializing App Check:", appCheckError);
+            // We do NOT reject the main promise if App Check fails
+        }
+
+        // Resolve immediately so the app can start using Auth/DB
+        resolve({ app, auth, db, storage, messaging, appCheck });
+
     } catch (error) {
-      console.error("Error initializing App Check:", error);
-      reject(error);
+        console.error("Critical error initializing Firebase:", error);
+        reject(error);
     }
   });
 
@@ -131,5 +131,4 @@ if (typeof window !== 'undefined') {
 }
 
 // Export the initialized services for legacy usage.
-// Note: These might not be fully initialized when imported.
 export { app, db, auth, storage, messaging };
