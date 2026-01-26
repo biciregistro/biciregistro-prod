@@ -6,14 +6,13 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Info, Copy, Check, CalendarPlus, Edit, MessageCircle, Settings, PlusCircle, Bike as BikeIcon, ExternalLink, Share2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Info, CalendarPlus, MessageCircle, PlusCircle, Bike as BikeIcon } from 'lucide-react';
 import { EventCard } from '@/components/ong/event-card';
 import { BikeCard } from '@/components/bike-card';
+import { OngDashboardHero } from '@/components/ong/ong-dashboard-hero';
 import type { Event, OngUser, Bike } from '@/lib/types';
 
 interface OngDashboardTabsProps {
@@ -22,76 +21,6 @@ interface OngDashboardTabsProps {
     communityMembers: any[];
     bikes?: Bike[];
     statsContent?: React.ReactNode;
-}
-
-function ShareButton({ url }: { url: string }) {
-    const { toast } = useToast();
-
-    const handleShare = async () => {
-        // Construct full URL if relative
-        const fullUrl = url.startsWith('http') ? url : `${window.location.origin}${url}`;
-
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: 'Únete a mi comunidad en Biciregistro',
-                    text: 'Regístrate y participa en mis eventos.',
-                    url: fullUrl,
-                });
-            } catch (error) {
-                console.log('Share cancelled');
-            }
-        } else {
-             navigator.clipboard.writeText(fullUrl).then(() => {
-                toast({ title: "¡Copiado!", description: "El enlace al perfil ha sido copiado al portapapeles." });
-            });
-        }
-    };
-
-    return (
-        <Button variant="secondary" onClick={handleShare}>
-            <Share2 className="mr-2 h-4 w-4" />
-            Compartir
-        </Button>
-    );
-}
-
-function WelcomeCard({ ongProfile }: { ongProfile: OngUser }) {
-    // Determine the public profile URL
-    // Ideally use invitationLink if valid, otherwise construct it
-    const profileUrl = ongProfile.invitationLink || `/join/${ongProfile.id}`;
-
-    return (
-        <Card className="mb-8 bg-primary/5 border-primary/20">
-            <CardContent className="pt-6">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div className="space-y-2">
-                        <h1 className="text-2xl font-bold">¡Hola, {ongProfile.organizationName}!</h1>
-                        <p className="text-muted-foreground">
-                            Bienvenido a tu panel de control. Gestiona tu comunidad y eventos desde aquí.
-                        </p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                        <Button variant="outline" asChild>
-                            <Link href="/dashboard/ong/profile">
-                                <Settings className="mr-2 h-4 w-4" />
-                                Administrar Perfil
-                            </Link>
-                        </Button>
-                        
-                        <Button variant="outline" asChild>
-                            <Link href={`/join/${ongProfile.id}`} target="_blank">
-                                <ExternalLink className="mr-2 h-4 w-4" />
-                                Ver Perfil Público
-                            </Link>
-                        </Button>
-
-                        <ShareButton url={profileUrl} />
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    );
 }
 
 function CommunityTable({ members }: { members: any[] }) {
@@ -180,7 +109,7 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
 
     return (
         <div className="space-y-6">
-            <WelcomeCard ongProfile={ongProfile} />
+            <OngDashboardHero ongProfile={ongProfile} />
 
             <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
                 <TabsList className="grid w-full grid-cols-4 mb-8">
