@@ -7,12 +7,65 @@ import { ProfileEvents } from '@/components/ong-public-profile/profile-events';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Building } from 'lucide-react';
 import type { User } from '@/lib/types';
+import type { Metadata } from 'next';
 
 type JoinPageProps = {
     params: Promise<{
         ongId: string;
     }>;
 };
+
+// --- Open Graph Metadata Generation ---
+export async function generateMetadata({ params }: JoinPageProps): Promise<Metadata> {
+    const { ongId } = await params;
+    const ong = await getOngProfile(ongId);
+
+    if (!ong) {
+        return {
+            title: 'Organización no encontrada | BiciRegistro',
+        };
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
+    
+    // Prioritize Cover Image -> Logo -> Default
+    let imageUrl = ong.coverUrl || ong.logoUrl || '/rodada-segura.png'; 
+    if (imageUrl.startsWith('/')) {
+        imageUrl = `${baseUrl}${imageUrl}`;
+    }
+
+    const title = `Únete a ${ong.organizationName} | BiciRegistro`;
+    const description = ong.description 
+        ? (ong.description.length > 160 ? ong.description.substring(0, 157) + '...' : ong.description)
+        : `Forma parte de la comunidad de ${ong.organizationName} en BiciRegistro. Accede a eventos exclusivos y protege tu bicicleta.`;
+
+    return {
+        title: title,
+        description: description,
+        openGraph: {
+            title: title,
+            description: description,
+            url: `${baseUrl}/join/${ong.id}`,
+            siteName: 'BiciRegistro',
+            images: [
+                {
+                    url: imageUrl,
+                    width: 1200,
+                    height: 630,
+                    alt: `Comunidad de ${ong.organizationName}`,
+                },
+            ],
+            locale: 'es_MX',
+            type: 'website',
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: title,
+            description: description,
+            images: [imageUrl],
+        },
+    };
+}
 
 export default async function JoinPage({ params }: JoinPageProps) {
     const { ongId } = await params;
