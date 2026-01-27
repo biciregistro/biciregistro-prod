@@ -1,7 +1,7 @@
 import 'server-only';
 import { adminDb } from '../firebase/server';
 import { getUser, getEvent, getBike } from './core'; 
-import { EventRegistration, EventAttendee, MarketingConsent } from '../types';
+import { EventRegistration, EventAttendee, MarketingConsent, CostTier } from '../types';
 import { Event } from '../types';
 import { unstable_noStore as noStore } from 'next/cache';
 
@@ -71,13 +71,42 @@ export async function registerUserToEvent(
                 }
             }
 
+            // --- TIER VALIDATION (New Logic) ---
+            let selectedTier: CostTier | undefined;
+            let updatedCostTiers: CostTier[] | undefined;
+            
+            if (registrationData.tierId && eventData.costTiers) {
+                const tierIndex = eventData.costTiers.findIndex(t => t.id === registrationData.tierId);
+                
+                if (tierIndex !== -1) {
+                    selectedTier = eventData.costTiers[tierIndex];
+                    
+                    // Check individual tier limit
+                    const limit = selectedTier.limit || 0;
+                    const sold = selectedTier.soldCount || 0;
+                    
+                    if (limit > 0 && sold >= limit) {
+                        return { success: false, error: `El nivel "${selectedTier.name}" se ha agotado.` };
+                    }
+
+                    // Prepare update for soldCount
+                    updatedCostTiers = [...eventData.costTiers];
+                    updatedCostTiers[tierIndex] = {
+                        ...selectedTier,
+                        soldCount: sold + 1
+                    };
+                }
+            }
+            // -----------------------------------
+
             let paymentStatus = 'pending';
             // Determine price and financial snapshot from the event configuration at this moment
-            const selectedTier = eventData.costTiers?.find(t => t.id === registrationData.tierId);
             const price = selectedTier?.price ?? 0;
 
             if (eventData.costType === 'Gratuito' || price === 0) {
-                paymentStatus = 'not_applicable';
+                // Si es gratuito o el precio es 0, se marca como pagado o no aplicable
+                // Usamos 'paid' si había un costo pero fue 0 (ej. promo) o 'not_applicable' si el evento es 100% gratuito
+                paymentStatus = eventData.costType === 'Gratuito' ? 'not_applicable' : 'paid';
             }
 
             // --- FINANCIAL SNAPSHOTTING (MVP Phase 1) ---
@@ -91,7 +120,7 @@ export async function registerUserToEvent(
 
             let assignedBibNumber = null;
             if (
-                paymentStatus === 'not_applicable' && 
+                (paymentStatus === 'not_applicable' || paymentStatus === 'paid') && 
                 eventData.bibNumberConfig?.enabled && 
                 eventData.bibNumberConfig.mode === 'automatic'
             ) {
@@ -135,9 +164,16 @@ export async function registerUserToEvent(
                 transaction.update(userRef, updateData);
             }
 
-            transaction.update(eventRef, {
+            const eventUpdate: any = {
                 currentParticipants: currentParticipants + 1
-            });
+            };
+
+            // If we modified a tier count, include it in the update
+            if (updatedCostTiers) {
+                eventUpdate.costTiers = updatedCostTiers;
+            }
+
+            transaction.update(eventRef, eventUpdate);
 
             return { success: true, message: "¡Registro exitoso!", registrationId: registrationId };
         });

@@ -105,7 +105,9 @@ export type CostTier = {
   netPrice?: number; 
   fee?: number; 
   includes: string;
-  absorbFee?: boolean; 
+  absorbFee?: boolean;
+  limit?: number; // Optional limit of tickets
+  soldCount?: number; // Current number of tickets sold
 };
 
 export type EventCategory = {

@@ -22,6 +22,7 @@ export function EventCard({ event }: EventCardProps) {
   const registered = event.currentParticipants || 0;
   const occupancyRate = capacity > 0 ? registered / capacity : 0;
   const isHighDemand = occupancyRate >= 0.8 && capacity > 0;
+  const isSoldOut = capacity > 0 && registered >= capacity;
 
   return (
     <Card className="flex flex-col h-full overflow-hidden hover:shadow-lg transition-shadow duration-300 border-border/50 group">
@@ -46,12 +47,16 @@ export function EventCard({ event }: EventCardProps) {
             <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm text-foreground shadow-sm">
                 {event.modality}
             </Badge>
-            {isHighDemand && (
+            {isSoldOut ? (
+                 <Badge variant="destructive" className="shadow-sm">
+                    Agotado
+                </Badge>
+            ) : isHighDemand ? (
                 <Badge variant="destructive" className="shadow-sm animate-pulse flex gap-1 items-center">
                     <AlertCircle className="w-3 h-3" />
                     ¡Últimos lugares!
                 </Badge>
-            )}
+            ) : null}
         </div>
       </div>
 
@@ -86,10 +91,10 @@ export function EventCard({ event }: EventCardProps) {
       </CardContent>
 
       <CardFooter className="p-4 pt-2 mt-auto">
-        <Button asChild className="w-full group/btn" size="default">
+        <Button asChild className="w-full group/btn" size="default" disabled={isSoldOut}>
           <Link href={`/events/${event.id}`}>
-            Ver detalles
-            <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover/btn:translate-x-1" />
+            {isSoldOut ? 'Agotado' : 'Ver detalles'}
+            {!isSoldOut && <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover/btn:translate-x-1" />}
           </Link>
         </Button>
       </CardFooter>

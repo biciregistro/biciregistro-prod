@@ -8,12 +8,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from '@/components/ui/button';
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from '@/components/ui/card';
-import { PlusCircle, Trash2, Calculator } from 'lucide-react';
+import { PlusCircle, Trash2, Calculator, Info } from 'lucide-react';
 import { calculateGrossUp, calculateFeeBreakdown, calculateAbsorbedFee } from '@/lib/utils';
 import type { FinancialSettings, OngUser } from '@/lib/types';
 import { eventFormSchema } from '@/lib/schemas';
 import { z } from "zod";
 import { FinancialRegistrationModal } from '../financial-registration-modal';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
@@ -37,7 +39,21 @@ const CostTierCalculator = ({ index, control, settings }: { index: number, contr
 
     const val = Number(inputValue);
 
-    if (!inputValue || isNaN(val) || val <= 0) return null;
+    if (val === 0) {
+        return (
+             <div className="mt-3 text-xs bg-blue-50 dark:bg-blue-950/30 p-3 rounded-md border border-blue-200 dark:border-blue-800 animate-in fade-in slide-in-from-top-1">
+                <div className="flex items-center gap-2 mb-2 text-blue-700 dark:text-blue-400">
+                    <Info className="h-3 w-3" />
+                    <span className="font-semibold">Nivel Gratuito</span>
+                </div>
+                <p className="text-blue-600 dark:text-blue-400 text-[11px] leading-relaxed">
+                    Este nivel será completamente <strong>gratuito</strong> para los participantes y libre de comisiones de la plataforma.
+                </p>
+            </div>
+        );
+    }
+
+    if (!inputValue || isNaN(val) || val < 0) return null;
 
     let displayNet: number;
     let displayFee: number;
@@ -168,7 +184,7 @@ export function CostSection({ form, financialSettings, hasFinancialData: initial
                                 type="button" 
                                 variant="outline" 
                                 size="sm" 
-                                onClick={() => append({ id: crypto.randomUUID(), name: '', price: 0, includes: '', absorbFee: false })}
+                                onClick={() => append({ id: crypto.randomUUID(), name: '', price: 0, includes: '', absorbFee: false, limit: 0, soldCount: 0 })}
                             >
                                 <PlusCircle className="mr-2 h-3 w-3" /> Agregar Nivel
                             </Button>
@@ -176,12 +192,23 @@ export function CostSection({ form, financialSettings, hasFinancialData: initial
                         
                         {fields.map((field, index) => {
                             const isAbsorbed = form.watch(`costTiers.${index}.absorbFee`);
-                            
+                            const currentPrice = form.watch(`costTiers.${index}.price`);
+                            const soldCount = form.watch(`costTiers.${index}.soldCount`) || 0;
+                            const limit = form.watch(`costTiers.${index}.limit`);
+
                             return (
                                 <Card key={field.id} className="border-2 border-muted/20">
                                     <CardContent className="p-4 space-y-4">
                                         <div className="flex justify-between items-center">
-                                            <h4 className="text-sm font-semibold">Nivel {index + 1}</h4>
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="text-sm font-semibold">Nivel {index + 1}</h4>
+                                                {soldCount > 0 && (
+                                                     <Badge variant="secondary" className="text-xs">
+                                                        {soldCount} vendidos
+                                                        {limit && limit > 0 ? ` / ${limit}` : ''}
+                                                     </Badge>
+                                                )}
+                                            </div>
                                             <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
                                                 <Trash2 className="h-4 w-4 text-destructive" />
                                             </Button>
@@ -212,6 +239,37 @@ export function CostSection({ form, financialSettings, hasFinancialData: initial
                                                         </FormItem>
                                                     )}
                                                 />
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`costTiers.${index}.limit`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <div className="flex items-center gap-2">
+                                                                <FormLabel className="text-xs uppercase tracking-wider font-bold">Límite de Cupos (Opcional)</FormLabel>
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Info className="h-3 w-3 text-muted-foreground cursor-pointer" />
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p className="max-w-xs">Define cuántas entradas de este tipo se pueden vender. Deja en 0 para ilimitado.</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            </div>
+                                                            <FormControl>
+                                                                <Input 
+                                                                    type="number" 
+                                                                    placeholder="0 para ilimitado" 
+                                                                    {...field}
+                                                                    value={field.value ?? 0}
+                                                                    onChange={e => field.onChange(parseInt(e.target.value) || 0)}
+                                                                />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
                                             </div>
 
                                             {/* Column 2: Pricing & Strategy */}
@@ -229,7 +287,8 @@ export function CostSection({ form, financialSettings, hasFinancialData: initial
                                                             </div>
                                                             <FormControl>
                                                                 <Switch
-                                                                    checked={field.value}
+                                                                    disabled={currentPrice === 0}
+                                                                    checked={currentPrice === 0 ? false : field.value}
                                                                     onCheckedChange={field.onChange}
                                                                 />
                                                             </FormControl>
@@ -252,7 +311,7 @@ export function CostSection({ form, financialSettings, hasFinancialData: initial
                                                                         type="number" 
                                                                         className="pl-7 font-bold text-lg" 
                                                                         {...field}
-                                                                        onChange={e => field.onChange(parseFloat(e.target.value))}
+                                                                        onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
                                                                     />
                                                                 </div>
                                                             </FormControl>

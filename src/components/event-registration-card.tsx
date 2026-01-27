@@ -12,9 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tag, Loader2, ShieldCheck, ArrowRight, Shirt } from 'lucide-react';
+import { Tag, Loader2, ShieldCheck, ArrowRight, Shirt, AlertCircle } from 'lucide-react';
 import type { Event, User, EventRegistration } from '@/lib/types';
 import dynamic from 'next/dynamic';
+import { Badge } from './ui/badge';
 
 const WaiverModal = dynamic(() => import('@/components/waiver-modal').then(mod => mod.WaiverModal), {
     ssr: false,
@@ -93,10 +94,11 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
     const selectedJerseyConfig = jerseyConfigs.find(j => j.id === selectedJerseyId);
     
     const price = selectedTier ? selectedTier.price : 0;
-    const isFree = event.costType === 'Gratuito' || (tiers.length === 0);
+    // El evento es gratuito si costType es 'Gratuito', si no hay tiers, o si el tier seleccionado cuesta 0.
+    const isFree = event.costType === 'Gratuito' || (tiers.length === 0) || (selectedTier?.price === 0);
 
     const handleRegisterClick = () => {
-        if (!isFree && tiers.length > 0 && !selectedTierId) {
+        if (event.costType !== 'Gratuito' && tiers.length > 0 && !selectedTierId) {
             toast({ variant: "destructive", title: "Selección requerida", description: "Por favor selecciona un nivel de acceso." });
             return;
         }
@@ -184,6 +186,16 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
     const loginUrl = `/login?callbackUrl=${encodeURIComponent(eventUrlWithAnchor)}`;
     const signupUrl = `/signup?callbackUrl=${encodeURIComponent(eventUrlWithAnchor)}`;
 
+    // Helper to check availability
+    const checkTierAvailability = (tier: any) => {
+        if (!tier.limit || tier.limit === 0) return { available: true };
+        const sold = tier.soldCount || 0;
+        return { 
+            available: sold < tier.limit,
+            remaining: tier.limit - sold
+        };
+    };
+
     return (
         <>
         <Card className="shadow-lg sticky top-24 z-10 border-t-4 border-t-secondary overflow-hidden">
@@ -202,19 +214,39 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                         <span>Costo</span>
                     </div>
                     <span className="font-bold text-xl">
-                        {isFree ? 'Gratuito' : (selectedTier ? `$${selectedTier.price} MXN` : 'Desde...')}
+                        {event.costType === 'Gratuito' ? 'Gratuito' : (selectedTier ? (selectedTier.price === 0 ? 'Gratis' : `$${selectedTier.price} MXN`) : 'Selecciona...')}
                     </span>
                 </div>
                 
                 {user && !isRegistered && !isSoldOut && !isFinished && !isRegistrationClosed && (
                     <div className="space-y-4 animate-in fade-in">
-                        {!isFree && tiers.length > 0 && (
+                        {event.costType !== 'Gratuito' && tiers.length > 0 && (
                             <div className="space-y-2">
                                 <Label>Nivel de Acceso</Label>
                                 <Select onValueChange={setSelectedTierId} value={selectedTierId}>
-                                    <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecciona un nivel" />
+                                    </SelectTrigger>
                                     <SelectContent>
-                                        {tiers.map(tier => <SelectItem key={tier.id} value={tier.id}>{tier.name} - ${tier.price}</SelectItem>)}
+                                        {tiers.map(tier => {
+                                            const { available, remaining } = checkTierAvailability(tier);
+                                            return (
+                                                <SelectItem 
+                                                    key={tier.id} 
+                                                    value={tier.id} 
+                                                    disabled={!available}
+                                                    className={!available ? "opacity-50" : ""}
+                                                >
+                                                    <span className="flex items-center justify-between w-full gap-2">
+                                                        <span>{tier.name} - {tier.price === 0 ? 'Gratis' : `$${tier.price}`}</span>
+                                                        {!available && <span className="text-xs font-bold text-destructive ml-2">(Agotado)</span>}
+                                                        {available && remaining !== undefined && remaining <= 5 && (
+                                                            <span className="text-xs font-bold text-orange-500 ml-2">({remaining} libres)</span>
+                                                        )}
+                                                    </span>
+                                                </SelectItem>
+                                            );
+                                        })}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -285,7 +317,7 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                         ) : (
                             <Button size="lg" className="w-full text-lg font-bold shadow-lg shadow-primary/20 h-12" disabled={event.status === 'draft' || isPending} onClick={handleRegisterClick}>
                                 {isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                                {event.status === 'draft' ? 'No disponible' : 'Registrarme Ahora'}
+                                {event.status === 'draft' ? 'No disponible' : (isFree ? 'Registrarme Gratis' : 'Pagar e Inscribirme')}
                             </Button>
                         )
                     ) : (
@@ -425,7 +457,7 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                     <Button variant="outline" onClick={() => setIsConfirmModalOpen(false)} disabled={isPending}>Cancelar</Button>
                     <Button onClick={handleProceedToWaiverOrRegister} disabled={isPending}>
                         {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        {event.requiresWaiver ? "Continuar a Firma" : "Confirmar Registro"}
+                        {event.requiresWaiver ? "Continuar a Firma" : (isFree ? "Confirmar Registro" : "Ir a Pagar")}
                     </Button>
                 </DialogFooter>
             </DialogContent>

@@ -113,12 +113,14 @@ export const eventFormSchema = z.object({
     costTiers: z.array(z.object({
         id: z.string(),
         name: z.string().min(1, "El nombre del nivel es obligatorio."),
-        price: z.coerce.number().positive("El precio debe ser un número positivo."),
+        price: z.coerce.number().min(0, "El precio no puede ser negativo."), // Changed from positive to min(0)
         // Nuevos campos opcionales para persistencia financiera
         netPrice: z.coerce.number().optional(),
         fee: z.coerce.number().optional(),
         includes: z.string().min(1, "Debes detallar qué incluye este nivel."),
         absorbFee: z.boolean().optional().default(false), // NUEVO: MVP Comisión Absorbida
+        limit: z.coerce.number().positive("El límite debe ser un número positivo.").optional().or(z.literal(0)).or(z.null()), // New field for limit
+        soldCount: z.number().optional(), // New field for sold count
     })).optional(),
     
     // Categories

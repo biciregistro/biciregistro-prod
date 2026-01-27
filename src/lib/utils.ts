@@ -59,6 +59,14 @@ export function calculateGrossUp(netAmount: number, settings: FinancialSettings)
 }
 
 export function calculateFeeBreakdown(totalAmount: number, netAmount: number) {
+    if (netAmount === 0) {
+        return {
+            feeAmount: 0,
+            totalAmount: 0,
+            netAmount: 0
+        };
+    }
+    
     // Calculamos el costo de gestión total
     const totalFee = totalAmount - netAmount;
     return {
