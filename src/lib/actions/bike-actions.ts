@@ -18,6 +18,7 @@ import {
 import crypto from 'crypto';
 import { sendTheftAlert } from '@/lib/notifications/service';
 import { FieldValue } from 'firebase-admin/firestore';
+import { headers } from 'next/headers';
 
 // --- Schemas y Helpers ---
 
@@ -89,6 +90,19 @@ async function uploadBase64Image(base64String: string, path: string) {
     }
 }
 
+// Helper para obtener IP
+async function getClientIp(): Promise<string | undefined> {
+    const headerList = await headers();
+    const forwardedFor = headerList.get('x-forwarded-for');
+    if (forwardedFor) {
+        return forwardedFor.split(',')[0].trim();
+    }
+    // En entornos locales o sin proxy, podría no estar disponible fácilmente desde headers
+    // pero para App Hosting/Vercel/Cloud Run, x-forwarded-for es el estándar.
+    return undefined;
+}
+
+
 // --- Actions ---
 
 export async function registerBike(prevState: BikeFormState, formData: FormData): Promise<BikeFormState> {
@@ -119,11 +133,15 @@ export async function registerBike(prevState: BikeFormState, formData: FormData)
     }
 
     try {
+        // Capturar IP
+        const ip = await getClientIp();
+
         await addBike({
             ...bikeData,
             userId: session.uid,
             serialNumber,
             ownershipProof: ownershipProofUrl || '',
+            registrationIp: ip,
             photos: [
                 photoUrl,
                 serialNumberPhotoUrl,
@@ -388,6 +406,9 @@ export async function registerBikeWizardAction(formData: any) {
             };
         }
 
+        // Capturar IP
+        const ip = await getClientIp();
+
         await addBike({
             userId,
             serialNumber: formData.serialNumber,
@@ -398,6 +419,7 @@ export async function registerBikeWizardAction(formData: any) {
             modelYear: formData.year,
             appraisedValue: parseFloat(formData.value),
             ownershipProof: '',
+            registrationIp: ip,
             photos: photoUrls,
         });
 

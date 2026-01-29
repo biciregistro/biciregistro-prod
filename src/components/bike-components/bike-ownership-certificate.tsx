@@ -114,7 +114,10 @@ const styles = StyleSheet.create({
 
 // --- Hash Generation Utility (SHA-256) ---
 const generateSecureHash = async (bike: Bike, user: User) => {
-    const input = `${user.id}|${bike.id}|${bike.serialNumber}|${bike.createdAt}|BICIREGISTRO_PROPERTY_CERTIFICATE`;
+    // Si la bici tiene IP registrada, la incluimos en el hash para mayor seguridad
+    const ipPart = bike.registrationIp || 'NO_IP';
+    const input = `${user.id}|${bike.id}|${bike.serialNumber}|${bike.createdAt}|${ipPart}|BICIREGISTRO_PROPERTY_CERTIFICATE`;
+    
     const msgBuffer = new TextEncoder().encode(input);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -138,6 +141,11 @@ const CertificateDocument = ({ bike, user, logoUrl, bikeImageUrl, hash }: {
   const formattedValue = bike.appraisedValue 
     ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(bike.appraisedValue) 
     : 'No especificado';
+
+  // Lógica de visualización de IP
+  const displayIp = bike.registrationIp 
+    ? bike.registrationIp 
+    : 'No disponible (Registro previo a v2.0)';
 
   return (
     <Document>
@@ -210,7 +218,7 @@ const CertificateDocument = ({ bike, user, logoUrl, bikeImageUrl, hash }: {
         </View>
         <View style={styles.row}>
           <Text style={styles.label}>IP de Registro:</Text>
-          <Text style={styles.value}>Registrada de forma segura (AES-256)</Text>
+          <Text style={styles.value}>{displayIp}</Text>
         </View>
 
         {/* Bike Photo */}

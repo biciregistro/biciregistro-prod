@@ -16,6 +16,7 @@ export type Bike = {
   ownershipProof?: string; // URL to a single ownership document/proof
   appraisedValue?: number; // Approximate value of the bike
   createdAt?: string; // ISO string format of the creation date
+  registrationIp?: string; // IP address from where the bike was registered
   // Seguimiento de difusión administrativa
   adminSharedAt?: string; // ISO string de cuándo el admin compartió el robo
   theftReport?: {
