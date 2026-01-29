@@ -9,85 +9,145 @@ import { Download, Loader2 } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { cn } from '@/lib/utils';
 
-// --- Redesigned Styles ---
+// --- New "Shield & Verify" Styles ---
 const styles = StyleSheet.create({
   page: {
     backgroundColor: '#ffffff',
     padding: 10,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  // Main Container mimicking a sticker/shield
   tagContainer: {
     width: '100%',
     height: '100%',
+    backgroundColor: '#ffffff',
+    border: '2px solid #0f172a',
+    borderRadius: 12,
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  // Dark Header
+  header: {
+    backgroundColor: '#0f172a',
+    paddingVertical: 10,
+    paddingHorizontal: 5,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    border: '1px solid #e2e8f0',
-    borderRadius: 8,
-    padding: 8,
-    backgroundColor: '#f8fafc',
   },
   logoImage: {
-    width: 85,
-    height: 23.5,
-    marginBottom: 12,
+    width: 80,
+    height: 22,
+    marginBottom: 4,
+  },
+  headerStatus: {
+    fontSize: 7,
+    color: '#ffffff',
+    fontFamily: 'Helvetica',
+    letterSpacing: 1.5,
+    fontWeight: 'bold',
+  },
+  // QR Area
+  body: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    backgroundColor: '#ffffff',
+  },
+  qrWrapper: {
+    padding: 6,
+    border: '1px solid #e2e8f0',
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
   },
   qrImage: {
-    width: 90,
-    height: 90,
-    padding: 5,
-    backgroundColor: 'white',
-    border: '1px solid #e2e8f0',
-    borderRadius: 4,
+    width: 100,
+    height: 100,
   },
-  serialContainer: {
-    marginTop: 12,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    backgroundColor: '#ffffff',
-    border: '1px solid #e2e8f0',
-    borderRadius: 4,
-    width: '95%',
+  scanText: {
+    fontSize: 6,
+    color: '#64748b',
+    fontFamily: 'Helvetica',
+    marginTop: 8,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  // Info Footer
+  footer: {
+    backgroundColor: '#f8fafc',
+    borderTop: '1px solid #e2e8f0',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     display: 'flex',
-    justifyContent: 'center',
+    flexDirection: 'column',
     alignItems: 'center',
   },
-  serialNumber: {
-    fontSize: 8,
-    fontFamily: 'Courier',
-    letterSpacing: 0.8,
-    textAlign: 'left',
-    color: '#0f172a',
-  },
-  legend: {
-    fontSize: 7,
+  serialLabel: {
+    fontSize: 6,
+    color: '#94a3b8',
     fontFamily: 'Helvetica',
-    textAlign: 'center',
-    color: '#64748b',
-    position: 'absolute',
-    bottom: 8,
+    marginBottom: 2,
   },
+  serialNumber: {
+    fontSize: 9,
+    fontFamily: 'Courier',
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    color: '#0f172a',
+    textAlign: 'center',
+  },
+  securityStrip: {
+    height: 4,
+    width: '100%',
+    backgroundColor: '#ef4444', // Red strip for "Security" feel
+    position: 'absolute',
+    bottom: 0,
+  }
 });
 
 // --- Pure PDF Document Component ---
 const BikePDFTag = ({ bike, qrCodeUrl, logoUrl }: { bike: Bike; qrCodeUrl: string; logoUrl: string }) => {
   return (
     <Document>
-      <Page size={[170.08, 255.12]} style={styles.page}>
+      {/* Optimized size for a bike sticker: approx 2.5" x 3.5" (180pt x 252pt) */}
+      <Page size={[180, 252]} style={styles.page}>
         <View style={styles.tagContainer}>
-          <Image style={styles.logoImage} src={logoUrl} />
-          <Image style={styles.qrImage} src={qrCodeUrl} />
-          <View style={styles.serialContainer}>
-             <Text style={styles.serialNumber}>{bike.serialNumber}</Text>
+          {/* Header Section */}
+          <View style={styles.header}>
+            <Image style={styles.logoImage} src={logoUrl} />
+            <Text style={styles.headerStatus}>PROTECCIÓN ACTIVA</Text>
           </View>
-          <Text style={styles.legend}>Bicicleta protegida con BicRegistro</Text>
+
+          {/* Body Section (QR) */}
+          <View style={styles.body}>
+            <View style={styles.qrWrapper}>
+                <Image style={styles.qrImage} src={qrCodeUrl} />
+            </View>
+            <Text style={styles.scanText}>ESCANEAR PARA VERIFICAR ESTATUS</Text>
+          </View>
+
+          {/* Footer Section (Serial) */}
+          <View style={styles.footer}>
+            <Text style={styles.serialLabel}>NÚMERO DE SERIE</Text>
+            <Text style={styles.serialNumber}>{bike.serialNumber}</Text>
+          </View>
+
+          {/* Security Visual Element */}
+          <View style={styles.securityStrip} />
         </View>
       </Page>
     </Document>
   );
 };
 
-// --- Download Button Component (the default export) ---
+// --- Download Button Component ---
 export default function BikePDFDownloader({ bike, className }: { bike: Bike, className?: string }) {
     const [loading, setLoading] = useState(false);
 
@@ -98,13 +158,17 @@ export default function BikePDFDownloader({ bike, className }: { bike: Bike, cla
             const bikeUrl = `${baseUrl}/bikes/${bike.serialNumber}`;
             const qrCodeUrl = await QRCode.toDataURL(bikeUrl, { 
                 errorCorrectionLevel: 'H',
-                margin: 2,
+                margin: 1,
              });
-            const logoUrl = `${baseUrl}/logo.png`;
+            
+            // Using a white logo for the dark header
+            // If logo-white.png doesn't exist, we might need a placeholder or use CSS filters (hard in PDF)
+            // For now assuming logo.png is readable or we provide the right asset
+            const logoUrl = `${baseUrl}/logo.png`; 
 
             const blob = await pdf(<BikePDFTag bike={bike} qrCodeUrl={qrCodeUrl} logoUrl={logoUrl} />).toBlob();
             
-            saveAs(blob, `etiqueta-BiciRegistro-${bike.serialNumber}.pdf`);
+            saveAs(blob, `etiqueta-seguridad-${bike.serialNumber}.pdf`);
         } catch (error) {
             console.error("Failed to generate and download PDF", error);
         } finally {
