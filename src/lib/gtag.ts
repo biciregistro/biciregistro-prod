@@ -1,4 +1,4 @@
-export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || 'G-29Y1DBY451';
 
 export const pageview = (url: string) => {
   if (typeof window !== 'undefined' && (window as any).gtag) {
