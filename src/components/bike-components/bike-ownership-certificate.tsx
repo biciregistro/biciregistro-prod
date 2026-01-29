@@ -71,10 +71,17 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#0f172a',
   },
+  hashValue: {
+    flex: 1,
+    fontSize: 8,
+    fontFamily: 'Courier',
+    color: '#0f172a',
+    marginTop: 2,
+  },
   bikeImage: {
     width: '100%',
     height: 250, 
-    objectFit: 'contain', // Changed to contain to respect aspect ratio better
+    objectFit: 'contain',
     borderRadius: 8,
     marginTop: 10,
     marginBottom: 10,
@@ -94,13 +101,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 4,
   },
-  hash: {
-    fontSize: 7,
-    fontFamily: 'Courier',
-    color: '#94a3b8',
-    textAlign: 'center',
-    marginTop: 5,
-  },
   watermark: {
     position: 'absolute',
     top: '50%',
@@ -114,7 +114,6 @@ const styles = StyleSheet.create({
 
 // --- Hash Generation Utility (SHA-256) ---
 const generateSecureHash = async (bike: Bike, user: User) => {
-    // Si la bici tiene IP registrada, la incluimos en el hash para mayor seguridad
     const ipPart = bike.registrationIp || 'NO_IP';
     const input = `${user.id}|${bike.id}|${bike.serialNumber}|${bike.createdAt}|${ipPart}|BICIREGISTRO_PROPERTY_CERTIFICATE`;
     
@@ -142,7 +141,6 @@ const CertificateDocument = ({ bike, user, logoUrl, bikeImageUrl, hash }: {
     ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(bike.appraisedValue) 
     : 'No especificado';
 
-  // Lógica de visualización de IP
   const displayIp = bike.registrationIp 
     ? bike.registrationIp 
     : 'No disponible (Registro previo a v2.0)';
@@ -159,7 +157,7 @@ const CertificateDocument = ({ bike, user, logoUrl, bikeImageUrl, hash }: {
           <Text style={styles.title}>CERTIFICADO DE PROPIEDAD</Text>
         </View>
 
-        {/* Legal Disclaimer - Moved to Top */}
+        {/* Legal Disclaimer */}
         <View style={styles.legalDisclaimerBox}>
              <Text style={styles.legalText}>
                 El presente documento constituye una prueba documental privada de existencia y registro digital. El Usuario declara bajo protesta de decir verdad ser el legítimo poseedor del bien descrito, amparándose en la presunción de propiedad establecida en el Artículo 798 del Código Civil Federal. La integridad de este certificado y su fecha cierta están garantizadas mediante sellado criptográfico (Hash), otorgándole valor probatorio pleno conforme al Artículo 210-A del Código Federal de Procedimientos Civiles. Biciregistro.mx actúa como tercero de buena fe y custodio de la información; la veracidad de los datos origen es responsabilidad exclusiva del declarante según los Términos y Condiciones de la plataforma.
@@ -220,6 +218,10 @@ const CertificateDocument = ({ bike, user, logoUrl, bikeImageUrl, hash }: {
           <Text style={styles.label}>IP de Registro:</Text>
           <Text style={styles.value}>{displayIp}</Text>
         </View>
+        <View style={styles.row}>
+          <Text style={styles.label}>Hash de Validación:</Text>
+          <Text style={styles.hashValue}>{hash}</Text>
+        </View>
 
         {/* Bike Photo */}
         {bikeImageUrl && (
@@ -238,7 +240,6 @@ const CertificateDocument = ({ bike, user, logoUrl, bikeImageUrl, hash }: {
           <Text style={styles.footerText}>
             Para validar la autenticidad de este certificado, escanee el código QR de la bicicleta o contacte a soporte@biciregistro.mx
           </Text>
-          <Text style={styles.hash}>HASH DE VALIDACIÓN (SHA-256): {hash}</Text>
         </View>
       </Page>
     </Document>
@@ -254,13 +255,10 @@ export default function BikeOwnershipCertificate({ bike, user, className }: { bi
             const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
             const logoUrl = `${baseUrl}/logo.png`;
             
-            // Generate SHA-256 Secure Hash
             const hash = await generateSecureHash(bike, user);
             
-            // Image Handling with Proxy
             let bikeImageUrl = undefined;
             if (bike.photos && bike.photos.length > 0) {
-                // Use the proxy endpoint to fetch the image to avoid CORS issues
                 bikeImageUrl = `/api/image-proxy?url=${encodeURIComponent(bike.photos[0])}`;
             }
 
