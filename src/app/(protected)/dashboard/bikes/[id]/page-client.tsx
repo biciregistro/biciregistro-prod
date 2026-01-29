@@ -22,12 +22,20 @@ import { auth } from '@/lib/firebase/client';
 import { RecoverBikeButton } from '@/components/bike-components/recover-bike-button';
 import { BikeTheftShareMenu } from '@/components/dashboard/bike-theft-share-menu';
 
-// Dynamic import for PDF downloader
+// Dynamic import for PDF downloaders
 const BikePDFDownloader = dynamic(
   () => import('@/components/bike-components/bike-pdf-downloader'),
   { 
     ssr: false,
     loading: () => <Button variant="default" disabled className="w-full"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando...</Button>
+  }
+);
+
+const BikeOwnershipCertificate = dynamic(
+  () => import('@/components/bike-components/bike-ownership-certificate'),
+  { 
+    ssr: false,
+    loading: () => <Button variant="outline" disabled className="w-full"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando...</Button>
   }
 );
 
@@ -223,13 +231,14 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
 
               <Card>
                   <CardHeader>
-                      <CardTitle>Protege tu Bici con la Etiqueta QR</CardTitle>
+                      <CardTitle>Certificado y Etiqueta QR</CardTitle>
                       <CardDescription>
-                          Esta etiqueta es una protección activa y un disuasivo de robo. Descárgala, imprímela en papel autoadherible y colócala en un lugar visible del marco.
+                          Documentación oficial para proteger y avalar la propiedad de tu bicicleta.
                       </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-3">
                       <BikePDFDownloader bike={bike} />
+                      <BikeOwnershipCertificate bike={bike} user={user} />
                   </CardContent>
               </Card>
 
