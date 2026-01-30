@@ -18,6 +18,7 @@ import { GeneralSection } from './event-form-sections/general-section';
 import { ConfigurationSection } from './event-form-sections/configuration-section';
 import { CostSection } from './event-form-sections/cost-section';
 import { LegalSection } from './event-form-sections/legal-section';
+import { CustomQuestionsSection } from './event-form-sections/custom-questions-section';
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
@@ -88,6 +89,9 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
             // Fix for Jersey config persistence
             hasJersey: initialData?.hasJersey || false,
             jerseyConfigs: initialData?.jerseyConfigs || [],
+            // Custom questions
+            hasCustomQuestions: initialData?.hasCustomQuestions || (initialData?.customQuestions && initialData.customQuestions.length > 0) || false,
+            customQuestions: initialData?.customQuestions || [],
             sponsors: initialData?.sponsors || [],
         },
     });
@@ -112,6 +116,9 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
             if (!data.hasCategories) submitData.categories = [];
             if (!data.hasRegistrationDeadline) submitData.registrationDeadline = undefined;
             if (!data.requiresWaiver) submitData.waiverText = undefined;
+            
+            // Cleanup custom questions if switch is off (handled by switch UI but verified here)
+            if (!data.hasCustomQuestions) submitData.customQuestions = [];
             
             const result = await saveEvent(submitData, isDraft);
 
@@ -167,6 +174,9 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
                 
                 <GeneralSection form={form} />
                 <ConfigurationSection form={form} isPublished={isPublished} />
+                
+                <CustomQuestionsSection form={form} />
+                
                 <LegalSection form={form} />
                 <CostSection 
                     form={form} 

@@ -31,8 +31,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, MoreHorizontal, Check, AlertCircle, CreditCard, UserCheck, Bike, XCircle, Wallet, HeartPulse, ShieldAlert, Phone, FileText, Shirt, Download, Table as TableIcon, Ban } from 'lucide-react';
-import { EventAttendee, PaymentStatus } from '@/lib/types';
+import { MessageCircle, MoreHorizontal, Check, AlertCircle, CreditCard, UserCheck, Bike, XCircle, Wallet, HeartPulse, ShieldAlert, Phone, FileText, Shirt, Download, Table as TableIcon, Ban, HelpCircle } from 'lucide-react';
+import { EventAttendee, PaymentStatus, CustomQuestion } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { toggleCheckInStatus, cancelRegistrationManuallyAction } from '@/lib/actions';
 import { registerManualPaymentAction, updateRegistrationPaymentStatusAction } from '@/lib/actions/financial-actions';
@@ -69,9 +69,10 @@ interface AttendeeManagementProps {
         mode: 'automatic' | 'dynamic';
     };
     hasJersey?: boolean; // New Prop
+    customQuestions?: CustomQuestion[]; // New Prop
 }
 
-export function AttendeeManagement({ attendees, eventId, eventName, showEmergencyContact, showBikeInfo, showWaiverInfo, isBlocked, bibConfig, hasJersey }: AttendeeManagementProps) {
+export function AttendeeManagement({ attendees, eventId, eventName, showEmergencyContact, showBikeInfo, showWaiverInfo, isBlocked, bibConfig, hasJersey, customQuestions = [] }: AttendeeManagementProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -87,6 +88,10 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
 
     // Jersey Order Modal State
     const [jerseyModalOpen, setJerseyModalOpen] = useState(false);
+
+    // Custom Answers Modal State (for long text)
+    const [answerModalOpen, setAnswerModalOpen] = useState(false);
+    const [selectedAnswer, setSelectedAnswer] = useState<{ label: string, value: string } | null>(null);
 
     const { toast } = useToast();
     const router = useRouter();
@@ -209,6 +214,11 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
         setWaiverModalOpen(true);
     };
 
+    const openAnswerModal = (label: string, value: string) => {
+        setSelectedAnswer({ label, value });
+        setAnswerModalOpen(true);
+    };
+
 
     const handleCancelRegistration = async () => {
         if (!selectedAttendeeId) return;
@@ -252,6 +262,37 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                 {attendee.paymentStatus === 'paid' && attendee.paymentMethod && methodMap[attendee.paymentMethod]}
             </div>
         );
+    };
+
+    const renderCustomAnswer = (attendee: EventAttendee, question: CustomQuestion) => {
+        const answer = attendee.customAnswers?.[question.id];
+        
+        if (!answer) return <span className="text-muted-foreground">-</span>;
+        
+        if (Array.isArray(answer)) {
+            return (
+                <div className="flex flex-wrap gap-1">
+                    {answer.map((a, i) => (
+                        <Badge key={i} variant="secondary" className="text-[10px]">{a}</Badge>
+                    ))}
+                </div>
+            );
+        }
+        
+        // Truncate long text
+        if (answer.length > 30) {
+            return (
+                <div 
+                    className="flex items-center gap-1 cursor-pointer hover:bg-muted p-1 rounded transition-colors"
+                    onClick={() => openAnswerModal(question.label, answer)}
+                >
+                    <span className="truncate max-w-[150px]">{answer}</span>
+                    <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                </div>
+            );
+        }
+        
+        return <span>{answer}</span>;
     };
 
     return (
@@ -312,6 +353,14 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                             {showEmergencyContact && <TableHead>Info Médica</TableHead>}
                             {showBikeInfo && <TableHead>Bicicleta</TableHead>}
                             {hasJersey && <TableHead>Jersey</TableHead>}
+                            
+                            {/* Custom Questions Headers */}
+                            {customQuestions.map(q => (
+                                <TableHead key={q.id} className="min-w-[150px]">
+                                    {q.label}
+                                </TableHead>
+                            ))}
+                            
                             {showWaiverInfo && <TableHead>Responsiva</TableHead>}
                             <TableHead>Nivel/Cat.</TableHead>
                             <TableHead>Pago</TableHead>
@@ -412,6 +461,14 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                                             )}
                                         </TableCell>
                                     )}
+
+                                    {/* Custom Answers Cells */}
+                                    {customQuestions.map(q => (
+                                        <TableCell key={q.id} className="text-xs">
+                                            {renderCustomAnswer(attendee, q)}
+                                        </TableCell>
+                                    ))}
+
                                      {showWaiverInfo && (
                                         <TableCell>
                                             {attendee.waiverSigned ? (
@@ -482,7 +539,7 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={showBikeInfo ? (showEmergencyContact ? (hasJersey ? 10 : 9) : (hasJersey ? 9 : 8)) : (showEmergencyContact ? (hasJersey ? 9 : 8) : (hasJersey ? 8 : 7))} className="h-24 text-center">
+                                <TableCell colSpan={12 + customQuestions.length} className="h-24 text-center">
                                     No se encontraron participantes.
                                 </TableCell>
                             </TableRow>
@@ -589,6 +646,21 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                     participantName={selectedParticipantForWaiver.name}
                 />
             )}
+
+             {/* Answer Modal for long text */}
+             <Dialog open={answerModalOpen} onOpenChange={setAnswerModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{selectedAnswer?.label}</DialogTitle>
+                    </DialogHeader>
+                    <div className="p-4 bg-muted/30 rounded-md">
+                        <p className="whitespace-pre-wrap">{selectedAnswer?.value}</p>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={() => setAnswerModalOpen(false)}>Cerrar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Jersey Production Order Modal */}
             <Dialog open={jerseyModalOpen} onOpenChange={setJerseyModalOpen}>

@@ -26,6 +26,7 @@ export async function getRegistrationById(registrationId: string): Promise<Event
 
 type RegistrationInput = Omit<EventRegistration, 'id' | 'registrationDate' | 'status'> & {
     marketingConsent?: MarketingConsent | null;
+    customAnswers?: Record<string, string | string[]>; // Added support for custom answers
 };
 
 // Return type updated to include registrationId on success
@@ -142,7 +143,8 @@ export async function registerUserToEvent(
                 marketingConsent: registrationData.marketingConsent || null,
                 bibNumber: assignedBibNumber,
                 jerseyModel: registrationData.jerseyModel || null,
-                jerseySize: registrationData.jerseySize || null
+                jerseySize: registrationData.jerseySize || null,
+                customAnswers: registrationData.customAnswers || {} // Persist custom answers
             };
             
             let registrationId: string;
@@ -264,6 +266,7 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 insuranceInfo: areEmergencyDetailsHidden ? '***' : (regData.insuranceInfo || null),
                 allergies: areEmergencyDetailsHidden ? '***' : (regData.allergies || null),
                 waiverSigned: !!regData.waiverSignature,
+                customAnswers: regData.customAnswers || {} // Include custom answers
             } as EventAttendee;
         });
 

@@ -165,6 +165,16 @@ export const eventFormSchema = z.object({
         sizes: z.array(z.enum(['XS', 'S', 'M', 'L', 'XL', 'XXL'])).min(1, "Debes seleccionar al menos una talla.")
     })).optional(),
 
+    // Custom Questions
+    hasCustomQuestions: z.boolean().optional(), // Nuevo flag
+    customQuestions: z.array(z.object({
+        id: z.string(),
+        label: z.string().min(1, "La pregunta es obligatoria."),
+        type: z.enum(['text', 'radio', 'checkbox']),
+        required: z.boolean(),
+        options: z.array(z.string()).optional()
+    })).optional(),
+
     // Legal / Waiver Configuration
     requiresWaiver: z.boolean().optional(),
     waiverText: z.string().optional(),

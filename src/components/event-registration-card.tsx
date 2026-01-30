@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tag, Loader2, ShieldCheck, ArrowRight, Shirt, AlertCircle } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Tag, Loader2, ShieldCheck, ArrowRight, Shirt, AlertCircle, HelpCircle } from 'lucide-react';
 import type { Event, User, EventRegistration } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { Badge } from './ui/badge';
@@ -47,6 +48,9 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
     const [selectedJerseyId, setSelectedJerseyId] = useState<string | undefined>(undefined);
     const [selectedJerseySize, setSelectedJerseySize] = useState<string | undefined>(undefined);
 
+    // Custom Answers State
+    const [customAnswers, setCustomAnswers] = useState<Record<string, string | string[]>>({});
+
     const [marketingConsent, setMarketingConsent] = useState(false);
 
     const [emergencyName, setEmergencyName] = useState('');
@@ -72,6 +76,7 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
     const categories = event.categories || [];
     const jerseyConfigs = event.jerseyConfigs || [];
     const hasJersey = event.hasJersey && jerseyConfigs.length > 0;
+    const customQuestions = event.customQuestions || [];
     
     const isSoldOut = (event.maxParticipants || 0) > 0 && (event.currentParticipants || 0) >= (event.maxParticipants || 0);
     
@@ -97,6 +102,18 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
     // El evento es gratuito si costType es 'Gratuito', si no hay tiers, o si el tier seleccionado cuesta 0.
     const isFree = event.costType === 'Gratuito' || (tiers.length === 0) || (selectedTier?.price === 0);
 
+    // Handle Checkbox Change
+    const handleCheckboxChange = (questionId: string, option: string, checked: boolean) => {
+        setCustomAnswers(prev => {
+            const current = (prev[questionId] as string[]) || [];
+            if (checked) {
+                return { ...prev, [questionId]: [...current, option] };
+            } else {
+                return { ...prev, [questionId]: current.filter(item => item !== option) };
+            }
+        });
+    };
+
     const handleRegisterClick = () => {
         if (event.costType !== 'Gratuito' && tiers.length > 0 && !selectedTierId) {
             toast({ variant: "destructive", title: "Selección requerida", description: "Por favor selecciona un nivel de acceso." });
@@ -116,6 +133,21 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
             if (!selectedJerseySize) {
                 toast({ variant: "destructive", title: "Selección requerida", description: "Por favor selecciona una talla de Jersey." });
                 return;
+            }
+        }
+
+        // Validate Custom Questions
+        for (const q of customQuestions) {
+            if (q.required) {
+                const answer = customAnswers[q.id];
+                if (!answer || (Array.isArray(answer) && answer.length === 0) || (typeof answer === 'string' && !answer.trim())) {
+                    toast({ 
+                        variant: "destructive", 
+                        title: "Pregunta obligatoria", 
+                        description: `Por favor responde: ${q.label}` 
+                    });
+                    return;
+                }
             }
         }
 
@@ -167,7 +199,8 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                 marketingConsent,
                 selectedJerseyConfig?.name, // Send Jersey Model Name
                 selectedJerseySize, // Send Jersey Size
-                allergies // Send Allergies
+                allergies, // Send Allergies
+                customAnswers // Send Custom Answers
             );
             
             if (result.success) {
@@ -294,6 +327,59 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                                         </Select>
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {/* Custom Questions Section */}
+                        {customQuestions.length > 0 && (
+                            <div className="space-y-4 pt-4 border-t">
+                                <h4 className="font-semibold text-sm flex items-center gap-2">
+                                    <HelpCircle className="h-4 w-4" /> Preguntas Adicionales
+                                </h4>
+                                {customQuestions.map(q => (
+                                    <div key={q.id} className="space-y-2">
+                                        <Label className={q.required ? "after:content-['*'] after:ml-0.5 after:text-red-500" : ""}>
+                                            {q.label}
+                                        </Label>
+                                        
+                                        {q.type === 'text' && (
+                                            <Input 
+                                                value={(customAnswers[q.id] as string) || ''}
+                                                onChange={(e) => setCustomAnswers({...customAnswers, [q.id]: e.target.value})}
+                                                placeholder="Escribe tu respuesta..."
+                                            />
+                                        )}
+
+                                        {q.type === 'radio' && q.options && (
+                                            <RadioGroup 
+                                                value={(customAnswers[q.id] as string) || ''}
+                                                onValueChange={(val) => setCustomAnswers({...customAnswers, [q.id]: val})}
+                                            >
+                                                {q.options.map((opt, idx) => (
+                                                    <div key={idx} className="flex items-center space-x-2">
+                                                        <RadioGroupItem value={opt} id={`q-${q.id}-${idx}`} />
+                                                        <Label htmlFor={`q-${q.id}-${idx}`} className="font-normal">{opt}</Label>
+                                                    </div>
+                                                ))}
+                                            </RadioGroup>
+                                        )}
+
+                                        {q.type === 'checkbox' && q.options && (
+                                            <div className="space-y-2">
+                                                {q.options.map((opt, idx) => (
+                                                    <div key={idx} className="flex items-center space-x-2">
+                                                        <Checkbox 
+                                                            id={`q-${q.id}-${idx}`} 
+                                                            checked={((customAnswers[q.id] as string[]) || []).includes(opt)}
+                                                            onCheckedChange={(checked) => handleCheckboxChange(q.id, opt, !!checked)}
+                                                        />
+                                                        <Label htmlFor={`q-${q.id}-${idx}`} className="font-normal">{opt}</Label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>

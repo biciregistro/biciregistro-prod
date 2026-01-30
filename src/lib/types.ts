@@ -1,3 +1,4 @@
+
 import { GamificationProfile } from './gamification/gamification-types';
 
 export type BikeStatus = 'safe' | 'stolen' | 'in_transfer' | 'recovered';
@@ -139,6 +140,16 @@ export type JerseyConfig = {
     sizes: JerseySize[];
 };
 
+export type CustomQuestionType = 'text' | 'radio' | 'checkbox';
+
+export type CustomQuestion = {
+    id: string;
+    label: string;
+    type: CustomQuestionType;
+    options?: string[]; // Para radio y checkbox
+    required: boolean;
+};
+
 export type Event = {
   id: string;
   ongId: string;
@@ -172,6 +183,8 @@ export type Event = {
   bibNumberConfig?: BibNumberConfig;
   hasJersey?: boolean;
   jerseyConfigs?: JerseyConfig[];
+  hasCustomQuestions?: boolean; // Nuevo flag
+  customQuestions?: CustomQuestion[]; 
   sponsors?: string[]; 
   isBlocked?: boolean; 
   pageViews?: number; 
@@ -226,6 +239,7 @@ export type EventRegistration = {
     waiverIp?: string; 
     waiverHash?: string; 
     marketingConsent?: MarketingConsent | null;
+    customAnswers?: Record<string, string | string[]>; // Respuestas a preguntas personalizadas
 };
 
 export type EventAttendee = {
@@ -259,6 +273,7 @@ export type EventAttendee = {
     insuranceInfo?: string | null;
     allergies?: string | null; 
     waiverSigned?: boolean;
+    customAnswers?: Record<string, string | string[]>; // Respuestas personalizadas
 };
 
 export type UserEventRegistration = EventRegistration & {
@@ -404,6 +419,7 @@ export type LandingEventsCta = {
     title: string;
     description: string;
     ctaButton: string;
+    trustCopy?: string;
 };
 
 export type LandingEventsAlly = {

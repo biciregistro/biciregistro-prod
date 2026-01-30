@@ -28,7 +28,8 @@ export async function registerForEventAction(
     marketingConsentGiven?: boolean,
     jerseyModel?: string,
     jerseySize?: string,
-    allergies?: string
+    allergies?: string,
+    customAnswers?: Record<string, string | string[]>
 ): Promise<{ success: boolean; error?: string; message?: string }> {
     const session = await getDecodedSession();
     
@@ -47,6 +48,20 @@ export async function registerForEventAction(
     }
     if (event.requiresWaiver && !waiverSignature) return { success: false, error: "Debes firmar la carta responsiva para continuar." };
     if (event.hasJersey && (!jerseyModel || !jerseySize)) return { success: false, error: "Debes seleccionar un modelo y talla de jersey." };
+
+    // Validate Custom Questions
+    if (event.customQuestions && event.customQuestions.length > 0) {
+        for (const question of event.customQuestions) {
+            if (question.required) {
+                const answer = customAnswers?.[question.id];
+                const isEmpty = !answer || (Array.isArray(answer) && answer.length === 0) || (typeof answer === 'string' && !answer.trim());
+                
+                if (isEmpty) {
+                    return { success: false, error: `La pregunta "${question.label}" es obligatoria.` };
+                }
+            }
+        }
+    }
 
     let marketingConsent: MarketingConsent | null = null;
     const headerList = await headers();
@@ -90,7 +105,8 @@ export async function registerForEventAction(
         marketingConsent,
         jerseyModel,
         jerseySize,
-        allergies
+        allergies,
+        customAnswers // New field
     };
 
     const result = await registerUserToEvent(registrationInput);
