@@ -329,7 +329,11 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                     className="max-w-sm"
                 />
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                    <AttendeeExportModal attendees={attendees} eventName={eventName} />
+                    <AttendeeExportModal 
+                        attendees={attendees} 
+                        eventName={eventName} 
+                        customQuestions={customQuestions} 
+                    />
                     <div className="text-sm text-muted-foreground whitespace-nowrap hidden sm:block">
                         Mostrando {filteredAttendees.length} de {attendees.length} inscritos
                     </div>

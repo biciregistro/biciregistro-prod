@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,16 +14,17 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Download, FileDown } from 'lucide-react';
-import type { EventAttendee } from '@/lib/types';
+import type { EventAttendee, CustomQuestion } from '@/lib/types';
 import { format } from 'date-fns';
 
 interface AttendeeExportModalProps {
   attendees: EventAttendee[];
   eventName: string;
+  customQuestions?: CustomQuestion[]; // New Prop
 }
 
 // Mapa de campos permitidos (Whitelist) - Excluyendo explícitamente datos médicos
-const AVAILABLE_FIELDS = [
+const STATIC_FIELDS = [
   { id: 'name', label: 'Nombre' },
   { id: 'lastName', label: 'Apellido' },
   { id: 'email', label: 'Correo Electrónico' },
@@ -43,9 +44,27 @@ const AVAILABLE_FIELDS = [
   { id: 'bikeInfo', label: 'Bicicleta (Marca/Modelo)' },
 ];
 
-export function AttendeeExportModal({ attendees, eventName }: AttendeeExportModalProps) {
-  const [selectedFields, setSelectedFields] = useState<string[]>(AVAILABLE_FIELDS.map(f => f.id));
+export function AttendeeExportModal({ attendees, eventName, customQuestions = [] }: AttendeeExportModalProps) {
+  // Combine static fields with custom questions
+  const availableFields = [
+    ...STATIC_FIELDS,
+    ...customQuestions.map(q => ({ id: `custom_${q.id}`, label: q.label, isCustom: true, questionId: q.id }))
+  ];
+
+  const [selectedFields, setSelectedFields] = useState<string[]>(availableFields.map(f => f.id));
   const [isOpen, setIsOpen] = useState(false);
+
+  // Sync selected fields when customQuestions change (unlikely during modal lifetime but good practice)
+  useEffect(() => {
+     // If custom questions load later, we ensure they are selected by default if state was empty/initial
+     // However, to respect user deselection, we might just leave it. 
+     // Since this is client-side and customQuestions come from props, usually they are ready.
+     // We will re-initialize if the available fields length changes significantly compared to state
+     if (selectedFields.length < availableFields.length && selectedFields.length === STATIC_FIELDS.length) {
+          setSelectedFields(availableFields.map(f => f.id));
+     }
+  }, [customQuestions.length]);
+
 
   const toggleField = (fieldId: string) => {
     setSelectedFields(prev => 
@@ -56,24 +75,39 @@ export function AttendeeExportModal({ attendees, eventName }: AttendeeExportModa
   };
 
   const toggleAll = () => {
-    if (selectedFields.length === AVAILABLE_FIELDS.length) {
+    if (selectedFields.length === availableFields.length) {
       setSelectedFields([]);
     } else {
-      setSelectedFields(AVAILABLE_FIELDS.map(f => f.id));
+      setSelectedFields(availableFields.map(f => f.id));
     }
   };
 
   const handleExport = () => {
     // 1. Generar cabeceras
-    const headers = AVAILABLE_FIELDS
+    const headers = availableFields
       .filter(field => selectedFields.includes(field.id))
       .map(field => field.label);
 
     // 2. Generar filas
     const rows = attendees.map(attendee => {
-      return AVAILABLE_FIELDS
+      return availableFields
         .filter(field => selectedFields.includes(field.id))
         .map(field => {
+          
+          if ((field as any).isCustom) {
+              const qId = (field as any).questionId;
+              const answer = attendee.customAnswers?.[qId];
+              
+              if (Array.isArray(answer)) {
+                  return `"${answer.join(', ')}"`; // Join arrays with comma
+              }
+              const strVal = String(answer || '');
+              if (strVal.includes(',') || strVal.includes('"') || strVal.includes('\n')) {
+                  return `"${strVal.replace(/"/g, '""')}"`;
+              }
+              return strVal;
+          }
+
           const key = field.id;
           let value: any = '';
 
@@ -149,21 +183,21 @@ export function AttendeeExportModal({ attendees, eventName }: AttendeeExportModa
             <div className="flex items-center space-x-2 mb-4 pb-4 border-b">
                 <Checkbox 
                     id="select-all" 
-                    checked={selectedFields.length === AVAILABLE_FIELDS.length}
+                    checked={selectedFields.length === availableFields.length}
                     onCheckedChange={toggleAll}
                 />
                 <Label htmlFor="select-all" className="font-bold cursor-pointer">Seleccionar Todo</Label>
             </div>
             
             <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2">
-                {AVAILABLE_FIELDS.map((field) => (
+                {availableFields.map((field) => (
                     <div key={field.id} className="flex items-center space-x-2">
                         <Checkbox 
                             id={field.id} 
                             checked={selectedFields.includes(field.id)}
                             onCheckedChange={() => toggleField(field.id)}
                         />
-                        <Label htmlFor={field.id} className="cursor-pointer text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        <Label htmlFor={field.id} className="cursor-pointer text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 truncate max-w-[150px]" title={field.label}>
                             {field.label}
                         </Label>
                     </div>
