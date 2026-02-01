@@ -9,7 +9,7 @@ const USERS_COLLECTION = 'users';
 const TEMPLATE_DOC_ID = 'notifications_theft_alert'; // Fixed ID for the theft alert template
 
 const DEFAULT_TITLE = "🚨 ALERTA - Bicicleta robada en tu zona 🚨";
-const DEFAULT_BODY = "Bicicleta {{make}} {{model}} {{color}} robada en {{location}}. {{reward_text}} Cualquier informacion contactar a {{owner_name}} al {{owner_phone}}";
+const DEFAULT_BODY = "Bicicleta {{make}} {{model}} {{color}} robada en {{location}}. {{reward_text}} Cualquier informacion contactar a {{owner_name}} via Instagram o facebook al perfil {{contact_profile}}";
 
 // Helper para normalizar los nombres de ciudades para comparación
 // Actualizado para ignorar acentos y diacríticos (ej: "Bogotá" == "bogota")
@@ -29,6 +29,7 @@ export async function sendTheftAlert(
         reward?: string;
         ownerName: string;
         ownerPhone?: string;
+        contactProfile?: string; // Nuevo campo
     }
 ) {
     console.log(`Starting theft alert process for bike ${bikeId} in ${theftData.city}`);
@@ -106,7 +107,7 @@ export async function sendTheftAlert(
         : "";
     
     // Fallback if owner has no phone
-    const contactInfo = theftData.ownerPhone || "la plataforma";
+    // const contactInfo = theftData.ownerPhone || "la plataforma"; // No lo usamos según el requerimiento nuevo
 
     let title = template.titleTemplate;
     let body = template.bodyTemplate
@@ -116,7 +117,7 @@ export async function sendTheftAlert(
         .replace('{{location}}', theftData.location)
         .replace('{{reward_text}}', rewardText)
         .replace('{{owner_name}}', theftData.ownerName)
-        .replace('{{owner_phone}}', contactInfo);
+        .replace('{{contact_profile}}', theftData.contactProfile || 'perfil social');
 
     // Clean up double spaces if reward text was empty
     body = body.replace(/\s\s+/g, ' ');
@@ -136,7 +137,7 @@ export async function sendTheftAlert(
         recipientCount: allTokens.length,
         successCount,
         failureCount,
-        city: theftData.city // **FIXED**: Changed from 'location' to 'city' for consistency
+        city: theftData.city 
     };
 
     try {

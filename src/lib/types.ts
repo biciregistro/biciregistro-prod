@@ -33,6 +33,7 @@ export type Bike = {
     lng?: number;
     reward?: string;
     thiefDetails?: string;
+    contactProfile?: string; // Nuevo campo para perfil social
   };
 };
 
@@ -368,7 +369,7 @@ export type Payout = {
 };
 
 export type NotificationTemplate = {
-    id: 'theft_alert';
+    id: string;
     type: 'theft_alert';
     titleTemplate: string;
     bodyTemplate: string;

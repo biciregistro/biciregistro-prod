@@ -47,6 +47,7 @@ const theftReportSchema = z.object({
     location: z.string().min(1, "La ubicación es obligatoria."),
     details: z.string().min(1, "Los detalles son obligatorios."),
     thiefDetails: z.string().optional(), 
+    contactProfile: z.string().min(1, "El perfil de Instagram o Facebook es obligatorio."),
     reward: z.preprocess(
         (val) => val || undefined,
         z.string()
@@ -246,7 +247,8 @@ export async function reportTheft(prevState: any, formData: FormData) {
                         city: theftData.city,
                         reward: theftData.reward,
                         ownerName: ownerName,
-                        ownerPhone: ownerPhone
+                        ownerPhone: ownerPhone,
+                        contactProfile: theftData.contactProfile // Pasar nuevo campo
                     });
                 }
             }

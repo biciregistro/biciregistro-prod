@@ -33,7 +33,10 @@ export function BikeTheftShareMenu({ bike, user }: BikeTheftShareMenuProps) {
     ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(report.reward))
     : null;
 
-  // Construir el mensaje modificado
+  // Lógica de contacto social o telefónico
+  const socialProfile = report.contactProfile || '';
+  
+  // Construir el mensaje modificado según requerimiento
   const shareText = `🚨 Alerta Bicicleta Robada en ${report.location} 🚨
 
 Atención su apoyo para localizar la siguiente bicicleta que se robaron en ${report.location}, ${report.city || ''}, ${report.country || ''}
@@ -46,7 +49,7 @@ Atención su apoyo para localizar la siguiente bicicleta que se robaron en ${rep
 
 ${formattedReward ? `💰 Se ofrece recompensa de: ${formattedReward}` : ''}
 
-Cualquier información que tengan les agradecería ponerse en contacto con: ${user.name} ${user.lastName || ''} y 📱 ${user.whatsapp || user.phone || 'Mensaje Directo'} o por mensaje directo en facebook o instagram.
+Cualquier información que tengan les agradecería ponerse en contacto con: ${user.name} ${user.lastName || ''} por mensaje directo en el perfil de facebook o instagram ${socialProfile}
 
 Link de la bicicleta: ${bikeUrl}
 

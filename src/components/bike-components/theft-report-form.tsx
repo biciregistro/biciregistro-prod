@@ -44,6 +44,7 @@ const theftReportSchema = z.object({
     location: z.string().min(1, "La ubicación es obligatoria."),
     details: z.string().min(1, "Los detalles son obligatorios."),
     thiefDetails: z.string().optional(),
+    contactProfile: z.string().min(1, "El perfil de Instagram o Facebook es obligatorio."),
     reward: z.preprocess(
         (val) => val || undefined,
         z.string()
@@ -89,6 +90,7 @@ export function TheftReportForm({ bike, onSuccess, defaultOpen = false }: TheftR
             location: "",
             details: "",
             thiefDetails: "",
+            contactProfile: "",
             reward: "",
         },
     });
@@ -354,6 +356,23 @@ export function TheftReportForm({ bike, onSuccess, defaultOpen = false }: TheftR
                             <FormControl>
                                 <Textarea placeholder="Descripción física, vestimenta, modus operandi..." {...field} />
                             </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="contactProfile"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Perfil de Instagram o Facebook <span className="text-destructive">*</span></FormLabel>
+                            <FormControl>
+                                <Input placeholder="ej. @usuario_bici o facebook.com/juanperez" {...field} />
+                            </FormControl>
+                            <p className="text-[0.8rem] text-muted-foreground">
+                                Importante para que cualquiera pueda darte noticias públicamente.
+                            </p>
                             <FormMessage />
                         </FormItem>
                     )}
