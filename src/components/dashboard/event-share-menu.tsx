@@ -11,8 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Share2, Facebook, Link as LinkIcon, Instagram, MessageCircle, Twitter } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import { format, parseISO, isValid } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { parseISO, isValid } from 'date-fns'
 
 interface EventShareMenuProps {
   eventName: string
@@ -42,9 +41,22 @@ export function EventShareMenu({
 
       if (!isValid(finalDate)) return "Fecha por confirmar";
       
-      // Usamos el formato estandarizado del proyecto con date-fns
-      // Esto respeta la visualización local del navegador del usuario
-      return format(finalDate, "EEEE, d 'de' MMMM 'de' yyyy, h:mm a", { locale: es });
+      // CORRECCIÓN: Usamos UTC explícitamente para el formateo.
+      // El problema reportado (11 AM configurado -> 5 AM generado) indica que la fecha 
+      // se guardó en la base de datos como 11:00 UTC (T11:00:00Z) representando las 11:00 hora local.
+      // Al leerla en zona horaria local (UTC-6), se restaban 6 horas erróneamente.
+      // Al usar UTC aquí, recuperamos la hora "nominal" (11:00) que el usuario ingresó originalmente.
+      return new Intl.DateTimeFormat('es-MX', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'UTC'
+      }).format(finalDate);
+
     } catch (e) {
       console.error("Error formatting date for sharing:", e);
       return "Próximamente";
