@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Share2, Facebook, Link as LinkIcon, Instagram, MessageCircle, Twitter } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+import { format, parseISO, isValid } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 interface EventShareMenuProps {
   eventName: string
@@ -33,21 +35,18 @@ export function EventShareMenu({
   // Formatear fecha para el texto de manera segura
   const formatDate = (dateInput: Date | string) => {
     try {
-      const dateObj = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-      // Verificar si la fecha es válida
-      if (isNaN(dateObj.getTime())) return "Fecha por confirmar";
+      const dateObj = typeof dateInput === 'string' ? parseISO(dateInput) : dateInput;
       
-      // Forzamos la zona horaria a Ciudad de México para evitar errores de UTC/Local
-      return dateObj.toLocaleDateString('es-MX', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZone: 'America/Mexico_City'
-      });
+      // Si falló parseISO (por ejemplo si no es string ISO), intentamos Date normal
+      const finalDate = isValid(dateObj) ? dateObj : new Date(dateInput);
+
+      if (!isValid(finalDate)) return "Fecha por confirmar";
+      
+      // Usamos el formato estandarizado del proyecto con date-fns
+      // Esto respeta la visualización local del navegador del usuario
+      return format(finalDate, "EEEE, d 'de' MMMM 'de' yyyy, h:mm a", { locale: es });
     } catch (e) {
+      console.error("Error formatting date for sharing:", e);
       return "Próximamente";
     }
   }
