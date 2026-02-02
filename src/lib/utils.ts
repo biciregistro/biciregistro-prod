@@ -101,3 +101,28 @@ export function calculateAbsorbedFee(totalAmount: number, settings: FinancialSet
         netAmount: Number(netAmount.toFixed(2))
     };
 }
+
+/**
+ * Detects URLs in a text and returns an array of parts (text or URL)
+ */
+export function parseLinksInText(text: string) {
+    if (!text) return [];
+    
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    
+    return parts.map((part, index) => {
+        if (part.match(urlRegex)) {
+            return {
+                type: 'link' as const,
+                content: part,
+                key: index
+            };
+        }
+        return {
+            type: 'text' as const,
+            content: part,
+            key: index
+        };
+    });
+}

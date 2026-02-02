@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Calendar, MapPin, Clock, Trophy, Route, AlertTriangle, Users, MessageCircle, CalendarDays } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, parseLinksInText } from '@/lib/utils';
 import { EventRegistration } from '@/lib/types';
 import { PricingTierCard } from '@/components/pricing-tier-card';
 import { SponsorsCarousel } from '@/components/shared/sponsors-carousel';
@@ -319,7 +319,26 @@ export default async function EventPage({ params }: EventPageProps) {
                         <div className="space-y-4">
                             <h2 className="text-xl font-semibold">Acerca del Evento</h2>
                             <div className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-line leading-relaxed">
-                                {event.description}
+                                {event.description ? (
+                                    parseLinksInText(event.description).map((part) => {
+                                        if (part.type === 'link') {
+                                            return (
+                                                <a 
+                                                    key={part.key} 
+                                                    href={part.content} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="text-primary font-medium hover:underline break-all"
+                                                >
+                                                    {part.content}
+                                                </a>
+                                            );
+                                        }
+                                        return <span key={part.key}>{part.content}</span>;
+                                    })
+                                ) : (
+                                    event.description
+                                )}
                             </div>
                         </div>
                     </CardContent>
