@@ -24,6 +24,10 @@ import { ModalitiesList } from './charts/modalities-list';
 import { MarketValueCard } from './charts/market-value-card';
 import { FraudPreventionCard } from './charts/fraud-prevention-card';
 import { MarketingPotentialCard } from './charts/marketing-potential-card';
+import { GenerationsChart } from './charts/generations-chart';
+import { GenerationInsightsCard } from './charts/generation-insights-card';
+import { BikeRangesChart } from './charts/bike-ranges-chart';
+import { BikeProfileCard } from './charts/bike-profile-card';
 import { Separator } from '@/components/ui/separator';
 
 interface StatsTabContentProps {
@@ -66,6 +70,32 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
     recovered: statusCounts.recovered,
   };
 
+  // Process Generations Data
+  const genLabels: Record<string, string> = {
+    'gen_z': 'Gen Z',
+    'millennials': 'Millennials',
+    'gen_x': 'Gen X',
+    'boomers': 'Boomers'
+  };
+  
+  const genData = Object.entries(userDemographics.generationsDistribution || {}).map(([id, value]) => ({
+      name: genLabels[id] || id,
+      value
+  }));
+
+  const dominantGen = Object.entries(userDemographics.generationsDistribution || {}).length > 0
+      ? Object.entries(userDemographics.generationsDistribution!).reduce((a, b) => (a[1] > b[1] ? a : b))[0]
+      : 'unknown';
+
+  // Process Bike Ranges Data
+  const rangesData = Object.entries(marketMetrics.rangesDistribution || {}).map(([name, value]) => ({
+      name, value
+  }));
+  
+  const dominantRange = Object.entries(marketMetrics.rangesDistribution || {}).length > 0
+      ? Object.entries(marketMetrics.rangesDistribution!).reduce((a, b) => (a[1] > b[1] ? a : b))[0]
+      : 'unknown';
+
   return (
     <div className="space-y-8">
       
@@ -83,13 +113,24 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
           </p>
         </div>
 
-        <div className="columns-1 md:columns-3 gap-6 space-y-6">
+        <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6">
             <div className="break-inside-avoid mb-6">
                 <AverageAgeCard 
                     averageAge={userDemographics.averageAge} 
                     averageAgeByGender={userDemographics.averageAgeByGender}
                 />
             </div>
+            
+            {/* Added Generations Chart */}
+            <div className="break-inside-avoid mb-6">
+                <GenerationsChart data={genData} />
+            </div>
+
+            {/* Added Generation Insights */}
+            <div className="break-inside-avoid mb-6">
+                <GenerationInsightsCard dominantGenerationId={dominantGen} />
+            </div>
+
             <div className="break-inside-avoid mb-6">
                 <GenderDistributionChart data={userDemographics.genderDistribution} />
             </div>
@@ -156,7 +197,7 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
           </p>
         </div>
 
-        <div className="columns-1 md:columns-3 gap-6 space-y-6">
+        <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6">
             {/* Market Value */}
             <div className="break-inside-avoid mb-6">
                 <MarketValueCard 
@@ -165,7 +206,17 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
                 />
             </div>
 
-            {/* Marketing Potential (NEW - Placed below Market Value due to column flow) */}
+            {/* Added Bike Ranges Chart */}
+            <div className="break-inside-avoid mb-6">
+                <BikeRangesChart data={rangesData} />
+            </div>
+
+            {/* Added Bike Profile Insights */}
+            <div className="break-inside-avoid mb-6">
+                <BikeProfileCard dominantRangeId={dominantRange} />
+            </div>
+
+            {/* Marketing Potential */}
             <div className="break-inside-avoid mb-6">
                 <MarketingPotentialCard 
                     contactableUsers={marketingPotential.contactableUsers} 

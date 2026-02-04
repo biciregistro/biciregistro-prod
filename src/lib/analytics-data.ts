@@ -4,6 +4,8 @@ import { adminDb } from '@/lib/firebase/server';
 import type { DashboardFilters, User } from '@/lib/types';
 import { MODALITY_MAPPING, BIKE_MODALITIES_OPTIONS } from '@/lib/bike-types';
 import { unstable_cache } from 'next/cache';
+import { BIKE_RANGES } from '@/lib/constants/bike-ranges';
+import { GENERATIONS } from '@/lib/constants/generations';
 
 // Helper function to build Firestore queries based on filters
 // applyGeoFilters: If false, skips country/state filters (useful for counting total bikes that don't have theft reports)
@@ -295,7 +297,8 @@ export const getUserDemographics = unstable_cache(
                 averageAge: 0,
                 averageAgeByGender: [],
                 genderDistribution: [],
-                topLocations: []
+                topLocations: [],
+                generationsDistribution: {}
             };
         }
 
@@ -305,6 +308,7 @@ export const getUserDemographics = unstable_cache(
         const ageSumByGender: Record<string, number> = {};
         const ageCountByGender: Record<string, number> = {};
         const locationCounts: Record<string, number> = {};
+        const generationsDistribution: Record<string, number> = {};
 
         const today = new Date();
 
@@ -334,6 +338,16 @@ export const getUserDemographics = unstable_cache(
                         // Accumulate age by gender
                         ageSumByGender[gender] = (ageSumByGender[gender] || 0) + age;
                         ageCountByGender[gender] = (ageCountByGender[gender] || 0) + 1;
+
+                        // Generation
+                        const birthYear = birthDate.getFullYear();
+                        const generation = Object.entries(GENERATIONS).find(
+                            ([_, range]) => birthYear >= range.min && birthYear <= range.max
+                        );
+                        if (generation) {
+                            const genKey = generation[0]; // e.g., 'millennials'
+                            generationsDistribution[genKey] = (generationsDistribution[genKey] || 0) + 1;
+                        }
                     }
                 }
             }
@@ -369,7 +383,8 @@ export const getUserDemographics = unstable_cache(
             averageAge,
             averageAgeByGender,
             genderDistribution,
-            topLocations
+            topLocations,
+            generationsDistribution
         };
     },
     ['user-demographics'],
@@ -393,12 +408,14 @@ export const getMarketMetrics = unstable_cache(
                 topBrands: [],
                 modalities: [],
                 totalValue: 0,
-                averageValue: 0
+                averageValue: 0,
+                rangesDistribution: {}
             };
         }
 
         const brandCounts: Record<string, number> = {};
         const modalityCounts: Record<string, number> = {};
+        const rangesDistribution: Record<string, number> = {};
         let totalValue = 0;
         let validValueCount = 0;
 
@@ -418,6 +435,15 @@ export const getMarketMetrics = unstable_cache(
             if (typeof value === 'number' && value > 0) {
                 totalValue += value;
                 validValueCount++;
+
+                // Ranges
+                const range = Object.entries(BIKE_RANGES).find(
+                    ([_, r]) => value >= r.min && value <= r.max
+                );
+                if (range) {
+                    const rangeKey = range[0]; // USE ID KEY HERE
+                    rangesDistribution[rangeKey] = (rangesDistribution[rangeKey] || 0) + 1;
+                }
             }
         });
 
@@ -443,7 +469,8 @@ export const getMarketMetrics = unstable_cache(
             topBrands,
             modalities,
             totalValue,
-            averageValue
+            averageValue,
+            rangesDistribution
         };
     },
     ['market-metrics'],

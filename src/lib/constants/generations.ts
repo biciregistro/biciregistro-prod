@@ -8,6 +8,8 @@ export interface GenerationInsight {
     motivations: string;
     digitalPlatforms: string;
     barriers: string;
+    min: number; // Added
+    max: number; // Added
 }
 
 export const GENERATIONS: Record<string, GenerationInsight> = {
@@ -19,7 +21,9 @@ export const GENERATIONS: Record<string, GenerationInsight> = {
         interests: "Cultura 'Fixed Gear', estética urbana, personalización DIY y colectivos activistas.",
         motivations: "Apropiación del espacio público, sororidad (en colectivos femeninos) y adrenalina técnica.",
         digitalPlatforms: "TikTok, Instagram Reels, YouTube Shorts y redes descentralizadas.",
-        barriers: "Precariedad laboral, infraestructura insegura y hostilidad vial."
+        barriers: "Precariedad laboral, infraestructura insegura y hostilidad vial.",
+        min: 1996, // Aprox birth years for logic if needed, but analytics logic uses age ranges
+        max: 2009
     },
     millennials: {
         label: "Millennials (29-44 años)",
@@ -29,7 +33,9 @@ export const GENERATIONS: Record<string, GenerationInsight> = {
         interests: "Gravel (fuga del asfalto), cicloturismo, eventos que combinan deporte y gastronomía.",
         motivations: "Socialización cuantificada, superación personal (FTP) y bienestar integral.",
         digitalPlatforms: "Strava, Zwift, Instagram y Podcasts.",
-        barriers: "Falta de tiempo (balance vida-trabajo) y seguridad en carreteras federales."
+        barriers: "Falta de tiempo (balance vida-trabajo) y seguridad en carreteras federales.",
+        min: 1980,
+        max: 1995
     },
     gen_x: {
         label: "Generación X (45-60 años)",
@@ -39,7 +45,9 @@ export const GENERATIONS: Record<string, GenerationInsight> = {
         interests: "Eventos tipo Gran Fondo, entrenamiento estructurado y ciclismo de ruta de alta gama.",
         motivations: "Estatus, salud preventiva contra el estrés y pertenencia a clubes exclusivos.",
         digitalPlatforms: "Facebook (Grupos), WhatsApp y Strava.",
-        barriers: "Riesgo de lesiones y falta de respeto al ciclista en vías rápidas."
+        barriers: "Riesgo de lesiones y falta de respeto al ciclista en vías rápidas.",
+        min: 1964,
+        max: 1979
     },
     boomers: {
         label: "Baby Boomers (60+ años)",
@@ -49,13 +57,18 @@ export const GENERATIONS: Record<string, GenerationInsight> = {
         interests: "E-Bikes, rutas escénicas con servicios de apoyo y turismo cultural.",
         motivations: "Longevidad activa, socialización presencial y combate al aislamiento.",
         digitalPlatforms: "Facebook, YouTube (tutoriales) y correo electrónico.",
-        barriers: "Miedo a caídas (fragilidad física) y complejidad tecnológica excesiva."
+        barriers: "Miedo a caídas (fragilidad física) y complejidad tecnológica excesiva.",
+        min: 1946,
+        max: 1963
     }
 };
 
 export function getGenerationId(birthDate: string | Date): keyof typeof GENERATIONS | 'unknown' {
     const date = new Date(birthDate);
     const year = date.getFullYear();
+    
+    // Simplification based on fixed years for stability or dynamic age
+    // Using Age logic from analytics-data.ts consistency
     const currentYear = new Date().getFullYear();
     const age = currentYear - year;
 
