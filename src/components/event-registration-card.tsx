@@ -13,10 +13,9 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Tag, Loader2, ShieldCheck, ArrowRight, Shirt, AlertCircle, HelpCircle } from 'lucide-react';
+import { Tag, Loader2, ShieldCheck, ArrowRight, Shirt, HelpCircle } from 'lucide-react';
 import type { Event, User, EventRegistration } from '@/lib/types';
 import dynamic from 'next/dynamic';
-import { Badge } from './ui/badge';
 
 const WaiverModal = dynamic(() => import('@/components/waiver-modal').then(mod => mod.WaiverModal), {
     ssr: false,
@@ -29,7 +28,7 @@ interface EventRegistrationCardProps {
     isRegistered?: boolean;
     registration?: EventRegistration | null;
     organizerNameForWaiver?: string;
-    organizerName?: string; // New Prop
+    organizerName?: string; 
 }
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -99,7 +98,6 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
     const selectedJerseyConfig = jerseyConfigs.find(j => j.id === selectedJerseyId);
     
     const price = selectedTier ? selectedTier.price : 0;
-    // El evento es gratuito si costType es 'Gratuito', si no hay tiers, o si el tier seleccionado cuesta 0.
     const isFree = event.costType === 'Gratuito' || (tiers.length === 0) || (selectedTier?.price === 0);
 
     // Handle Checkbox Change
@@ -136,21 +134,7 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
             }
         }
 
-        // Validate Custom Questions
-        for (const q of customQuestions) {
-            if (q.required) {
-                const answer = customAnswers[q.id];
-                if (!answer || (Array.isArray(answer) && answer.length === 0) || (typeof answer === 'string' && !answer.trim())) {
-                    toast({ 
-                        variant: "destructive", 
-                        title: "Pregunta obligatoria", 
-                        description: `Por favor responde: ${q.label}` 
-                    });
-                    return;
-                }
-            }
-        }
-
+        // Ya no validamos preguntas aquí, se hace en el modal.
         setIsConfirmModalOpen(true);
     };
 
@@ -172,7 +156,26 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
         return true;
     };
 
+    const validateCustomQuestions = () => {
+        for (const q of customQuestions) {
+            if (q.required) {
+                const answer = customAnswers[q.id];
+                if (!answer || (Array.isArray(answer) && answer.length === 0) || (typeof answer === 'string' && !answer.trim())) {
+                    toast({ 
+                        variant: "destructive", 
+                        title: "Pregunta obligatoria", 
+                        description: `Por favor responde: ${q.label}` 
+                    });
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
     const handleProceedToWaiverOrRegister = () => {
+        // Validación combinada
+        if (!validateCustomQuestions()) return;
         if (!validateEmergencyContact()) return;
 
         if (event.requiresWaiver) {
@@ -197,10 +200,10 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                 waiverData ? new Date().toISOString() : undefined,
                 waiverData?.signedText,
                 marketingConsent,
-                selectedJerseyConfig?.name, // Send Jersey Model Name
-                selectedJerseySize, // Send Jersey Size
-                allergies, // Send Allergies
-                customAnswers // Send Custom Answers
+                selectedJerseyConfig?.name,
+                selectedJerseySize,
+                allergies,
+                customAnswers
             );
             
             if (result.success) {
@@ -214,12 +217,10 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
         });
     };
     
-    // Add #registration-section to callbackUrl to ensure user returns exactly to the form
     const eventUrlWithAnchor = `/events/${event.id}#registration-section`;
     const loginUrl = `/login?callbackUrl=${encodeURIComponent(eventUrlWithAnchor)}`;
     const signupUrl = `/signup?callbackUrl=${encodeURIComponent(eventUrlWithAnchor)}`;
 
-    // Helper to check availability
     const checkTierAvailability = (tier: any) => {
         if (!tier.limit || tier.limit === 0) return { available: true };
         const sold = tier.soldCount || 0;
@@ -296,7 +297,6 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                             </div>
                         )}
 
-                        {/* Jersey Selection Section */}
                         {hasJersey && (
                              <div className="space-y-3 bg-muted/20 p-3 rounded-md border border-dashed border-primary/20">
                                 <div className="flex items-center gap-2 mb-1">
@@ -329,59 +329,8 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                                 )}
                             </div>
                         )}
-
-                        {/* Custom Questions Section */}
-                        {customQuestions.length > 0 && (
-                            <div className="space-y-4 pt-4 border-t">
-                                <h4 className="font-semibold text-sm flex items-center gap-2">
-                                    <HelpCircle className="h-4 w-4" /> Preguntas Adicionales
-                                </h4>
-                                {customQuestions.map(q => (
-                                    <div key={q.id} className="space-y-2">
-                                        <Label className={q.required ? "after:content-['*'] after:ml-0.5 after:text-red-500" : ""}>
-                                            {q.label}
-                                        </Label>
-                                        
-                                        {q.type === 'text' && (
-                                            <Input 
-                                                value={(customAnswers[q.id] as string) || ''}
-                                                onChange={(e) => setCustomAnswers({...customAnswers, [q.id]: e.target.value})}
-                                                placeholder="Escribe tu respuesta..."
-                                            />
-                                        )}
-
-                                        {q.type === 'radio' && q.options && (
-                                            <RadioGroup 
-                                                value={(customAnswers[q.id] as string) || ''}
-                                                onValueChange={(val) => setCustomAnswers({...customAnswers, [q.id]: val})}
-                                            >
-                                                {q.options.map((opt, idx) => (
-                                                    <div key={idx} className="flex items-center space-x-2">
-                                                        <RadioGroupItem value={opt} id={`q-${q.id}-${idx}`} />
-                                                        <Label htmlFor={`q-${q.id}-${idx}`} className="font-normal">{opt}</Label>
-                                                    </div>
-                                                ))}
-                                            </RadioGroup>
-                                        )}
-
-                                        {q.type === 'checkbox' && q.options && (
-                                            <div className="space-y-2">
-                                                {q.options.map((opt, idx) => (
-                                                    <div key={idx} className="flex items-center space-x-2">
-                                                        <Checkbox 
-                                                            id={`q-${q.id}-${idx}`} 
-                                                            checked={((customAnswers[q.id] as string[]) || []).includes(opt)}
-                                                            onCheckedChange={(checked) => handleCheckboxChange(q.id, opt, !!checked)}
-                                                        />
-                                                        <Label htmlFor={`q-${q.id}-${idx}`} className="font-normal">{opt}</Label>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                        
+                        {/* Preguntas adicionales removidas de aquí */}
                     </div>
                 )}
 
@@ -424,7 +373,7 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
             <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Confirmar Inscripción</DialogTitle>
-                    <DialogDescription>Revisa los detalles de tu registro antes de continuar.</DialogDescription>
+                    <DialogDescription>Completa los detalles finales para asegurar tu lugar.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="grid grid-cols-3 items-center gap-4">
@@ -448,7 +397,6 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                         </div>
                     )}
                     
-                    {/* Jersey Confirmation Summary */}
                     {hasJersey && selectedJerseyConfig && selectedJerseySize && (
                         <div className="grid grid-cols-3 items-center gap-4 bg-muted/20 p-2 rounded">
                             <span className="font-semibold text-sm text-muted-foreground flex items-center gap-1">
@@ -457,6 +405,60 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                             <span className="col-span-2 font-medium text-sm">
                                 {selectedJerseyConfig.name} - Talla {selectedJerseySize}
                             </span>
+                        </div>
+                    )}
+
+                    {/* MOVED: Custom Questions Section */}
+                    {customQuestions.length > 0 && (
+                        <div className="space-y-4 pt-4 border-t">
+                            <h4 className="font-semibold text-sm flex items-center gap-2">
+                                <HelpCircle className="h-4 w-4" /> Preguntas Adicionales
+                            </h4>
+                            {customQuestions.map(q => (
+                                <div key={q.id} className="space-y-2">
+                                    <Label className={q.required ? "after:content-['*'] after:ml-0.5 after:text-red-500" : ""}>
+                                        {q.label}
+                                    </Label>
+                                    
+                                    {q.type === 'text' && (
+                                        <Input 
+                                            value={(customAnswers[q.id] as string) || ''}
+                                            onChange={(e) => setCustomAnswers({...customAnswers, [q.id]: e.target.value})}
+                                            placeholder="Escribe tu respuesta..."
+                                            className="h-9"
+                                        />
+                                    )}
+
+                                    {q.type === 'radio' && q.options && (
+                                        <RadioGroup 
+                                            value={(customAnswers[q.id] as string) || ''}
+                                            onValueChange={(val) => setCustomAnswers({...customAnswers, [q.id]: val})}
+                                        >
+                                            {q.options.map((opt, idx) => (
+                                                <div key={idx} className="flex items-center space-x-2">
+                                                    <RadioGroupItem value={opt} id={`q-${q.id}-${idx}`} />
+                                                    <Label htmlFor={`q-${q.id}-${idx}`} className="font-normal text-sm">{opt}</Label>
+                                                </div>
+                                            ))}
+                                        </RadioGroup>
+                                    )}
+
+                                    {q.type === 'checkbox' && q.options && (
+                                        <div className="space-y-2">
+                                            {q.options.map((opt, idx) => (
+                                                <div key={idx} className="flex items-center space-x-2">
+                                                    <Checkbox 
+                                                        id={`q-${q.id}-${idx}`} 
+                                                        checked={((customAnswers[q.id] as string[]) || []).includes(opt)}
+                                                        onCheckedChange={(checked) => handleCheckboxChange(q.id, opt, !!checked)}
+                                                    />
+                                                    <Label htmlFor={`q-${q.id}-${idx}`} className="font-normal text-sm">{opt}</Label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
                         </div>
                     )}
 
