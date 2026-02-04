@@ -147,6 +147,11 @@ export function RegisterWizard({ userRole }: RegisterWizardProps) {
       toast({ variant: "destructive", title: "Número inválido", description: "El número de serie es muy corto." });
       return;
     }
+
+    if (formData.serialNumber.length > 30) {
+        toast({ variant: "destructive", title: "Número inválido", description: "El número de serie es demasiado largo. Verifícalo." });
+        return;
+    }
     
     setLoading(true);
     const check = await validateSerialNumberAction(formData.serialNumber);

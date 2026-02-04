@@ -17,7 +17,14 @@ export async function analyzeSerialNumberAction(imageBase64: string) {
 
     const cleanSerial = text.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     
-    if (!cleanSerial) {
+    // Validación mejorada anti-alucinaciones
+    // 1. Si está vacío
+    // 2. Si es absurdamente largo (un serial > 25 chars es extremadamente raro, > 40 es seguro basura o explicación)
+    // 3. Si contiene patrones de frases de la IA comprimidas
+    const invalidPatterns = ["BASEDON", "CANNOT", "UNABLETO", "SORRY", "IAMUNABLE", "ICANT", "IMAGE", "DETECT"];
+    const isHallucination = invalidPatterns.some(pattern => cleanSerial.includes(pattern));
+
+    if (!cleanSerial || cleanSerial.length > 30 || isHallucination) {
         return { success: false, error: "La IA no detectó texto legible en la imagen." };
     }
 
