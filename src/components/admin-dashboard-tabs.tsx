@@ -47,8 +47,10 @@ function AdminDashboardTabsContent({
   const router = useRouter();
   const pathname = usePathname();
 
+  // FIX: Inicializar estados con valores deterministas para evitar Hydration Mismatch.
+  // Dejamos que useEffect sincronice con la URL en el cliente.
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [activeSubTab, setActiveSubTab] = useState(searchParams.get('subtab') || 'homepage');
+  const [activeSubTab, setActiveSubTab] = useState('homepage');
 
   useEffect(() => {
     const tab = searchParams.get('tab');
