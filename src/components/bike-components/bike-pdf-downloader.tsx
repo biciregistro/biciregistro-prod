@@ -23,15 +23,15 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: '#ffffff',
-    border: '2px solid #0f172a',
+    border: '2px solid #000000', // Keep black border
     borderRadius: 12,
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
   },
-  // Dark Header
+  // Header Section
   header: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#FACC15', // Changed to Yellow (Tailwind Yellow-400 equivalent for print visibility)
     paddingVertical: 10,
     paddingHorizontal: 5,
     display: 'flex',
@@ -46,10 +46,11 @@ const styles = StyleSheet.create({
   },
   headerStatus: {
     fontSize: 7,
-    color: '#ffffff',
+    color: '#000000', // Changed to Black text
     fontFamily: 'Helvetica',
-    letterSpacing: 1.5,
+    letterSpacing: 0.5, // Reduced spacing slightly for longer text
     fontWeight: 'bold',
+    textAlign: 'center',
   },
   // QR Area
   body: {
@@ -122,7 +123,7 @@ const BikePDFTag = ({ bike, qrCodeUrl, logoUrl }: { bike: Bike; qrCodeUrl: strin
           {/* Header Section */}
           <View style={styles.header}>
             <Image style={styles.logoImage} src={logoUrl} />
-            <Text style={styles.headerStatus}>PROTECCIÓN ACTIVA</Text>
+            <Text style={styles.headerStatus}>BICICLETA RASTREADA POR GPS</Text>
           </View>
 
           {/* Body Section (QR) */}
@@ -161,9 +162,9 @@ export default function BikePDFDownloader({ bike, className }: { bike: Bike, cla
                 margin: 1,
              });
             
-            // Using a white logo for the dark header
-            // If logo-white.png doesn't exist, we might need a placeholder or use CSS filters (hard in PDF)
-            // For now assuming logo.png is readable or we provide the right asset
+            // Note: Since background is now yellow, we should ideally use a black text logo.
+            // Using existing logo.png. If logo.png is white text, it might need changing.
+            // Assuming logo.png is the standard logo which usually works on light backgrounds or has dark text.
             const logoUrl = `${baseUrl}/logo.png`; 
 
             const blob = await pdf(<BikePDFTag bike={bike} qrCodeUrl={qrCodeUrl} logoUrl={logoUrl} />).toBlob();
