@@ -13,7 +13,7 @@ import { TransferOwnershipForm } from '@/components/bike-components/transfer-own
 import { cn } from '@/lib/utils';
 import type { Bike, User, BikeStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Pencil, FileDown, Loader2 } from 'lucide-react';
+import { ArrowLeft, Pencil, FileDown, Loader2, MessageCircle } from 'lucide-react';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { updateOwnershipProof } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,7 @@ import QRCodeGenerator from '@/components/bike-components/qr-code-generator';
 import { auth } from '@/lib/firebase/client';
 import { RecoverBikeButton } from '@/components/bike-components/recover-bike-button';
 import { BikeTheftShareMenu } from '@/components/dashboard/bike-theft-share-menu';
+import { BikonLinker } from '@/components/bike-components/bikon-linker';
 
 // Dynamic import for PDF downloaders
 const BikePDFDownloader = dynamic(
@@ -157,6 +158,9 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
 
   const backUrl = user.role === 'ong' ? '/dashboard/ong?tab=garage' : '/dashboard';
 
+  const whatsappMessage = encodeURIComponent("¡Hola! Me interesa adquirir un Rastreador Bikon, ¿Cómo puedo adquirirlo?");
+  const whatsappUrl = `https://wa.me/525547716640?text=${whatsappMessage}`;
+
   return (
     <div className="container py-6 md:py-8">
       <div className="mb-6 flex flex-col sm:flex-row items-center justify-between px-4 sm:px-0 gap-4">
@@ -226,6 +230,46 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                       <DetailItem label="Color" value={bike.color} />
                       <DetailItem label="Modalidad" value={bike.modality} />
                       <DetailItem label="Valor Aproximado" value={formattedValue} />
+                  </CardContent>
+              </Card>
+
+              {/* Bikon Tracker Component - Updated */}
+              <Card className="border-primary/20 shadow-sm overflow-hidden">
+                  <div className="bg-primary/5 p-4 border-b border-primary/10">
+                      <div className="flex items-center justify-between mb-2">
+                           <h3 className="font-semibold text-lg flex items-center gap-2">
+                              Rastreador GPS
+                           </h3>
+                           <Badge className="bg-blue-600 hover:bg-blue-700 text-white border-0 shadow-sm px-3 py-1 text-xs font-bold tracking-wide uppercase">
+                              Bikon
+                           </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-snug">
+                          Localiza tu bicicleta en tiempo real con la red global de Google y Apple, <span className="font-bold text-foreground">sólo tú tendrás acceso a la ubicación de tu bicicleta.</span>
+                      </p>
+                  </div>
+                  <CardContent className="pt-6 space-y-4">
+                      <BikonLinker bike={bike} userId={user.id} />
+                      
+                      {!bike.bikonId && (
+                          <div className="relative">
+                              <div className="absolute inset-0 flex items-center">
+                                  <span className="w-full border-t" />
+                              </div>
+                              <div className="relative flex justify-center text-xs uppercase">
+                                  <span className="bg-background px-2 text-muted-foreground">¿Aún no tienes uno?</span>
+                              </div>
+                          </div>
+                      )}
+
+                      {!bike.bikonId && (
+                          <Button variant="secondary" className="w-full gap-2 text-green-700 bg-green-50 hover:bg-green-100 border border-green-200" asChild>
+                              <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                                  <MessageCircle className="h-4 w-4" />
+                                  Adquirir Rastreador Bikon
+                              </a>
+                          </Button>
+                      )}
                   </CardContent>
               </Card>
 

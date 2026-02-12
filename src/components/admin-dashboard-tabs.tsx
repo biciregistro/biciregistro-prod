@@ -15,6 +15,7 @@ import { DashboardFilterBar } from '@/components/admin/dashboard-filter-bar';
 import { NotificationComposer } from '@/components/admin/notifications/notification-composer';
 import { LandingEventsEditor } from './admin/landing-editor/landing-events-editor';
 import { StolenBikesList } from './admin/stolen-bikes-list';
+import { BikonGenerator } from '@/components/admin/bikon-generator';
 
 interface AdminDashboardTabsProps {
   homepageSections: HomepageSection[];
@@ -26,6 +27,7 @@ interface AdminDashboardTabsProps {
   financialSettings: FinancialSettings;
   allEvents: any[];
   stolenBikes: (Bike & { owner?: User })[]; // Nuevo prop
+  bikonDevices: any[]; // New prop for Bikon devices
   statsContent: React.ReactNode;
   initialTab?: string;
 }
@@ -40,6 +42,7 @@ function AdminDashboardTabsContent({
   financialSettings, 
   allEvents,
   stolenBikes, // Nuevo prop
+  bikonDevices, // New prop
   statsContent,
   initialTab = 'stats'
 }: AdminDashboardTabsProps) {
@@ -87,6 +90,7 @@ function AdminDashboardTabsContent({
             <AlertTriangle className="h-4 w-4 text-destructive" />
             Alertas
         </TabsTrigger>
+        <TabsTrigger value="bikon">Bikon</TabsTrigger>
         <TabsTrigger value="content">Contenido</TabsTrigger>
         <TabsTrigger value="users">Usuarios</TabsTrigger>
         <TabsTrigger value="ongs">ONGs</TabsTrigger>
@@ -106,6 +110,10 @@ function AdminDashboardTabsContent({
               <p className="text-muted-foreground">Difunde los reportes de robo activos en las redes sociales oficiales.</p>
           </div>
           <StolenBikesList bikes={stolenBikes} />
+      </TabsContent>
+
+      <TabsContent value="bikon" className="space-y-6">
+          <BikonGenerator initialDevices={bikonDevices} />
       </TabsContent>
 
       <TabsContent value="content" className="space-y-4">

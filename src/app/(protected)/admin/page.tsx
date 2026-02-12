@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation';
 import { getAuthenticatedUser, getHomepageData, getUsers, getOngUsers, getEventsByOngId, getAllStolenBikes } from '@/lib/data';
 import { getFinancialSettings, getAllEventsForAdmin } from '@/lib/financial-data';
 import { getLandingEventsContent } from '@/lib/data/landing-events-data'; 
-import type { HomepageSection, DashboardFilters, LandingEventsContent } from '@/lib/types';
+import { getBikonDevices } from '@/lib/actions/bikon-actions'; // Importar Bikon fetcher
+import type { HomepageSection, DashboardFilters } from '@/lib/types';
 import { AdminDashboardTabs } from '@/components/admin-dashboard-tabs';
 import { StatsTabContent } from '@/components/admin/stats-tab-content';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,7 +43,8 @@ export default async function AdminPage({
     adminEvents, 
     financialSettings, 
     allEvents,
-    stolenBikes // NUEVO: Obtener todas las bicis robadas
+    stolenBikes, 
+    bikonDevices // NUEVO: Fetch Bikon data
   ] = await Promise.all([
     getHomepageData(),
     getLandingEventsContent(), 
@@ -52,6 +54,7 @@ export default async function AdminPage({
     getFinancialSettings(),
     getAllEventsForAdmin(),
     getAllStolenBikes(),
+    getBikonDevices(), // Fetch Bikon data
   ]);
 
   const { users, nextPageToken } = usersData;
@@ -84,7 +87,8 @@ export default async function AdminPage({
           events={adminEvents}
           financialSettings={financialSettings}
           allEvents={allEvents}
-          stolenBikes={stolenBikes} // NUEVO: Pasar datos
+          stolenBikes={stolenBikes}
+          bikonDevices={bikonDevices} // Pasar datos de Bikon
           statsContent={
             <Suspense key={JSON.stringify(filters)} fallback={<Skeleton className="h-[400px] w-full" />}>
               <StatsTabContent filters={filters} />

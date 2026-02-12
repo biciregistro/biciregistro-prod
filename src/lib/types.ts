@@ -3,6 +3,19 @@ import { GamificationProfile } from './gamification/gamification-types';
 
 export type BikeStatus = 'safe' | 'stolen' | 'in_transfer' | 'recovered';
 
+export type BikonDeviceStatus = 'available' | 'assigned' | 'inactive';
+
+export type BikonDevice = {
+  id: string; // Serial number is the ID
+  serialNumber: string;
+  status: BikonDeviceStatus;
+  createdAt: string; // ISO string
+  assignedToBikeId?: string;
+  assignedToUserId?: string;
+  assignedAt?: string; // ISO string
+  batchId?: string;
+};
+
 export type Bike = {
   id: string;
   userId: string;
@@ -20,6 +33,7 @@ export type Bike = {
   registrationIp?: string; // IP address from where the bike was registered
   // Seguimiento de difusión administrativa
   adminSharedAt?: string; // ISO string de cuándo el admin compartió el robo
+  bikonId?: string | null; // ID of the linked Bikon device
   theftReport?: {
     date: string;
     time?: string;
