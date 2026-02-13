@@ -26,13 +26,12 @@ export function ReferralStatsCard() {
     const handleShare = async () => {
         if (!data) return;
 
-        // Texto específico para WhatsApp si es posible, o genérico
-        const shareText = '¡Hola! Ayúdame a proteger mi bici y únete a la red segura de Biciregistro. Si te registras con mi enlace, ambos participamos por premios de aliados y obtienes estatus verificado prioritario.';
+        // Nuevo mensaje personalizado solicitado
+        const shareText = `¡Hola! Te invito a usar mi enlace para blindar tu bici con *Biciregistro*, proteger a la banda ciclista del robo y combatir el mercado negro. Si te registras con mi link ambos podemos ganar premios de aliados.\n\nMi link 👉 ${data.shareUrl}\n\n¡Además, le das identidad a tu bici, la vinculas legalmente a ti y obtienes herramientas de protección activa y pasiva contra el robo!`;
         
         const shareData = {
-            title: 'Únete a mi red en BiciRegistro',
+            title: 'Únete a BiciRegistro',
             text: shareText,
-            url: data.shareUrl,
         };
 
         if (navigator.share) {
@@ -40,12 +39,14 @@ export function ReferralStatsCard() {
                 await navigator.share(shareData);
             } catch (err) {
                 console.log('Error sharing:', err);
+                // Fallback copy if share fails or is cancelled
+                navigator.clipboard.writeText(shareText);
             }
         } else {
             // Fallback: Copy to clipboard
-            navigator.clipboard.writeText(`${shareText} ${data.shareUrl}`);
+            navigator.clipboard.writeText(shareText);
             toast({
-                title: "Enlace copiado",
+                title: "Mensaje copiado",
                 description: "El mensaje de invitación ha sido copiado al portapapeles.",
             });
         }
@@ -58,8 +59,6 @@ export function ReferralStatsCard() {
     if (!data) return null;
 
     // Calcular porcentaje de progreso para la barra
-    // nextTierGoal es el objetivo total (ej. 5 para Bronce). 
-    // Si tengo 2, goal es 5. Progress = 2/5 = 40%
     const nextTierGoal = (data.stats.referralsCount || 0) + (data.referralsToNextTier || 0);
     
     // Evitar division por cero
@@ -114,8 +113,9 @@ export function ReferralStatsCard() {
                         </Button>
                         <p className="text-[10px] text-center text-muted-foreground">
                            Tu enlace: <span className="font-mono select-all hover:text-primary transition-colors cursor-pointer" onClick={() => {
-                               navigator.clipboard.writeText(data.shareUrl);
-                               toast({ title: "Copiado", description: "Enlace copiado." });
+                               const textToCopy = `¡Hola! Te invito a usar mi enlace para blindar tu bici con *Biciregistro*, proteger a la banda ciclista del robo y combatir el mercado negro. Si te registras con mi link ambos podemos ganar premios de aliados.\n\nMi link 👉 ${data.shareUrl}\n\n¡Además, le das identidad a tu bici, la vinculas legalmente a ti y obtienes herramientas de protección activa y pasiva contra el robo!`;
+                               navigator.clipboard.writeText(textToCopy);
+                               toast({ title: "Copiado", description: "Mensaje completo copiado." });
                            }}>{data.shareUrl}</span>
                         </p>
                     </div>
