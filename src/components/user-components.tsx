@@ -85,9 +85,11 @@ export function DashboardNav() {
 
 type FormValues = z.infer<typeof userFormSchema>;
 
-function SubmitButton({ isEditing, isSigningIn, isSubmitting, loadingAuth }: { isEditing?: boolean, isSigningIn?: boolean, isSubmitting?: boolean, loadingAuth?: boolean }) {
+function SubmitButton({ isEditing, isSigningIn, isSubmitting, loadingAuth, termsAccepted }: { isEditing?: boolean, isSigningIn?: boolean, isSubmitting?: boolean, loadingAuth?: boolean, termsAccepted?: boolean }) {
     const { pending } = useFormStatus();
-    const isDisabled = pending || isSigningIn || isSubmitting || loadingAuth;
+    // Validate terms acceptance if not editing (i.e. signing up)
+    const termsValid = isEditing ? true : termsAccepted;
+    const isDisabled = pending || isSigningIn || isSubmitting || loadingAuth || !termsValid;
 
     let text = isEditing ? 'Guardar Cambios' : 'Crear cuenta';
     if (loadingAuth) text = 'Verificando...';
@@ -96,7 +98,7 @@ function SubmitButton({ isEditing, isSigningIn, isSubmitting, loadingAuth }: { i
     let pendingText = isEditing ? 'Guardando...' : 'Creando...';
     if (isSigningIn) pendingText = 'Finalizando...';
 
-    return <Button type="submit" disabled={isDisabled} className="w-full">{isDisabled ? pendingText : text}</Button>;
+    return <Button type="submit" disabled={isDisabled} className="w-full">{isDisabled && !termsValid && !isEditing ? 'Acepta los términos' : (isDisabled ? pendingText : text)}</Button>;
 }
 
 export function PasswordStrengthIndicator({ password = "" }: { password?: string }) {
@@ -151,6 +153,9 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
     const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
     const [cities, setCities] = useState<string[]>([]);
     const [showPassword, setShowPassword] = useState(false);
+    
+    // State for terms acceptance
+    const [termsAccepted, setTermsAccepted] = useState(false);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -338,6 +343,16 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
 
 
     const handleFormSubmit = async (values: FormValues) => {
+        // Prevent submission if terms not accepted (Double check)
+        if (!isEditing && !termsAccepted) {
+            toast({
+                title: "Atención",
+                description: "Debes aceptar los Términos y Condiciones y el Aviso de Privacidad para crear una cuenta.",
+                variant: "destructive"
+            });
+            return;
+        }
+
         const { currentPassword, newPassword, birthDate } = values;
         
         // Convert display date to ISO for submission
@@ -353,6 +368,11 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
             // Manually override the birthDate in formData because the input might have the formatted value
             if (values.birthDate) {
                 formData.set('birthDate', values.birthDate);
+            }
+            
+            // Add terms info if signing up
+            if (!isEditing) {
+                formData.set('termsAccepted', 'true');
             }
 
             startTransition(() => {
@@ -786,10 +806,39 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                             />
                         </div>
                          <PasswordStrengthIndicator password={password} />
+                         
+                         {/* LEGAL TERMS CHECKBOX - ONLY ON SIGNUP */}
+                         {!isEditing && (
+                             <div className="flex items-start space-x-2 pt-4">
+                                <Checkbox 
+                                    id="terms" 
+                                    checked={termsAccepted}
+                                    onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
+                                />
+                                <div className="grid gap-1.5 leading-none">
+                                    <label
+                                        htmlFor="terms"
+                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    >
+                                        He leído y acepto los <Link href="/terms" target="_blank" className="text-primary hover:underline">Términos y Condiciones</Link> y el <Link href="/privacy" target="_blank" className="text-primary hover:underline">Aviso de Privacidad</Link>
+                                    </label>
+                                    <p className="text-[0.8rem] text-muted-foreground">
+                                        Debes aceptar las políticas legales para crear tu cuenta.
+                                    </p>
+                                </div>
+                             </div>
+                         )}
+
                     </CardContent>
                     <CardFooter>
                          <div className="flex flex-col gap-4 w-full">
-                            <SubmitButton isEditing={isEditing} isSigningIn={isSigningIn} isSubmitting={isSubmitting || isPending} loadingAuth={loadingAuth} />
+                            <SubmitButton 
+                                isEditing={isEditing} 
+                                isSigningIn={isSigningIn} 
+                                isSubmitting={isSubmitting || isPending} 
+                                loadingAuth={loadingAuth} 
+                                termsAccepted={termsAccepted}
+                            />
                             {!isEditing && (
                                  <div className="text-sm text-center text-muted-foreground">
                                     ¿Ya tienes una cuenta?{' '}

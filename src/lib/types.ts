@@ -83,7 +83,10 @@ export type User = {
   fcmTokens?: string[];
   referralCode?: string; 
   referredBy?: string;   
-  gamification?: GamificationProfile; 
+  gamification?: GamificationProfile;
+  // Campos legales
+  termsAcceptedAt?: string; // ISO string timestamp de aceptación
+  termsVersion?: string; // Versión de los términos aceptados (ej. '2026-01-31')
 };
 
 export type OngUser = {
