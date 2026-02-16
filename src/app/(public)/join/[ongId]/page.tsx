@@ -99,8 +99,8 @@ export default async function JoinPage({ params }: JoinPageProps) {
                 
                 {/* Embedded Profile Form */}
                 <div className="rounded-xl overflow-hidden border bg-card shadow-sm">
-                    {/* Pass callbackUrl to redirect back to this profile page after signup */}
-                    <ProfileForm communityId={ongId} callbackUrl={`/join/${ongId}`} />
+                    {/* Pass callbackUrl to redirect to profile dashboard after signup, instead of staying on this page */}
+                    <ProfileForm communityId={ongId} callbackUrl="/dashboard/profile" />
                 </div>
             </div>
         );
