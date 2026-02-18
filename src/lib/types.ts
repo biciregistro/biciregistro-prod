@@ -479,3 +479,59 @@ export type LandingEventsContent = {
     };
     ctaSection: LandingEventsCta;
 };
+
+// --- Advertising & Lead Gen System ---
+
+export type CampaignType = 'download' | 'link' | 'coupon';
+export type CampaignStatus = 'draft' | 'active' | 'paused' | 'ended';
+export type CampaignPlacement = 'dashboard_main' | 'dashboard_sidebar' | 'event_list';
+
+export type Campaign = {
+    id: string;
+    advertiserId: string; // Link to an OngUser (Advertiser)
+    
+    // Configuration
+    title: string; // Public title seen by users
+    internalName: string; // For admin management
+    type: CampaignType;
+    status: CampaignStatus;
+    placement: CampaignPlacement;
+    
+    // Scheduling
+    startDate: string; // ISO Date
+    endDate: string; // ISO Date
+    
+    // Assets & Creative
+    bannerImageUrl: string; // Main banner
+    mobileBannerImageUrl?: string; // Optional mobile optimized
+    
+    // Action Logic
+    assetUrl?: string; // For 'download' type (PDF URL)
+    targetUrl?: string; // For 'link' type
+    couponCode?: string; // For 'coupon' type
+    
+    // Analytics (Denormalized for performance)
+    clickCount: number;
+    uniqueConversionCount: number;
+    
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type CampaignConversion = {
+    id: string;
+    campaignId: string;
+    userId: string;
+    
+    // Snapshot of user data at time of conversion
+    userEmail: string;
+    userName: string;
+    userCity?: string;
+    
+    convertedAt: string; // ISO Date
+    
+    metadata?: {
+        userAgent?: string;
+        deviceType?: string; // 'mobile', 'desktop'
+    };
+};

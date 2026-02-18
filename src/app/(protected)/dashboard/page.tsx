@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DashboardTabs } from '@/components/dashboard/dashboard-tabs';
 import { ReferralStatsCard } from '@/components/dashboard/referral-stats-card';
+import { PromotionalBanner } from '@/components/dashboard/promotional-banner';
 
 import { PlusCircle, Edit } from 'lucide-react';
 
@@ -86,6 +87,11 @@ export default async function DashboardPage() {
         <div className="container max-w-5xl mx-auto py-6 md:py-8 px-4">
             {/* Action Panel */}
             <ActionPanel user={user} isComplete={profileIsComplete} />
+
+            {/* Campaign Banner - NEW (Zero-Regression Placement) */}
+            <div className="mb-6">
+                <PromotionalBanner />
+            </div>
 
             {/* Referral Stats Card */}
             {profileIsComplete && (

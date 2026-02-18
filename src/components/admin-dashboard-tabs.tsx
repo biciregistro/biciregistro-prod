@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,13 +9,14 @@ import { FinancialSettingsForm } from '@/components/admin/financial-settings-for
 import { AdminEventFinancialList } from '@/components/admin/admin-event-financial-list';
 import { HomepageSection, User, OngUser, Event, FinancialSettings, LandingEventsContent, Bike } from '@/lib/types';
 import { EventCard } from '@/components/ong/event-card';
-import { UserPlus, CalendarPlus, AlertTriangle } from 'lucide-react';
+import { UserPlus, CalendarPlus, AlertTriangle, Megaphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardFilterBar } from '@/components/admin/dashboard-filter-bar';
 import { NotificationComposer } from '@/components/admin/notifications/notification-composer';
 import { LandingEventsEditor } from './admin/landing-editor/landing-events-editor';
 import { StolenBikesList } from './admin/stolen-bikes-list';
 import { BikonGenerator } from '@/components/admin/bikon-generator';
+import { CampaignManager } from '@/components/admin/campaigns/campaign-manager';
 
 interface AdminDashboardTabsProps {
   homepageSections: HomepageSection[];
@@ -26,8 +27,9 @@ interface AdminDashboardTabsProps {
   events: Event[];
   financialSettings: FinancialSettings;
   allEvents: any[];
-  stolenBikes: (Bike & { owner?: User })[]; // Nuevo prop
-  bikonDevices: any[]; // New prop for Bikon devices
+  stolenBikes: (Bike & { owner?: User })[];
+  bikonDevices: any[]; 
+  advertisers: {id: string, name: string}[]; 
   statsContent: React.ReactNode;
   initialTab?: string;
 }
@@ -41,8 +43,9 @@ function AdminDashboardTabsContent({
   events, 
   financialSettings, 
   allEvents,
-  stolenBikes, // Nuevo prop
-  bikonDevices, // New prop
+  stolenBikes, 
+  bikonDevices, 
+  advertisers,
   statsContent,
   initialTab = 'stats'
 }: AdminDashboardTabsProps) {
@@ -50,24 +53,12 @@ function AdminDashboardTabsContent({
   const router = useRouter();
   const pathname = usePathname();
 
-  // FIX: Inicializar estados con valores deterministas para evitar Hydration Mismatch.
-  // Dejamos que useEffect sincronice con la URL en el cliente.
-  const [activeTab, setActiveTab] = useState(initialTab);
-  const [activeSubTab, setActiveSubTab] = useState('homepage');
-
-  useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab && tab !== activeTab) {
-      setActiveTab(tab);
-    }
-    const subtab = searchParams.get('subtab');
-    if (subtab && subtab !== activeSubTab) {
-      setActiveSubTab(subtab);
-    }
-  }, [searchParams, activeTab, activeSubTab]);
+  // Controlled component state by URL, no local duplicate state
+  const activeTab = searchParams.get('tab') || initialTab;
+  const activeSubTab = searchParams.get('subtab') || 'homepage';
 
   const onTabChange = (value: string) => {
-    setActiveTab(value);
+    // Optimistic update via router.push which triggers re-render
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', value);
     params.delete('subtab'); 
@@ -75,7 +66,6 @@ function AdminDashboardTabsContent({
   };
 
   const onSubTabChange = (value: string) => {
-    setActiveSubTab(value);
     const params = new URLSearchParams(searchParams.toString());
     params.set('subtab', value);
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
@@ -91,6 +81,10 @@ function AdminDashboardTabsContent({
             Alertas
         </TabsTrigger>
         <TabsTrigger value="bikon">Bikon</TabsTrigger>
+        <TabsTrigger value="campaigns" className="gap-1.5">
+            <Megaphone className="h-4 w-4" />
+            Campañas
+        </TabsTrigger>
         <TabsTrigger value="content">Contenido</TabsTrigger>
         <TabsTrigger value="users">Usuarios</TabsTrigger>
         <TabsTrigger value="ongs">ONGs</TabsTrigger>
@@ -114,6 +108,10 @@ function AdminDashboardTabsContent({
 
       <TabsContent value="bikon" className="space-y-6">
           <BikonGenerator initialDevices={bikonDevices} />
+      </TabsContent>
+
+      <TabsContent value="campaigns" className="space-y-6">
+          <CampaignManager advertisers={advertisers} />
       </TabsContent>
 
       <TabsContent value="content" className="space-y-4">

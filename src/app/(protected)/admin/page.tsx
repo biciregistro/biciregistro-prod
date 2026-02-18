@@ -3,8 +3,9 @@ import { redirect } from 'next/navigation';
 import { getAuthenticatedUser, getHomepageData, getUsers, getOngUsers, getEventsByOngId, getAllStolenBikes } from '@/lib/data';
 import { getFinancialSettings, getAllEventsForAdmin } from '@/lib/financial-data';
 import { getLandingEventsContent } from '@/lib/data/landing-events-data'; 
-import { getBikonDevices } from '@/lib/actions/bikon-actions'; // Importar Bikon fetcher
-import type { HomepageSection, DashboardFilters } from '@/lib/types';
+import { getBikonDevices } from '@/lib/actions/bikon-actions'; 
+import { getAdvertisersList } from '@/lib/actions/campaign-actions';
+import type { HomepageSection, DashboardFilters, User, OngUser, Event, FinancialSettings, Bike, BikonDevicePopulated, LandingEventsContent } from '@/lib/types';
 import { AdminDashboardTabs } from '@/components/admin-dashboard-tabs';
 import { StatsTabContent } from '@/components/admin/stats-tab-content';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,38 +35,79 @@ export default async function AdminPage({
   const query = typeof resolvedSearchParams['query'] === 'string' ? resolvedSearchParams['query'] : undefined;
   const pageToken = typeof resolvedSearchParams['pageToken'] === 'string' ? resolvedSearchParams['pageToken'] : undefined;
 
-  // Parallel data fetching
-  const [
-    homepageData, 
-    landingEventsContent, 
-    usersData, 
-    ongs, 
-    adminEvents, 
-    financialSettings, 
-    allEvents,
-    stolenBikes, 
-    bikonDevices // NUEVO: Fetch Bikon data
-  ] = await Promise.all([
-    getHomepageData(),
-    getLandingEventsContent(), 
-    getUsers({ query, pageToken }),
-    getOngUsers(),
-    getEventsByOngId(user.id),
-    getFinancialSettings(),
-    getAllEventsForAdmin(),
-    getAllStolenBikes(),
-    getBikonDevices(), // Fetch Bikon data
-  ]);
+  // --- Conditional Data Fetching ---
+  
+  // Initialize with safe defaults
+  let homepageSections: HomepageSection[] = [];
+  // Dummy content to satisfy type requirements if not fetched, but won't be rendered
+  let landingEventsContent: LandingEventsContent = { 
+      hero: { title: '', subtitle: '', ctaButton: '', trustCopy: '', backgroundImageUrl: '' }, 
+      painPointsSection: { title: '', points: [{id: '1', title:'', description:''}, {id: '2', title:'', description:''}, {id: '3', title:'', description:''}] }, 
+      solutionSection: { title: '', solutions: [{id: '1', title:'', description:''}, {id: '2', title:'', description:''}, {id: '3', title:'', description:''}] }, 
+      featureSection: { title: '', description: '', imageUrl: '' }, 
+      socialProofSection: { allies: [] }, 
+      ctaSection: { title: '', description: '', ctaButton: '' } 
+  };
+  
+  let usersData: { users: User[], nextPageToken?: string } = { users: [], nextPageToken: undefined };
+  let ongs: OngUser[] = [];
+  let adminEvents: Event[] = [];
+  let financialSettings: FinancialSettings = { commissionRate: 0, pasarelaRate: 0, pasarelaFixed: 0, ivaRate: 0 };
+  let allEvents: any[] = [];
+  let stolenBikes: (Bike & { owner?: User })[] = [];
+  let bikonDevices: BikonDevicePopulated[] = [];
+  let advertisers: {id: string, name: string}[] = [];
+
+  
+  if (initialTab === 'content') {
+      const [homepageData, fetchedLandingContent] = await Promise.all([
+          getHomepageData(),
+          getLandingEventsContent()
+      ]);
+      
+      landingEventsContent = fetchedLandingContent;
+
+      homepageSections = Object.entries(homepageData).map(([id, sectionData]) => {
+        const typedId = id as HomepageSection['id'];
+        return {
+          ...sectionData, // @ts-ignore
+          id: typedId,
+        } as HomepageSection;
+      });
+  }
+
+  if (initialTab === 'users') {
+      usersData = await getUsers({ query, pageToken });
+  }
+
+  if (initialTab === 'ongs') {
+      ongs = await getOngUsers();
+  }
+
+  if (initialTab === 'events') {
+      adminEvents = await getEventsByOngId(user.id);
+  }
+
+  if (initialTab === 'finance') {
+      [financialSettings, allEvents] = await Promise.all([
+          getFinancialSettings(),
+          getAllEventsForAdmin()
+      ]);
+  }
+
+  if (initialTab === 'thefts') {
+      stolenBikes = await getAllStolenBikes();
+  }
+
+  if (initialTab === 'bikon') {
+      bikonDevices = await getBikonDevices();
+  }
+
+  if (initialTab === 'campaigns') {
+      advertisers = await getAdvertisersList();
+  }
 
   const { users, nextPageToken } = usersData;
-
-  const homepageSections: HomepageSection[] = Object.entries(homepageData).map(([id, sectionData]) => {
-    const typedId = id as HomepageSection['id'];
-    return {
-      ...sectionData,
-      id: typedId,
-    } as HomepageSection;
-  });
 
   return (
     <div className="container py-8 px-4 md:px-6">
@@ -88,7 +130,8 @@ export default async function AdminPage({
           financialSettings={financialSettings}
           allEvents={allEvents}
           stolenBikes={stolenBikes}
-          bikonDevices={bikonDevices} // Pasar datos de Bikon
+          bikonDevices={bikonDevices}
+          advertisers={advertisers}
           statsContent={
             <Suspense key={JSON.stringify(filters)} fallback={<Skeleton className="h-[400px] w-full" />}>
               <StatsTabContent filters={filters} />

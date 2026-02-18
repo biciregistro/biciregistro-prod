@@ -3,7 +3,7 @@
 import { adminDb as db } from '@/lib/firebase/server';
 import { BikonDevice, BikonDevicePopulated } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
-import { Transaction, QueryDocumentSnapshot, Timestamp } from 'firebase-admin/firestore';
+import { Transaction, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 // Tipos para actions
 type ActionResult = {
@@ -47,7 +47,7 @@ export async function generateBikonCodes(quantity: number): Promise<ActionResult
     }
 
     await batch.commit();
-    revalidatePath('/admin/bikon'); 
+    revalidatePath('/admin'); 
     
     return { 
       success: true, 
@@ -150,6 +150,7 @@ export async function toggleBikonPrintedStatus(
 
 /**
  * Obtiene lista de dispositivos paginada y populada (Para Admin)
+ * OPTIMIZADA: Batch fetching de usuarios y bicis usando getAll
  */
 export async function getBikonDevices(limitCount = 50): Promise<BikonDevicePopulated[]> {
     try {
@@ -158,47 +159,66 @@ export async function getBikonDevices(limitCount = 50): Promise<BikonDevicePopul
             .limit(limitCount)
             .get();
         
-        const devices = snapshot.docs.map((doc: QueryDocumentSnapshot) => doc.data() as BikonDevice);
-        
-        // Populación manual eficiente (parallel fetching)
-        const populatedDevices = await Promise.all(devices.map(async (device) => {
-            const populatedDevice: BikonDevicePopulated = { ...device };
+        const devices = snapshot.docs.map((doc: QueryDocumentSnapshot) => {
+            const data = doc.data();
+            return { id: doc.id, ...data } as BikonDevice;
+        });
 
-            // Si está asignado, traemos datos
-            if (device.status === 'assigned' && device.assignedToUserId && device.assignedToBikeId) {
-                try {
-                    const [userDoc, bikeDoc] = await Promise.all([
-                        db.collection('users').doc(device.assignedToUserId).get(),
-                        db.collection('bikes').doc(device.assignedToBikeId).get()
-                    ]);
+        // Collect unique IDs
+        const userIds = new Set<string>();
+        const bikeIds = new Set<string>();
 
-                    if (userDoc.exists) {
-                        const userData = userDoc.data();
-                        populatedDevice.assignedUser = {
-                            name: userData?.name || 'Desconocido',
-                            lastName: userData?.lastName || '',
-                            city: userData?.city,
-                            state: userData?.state,
-                            country: userData?.country,
-                        };
-                    }
-
-                    if (bikeDoc.exists) {
-                        const bikeData = bikeDoc.data();
-                        populatedDevice.assignedBike = {
-                            make: bikeData?.make || 'Desconocida',
-                            model: bikeData?.model || '',
-                            color: bikeData?.color || '',
-                            serialNumber: bikeData?.serialNumber || '',
-                        };
-                    }
-                } catch (err) {
-                    console.error(`Error populating device ${device.serialNumber}:`, err);
-                    // Continuamos sin popular si falla, para no romper la lista
-                }
+        devices.forEach(d => {
+            if (d.status === 'assigned') {
+                if (d.assignedToUserId) userIds.add(d.assignedToUserId);
+                if (d.assignedToBikeId) bikeIds.add(d.assignedToBikeId);
             }
-            return populatedDevice;
-        }));
+        });
+
+        // Create references for batch fetching
+        const userRefs = Array.from(userIds).map(id => db.collection('users').doc(id));
+        const bikeRefs = Array.from(bikeIds).map(id => db.collection('bikes').doc(id));
+
+        // Fetch all related documents in parallel
+        const [userDocs, bikeDocs] = await Promise.all([
+            userRefs.length > 0 ? db.getAll(...userRefs) : [],
+            bikeRefs.length > 0 ? db.getAll(...bikeRefs) : []
+        ]);
+        
+        // Map results for O(1) access
+        const usersMap: Record<string, any> = {};
+        userDocs.forEach(d => { if(d.exists) usersMap[d.id] = d.data(); });
+        
+        const bikesMap: Record<string, any> = {};
+        bikeDocs.forEach(d => { if(d.exists) bikesMap[d.id] = d.data(); });
+
+        // Populate in memory
+        const populatedDevices: BikonDevicePopulated[] = devices.map(device => {
+            const populated: BikonDevicePopulated = { ...device };
+
+            if (device.status === 'assigned') {
+                 if (device.assignedToUserId && usersMap[device.assignedToUserId]) {
+                     const u = usersMap[device.assignedToUserId];
+                     populated.assignedUser = {
+                        name: u.name || 'Desconocido',
+                        lastName: u.lastName || '',
+                        city: u.city,
+                        state: u.state,
+                        country: u.country
+                     };
+                 }
+                 if (device.assignedToBikeId && bikesMap[device.assignedToBikeId]) {
+                     const b = bikesMap[device.assignedToBikeId];
+                     populated.assignedBike = {
+                         make: b.make || 'Desconocida',
+                         model: b.model || '',
+                         color: b.color || '',
+                         serialNumber: b.serialNumber || ''
+                     };
+                 }
+            }
+            return populated;
+        });
 
         return populatedDevices;
     } catch (error) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { generateBikonCodes, toggleBikonPrintedStatus } from '@/lib/actions/bikon-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,7 @@ export function BikonGenerator({ initialDevices }: BikonGeneratorProps) {
   const [quantity, setQuantity] = useState(5);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -31,7 +33,7 @@ export function BikonGenerator({ initialDevices }: BikonGeneratorProps) {
           title: 'Éxito',
           description: result.message,
         });
-        window.location.reload(); 
+        router.refresh(); // Correct way to refresh Server Components data
       } else {
         toast({
           title: 'Error',
@@ -55,9 +57,7 @@ export function BikonGenerator({ initialDevices }: BikonGeneratorProps) {
         const result = await toggleBikonPrintedStatus(serial, currentStatus);
         if (result.success) {
             toast({ title: "Estado actualizado", duration: 2000 });
-            // Optimistic update visual o recarga
-            // Como es admin panel, recarga está bien para asegurar consistencia
-            window.location.reload(); 
+            router.refresh(); 
         }
     } catch (error) {
         toast({ title: "Error", description: "No se pudo actualizar el estado.", variant: "destructive" });
