@@ -14,6 +14,24 @@ export type BikonDevice = {
   assignedToUserId?: string;
   assignedAt?: string; // ISO string
   batchId?: string;
+  isPrinted?: boolean; // Nuevo campo para control de inventario físico
+};
+
+// Tipo enriquecido para la UI de administración
+export type BikonDevicePopulated = BikonDevice & {
+  assignedUser?: {
+    name: string;
+    lastName?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+  };
+  assignedBike?: {
+    make: string;
+    model: string;
+    color: string;
+    serialNumber: string;
+  };
 };
 
 export type Bike = {

@@ -1,9 +1,9 @@
 'use server';
 
 import { adminDb as db } from '@/lib/firebase/server';
-import { BikonDevice } from '@/lib/types';
+import { BikonDevice, BikonDevicePopulated } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
-import { Transaction, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { Transaction, QueryDocumentSnapshot, Timestamp } from 'firebase-admin/firestore';
 
 // Tipos para actions
 type ActionResult = {
@@ -39,6 +39,7 @@ export async function generateBikonCodes(quantity: number): Promise<ActionResult
         status: 'available',
         createdAt: new Date().toISOString(),
         batchId: timestamp,
+        isPrinted: false, // Por defecto no impreso
       };
 
       batch.set(newDeviceRef, newDevice);
@@ -128,16 +129,78 @@ export async function linkBikonToBike(
 }
 
 /**
- * Obtiene lista de dispositivos paginada (Para Admin)
+ * Cambia el estado de impresión de un dispositivo (Solo Admin)
  */
-export async function getBikonDevices(limitCount = 50) {
+export async function toggleBikonPrintedStatus(
+  serialNumber: string, 
+  currentStatus: boolean
+): Promise<ActionResult> {
+  try {
+    await db.collection('bikon_devices').doc(serialNumber).update({
+      isPrinted: !currentStatus
+    });
+    
+    revalidatePath('/admin');
+    return { success: true, message: 'Estado de impresión actualizado.' };
+  } catch (error) {
+    console.error('Error updating printed status:', error);
+    return { success: false, message: 'Error al actualizar el estado.' };
+  }
+}
+
+/**
+ * Obtiene lista de dispositivos paginada y populada (Para Admin)
+ */
+export async function getBikonDevices(limitCount = 50): Promise<BikonDevicePopulated[]> {
     try {
         const snapshot = await db.collection('bikon_devices')
             .orderBy('createdAt', 'desc')
             .limit(limitCount)
             .get();
         
-        return snapshot.docs.map((doc: QueryDocumentSnapshot) => doc.data() as BikonDevice);
+        const devices = snapshot.docs.map((doc: QueryDocumentSnapshot) => doc.data() as BikonDevice);
+        
+        // Populación manual eficiente (parallel fetching)
+        const populatedDevices = await Promise.all(devices.map(async (device) => {
+            const populatedDevice: BikonDevicePopulated = { ...device };
+
+            // Si está asignado, traemos datos
+            if (device.status === 'assigned' && device.assignedToUserId && device.assignedToBikeId) {
+                try {
+                    const [userDoc, bikeDoc] = await Promise.all([
+                        db.collection('users').doc(device.assignedToUserId).get(),
+                        db.collection('bikes').doc(device.assignedToBikeId).get()
+                    ]);
+
+                    if (userDoc.exists) {
+                        const userData = userDoc.data();
+                        populatedDevice.assignedUser = {
+                            name: userData?.name || 'Desconocido',
+                            lastName: userData?.lastName || '',
+                            city: userData?.city,
+                            state: userData?.state,
+                            country: userData?.country,
+                        };
+                    }
+
+                    if (bikeDoc.exists) {
+                        const bikeData = bikeDoc.data();
+                        populatedDevice.assignedBike = {
+                            make: bikeData?.make || 'Desconocida',
+                            model: bikeData?.model || '',
+                            color: bikeData?.color || '',
+                            serialNumber: bikeData?.serialNumber || '',
+                        };
+                    }
+                } catch (err) {
+                    console.error(`Error populating device ${device.serialNumber}:`, err);
+                    // Continuamos sin popular si falla, para no romper la lista
+                }
+            }
+            return populatedDevice;
+        }));
+
+        return populatedDevices;
     } catch (error) {
         console.error('Error fetching devices:', error);
         return [];
