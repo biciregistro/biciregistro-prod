@@ -14,27 +14,34 @@ interface ImageUploadProps {
   storagePath: string;
   disabled?: boolean;
   guidelinesText?: string;
-  buttonText?: string; // Add buttonText prop
+  buttonText?: string; 
+  maxSizeMB?: number; // New optional prop
 }
 
-const MAX_FILE_SIZE_MB = 5;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-
-export function ImageUpload({ onUploadSuccess, storagePath, disabled = false, guidelinesText, buttonText }: ImageUploadProps) {
+export function ImageUpload({ 
+  onUploadSuccess, 
+  storagePath, 
+  disabled = false, 
+  guidelinesText, 
+  buttonText,
+  maxSizeMB = 5 // Default to 5MB
+}: ImageUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [downloadURL, setDownloadURL] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const maxSizeBytes = maxSizeMB * 1024 * 1024;
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
 
     if (selectedFile) {
-      if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
+      if (selectedFile.size > maxSizeBytes) {
         toast({
           title: "Error al Cargar Archivo",
-          description: `El archivo excede el límite de ${MAX_FILE_SIZE_MB}MB.`,
+          description: `El archivo excede el límite de ${maxSizeMB}MB.`,
           variant: "destructive",
         });
         e.target.value = "";
@@ -109,7 +116,7 @@ export function ImageUpload({ onUploadSuccess, storagePath, disabled = false, gu
       
       <div className="pt-1">
         <p className="text-xs text-muted-foreground">
-          Tamaño máximo por archivo: {MAX_FILE_SIZE_MB}MB
+          Tamaño máximo por archivo: {maxSizeMB}MB
         </p>
         {guidelinesText && (
           <p className="text-xs text-muted-foreground">
