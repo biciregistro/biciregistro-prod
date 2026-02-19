@@ -24,6 +24,11 @@ export function CampaignManager({ advertisers }: CampaignManagerProps) {
         try {
             const data = await getAllCampaignsForAdmin();
             setCampaigns(data);
+            // Update selected campaign if in detail view to reflect status changes
+            if (selectedCampaign) {
+                const updated = data.find(c => c.id === selectedCampaign.id);
+                if (updated) setSelectedCampaign(updated);
+            }
         } finally {
             setLoading(false);
         }
@@ -60,10 +65,12 @@ export function CampaignManager({ advertisers }: CampaignManagerProps) {
         return (
             <CampaignDetail 
                 campaign={selectedCampaign} 
+                advertisers={advertisers}
                 onBack={() => {
                     setSelectedCampaign(null);
                     setView('list');
                 }} 
+                onUpdate={loadCampaigns}
             />
         );
     }
@@ -71,6 +78,7 @@ export function CampaignManager({ advertisers }: CampaignManagerProps) {
     return (
         <CampaignList 
             campaigns={campaigns} 
+            advertisers={advertisers}
             onCreateNew={() => setView('create')} 
             onManage={handleManage} 
         />

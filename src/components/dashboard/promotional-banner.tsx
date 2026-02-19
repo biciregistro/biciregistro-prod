@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { Campaign } from '@/lib/types';
 import { getActiveCampaigns, recordCampaignConversion } from '@/lib/actions/campaign-actions';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -16,11 +18,16 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Download, ExternalLink } from 'lucide-react';
 
+interface CampaignWithAdvertiser extends Campaign {
+    advertiserName?: string;
+}
+
 export function PromotionalBanner() {
-  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [campaign, setCampaign] = useState<CampaignWithAdvertiser | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [consent, setConsent] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -29,7 +36,7 @@ export function PromotionalBanner() {
         const campaigns = await getActiveCampaigns('dashboard_main');
         if (campaigns.length > 0) {
           // Select the most recent one or rotate randomly if multiple
-          setCampaign(campaigns[0]);
+          setCampaign(campaigns[0] as CampaignWithAdvertiser);
         }
       } catch (error) {
         console.error('Failed to load banner:', error);
@@ -41,15 +48,22 @@ export function PromotionalBanner() {
   }, []);
 
   const handleCtaClick = () => {
+    setConsent(false); // Reset consent on open
     setIsModalOpen(true);
   };
 
   const handleConfirm = async () => {
     if (!campaign) return;
+    if (!consent) return;
 
     setIsProcessing(true);
     try {
-      const result = await recordCampaignConversion(campaign.id);
+      const consentText = `Acepto compartir mis datos con ${campaign.advertiserName || 'el aliado'}. He leído y estoy de acuerdo con los terminos y condiciones de uso y la politica de privacidad.`;
+      
+      const result = await recordCampaignConversion(campaign.id, {
+          accepted: true,
+          text: consentText
+      });
 
       if (result?.error) {
         toast({
@@ -71,7 +85,6 @@ export function PromotionalBanner() {
       // Perform the action (Download or Redirect)
       if (campaign.assetUrl) {
           if (campaign.type === 'download') {
-              // Create a temporary link to force download if needed, or just open in new tab
               window.open(campaign.assetUrl, '_blank');
           } else {
               window.open(campaign.assetUrl, '_blank');
@@ -108,13 +121,6 @@ export function PromotionalBanner() {
                 priority
              />
         </div>
-        
-        {/* Overlay CTA (Optional, depending on design) */}
-        {/* <div className="absolute bottom-4 right-4">
-            <Button variant="secondary" size="sm">
-                {campaign.type === 'download' ? 'Descargar Ahora' : 'Ver Más'}
-            </Button>
-        </div> */}
       </div>
 
       {/* Consent Modal */}
@@ -129,35 +135,50 @@ export function PromotionalBanner() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="py-4 text-sm text-gray-600 space-y-2">
-            <p>
-                Al continuar, aceptas compartir tu <strong>nombre y correo electrónico</strong> con el aliado que patrocina este contenido.
-            </p>
-            <p className="text-xs text-gray-500">
-                Tus datos serán utilizados únicamente con fines informativos y comerciales relacionados con esta campaña. 
-                TotalBike actúa como intermediario tecnológico y no se hace responsable del contenido de terceros.
-            </p>
+          <div className="py-4 space-y-4">
+            <div className="flex items-start space-x-3 p-4 border rounded-md bg-muted/20">
+                <Checkbox 
+                    id="consent" 
+                    checked={consent} 
+                    onCheckedChange={(checked) => setConsent(checked as boolean)} 
+                    className="mt-1"
+                />
+                <div className="grid gap-1.5 leading-none">
+                    <Label
+                        htmlFor="consent"
+                        className="text-sm text-muted-foreground text-justify font-normal cursor-pointer leading-relaxed"
+                    >
+                        Acepto compartir mis datos con <strong>{campaign.advertiserName || 'el aliado'}</strong>. He leído y estoy de acuerdo con los terminos y condiciones de uso y la politica de privacidad.
+                    </Label>
+                </div>
+            </div>
           </div>
 
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsModalOpen(false)} disabled={isProcessing}>
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+            <Button variant="ghost" onClick={() => setIsModalOpen(false)} disabled={isProcessing} className="w-full sm:w-auto">
               Cancelar
             </Button>
-            <Button onClick={handleConfirm} disabled={isProcessing}>
+            <Button onClick={handleConfirm} disabled={isProcessing || !consent} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white">
               {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {campaign.type === 'download' ? (
                   <>
                     <Download className="mr-2 h-4 w-4" />
-                    Aceptar y Descargar
+                    Descargar
                   </>
               ) : (
                   <>
                     <ExternalLink className="mr-2 h-4 w-4" />
-                    Aceptar e Ir
+                    Ir al sitio
                   </>
               )}
             </Button>
           </DialogFooter>
+
+          <div className="pt-2 text-center">
+             <p className="text-xs text-gray-400">
+                Biciregistro actúa como intermediario tecnológico y no se hace responsable del contenido de terceros.
+            </p>
+          </div>
         </DialogContent>
       </Dialog>
     </>

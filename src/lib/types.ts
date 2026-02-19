@@ -530,8 +530,16 @@ export type CampaignConversion = {
     
     convertedAt: string; // ISO Date
     
+    ipAddress?: string; // New: Legal
+    privacyPolicyVersion?: string; // New: Legal
+
     metadata?: {
         userAgent?: string;
         deviceType?: string; // 'mobile', 'desktop'
+    };
+    consent?: {
+        accepted: boolean;
+        text: string;
+        timestamp: string; // ISO
     };
 };

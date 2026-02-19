@@ -34,16 +34,34 @@ export function CampaignsList({ campaigns, advertiserId }: CampaignsListProps) {
                 return;
             }
 
-            // Generate CSV
-            const headers = ['ID Usuario', 'Nombre', 'Email', 'Ciudad', 'Fecha Conversión', 'Dispositivo'];
+            // Generate CSV with Legal Requirements
+            const headers = [
+                'ID Usuario',
+                'Nombre',
+                'Email',
+                'Ciudad',
+                'Timestamp (Fecha/Hora)',
+                'IP del Dispositivo',
+                'Fuente de Captura',
+                'Texto del Consentimiento',
+                'Versión Aviso Privacidad',
+                'Acción Afirmativa',
+                'Dispositivo'
+            ];
+
             const csvContent = [
                 headers.join(','),
                 ...leads.map(lead => [
                     lead.userId,
-                    `"${lead.userName}"`, // Quote strings with spaces
+                    `"${lead.userName}"`, 
                     lead.userEmail,
                     `"${lead.userCity || ''}"`,
-                    new Date(lead.convertedAt).toLocaleString('es-MX'),
+                    lead.convertedAt, // ISO 8601 for legal proof
+                    lead.ipAddress || 'No Registrada',
+                    `"Campaña: ${campaign.internalName}"`,
+                    `"${lead.consent?.text.replace(/"/g, '""') || ''}"`, // Escape quotes
+                    lead.privacyPolicyVersion || 'Desconocida',
+                    lead.consent?.accepted ? 'CHECKBOX_OPT_IN' : 'FALSE',
                     lead.metadata?.deviceType || 'Desconocido'
                 ].join(','))
             ].join('\n');

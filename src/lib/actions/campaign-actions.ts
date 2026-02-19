@@ -5,6 +5,7 @@ import { Campaign, CampaignConversion, ActionFormState, User } from '../types';
 import { getDecodedSession } from '../auth/server';
 import { revalidatePath } from 'next/cache';
 import { FieldValue, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { headers } from 'next/headers';
 
 // --- User Facing Actions ---
 
@@ -13,28 +14,51 @@ import { FieldValue, QueryDocumentSnapshot } from 'firebase-admin/firestore';
  * @param placement - The location where the campaign will be displayed.
  * @returns A list of active campaigns.
  */
-export async function getActiveCampaigns(placement: 'dashboard_main' | 'dashboard_sidebar' | 'event_list' = 'dashboard_main'): Promise<Campaign[]> {
+export async function getActiveCampaigns(placement: 'dashboard_main' | 'dashboard_sidebar' | 'event_list' = 'dashboard_main'): Promise<(Campaign & { advertiserName?: string })[]> {
   try {
-    const now = new Date().toISOString();
+    const now = new Date();
     
-    // Query: Status=active AND Placement=X AND StartDate <= Now
+    // Query: Status=active AND Placement=X (Date filter in memory for robustness)
     const campaignsSnapshot = await db.collection('campaigns')
       .where('status', '==', 'active')
       .where('placement', '==', placement)
-      .where('startDate', '<=', now)
       .get();
 
     const campaigns: Campaign[] = [];
 
     campaignsSnapshot.forEach((doc: QueryDocumentSnapshot) => {
       const data = doc.data() as Campaign;
-      // Filter by endDate in memory
-      if (data.endDate >= now) {
+      
+      // Robust Date Parsing
+      const start = new Date(data.startDate);
+      const end = new Date(data.endDate);
+      
+      // Filter by date range
+      if (start <= now && end >= now) {
         campaigns.push({ ...data, id: doc.id });
       }
     });
 
-    return campaigns;
+    // Enrich with Advertiser Name
+    const enrichedCampaigns = await Promise.all(campaigns.map(async (c) => {
+        let advertiserName = 'Aliado';
+        try {
+            const userDoc = await db.collection('users').doc(c.advertiserId).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                advertiserName = userData?.organizationName || userData?.name || 'Aliado';
+            }
+        } catch (e) {
+            console.error('Error fetching advertiser name', e);
+        }
+        
+        return {
+            ...c,
+            advertiserName
+        };
+    }));
+
+    return enrichedCampaigns;
   } catch (error) {
     console.error('Error fetching active campaigns:', error);
     return [];
@@ -46,14 +70,30 @@ export async function getActiveCampaigns(placement: 'dashboard_main' | 'dashboar
  * @param campaignId - The ID of the campaign.
  * @returns The conversion record or null if failed.
  */
-export async function recordCampaignConversion(campaignId: string): Promise<ActionFormState> {
+export async function recordCampaignConversion(
+    campaignId: string, 
+    consentData?: { accepted: boolean, text: string }
+): Promise<ActionFormState> {
   try {
     const session = await getDecodedSession();
     if (!session) {
       return { error: 'Debes iniciar sesión para acceder a este beneficio.' };
     }
 
+    // GDPR / Legal Validation
+    if (!consentData?.accepted) {
+        return { error: 'Es necesario aceptar el consentimiento de datos para continuar.' };
+    }
+
     const userId = session.uid;
+    
+    // Capture Technical Evidence
+    const headerList = await headers();
+    const ip = headerList.get('x-forwarded-for')?.split(',')[0] || 'unknown';
+    const userAgent = headerList.get('user-agent') || 'unknown';
+    // Current privacy policy version - Should be updated if legal terms change
+    const privacyPolicyVersion = 'v.2026-01-31'; 
+
     
     // 1. Get User Data for Snapshot
     const userDoc = await db.collection('users').doc(userId).get();
@@ -81,8 +121,16 @@ export async function recordCampaignConversion(campaignId: string): Promise<Acti
         userName: `${userData.name} ${userData.lastName || ''}`.trim(),
         userCity: userData.city || 'Desconocido',
         convertedAt: new Date().toISOString(),
+        ipAddress: ip,
+        privacyPolicyVersion: privacyPolicyVersion,
         metadata: {
-            deviceType: 'unknown' 
+            deviceType: 'unknown', // Could infer from UA if needed, keeping simple
+            userAgent: userAgent
+        },
+        consent: {
+            accepted: consentData.accepted,
+            text: consentData.text,
+            timestamp: new Date().toISOString()
         }
     };
 
@@ -181,6 +229,34 @@ export async function getAllCampaignsForAdmin(): Promise<Campaign[]> {
     }
 }
 
+/**
+ * Updates the status of a campaign.
+ */
+export async function updateCampaignStatus(campaignId: string, newStatus: 'draft' | 'active' | 'paused' | 'ended'): Promise<ActionFormState> {
+    try {
+        const session = await getDecodedSession();
+        if (!session) return { error: 'No autorizado' };
+        
+        // Check admin role
+        const userDoc = await db.collection('users').doc(session.uid).get();
+        if (userDoc.data()?.role !== 'admin') {
+             return { error: 'No autorizado' };
+        }
+
+        await db.collection('campaigns').doc(campaignId).update({
+            status: newStatus,
+            updatedAt: new Date().toISOString()
+        });
+
+        revalidatePath('/admin');
+        revalidatePath('/dashboard'); // Update user dashboard banner
+        return { success: true, message: `Estado actualizado a: ${newStatus === 'active' ? 'Activa' : newStatus}.` };
+    } catch (error) {
+        console.error('Error updating status:', error);
+        return { error: 'Error al actualizar estado.' };
+    }
+}
+
 
 // --- Advertiser (ONG) Actions ---
 
@@ -229,7 +305,6 @@ export async function getCampaignLeads(campaignId: string, advertiserId: string)
         }
         
         // Double check: if passed advertiserId doesn't match campaign owner
-        // Note: Admin might call this with the actual advertiserId, so we check if the passed ID matches the campaign
         if (campaignData.advertiserId !== advertiserId) {
              throw new Error('Discrepancia de datos de campaña.');
         }
