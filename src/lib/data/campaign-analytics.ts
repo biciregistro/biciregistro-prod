@@ -78,10 +78,9 @@ export async function getCampaignAnalytics(campaignId: string): Promise<EventAna
                     }
                 });
 
-                // Flatten results with a sanity limit
-                // Cap at 5 bikes per user to prevent outliers (e.g. test accounts) from skewing market data
+                // Flatten results WITHOUT artificial limits (showing full reality)
                 Object.values(bikesByUser).forEach(userBikes => {
-                    bikes.push(...userBikes.slice(0, 5));
+                    bikes.push(...userBikes);
                 });
 
             } catch (e) {
