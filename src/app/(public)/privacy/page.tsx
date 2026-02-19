@@ -12,7 +12,7 @@ export default function PrivacyPage() {
       <Card className="shadow-lg border-t-4 border-t-primary">
         <CardHeader className="text-center pb-2">
             <h1 className="text-3xl font-bold tracking-tight text-primary">AVISO DE PRIVACIDAD INTEGRAL</h1>
-            <p className="text-muted-foreground">Última actualización: 31 de Enero de 2026</p>
+            <p className="text-muted-foreground">Última actualización: 18 de Febrero de 2026</p>
         </CardHeader>
         <CardContent className="space-y-8 p-6 md:p-10 text-justify">
             
@@ -119,6 +119,11 @@ export default function PrivacyPage() {
                                 <td className="p-3 font-medium">Patrocinadores / Aliados</td>
                                 <td className="p-3">Ofertas comerciales y marketing.</td>
                                 <td className="p-3 font-bold text-primary">REQUERIDO (Vía Opt-in).</td>
+                            </tr>
+                            <tr>
+                                <td className="p-3 font-medium">Terceros Aliados (Anunciantes)</td>
+                                <td className="p-3">Transferencia a Terceros Aliados: Necesaria para la descarga de contenidos patrocinados gratuitos.</td>
+                                <td className="p-3 font-bold text-primary">REQUERIDO (Vía Casilla de Aceptación Específica).</td>
                             </tr>
                         </tbody>
                     </table>
