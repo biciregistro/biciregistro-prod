@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, PlayCircle, PauseCircle, Loader2, User } from 'lucide-react';
 import { CampaignsList } from '@/components/ong/campaigns-list'; 
-import { updateCampaignStatus } from '@/lib/actions/campaign-actions';
+import { updateCampaignStatus, getCampaignAnalyticsAction } from '@/lib/actions/campaign-actions';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { EventAnalyticsView } from '@/components/ong/event-analytics-view';
+import { EventAnalyticsData } from '@/lib/data/event-analytics';
 
 interface CampaignDetailProps {
     campaign: Campaign;
@@ -16,6 +18,30 @@ interface CampaignDetailProps {
     onBack: () => void;
     onUpdate: () => void; 
     readOnly?: boolean;
+}
+
+function AnalyticsLoader({ campaignId, pageViews }: { campaignId: string, pageViews: number }) {
+    const [data, setData] = useState<EventAnalyticsData | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        getCampaignAnalyticsAction(campaignId).then(setData).finally(() => setLoading(false));
+    }, [campaignId]);
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center p-12 space-y-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-muted-foreground text-sm">Analizando datos de la campaña...</p>
+            </div>
+        );
+    }
+    
+    if (!data) {
+        return <div className="p-8 text-center text-muted-foreground">No se pudieron cargar los datos.</div>;
+    }
+
+    return <EventAnalyticsView data={data} pageViews={pageViews} />;
 }
 
 export function CampaignDetail({ campaign, advertisers, onBack, onUpdate, readOnly }: CampaignDetailProps) {
@@ -93,12 +119,18 @@ export function CampaignDetail({ campaign, advertisers, onBack, onUpdate, readOn
                 )}
             </div>
 
-            <Tabs defaultValue="leads">
+            <Tabs defaultValue="stats">
                 <TabsList>
+                    <TabsTrigger value="stats">Indicadores</TabsTrigger>
                     <TabsTrigger value="leads">Base de Datos (Leads)</TabsTrigger>
-                    <TabsTrigger value="stats">Estadísticas</TabsTrigger>
                 </TabsList>
                 
+                <TabsContent value="stats" className="mt-6">
+                    <div className="border rounded-lg p-6 bg-card min-h-[400px]">
+                        <AnalyticsLoader campaignId={campaign.id} pageViews={campaign.clickCount || 0} />
+                    </div>
+                </TabsContent>
+
                 <TabsContent value="leads" className="mt-6">
                     <div className="border rounded-lg p-6 bg-card">
                         <h3 className="font-medium mb-4">Descarga de Registros</h3>
@@ -106,12 +138,6 @@ export function CampaignDetail({ campaign, advertisers, onBack, onUpdate, readOn
                             Descarga el archivo CSV con la información de los usuarios que han interactuado con esta campaña.
                         </p>
                         <CampaignsList campaigns={[campaign]} advertiserId={campaign.advertiserId} />
-                    </div>
-                </TabsContent>
-
-                <TabsContent value="stats" className="mt-6">
-                    <div className="p-12 text-center border rounded-lg border-dashed">
-                        <p className="text-muted-foreground">Las gráficas demográficas estarán disponibles próximamente.</p>
                     </div>
                 </TabsContent>
             </Tabs>

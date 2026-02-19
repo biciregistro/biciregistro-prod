@@ -6,6 +6,8 @@ import { getDecodedSession } from '../auth/server';
 import { revalidatePath } from 'next/cache';
 import { FieldValue, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { headers } from 'next/headers';
+import { getCampaignAnalytics } from '@/lib/data/campaign-analytics';
+import { EventAnalyticsData } from '@/lib/data/event-analytics';
 
 // --- User Facing Actions ---
 
@@ -318,5 +320,35 @@ export async function getCampaignLeads(campaignId: string, advertiserId: string)
     } catch (error) {
         console.error('Error fetching leads:', error);
         return [];
+    }
+}
+
+/**
+ * Fetches analytics data for a campaign.
+ * Validates user permissions.
+ */
+export async function getCampaignAnalyticsAction(campaignId: string): Promise<EventAnalyticsData | null> {
+    try {
+        const session = await getDecodedSession();
+        if (!session) return null;
+
+        // Security check: Ensure user is admin or campaign owner
+        const campaignDoc = await db.collection('campaigns').doc(campaignId).get();
+        if (!campaignDoc.exists) return null;
+        
+        const campaign = campaignDoc.data() as Campaign;
+        
+        if (session.uid !== campaign.advertiserId) {
+             const userDoc = await db.collection('users').doc(session.uid).get();
+             if (userDoc.data()?.role !== 'admin') {
+                 console.error('Unauthorized access to campaign analytics');
+                 return null;
+             }
+        }
+
+        return await getCampaignAnalytics(campaignId);
+    } catch (error) {
+        console.error('Error in getCampaignAnalyticsAction:', error);
+        return null;
     }
 }
