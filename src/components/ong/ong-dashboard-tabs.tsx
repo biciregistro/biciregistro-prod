@@ -9,17 +9,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Info, CalendarPlus, MessageCircle, PlusCircle, Bike as BikeIcon } from 'lucide-react';
+import { Info, CalendarPlus, MessageCircle, PlusCircle, Bike as BikeIcon, Megaphone } from 'lucide-react';
 import { EventCard } from '@/components/ong/event-card';
 import { BikeCard } from '@/components/bike-card';
 import { OngDashboardHero } from '@/components/ong/ong-dashboard-hero';
-import type { Event, OngUser, Bike } from '@/lib/types';
+import { OngCampaignManager } from '@/components/ong/ong-campaign-manager';
+import type { Event, OngUser, Bike, Campaign } from '@/lib/types';
 
 interface OngDashboardTabsProps {
     ongProfile: OngUser;
     events: Event[];
     communityMembers: any[];
     bikes?: Bike[];
+    campaigns: Campaign[]; // New prop
     statsContent?: React.ReactNode;
 }
 
@@ -85,7 +87,7 @@ function CommunityTable({ members }: { members: any[] }) {
     );
 }
 
-function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes = [], statsContent }: OngDashboardTabsProps) {
+function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes = [], campaigns = [], statsContent }: OngDashboardTabsProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
@@ -112,10 +114,11 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
             <OngDashboardHero ongProfile={ongProfile} />
 
             <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-                <TabsList className="grid w-full grid-cols-4 mb-8">
+                <TabsList className="grid w-full grid-cols-5 mb-8">
                     <TabsTrigger value="community">Comunidad</TabsTrigger>
                     <TabsTrigger value="garage">Mi Garaje</TabsTrigger>
                     <TabsTrigger value="events">Eventos</TabsTrigger>
+                    <TabsTrigger value="campaigns">Campañas</TabsTrigger>
                     <TabsTrigger value="stats">Indicadores</TabsTrigger>
                 </TabsList>
 
@@ -180,6 +183,17 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
                             </Link>
                         </div>
                     )}
+                </TabsContent>
+
+                <TabsContent value="campaigns" className="space-y-4">
+                    <OngCampaignManager 
+                        campaigns={campaigns} 
+                        user={{
+                            id: ongProfile.id,
+                            name: ongProfile.organizationName,
+                            organizationName: ongProfile.organizationName
+                        }} 
+                    />
                 </TabsContent>
 
                 <TabsContent value="stats" className="space-y-4">

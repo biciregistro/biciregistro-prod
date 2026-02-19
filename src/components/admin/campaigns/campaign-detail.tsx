@@ -15,9 +15,10 @@ interface CampaignDetailProps {
     advertisers: {id: string, name: string}[];
     onBack: () => void;
     onUpdate: () => void; 
+    readOnly?: boolean;
 }
 
-export function CampaignDetail({ campaign, advertisers, onBack, onUpdate }: CampaignDetailProps) {
+export function CampaignDetail({ campaign, advertisers, onBack, onUpdate, readOnly }: CampaignDetailProps) {
     const { toast } = useToast();
     const [statusLoading, setStatusLoading] = useState(false);
 
@@ -64,30 +65,32 @@ export function CampaignDetail({ campaign, advertisers, onBack, onUpdate }: Camp
                     </div>
                 </div>
 
-                <div className="flex gap-2">
-                    {campaign.status !== 'active' && (
-                        <Button 
-                            size="sm" 
-                            className="bg-green-600 hover:bg-green-700 text-white" 
-                            onClick={() => handleStatusChange('active')}
-                            disabled={statusLoading}
-                        >
-                            {statusLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlayCircle className="mr-2 h-4 w-4" />}
-                            Activar Campaña
-                        </Button>
-                    )}
-                    {campaign.status === 'active' && (
-                        <Button 
-                            size="sm" 
-                            variant="secondary" 
-                            onClick={() => handleStatusChange('paused')}
-                            disabled={statusLoading}
-                        >
-                            {statusLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PauseCircle className="mr-2 h-4 w-4" />}
-                            Pausar
-                        </Button>
-                    )}
-                </div>
+                {!readOnly && (
+                    <div className="flex gap-2">
+                        {campaign.status !== 'active' && (
+                            <Button 
+                                size="sm" 
+                                className="bg-green-600 hover:bg-green-700 text-white" 
+                                onClick={() => handleStatusChange('active')}
+                                disabled={statusLoading}
+                            >
+                                {statusLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlayCircle className="mr-2 h-4 w-4" />}
+                                Activar Campaña
+                            </Button>
+                        )}
+                        {campaign.status === 'active' && (
+                            <Button 
+                                size="sm" 
+                                variant="secondary" 
+                                onClick={() => handleStatusChange('paused')}
+                                disabled={statusLoading}
+                            >
+                                {statusLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PauseCircle className="mr-2 h-4 w-4" />}
+                                Pausar
+                            </Button>
+                        )}
+                    </div>
+                )}
             </div>
 
             <Tabs defaultValue="leads">

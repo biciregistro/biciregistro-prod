@@ -1,7 +1,7 @@
-import { getAuthenticatedUser } from '@/lib/data';
+import { getAuthenticatedUser, getOngProfile } from '@/lib/data';
 import { getAdvertiserCampaigns } from '@/lib/actions/campaign-actions';
 import { redirect } from 'next/navigation';
-import { CampaignsList } from '@/components/ong/campaigns-list';
+import { OngCampaignManager } from '@/components/ong/ong-campaign-manager';
 
 export default async function OngCampaignsPage() {
     const user = await getAuthenticatedUser();
@@ -9,6 +9,13 @@ export default async function OngCampaignsPage() {
     if (!user || user.role !== 'ong') {
         redirect('/dashboard');
     }
+    
+    const profile = await getOngProfile(user.id);
+    const enrichedUser = {
+        id: user.id,
+        name: user.name,
+        organizationName: profile?.organizationName || user.name
+    };
 
     const campaigns = await getAdvertiserCampaigns(user.id);
 
@@ -19,7 +26,7 @@ export default async function OngCampaignsPage() {
                 Visualiza el rendimiento de tus anuncios y descarga la base de datos de interesados.
             </p>
             
-            <CampaignsList campaigns={campaigns} advertiserId={user.id} />
+            <OngCampaignManager campaigns={campaigns} user={enrichedUser} />
         </div>
     );
 }

@@ -11,7 +11,7 @@ import { es } from 'date-fns/locale';
 interface CampaignListProps {
     campaigns: Campaign[];
     advertisers: {id: string, name: string}[];
-    onCreateNew: () => void;
+    onCreateNew?: () => void; 
     onManage: (campaign: Campaign) => void;
 }
 
@@ -23,18 +23,29 @@ export function CampaignList({ campaigns, advertisers, onCreateNew, onManage }: 
                     <h2 className="text-xl font-bold">Campañas Activas y Pasadas</h2>
                     <p className="text-sm text-muted-foreground">Gestiona la visibilidad y contenido promocional.</p>
                 </div>
-                <Button onClick={onCreateNew}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Nueva Campaña
-                </Button>
+                {onCreateNew && (
+                    <Button onClick={onCreateNew}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nueva Campaña
+                    </Button>
+                )}
             </div>
 
             {campaigns.length === 0 ? (
                 <div className="text-center py-12 border rounded-lg bg-muted/10">
                     <Megaphone className="h-10 w-10 mx-auto text-muted-foreground mb-4 opacity-50" />
-                    <h3 className="text-lg font-medium">No hay campañas creadas</h3>
-                    <p className="text-muted-foreground mb-6">Comienza creando la primera campaña publicitaria.</p>
-                    <Button onClick={onCreateNew}>Crear Campaña</Button>
+                    {onCreateNew ? (
+                        <>
+                            <h3 className="text-lg font-medium">No hay campañas creadas</h3>
+                            <p className="text-muted-foreground mb-6">Comienza creando la primera campaña publicitaria.</p>
+                            <Button onClick={onCreateNew}>Crear Campaña</Button>
+                        </>
+                    ) : (
+                        <>
+                            <h3 className="text-lg font-medium">No tienes campañas activas</h3>
+                            <p className="text-muted-foreground mb-6">Contacta al equipo comercial de Biciregistro para anunciarte.</p>
+                        </>
+                    )}
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -85,7 +96,7 @@ export function CampaignList({ campaigns, advertisers, onCreateNew, onManage }: 
 
                                         <Button variant="outline" className="w-full" onClick={() => onManage(campaign)}>
                                             <BarChart className="mr-2 h-4 w-4" />
-                                            Gestionar
+                                            {onCreateNew ? 'Gestionar' : 'Ver Detalles'}
                                         </Button>
                                     </div>
                                 </CardContent>

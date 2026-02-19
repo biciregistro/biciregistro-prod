@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getAuthenticatedUser, getOngProfile, getEventsByOngId, getOngCommunityMembers, getBikes } from '@/lib/data';
+import { getAdvertiserCampaigns } from '@/lib/actions/campaign-actions';
 import { OngDashboardTabs } from '@/components/ong/ong-dashboard-tabs';
 import OngAnalyticsView from '@/components/ong/ong-analytics-view';
 
@@ -11,11 +12,12 @@ export default async function OngDashboardPage() {
     }
 
     // Fetch essential data parallelly
-    const [ongProfileData, events, communityMembers, bikes] = await Promise.all([
+    const [ongProfileData, events, communityMembers, bikes, campaigns] = await Promise.all([
         getOngProfile(user.id),
         getEventsByOngId(user.id),
         getOngCommunityMembers(user.id),
-        getBikes(user.id)
+        getBikes(user.id),
+        getAdvertiserCampaigns(user.id)
     ]);
 
     if (!ongProfileData) {
@@ -38,6 +40,7 @@ export default async function OngDashboardPage() {
                 events={events}
                 communityMembers={communityMembers}
                 bikes={bikes}
+                campaigns={campaigns}
                 statsContent={<OngAnalyticsView />}
             />
         </div>
