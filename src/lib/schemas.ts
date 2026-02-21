@@ -22,6 +22,12 @@ export const userFormSchema = z.object({
     postalCode: z.string().optional(),
     whatsapp: z.string().optional(),
     
+    // Emergency Contact Info
+    emergencyContactName: z.string().optional(),
+    emergencyContactPhone: z.string().optional(),
+    bloodType: z.string().optional(),
+    allergies: z.string().optional(),
+
     // Notification Preferences
     notificationsSafety: z.coerce.boolean().optional(),
     notificationsMarketing: z.coerce.boolean().optional(),

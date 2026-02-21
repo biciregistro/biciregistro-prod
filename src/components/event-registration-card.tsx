@@ -63,6 +63,9 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
             if (user.bloodType) setBloodType(user.bloodType);
             if (user.insuranceInfo) setInsuranceInfo(user.insuranceInfo);
             if (user.allergies) setAllergies(user.allergies);
+            // Pre-fill emergency contact info if available in profile
+            if (user.emergencyContactName) setEmergencyName(user.emergencyContactName);
+            if (user.emergencyContactPhone) setEmergencyPhone(user.emergencyContactPhone);
         }
     }, [user]);
 

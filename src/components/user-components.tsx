@@ -24,10 +24,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Eye, EyeOff, CheckCircle, XCircle, BellRing, Info } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, XCircle, BellRing, Info, Ambulance } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Logo } from './icons/logo';
 import { cn } from '@/lib/utils';
+import { Textarea } from './ui/textarea';
+
+const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 // Helper to convert ISO date (YYYY-MM-DD) to Display Format (DD/MM/YYYY)
 const toDisplayDate = (val: string | undefined | null): string => {
@@ -180,6 +183,12 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
             postalCode: user?.postalCode || "",
             whatsapp: user?.whatsapp || "",
             
+            // Emergency Info Defaults
+            emergencyContactName: user?.emergencyContactName || "",
+            emergencyContactPhone: user?.emergencyContactPhone || "",
+            bloodType: user?.bloodType || "",
+            allergies: user?.allergies || "",
+
             // Notification Preferences Defaults
             // If editing, use existing prefs or default to false/true
             // If signing up, default safety=true, marketing=false
@@ -327,16 +336,6 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
 
         // Update the visual input
         e.target.value = formattedValue;
-
-        // Transform to ISO for validation/submission only if complete or valid part
-        // We will store the DD/MM/YYYY in the form state temporarily or ISO if complete?
-        // Actually, userFormSchema expects a string. Zod will validate. 
-        // Best approach: Store formatted value in form state so UI matches, 
-        // BUT we need to convert to ISO before submission or let the schema handle it?
-        // Our schema is loose on birthDate format currently, but backend expects ISO mostly.
-        
-        // Wait, the criteria says: "Although visually DD/MM/AAAA, upon submission it must be transformed... ideally ISO"
-        // And the <Input> is controlled.
         
         onChange(formattedValue);
     };
@@ -658,6 +657,86 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                             </>
                         )}
                         
+                        {/* EMERGENCY INFO SECTION (New) - Only visible when editing profile */}
+                        {isEditing && (
+                            <div className="space-y-4 pt-4 border-t">
+                                <h3 className="text-lg font-medium flex items-center gap-2 text-primary">
+                                    <Ambulance className="h-5 w-5" />
+                                    Información de Emergencia
+                                </h3>
+                                <p className="text-sm text-muted-foreground">Esta información es vital en caso de accidente y agiliza tu inscripción a eventos.</p>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-lg">
+                                    <FormField
+                                        control={form.control}
+                                        name="emergencyContactName"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Nombre del Contacto</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Nombre de familiar o amigo" {...field} value={field.value || ''} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="emergencyContactPhone"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Teléfono del Contacto</FormLabel>
+                                                <FormControl>
+                                                    <Input type="tel" placeholder="Número de emergencia" {...field} value={field.value || ''} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="bloodType"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Tipo de Sangre</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value || ''} name={field.name}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Seleccionar" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        {BLOOD_TYPES.map(type => (
+                                                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="allergies"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Alergias (Opcional)</FormLabel>
+                                                <FormControl>
+                                                    <Textarea 
+                                                        placeholder="Ej. Penicilina, Nueces, etc. O escribe 'Ninguna'" 
+                                                        className="resize-none h-10 min-h-[40px] py-2" 
+                                                        {...field} 
+                                                        value={field.value || ''} 
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
                         {/* Seccion de Preferencias de Notificacion (Visible en Registro y Edición) */}
                          <div className="space-y-4 pt-4 border-t">
                             <h3 className="text-lg font-medium flex items-center gap-2">

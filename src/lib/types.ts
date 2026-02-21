@@ -98,6 +98,8 @@ export type User = {
   bloodType?: string;
   insuranceInfo?: string;
   allergies?: string; 
+  emergencyContactName?: string; 
+  emergencyContactPhone?: string; 
   fcmTokens?: string[];
   referralCode?: string; 
   referredBy?: string;   

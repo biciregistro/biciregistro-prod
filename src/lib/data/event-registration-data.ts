@@ -136,6 +136,8 @@ export async function registerUserToEvent(
                 bloodType: registrationData.bloodType || null,
                 insuranceInfo: registrationData.insuranceInfo || null,
                 allergies: registrationData.allergies || null,
+                emergencyContactName: registrationData.emergencyContactName || null,
+                emergencyContactPhone: registrationData.emergencyContactPhone || null,
                 registrationDate: new Date().toISOString(), 
                 status: 'confirmed' as const,
                 paymentStatus: paymentStatus as any,
@@ -157,14 +159,25 @@ export async function registerUserToEvent(
                 registrationId = newRegRef.id;
             }
 
-            if (registrationData.bloodType || registrationData.insuranceInfo || registrationData.allergies) {
+            // --- UPDATE USER PROFILE WITH EMERGENCY DATA ---
+            if (
+                registrationData.bloodType || 
+                registrationData.insuranceInfo || 
+                registrationData.allergies || 
+                registrationData.emergencyContactName || 
+                registrationData.emergencyContactPhone
+            ) {
                 const userRef = db.collection('users').doc(userId);
                 const updateData: any = {};
                 if (registrationData.bloodType) updateData.bloodType = registrationData.bloodType;
                 if (registrationData.insuranceInfo) updateData.insuranceInfo = registrationData.insuranceInfo;
                 if (registrationData.allergies) updateData.allergies = registrationData.allergies;
+                if (registrationData.emergencyContactName) updateData.emergencyContactName = registrationData.emergencyContactName;
+                if (registrationData.emergencyContactPhone) updateData.emergencyContactPhone = registrationData.emergencyContactPhone;
+                
                 transaction.update(userRef, updateData);
             }
+            // ------------------------------------------------
 
             const eventUpdate: any = {
                 currentParticipants: currentParticipants + 1
