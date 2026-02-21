@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 import { 
     Info, 
     CalendarPlus, 
@@ -22,7 +23,9 @@ import {
     AlertCircle,
     User,
     Mail,
-    MapPin
+    MapPin,
+    Search,
+    X
 } from 'lucide-react';
 import { EventCard } from '@/components/ong/event-card';
 import { BikeCard } from '@/components/bike-card';
@@ -41,10 +44,32 @@ interface OngDashboardTabsProps {
 }
 
 function CommunityTable({ members }: { members: any[] }) {
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredMembers = useMemo(() => {
+        if (!searchTerm.trim()) return members;
+
+        const lowerSearch = searchTerm.toLowerCase();
+
+        return members.filter(member => {
+            const fullName = `${member.name} ${member.lastName}`.toLowerCase();
+            const email = (member.email || "").toLowerCase();
+            
+            // Search in bikes
+            const hasBikeMatch = member.bikes?.some((bike: any) => 
+                bike.serialNumber?.toLowerCase().includes(lowerSearch) ||
+                bike.make?.toLowerCase().includes(lowerSearch) ||
+                bike.model?.toLowerCase().includes(lowerSearch)
+            );
+
+            return fullName.includes(lowerSearch) || email.includes(lowerSearch) || hasBikeMatch;
+        });
+    }, [members, searchTerm]);
+
     return (
         <Card className="shadow-md">
             <CardHeader className="pb-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <CardTitle className="text-2xl font-bold flex items-center gap-2">
                             <User className="h-6 w-6 text-primary" />
@@ -52,9 +77,29 @@ function CommunityTable({ members }: { members: any[] }) {
                         </CardTitle>
                         <CardDescription>Gestión de miembros y datos de seguridad.</CardDescription>
                     </div>
-                    <Badge variant="secondary" className="text-lg px-4 py-1.5 font-bold">
-                        {members.length} Ciclistas
-                    </Badge>
+                    
+                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                        <div className="relative w-full sm:w-72">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Nombre, email o serie..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-9 pr-9"
+                            />
+                            {searchTerm && (
+                                <button 
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded-full"
+                                >
+                                    <X className="h-3 w-3 text-muted-foreground" />
+                                </button>
+                            )}
+                        </div>
+                        <Badge variant="secondary" className="text-lg px-4 py-1.5 font-bold whitespace-nowrap">
+                            {filteredMembers.length} de {members.length}
+                        </Badge>
+                    </div>
                 </div>
             </CardHeader>
             <CardContent>
@@ -72,8 +117,8 @@ function CommunityTable({ members }: { members: any[] }) {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {members.length > 0 ? (
-                                    members.map((member) => (
+                                {filteredMembers.length > 0 ? (
+                                    filteredMembers.map((member) => (
                                         <TableRow key={member.id} className="hover:bg-muted/30 transition-colors">
                                             <TableCell>
                                                 <div className="flex flex-col">
@@ -174,9 +219,13 @@ function CommunityTable({ members }: { members: any[] }) {
                                     <TableRow>
                                         <TableCell colSpan={6} className="h-32 text-center">
                                             <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                                <User className="h-8 w-8 opacity-20" />
-                                                <p>Aún no tienes miembros en tu comunidad.</p>
-                                                <p className="text-xs">¡Comparte tu link de invitación para que aparezcan aquí!</p>
+                                                <Search className="h-8 w-8 opacity-20" />
+                                                <p>No se encontraron miembros que coincidan con la búsqueda.</p>
+                                                {searchTerm && (
+                                                    <Button variant="link" onClick={() => setSearchTerm('')} className="text-primary h-auto p-0">
+                                                        Limpiar búsqueda
+                                                    </Button>
+                                                )}
                                             </div>
                                         </TableCell>
                                     </TableRow>
