@@ -594,9 +594,23 @@ export async function getOngCommunityMembers(ongId: string): Promise<any[]> {
             return [];
         }
 
-        directUsersSnapshot.forEach(doc => {
+        const membersData = await Promise.all(directUsersSnapshot.docs.map(async (doc) => {
             const userData = doc.data();
-            members.push({
+            
+            // Fetch bikes for this user
+            const bikesSnapshot = await db.collection('bikes').where('userId', '==', doc.id).get();
+            const bikes = bikesSnapshot.docs.map(bikeDoc => {
+                const data = bikeDoc.data();
+                return {
+                    id: bikeDoc.id,
+                    make: data.make,
+                    model: data.model,
+                    color: data.color,
+                    serialNumber: data.serialNumber
+                };
+            });
+
+            return {
                 id: doc.id,
                 name: userData.name,
                 lastName: userData.lastName,
@@ -604,10 +618,17 @@ export async function getOngCommunityMembers(ongId: string): Promise<any[]> {
                 whatsapp: userData.whatsapp,
                 country: userData.country,
                 state: userData.state,
-            });
-        });
+                // New Emergency & Medical Data
+                emergencyContactName: userData.emergencyContactName,
+                emergencyContactPhone: userData.emergencyContactPhone,
+                bloodType: userData.bloodType,
+                allergies: userData.allergies,
+                // Bike info
+                bikes: bikes
+            };
+        }));
 
-        return members;
+        return membersData;
 
     } catch (error) {
         console.error("Error fetching community members:", error);
