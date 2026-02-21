@@ -3,32 +3,42 @@ import { WidgetReportFlow } from '@/components/widget/widget-report-flow';
 import { Loader2 } from 'lucide-react';
 import { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: 'Reportar Robo de Bicicleta | BiciRegistro',
-  description: 'Reporta el robo de tu bicicleta inmediatamente para alertar a la comunidad.',
-  openGraph: {
-    title: '¡ALERTA DE ROBO! Reporta tu bicicleta inmediatamente',
-    description: 'Si te robaron tu bicicleta, repórtala aquí para activar la alerta en la comunidad de BiciRegistro y aumentar las posibilidades de recuperarla.',
-    url: '/reportar-robo', // Ruta relativa para que se resuelva con metadataBase
-    siteName: 'BiciRegistro',
-    images: [
-      {
-        url: '/og-report-robo.png', // Ruta relativa exacta al archivo en /public
-        width: 1200,
-        height: 630,
-        alt: 'Reportar Robo de Bicicleta - Alerta a la comunidad',
-      },
-    ],
-    locale: 'es_MX',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: '¡ALERTA DE ROBO! Reporta tu bicicleta',
-    description: 'Activa la alerta de robo en la comunidad de BiciRegistro.',
-    images: ['/og-report-robo.png'], // Ruta relativa
-  },
-};
+// --- Open Graph Metadata Generation ---
+export async function generateMetadata(): Promise<Metadata> {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
+    const imageUrl = `${baseUrl}/og-report-robo.png`;
+    const canonicalUrl = `${baseUrl}/reportar-robo`;
+
+    const title = '¡ALERTA DE ROBO! Reporta tu bicicleta inmediatamente | BiciRegistro';
+    const description = 'Si te robaron tu bicicleta, repórtala aquí para activar la alerta en la comunidad de BiciRegistro y aumentar las posibilidades de recuperarla.';
+
+    return {
+        title: title,
+        description: description,
+        openGraph: {
+            title: title,
+            description: description,
+            url: canonicalUrl,
+            siteName: 'BiciRegistro',
+            images: [
+                {
+                    url: imageUrl,
+                    width: 1200,
+                    height: 630,
+                    alt: 'Reportar Robo de Bicicleta - Alerta a la comunidad',
+                },
+            ],
+            locale: 'es_MX',
+            type: 'website',
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: title,
+            description: description,
+            images: [imageUrl],
+        },
+    };
+}
 
 export default function ReportarRoboPage() {
   return (
