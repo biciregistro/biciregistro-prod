@@ -3,42 +3,38 @@ import { WidgetReportFlow } from '@/components/widget/widget-report-flow';
 import { Loader2 } from 'lucide-react';
 import { Metadata } from 'next';
 
-// --- Open Graph Metadata Generation ---
-export async function generateMetadata(): Promise<Metadata> {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
-    const imageUrl = `${baseUrl}/og-report-robo.png`;
-    const canonicalUrl = `${baseUrl}/reportar-robo`;
+// Asegurar URL base válida en tiempo de build/runtime
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+  ? new URL(process.env.NEXT_PUBLIC_BASE_URL) 
+  : new URL('https://biciregistro.mx');
 
-    const title = '¡ALERTA DE ROBO! Reporta tu bicicleta inmediatamente | BiciRegistro';
-    const description = 'Si te robaron tu bicicleta, repórtala aquí para activar la alerta en la comunidad de BiciRegistro y aumentar las posibilidades de recuperarla.';
-
-    return {
-        title: title,
-        description: description,
-        openGraph: {
-            title: title,
-            description: description,
-            url: canonicalUrl,
-            siteName: 'BiciRegistro',
-            images: [
-                {
-                    url: imageUrl,
-                    width: 1200,
-                    height: 630,
-                    alt: 'Reportar Robo de Bicicleta - Alerta a la comunidad',
-                },
-            ],
-            locale: 'es_MX',
-            type: 'website',
-        },
-        twitter: {
-            card: 'summary_large_image',
-            title: title,
-            description: description,
-            images: [imageUrl],
-        },
-    };
-}
+export const metadata: Metadata = {
+  metadataBase: baseUrl, // Definición explícita aquí
+  title: '¡ALERTA DE ROBO! Reporta tu bicicleta inmediatamente | BiciRegistro',
+  description: 'Si te robaron tu bicicleta, repórtala aquí para activar la alerta en la comunidad de BiciRegistro y aumentar las posibilidades de recuperarla.',
+  openGraph: {
+    title: '¡ALERTA DE ROBO! Reporta tu bicicleta inmediatamente',
+    description: 'Si te robaron tu bicicleta, repórtala aquí para activar la alerta en la comunidad de BiciRegistro y aumentar las posibilidades de recuperarla.',
+    url: '/reportar-robo', // Relativo + metadataBase = Absoluto
+    siteName: 'BiciRegistro',
+    images: [
+      {
+        url: '/og-report-robo.png', // Relativo + metadataBase = Absoluto
+        width: 1200,
+        height: 630,
+        alt: 'Reportar Robo de Bicicleta - Alerta a la comunidad',
+      },
+    ],
+    locale: 'es_MX',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '¡ALERTA DE ROBO! Reporta tu bicicleta',
+    description: 'Activa la alerta de robo en la comunidad de BiciRegistro.',
+    images: ['/og-report-robo.png'], // Relativo + metadataBase = Absoluto
+  },
+};
 
 export default function ReportarRoboPage() {
   return (
