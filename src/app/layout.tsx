@@ -7,6 +7,7 @@ import { ReferralTracker } from '@/components/shared/referral-tracker';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx'),
   title: 'Biciregistro - Registra y Protege Tu Bici',
   description: 'Biciregistro te ayuda a registrar tu bicicleta, reportarla como robada y buscar bicicletas para verificar su propiedad.',
 };
