@@ -9,8 +9,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { DashboardTabs } from '@/components/dashboard/dashboard-tabs';
 import { ReferralStatsCard } from '@/components/dashboard/referral-stats-card';
 import { PromotionalBanner } from '@/components/dashboard/promotional-banner';
+import { DownloadEmergencyStickerButton } from '@/components/dashboard/download-sticker-button';
 
-import { PlusCircle, Edit } from 'lucide-react';
+import { PlusCircle, User as UserIcon } from 'lucide-react';
 
 // --- Helper function to check if the user profile is complete ---
 const isProfileComplete = (user: User): boolean => {
@@ -33,8 +34,8 @@ function ActionPanel({ user, isComplete }: { user: User, isComplete: boolean }) 
             <div className="flex flex-col sm:flex-row gap-2">
                 <Button asChild>
                     <Link href="/dashboard/profile">
-                        <Edit className="mr-2 h-4 w-4" />
-                        {isComplete ? 'Editar Perfil' : 'Completa tu perfil'}
+                        <UserIcon className="mr-2 h-4 w-4" />
+                        {isComplete ? 'Mi Perfil' : 'Completa tu perfil'}
                     </Link>
                 </Button>
                 
@@ -63,6 +64,8 @@ function ActionPanel({ user, isComplete }: { user: User, isComplete: boolean }) 
                         </Tooltip>
                     </TooltipProvider>
                 )}
+
+                <DownloadEmergencyStickerButton user={user} />
             </div>
         </div>
     );

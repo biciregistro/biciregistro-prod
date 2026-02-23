@@ -100,6 +100,11 @@ export type User = {
   allergies?: string; 
   emergencyContactName?: string; 
   emergencyContactPhone?: string; 
+  // Emergency QR fields
+  emergencyQrUuid?: string;
+  emergencyQrCreatedAt?: string;
+  emergencyQrUpdatedAt?: string;
+
   fcmTokens?: string[];
   referralCode?: string; 
   referredBy?: string;   

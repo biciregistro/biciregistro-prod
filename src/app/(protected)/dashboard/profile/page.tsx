@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getAuthenticatedUser } from '@/lib/data';
 import { ProfileForm } from '@/components/user-components';
 import { NotificationSettings } from '@/components/notification-settings';
+import EmergencySettings from '@/components/dashboard/emergency-settings';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
@@ -24,9 +25,11 @@ export default async function ProfilePage() {
             </Button>
         </div>
         
+        {/* New Emergency Section */}
+        <EmergencySettings user={user} />
+
         <ProfileForm user={user} />
         
-        {/* New component for browser notification permissions */}
         <NotificationSettings />
       </div>
     </div>
