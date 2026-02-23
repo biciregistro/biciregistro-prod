@@ -5,8 +5,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, UserRound, Phone, MapPin, Loader2, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { logEmergencyAccess } from '@/lib/actions/emergency-actions'; // You'll need to create this wrapper for server action
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface EmergencyProfileProps {
   uuid: string;
@@ -15,38 +13,52 @@ interface EmergencyProfileProps {
 export default function EmergencyProfileViewer({ uuid }: EmergencyProfileProps) {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState<string>(""); // "Solicitando ubicación..."
   const [profileData, setProfileData] = useState<any>(null);
+  const [coords, setCoords] = useState<{lat?: number, lng?: number}>({});
   const { toast } = useToast();
 
   const handleUnlock = async () => {
     setIsLoading(true);
+    setLoadingStep("Solicitando ubicación...");
 
-    // 1. Request GPS (Best effort)
+    // 1. Request GPS (Best effort with timeout)
     let lat: number | undefined;
     let lng: number | undefined;
 
     try {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 0
-        });
+        if (!navigator.geolocation) {
+          reject(new Error("Geolocation not supported"));
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          resolve, 
+          reject, 
+          {
+            enableHighAccuracy: false, // Changed to false for faster/more reliable fix on mobile
+            timeout: 7000,             // Increased timeout to 7s
+            maximumAge: 0
+          }
+        );
       });
       lat = position.coords.latitude;
       lng = position.coords.longitude;
+      setCoords({ lat, lng });
     } catch (error) {
       console.warn("GPS denied or unavailable", error);
-      // Proceed anyway, life is priority
+      toast({
+        title: "Ubicación no disponible",
+        description: "No se pudo obtener la ubicación exacta. Se mostrarán los datos de todas formas.",
+        variant: "default" // Not destructive, just info
+      });
     }
+
+    setLoadingStep("Recuperando datos médicos...");
 
     // 2. Server Action to log and fetch data
     try {
-      // Need to wrap the server action call because it's imported
-      // For now, assuming direct call works if next.config allows or via API
-      // const result = await logEmergencyAccess(uuid, { lat, lng, userAgent: navigator.userAgent });
-      
-      // Temporary fetch to API route to handle server action
       const response = await fetch('/api/emergency/access', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,7 +73,7 @@ export default function EmergencyProfileViewer({ uuid }: EmergencyProfileProps) 
         toast({
           title: "Acceso Registrado",
           description: "Se ha notificado a los contactos de emergencia.",
-          variant: "destructive" // Red for alert/importance
+          variant: "destructive" 
         });
       } else {
         toast({
@@ -78,7 +90,26 @@ export default function EmergencyProfileViewer({ uuid }: EmergencyProfileProps) 
       });
     } finally {
       setIsLoading(false);
+      setLoadingStep("");
     }
+  };
+
+  // Helper to generate WhatsApp link safely
+  const getWhatsAppLink = () => {
+    if (!profileData?.emergencyContactPhone) return "#";
+    
+    const phone = profileData.emergencyContactPhone.replace(/\D/g,'');
+    const hasLocation = coords.lat && coords.lng;
+    
+    let message = `¡EMERGENCIA! He encontrado a ${profileData.name} y requiere asistencia.`;
+    
+    if (hasLocation) {
+      message += ` Mi ubicación aproximada es: https://maps.google.com/?q=${coords.lat},${coords.lng}`;
+    } else {
+      message += ` (No pude obtener mi ubicación GPS exacta)`;
+    }
+    
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
   };
 
   if (!isUnlocked) {
@@ -111,7 +142,7 @@ export default function EmergencyProfileViewer({ uuid }: EmergencyProfileProps) 
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Conectando...
+                  {loadingStep || "Conectando..."}
                 </>
               ) : (
                 <>
@@ -130,8 +161,15 @@ export default function EmergencyProfileViewer({ uuid }: EmergencyProfileProps) 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       {/* Sticky Warning Header */}
-      <div className="sticky top-0 z-50 bg-red-600 text-white p-2 text-center text-sm font-bold shadow-md">
-        MODO EMERGENCIA ACTIVO - UBICACIÓN RASTREADA
+      <div className="sticky top-0 z-50 bg-red-600 text-white p-2 text-center text-sm font-bold shadow-md flex justify-between items-center px-4">
+        <span>MODO EMERGENCIA ACTIVO</span>
+        {coords.lat ? (
+             <span className="text-xs bg-red-700 px-2 py-1 rounded flex items-center gap-1">
+                 <MapPin className="h-3 w-3" /> GPS OK
+             </span>
+        ) : (
+             <span className="text-xs bg-red-800 px-2 py-1 rounded opacity-75">NO GPS</span>
+        )}
       </div>
 
       <div className="max-w-md mx-auto p-4 space-y-4">
@@ -208,7 +246,7 @@ export default function EmergencyProfileViewer({ uuid }: EmergencyProfileProps) 
         
         {profileData.emergencyContactPhone && (
           <a
-            href={`https://wa.me/${profileData.emergencyContactPhone.replace(/\D/g,'')}?text=${encodeURIComponent(`¡EMERGENCIA! He encontrado a ${profileData.name} y requiere asistencia. Mi ubicación aproximada es: https://maps.google.com/?q=${profileData.currentLat || ''},${profileData.currentLng || ''}`)}`}
+            href={getWhatsAppLink()}
             target="_blank"
             rel="noopener noreferrer" 
             className="w-full flex items-center justify-center gap-2 bg-white border border-green-600 text-green-700 font-bold py-3 rounded-lg hover:bg-green-50"
