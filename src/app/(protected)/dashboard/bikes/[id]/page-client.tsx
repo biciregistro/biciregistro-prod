@@ -13,7 +13,7 @@ import { TransferOwnershipForm } from '@/components/bike-components/transfer-own
 import { cn } from '@/lib/utils';
 import type { Bike, User, BikeStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Pencil, FileDown, Loader2, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Pencil, FileDown, Loader2, MessageCircle, ShoppingCart } from 'lucide-react';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { updateOwnershipProof } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -159,8 +159,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
 
   const backUrl = user.role === 'ong' ? '/dashboard/ong?tab=garage' : '/dashboard';
 
-  const whatsappMessage = encodeURIComponent("¡Hola! Me interesa adquirir un Rastreador Bikon, ¿Cómo puedo adquirirlo?");
-  const whatsappUrl = `https://wa.me/525547716640?text=${whatsappMessage}`;
+  const mercadoLibreUrl = "https://articulo.mercadolibre.com.mx/MLM-4837649934-bikon-otag-doble-localizador-para-bicicleta-_JM";
 
   return (
     <div className="container py-6 md:py-8">
@@ -270,8 +269,8 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
 
                       {!bike.bikonId && (
                           <Button variant="secondary" className="w-full gap-2 text-green-700 bg-green-50 hover:bg-green-100 border border-green-200" asChild>
-                              <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-                                  <MessageCircle className="h-4 w-4" />
+                              <a href={mercadoLibreUrl} target="_blank" rel="noopener noreferrer">
+                                  <ShoppingCart className="h-4 w-4" />
                                   Adquirir Rastreador Bikon
                               </a>
                           </Button>
