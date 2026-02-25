@@ -96,6 +96,7 @@ export function DownloadEmergencyStickerButton({ user, className, ...props }: Do
 
   return (
     <Button 
+      id="tour-qr"
       className={cn("bg-red-600 hover:bg-red-700 text-white border-red-700", className)}
       onClick={handleDownload}
       disabled={loading}

@@ -10,6 +10,7 @@ import { DashboardTabs } from '@/components/dashboard/dashboard-tabs';
 import { ReferralStatsCard } from '@/components/dashboard/referral-stats-card';
 import { PromotionalBanner } from '@/components/dashboard/promotional-banner';
 import { DownloadEmergencyStickerButton } from '@/components/dashboard/download-sticker-button';
+import { OnboardingTour } from '@/components/dashboard/onboarding-tour';
 
 import { PlusCircle, User as UserIcon } from 'lucide-react';
 
@@ -33,7 +34,7 @@ function ActionPanel({ user, isComplete }: { user: User, isComplete: boolean }) 
             </p>
             <div className="flex flex-col sm:flex-row gap-2">
                 <Button asChild>
-                    <Link href="/dashboard/profile">
+                    <Link href="/dashboard/profile" id="tour-profile">
                         <UserIcon className="mr-2 h-4 w-4" />
                         {isComplete ? 'Mi Perfil' : 'Completa tu perfil'}
                     </Link>
@@ -41,7 +42,7 @@ function ActionPanel({ user, isComplete }: { user: User, isComplete: boolean }) 
                 
                 {isComplete ? (
                     <Button asChild>
-                        <Link href="/dashboard/register">
+                        <Link href="/dashboard/register" id="tour-register-bike">
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Registrar Bici
                         </Link>
@@ -52,7 +53,7 @@ function ActionPanel({ user, isComplete }: { user: User, isComplete: boolean }) 
                             <TooltipTrigger asChild>
                                 {/* The span is necessary for the tooltip to work on a disabled button */}
                                 <span tabIndex={0}>
-                                    <Button disabled className="w-full sm:w-auto">
+                                    <Button disabled className="w-full sm:w-auto" id="tour-register-bike">
                                         <PlusCircle className="mr-2 h-4 w-4" />
                                         Registrar Bici
                                     </Button>
@@ -110,6 +111,8 @@ export default async function DashboardPage() {
                 user={user} 
                 isProfileComplete={profileIsComplete}
             />
+            
+            <OnboardingTour user={user} />
         </div>
     );
 }

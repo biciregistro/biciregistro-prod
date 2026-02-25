@@ -45,6 +45,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }:
     // --- Events Sorting Logic ---
     const now = new Date();
     
+    // Sort registrations by date (upcoming first)
     const sortedRegistrations = [...registrations].sort((a, b) => {
         const dateA = new Date(a.event.date);
         const dateB = new Date(b.event.date);
@@ -66,7 +67,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }:
     });
 
     return (
-        <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
+        <Tabs id="tour-garage" value={activeTab} onValueChange={onTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-8">
                 <TabsTrigger value="garage">Mi Garaje ({bikes.length})</TabsTrigger>
                 <TabsTrigger value="events">
@@ -135,11 +136,11 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }:
                             // Lógica de Finalizado
                             const eventDate = new Date(reg.event.date);
                             const isFinished = eventDate < now;
-
+                            
                             // Lógica de estado visual (Badge)
                             let badgeText = reg.status === 'confirmed' ? 'Confirmado' : reg.status;
-                            let badgeVariant: "default" | "secondary" | "destructive" | "outline" = "secondary";
                             let badgeClassName = "text-xs shrink-0";
+                            let badgeVariant: "default" | "secondary" | "destructive" | "outline" = "secondary";
 
                             if (isFinished) {
                                 badgeText = "Finalizado";
@@ -157,6 +158,9 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }:
                                     badgeText = "Confirmado";
                                     badgeClassName = cn(badgeClassName, "bg-green-100 text-green-800 border-green-200");
                                 }
+                            } else {
+                                // Cancelled or other
+                                badgeVariant = "destructive";
                             }
 
                             return (

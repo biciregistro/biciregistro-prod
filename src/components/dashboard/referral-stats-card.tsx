@@ -67,7 +67,7 @@ export function ReferralStatsCard() {
         : 100;
 
     return (
-        <Card className="bg-gradient-to-br from-white to-slate-50 border-slate-200 shadow-sm">
+        <Card id="tour-referral" className="bg-gradient-to-br from-white to-slate-50 border-slate-200 shadow-sm">
             <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
                     <div>

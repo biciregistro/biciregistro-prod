@@ -69,6 +69,11 @@ export type Bike = {
   };
 };
 
+export type OnboardingStatus = {
+  dashboardSeen: boolean;
+  bikeDetailSeen: boolean;
+};
+
 export type UserRole = 'ciclista' | 'admin' | 'ong';
 
 export type NotificationPreferences = {
@@ -112,6 +117,7 @@ export type User = {
   // Campos legales
   termsAcceptedAt?: string; // ISO string timestamp de aceptación
   termsVersion?: string; // Versión de los términos aceptados (ej. '2026-01-31')
+  onboarding?: OnboardingStatus;
 };
 
 export type OngUser = {

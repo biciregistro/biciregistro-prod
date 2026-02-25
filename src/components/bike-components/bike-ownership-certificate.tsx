@@ -152,7 +152,6 @@ const CertificateDocument = ({ bike, user, logoUrl, bikeImageUrl, hash }: {
         
         {/* Header */}
         <View style={styles.header}>
-          {/* eslint-disable-next-line jsx-a11y/alt-text */}
           <Image src={logoUrl} style={styles.logo} />
           <Text style={styles.title}>CERTIFICADO DE PROPIEDAD</Text>
         </View>
@@ -227,7 +226,6 @@ const CertificateDocument = ({ bike, user, logoUrl, bikeImageUrl, hash }: {
         {bikeImageUrl && (
             <View wrap={false}> 
                 <Text style={styles.sectionTitle}>FOTOGRAFÍA DE REFERENCIA</Text>
-                {/* eslint-disable-next-line jsx-a11y/alt-text */}
                 <Image src={bikeImageUrl} style={styles.bikeImage} />
             </View>
         )}
@@ -281,7 +279,13 @@ export default function BikeOwnershipCertificate({ bike, user, className }: { bi
     };
 
   return (
-    <Button variant="outline" onClick={handleDownload} disabled={loading} className={cn("w-full", className)}>
+    <Button 
+        id="tour-bike-certificate"
+        variant="outline" 
+        onClick={handleDownload} 
+        disabled={loading} 
+        className={cn("w-full", className)}
+    >
       {loading ? (
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
       ) : (

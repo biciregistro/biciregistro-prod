@@ -22,6 +22,7 @@ import { auth } from '@/lib/firebase/client';
 import { RecoverBikeButton } from '@/components/bike-components/recover-bike-button';
 import { BikeTheftShareMenu } from '@/components/dashboard/bike-theft-share-menu';
 import { BikonLinker } from '@/components/bike-components/bikon-linker';
+import { OnboardingTour } from '@/components/dashboard/onboarding-tour';
 
 // Dynamic import for PDF downloaders
 const BikePDFDownloader = dynamic(
@@ -101,7 +102,7 @@ function OwnershipProofSection({ bike }: { bike: Bike }) {
     };
 
     return (
-        <Card>
+        <Card id="tour-bike-ownership">
             <CardHeader>
                 <CardTitle>Documento de Propiedad</CardTitle>
             </CardHeader>
@@ -174,7 +175,12 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
             {bike.status === 'stolen' && (
                 <BikeTheftShareMenu bike={bike} user={user} />
             )}
-            <Button variant="secondary" onClick={() => setIsEditing(!isEditing)} className="w-full sm:w-auto">
+            <Button 
+                id="tour-bike-edit"
+                variant="secondary" 
+                onClick={() => setIsEditing(!isEditing)} 
+                className="w-full sm:w-auto"
+            >
               <Pencil className="mr-2 h-4 w-4" />
               {isEditing ? 'Cancelar Edición' : 'Editar Detalles'}
             </Button>
@@ -234,7 +240,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
               </Card>
 
               {/* Bikon Tracker Component - Updated */}
-              <Card className="border-primary/20 shadow-sm overflow-hidden">
+              <Card id="tour-bike-bikon" className="border-primary/20 shadow-sm overflow-hidden">
                   <div className="bg-primary/5 p-4 border-b border-primary/10">
                       <div className="flex items-center justify-between mb-2">
                            <h3 className="font-semibold text-lg flex items-center gap-2">
@@ -310,7 +316,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                   </Card>
               )}
 
-              <Card>
+              <Card id="tour-bike-report">
                   <CardHeader>
                       <CardTitle>Gestionar Estado de la Bicicleta</CardTitle>
                   </CardHeader>
@@ -324,7 +330,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
               </Card>
               
               {isTransferable && (
-                  <Card>
+                  <Card id="tour-bike-transfer">
                       <CardHeader>
                           <CardTitle>Transferir Propiedad</CardTitle>
                           <CardDescription>
@@ -355,6 +361,8 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
           </div>
         </div>
       )}
+      
+      <OnboardingTour user={user} tourType="bike" bike={bike} />
     </div>
   );
 }

@@ -9,7 +9,6 @@ import { Download, Loader2 } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { cn } from '@/lib/utils';
 
-// --- New "Shield & Verify" Styles ---
 const styles = StyleSheet.create({
   page: {
     backgroundColor: '#ffffff',
@@ -18,20 +17,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Main Container mimicking a sticker/shield
   tagContainer: {
     width: '100%',
     height: '100%',
     backgroundColor: '#ffffff',
-    border: '2px solid #000000', // Keep black border
+    border: '2px solid #000000', 
     borderRadius: 12,
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
   },
-  // Header Section
   header: {
-    backgroundColor: '#FACC15', // Changed to Yellow (Tailwind Yellow-400 equivalent for print visibility)
+    backgroundColor: '#FACC15', 
     paddingVertical: 10,
     paddingHorizontal: 5,
     display: 'flex',
@@ -46,13 +43,12 @@ const styles = StyleSheet.create({
   },
   headerStatus: {
     fontSize: 7,
-    color: '#000000', // Changed to Black text
+    color: '#000000', 
     fontFamily: 'Helvetica',
-    letterSpacing: 0.5, // Reduced spacing slightly for longer text
+    letterSpacing: 0.5, 
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  // QR Area
   body: {
     flex: 1,
     display: 'flex',
@@ -80,7 +76,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  // Info Footer
   footer: {
     backgroundColor: '#f8fafc',
     borderTop: '1px solid #e2e8f0',
@@ -107,26 +102,22 @@ const styles = StyleSheet.create({
   securityStrip: {
     height: 4,
     width: '100%',
-    backgroundColor: '#ef4444', // Red strip for "Security" feel
+    backgroundColor: '#ef4444', 
     position: 'absolute',
     bottom: 0,
   }
 });
 
-// --- Pure PDF Document Component ---
 const BikePDFTag = ({ bike, qrCodeUrl, logoUrl }: { bike: Bike; qrCodeUrl: string; logoUrl: string }) => {
   return (
     <Document>
-      {/* Optimized size for a bike sticker: approx 2.5" x 3.5" (180pt x 252pt) */}
       <Page size={[180, 252]} style={styles.page}>
         <View style={styles.tagContainer}>
-          {/* Header Section */}
           <View style={styles.header}>
             <Image style={styles.logoImage} src={logoUrl} />
             <Text style={styles.headerStatus}>BICICLETA RASTREADA POR GPS</Text>
           </View>
 
-          {/* Body Section (QR) */}
           <View style={styles.body}>
             <View style={styles.qrWrapper}>
                 <Image style={styles.qrImage} src={qrCodeUrl} />
@@ -134,13 +125,11 @@ const BikePDFTag = ({ bike, qrCodeUrl, logoUrl }: { bike: Bike; qrCodeUrl: strin
             <Text style={styles.scanText}>ESCANEAR PARA VERIFICAR ESTATUS</Text>
           </View>
 
-          {/* Footer Section (Serial) */}
           <View style={styles.footer}>
             <Text style={styles.serialLabel}>NÚMERO DE SERIE</Text>
             <Text style={styles.serialNumber}>{bike.serialNumber}</Text>
           </View>
 
-          {/* Security Visual Element */}
           <View style={styles.securityStrip} />
         </View>
       </Page>
@@ -148,7 +137,6 @@ const BikePDFTag = ({ bike, qrCodeUrl, logoUrl }: { bike: Bike; qrCodeUrl: strin
   );
 };
 
-// --- Download Button Component ---
 export default function BikePDFDownloader({ bike, className }: { bike: Bike, className?: string }) {
     const [loading, setLoading] = useState(false);
 
@@ -162,9 +150,6 @@ export default function BikePDFDownloader({ bike, className }: { bike: Bike, cla
                 margin: 1,
              });
             
-            // Note: Since background is now yellow, we should ideally use a black text logo.
-            // Using existing logo.png. If logo.png is white text, it might need changing.
-            // Assuming logo.png is the standard logo which usually works on light backgrounds or has dark text.
             const logoUrl = `${baseUrl}/logo.png`; 
 
             const blob = await pdf(<BikePDFTag bike={bike} qrCodeUrl={qrCodeUrl} logoUrl={logoUrl} />).toBlob();
@@ -178,7 +163,13 @@ export default function BikePDFDownloader({ bike, className }: { bike: Bike, cla
     };
 
   return (
-    <Button variant="default" onClick={handleDownload} disabled={loading} className={cn("w-full", className)}>
+    <Button 
+        id="tour-bike-qr"
+        variant="default" 
+        onClick={handleDownload} 
+        disabled={loading} 
+        className={cn("w-full", className)}
+    >
       {loading ? (
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
       ) : (
