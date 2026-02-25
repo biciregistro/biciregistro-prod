@@ -17,15 +17,17 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
     const tourStarted = useRef(false);
 
     // Extract primitive values for dependencies
+    // Explicitly cast undefined/null to false to be safe
     const hasSeenDashboard = !!user.onboarding?.dashboardSeen;
     const hasSeenBike = !!user.onboarding?.bikeDetailSeen;
     
+    // Allow 'admin' to see the tour for testing purposes, alongside 'ciclista'
     const isTargetAudience = user.role === 'ciclista' || user.role === 'admin';
     const userName = user.name;
     const bikeName = bike ? `${bike.make} ${bike.model}` : '';
 
     useEffect(() => {
-        // Debug logs
+        // Debug logs to trace execution
         console.log(`[OnboardingTour:${tourType}] Init check`, {
             role: user.role,
             isTargetAudience,
@@ -34,16 +36,29 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
             tourStarted: tourStarted.current
         });
 
-        if (!isTargetAudience) return;
+        // 0. Safety check: Only for target audience
+        if (!isTargetAudience) {
+            console.log(`[OnboardingTour:${tourType}] Skipped: User role not target audience.`);
+            return;
+        }
 
+        // 1. Check if user has already seen the specific tour
         const alreadySeen = tourType === 'dashboard' ? hasSeenDashboard : hasSeenBike;
-        if (alreadySeen) return;
+        
+        if (alreadySeen) {
+            console.log(`[OnboardingTour:${tourType}] Skipped: Already seen.`);
+            return;
+        }
 
-        if (tourStarted.current) return;
+        if (tourStarted.current) {
+            console.log(`[OnboardingTour:${tourType}] Skipped: Tour already started in this session.`);
+            return;
+        }
 
         console.log(`[OnboardingTour:${tourType}] Starting tour logic...`);
         tourStarted.current = true;
 
+        // 2. Define steps based on tourType
         let steps: any[] = [];
 
         if (tourType === 'dashboard') {
@@ -78,7 +93,7 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
                     element: '#tour-qr',
                     popover: {
                         title: 'Tu ángel de la guarda en el casco 🚑',
-                        description: 'Vincula tu etiqueta QR. Es anónima para extraños, pero si llegas a tener un percance, los paramédicos sabrán tus datos vitales y a quién llamar. ¡Tu seguridad es nuestra prioridad!',
+                        description: 'Descarga tu etiqueta QR para Emergencias. Es anónima para extraños pero si llegas a tener un percance, los paramédicos sabrán tus datos vitales y a quien llamar. ¡Imprímela en papel autoadherible y pégala en tu casco, te puede salvar la vida en tu siguiente rodada!',
                         side: 'top',
                         align: 'start',
                     }
@@ -197,6 +212,7 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
 
         tourDriver.current = driverObj;
 
+        // 4. Start the tour
         const timer = setTimeout(() => {
             console.log(`[OnboardingTour:${tourType}] Driving now.`);
             driverObj.drive();
@@ -205,7 +221,7 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
         return () => {
             clearTimeout(timer);
             console.log(`[OnboardingTour:${tourType}] Cleanup.`);
-            tourStarted.current = false;
+            tourStarted.current = false; // Fix for Strict Mode double-invoke
             if (tourDriver.current) {
                 tourDriver.current.destroy();
             }
