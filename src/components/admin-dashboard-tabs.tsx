@@ -7,9 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HomepageEditor, UsersTable, OngUsersTable } from '@/components/admin-components';
 import { FinancialSettingsForm } from '@/components/admin/financial-settings-form';
 import { AdminEventFinancialList } from '@/components/admin/admin-event-financial-list';
-import { HomepageSection, User, OngUser, Event, FinancialSettings, LandingEventsContent, Bike } from '@/lib/types';
+import { HomepageSection, User, OngUser, Event, FinancialSettings, LandingEventsContent, Bike, InsuranceRequest } from '@/lib/types';
 import { EventCard } from '@/components/ong/event-card';
-import { UserPlus, CalendarPlus, AlertTriangle, Megaphone } from 'lucide-react';
+import { UserPlus, CalendarPlus, AlertTriangle, Megaphone, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardFilterBar } from '@/components/admin/dashboard-filter-bar';
 import { NotificationComposer } from '@/components/admin/notifications/notification-composer';
@@ -17,6 +17,7 @@ import { LandingEventsEditor } from './admin/landing-editor/landing-events-edito
 import { StolenBikesList } from './admin/stolen-bikes-list';
 import { BikonGenerator } from '@/components/admin/bikon-generator';
 import { CampaignManager } from '@/components/admin/campaigns/campaign-manager';
+import { InsuranceList } from '@/components/admin/insurance/insurance-list';
 
 interface AdminDashboardTabsProps {
   homepageSections: HomepageSection[];
@@ -30,6 +31,7 @@ interface AdminDashboardTabsProps {
   stolenBikes: (Bike & { owner?: User })[];
   bikonDevices: any[]; 
   advertisers: {id: string, name: string}[]; 
+  insuranceRequests?: InsuranceRequest[];
   statsContent: React.ReactNode;
   initialTab?: string;
 }
@@ -46,6 +48,7 @@ function AdminDashboardTabsContent({
   stolenBikes, 
   bikonDevices, 
   advertisers,
+  insuranceRequests = [],
   statsContent,
   initialTab = 'stats'
 }: AdminDashboardTabsProps) {
@@ -81,6 +84,10 @@ function AdminDashboardTabsContent({
             Alertas
         </TabsTrigger>
         <TabsTrigger value="bikon">Bikon</TabsTrigger>
+        <TabsTrigger value="insurance" className="gap-1.5">
+            <ShieldCheck className="h-4 w-4" />
+            Seguros
+        </TabsTrigger>
         <TabsTrigger value="campaigns" className="gap-1.5">
             <Megaphone className="h-4 w-4" />
             Campañas
@@ -108,6 +115,14 @@ function AdminDashboardTabsContent({
 
       <TabsContent value="bikon" className="space-y-6">
           <BikonGenerator initialDevices={bikonDevices} />
+      </TabsContent>
+
+      <TabsContent value="insurance" className="space-y-6">
+          <div className="flex flex-col gap-2 mb-6">
+              <h2 className="text-2xl font-bold">Solicitudes de Seguro Clupp</h2>
+              <p className="text-muted-foreground">Gestiona las cotizaciones y pólizas de seguro para bicicletas.</p>
+          </div>
+          <InsuranceList requests={insuranceRequests} />
       </TabsContent>
 
       <TabsContent value="campaigns" className="space-y-6">

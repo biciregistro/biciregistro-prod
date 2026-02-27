@@ -2,6 +2,7 @@ import { getAuthenticatedUser, getBike } from '@/lib/data';
 import { notFound, redirect } from 'next/navigation';
 import BikeDetailsPageClient from './page-client';
 import type { User, Bike } from '@/lib/types';
+import { getInsuranceRequestByBikeId } from '@/lib/actions/insurance-actions';
 
 // The props object is destructured directly in the function signature
 export default async function BikeDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -21,5 +22,8 @@ export default async function BikeDetailsPage({ params }: { params: Promise<{ id
     redirect(redirectPath);
   }
 
-  return <BikeDetailsPageClient user={user} bike={bike} />;
+  // Fetch insurance request
+  const insuranceRequest = await getInsuranceRequestByBikeId(id);
+
+  return <BikeDetailsPageClient user={user} bike={bike} insuranceRequest={insuranceRequest} />;
 }

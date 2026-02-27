@@ -5,7 +5,8 @@ import { getFinancialSettings, getAllEventsForAdmin } from '@/lib/financial-data
 import { getLandingEventsContent } from '@/lib/data/landing-events-data'; 
 import { getBikonDevices } from '@/lib/actions/bikon-actions'; 
 import { getAdvertisersList } from '@/lib/actions/campaign-actions';
-import type { HomepageSection, DashboardFilters, User, OngUser, Event, FinancialSettings, Bike, BikonDevicePopulated, LandingEventsContent } from '@/lib/types';
+import { getAllInsuranceRequests } from '@/lib/actions/insurance-actions';
+import type { HomepageSection, DashboardFilters, User, OngUser, Event, FinancialSettings, Bike, BikonDevicePopulated, LandingEventsContent, InsuranceRequest } from '@/lib/types';
 import { AdminDashboardTabs } from '@/components/admin-dashboard-tabs';
 import { StatsTabContent } from '@/components/admin/stats-tab-content';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -57,7 +58,7 @@ export default async function AdminPage({
   let stolenBikes: (Bike & { owner?: User })[] = [];
   let bikonDevices: BikonDevicePopulated[] = [];
   let advertisers: {id: string, name: string}[] = [];
-
+  let insuranceRequests: InsuranceRequest[] = [];
   
   if (initialTab === 'content') {
       const [homepageData, fetchedLandingContent] = await Promise.all([
@@ -107,6 +108,10 @@ export default async function AdminPage({
       advertisers = await getAdvertisersList();
   }
 
+  if (initialTab === 'insurance') {
+      insuranceRequests = await getAllInsuranceRequests();
+  }
+
   const { users, nextPageToken } = usersData;
 
   return (
@@ -132,6 +137,7 @@ export default async function AdminPage({
           stolenBikes={stolenBikes}
           bikonDevices={bikonDevices}
           advertisers={advertisers}
+          insuranceRequests={insuranceRequests}
           statsContent={
             <Suspense key={JSON.stringify(filters)} fallback={<Skeleton className="h-[400px] w-full" />}>
               <StatsTabContent filters={filters} />

@@ -11,7 +11,7 @@ import { BikeRegistrationForm } from '@/components/bike-card';
 import { TheftReportForm } from '@/components/bike-components/theft-report-form';
 import { TransferOwnershipForm } from '@/components/bike-components/transfer-ownership-form';
 import { cn } from '@/lib/utils';
-import type { Bike, User, BikeStatus } from '@/lib/types';
+import type { Bike, User, BikeStatus, InsuranceRequest } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pencil, FileDown, Loader2, MessageCircle, ShoppingCart } from 'lucide-react';
 import { ImageUpload } from '@/components/shared/image-upload';
@@ -23,6 +23,7 @@ import { RecoverBikeButton } from '@/components/bike-components/recover-bike-but
 import { BikeTheftShareMenu } from '@/components/dashboard/bike-theft-share-menu';
 import { BikonLinker } from '@/components/bike-components/bikon-linker';
 import { OnboardingTour } from '@/components/dashboard/onboarding-tour';
+import { InsuranceCard } from '@/components/bike-components/insurance-card';
 
 // Dynamic import for PDF downloaders
 const BikePDFDownloader = dynamic(
@@ -138,7 +139,7 @@ function OwnershipProofSection({ bike }: { bike: Bike }) {
     );
 }
 
-export default function BikeDetailsPageClient({ user, bike: initialBike }: { user: User; bike: Bike }) {
+export default function BikeDetailsPageClient({ user, bike: initialBike, insuranceRequest }: { user: User; bike: Bike; insuranceRequest: InsuranceRequest | null }) {
   const [bike, setBike] = useState<Bike>(initialBike);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -237,6 +238,9 @@ export default function BikeDetailsPageClient({ user, bike: initialBike }: { use
                       <DetailItem label="Valor Aproximado" value={formattedValue} />
                   </CardContent>
               </Card>
+
+              {/* Insurance Card Module */}
+              <InsuranceCard bike={bike} user={user} insuranceRequest={insuranceRequest} />
 
               {/* Bikon Tracker Component - Updated */}
               <Card id="tour-bike-bikon" className="border-primary/20 shadow-sm overflow-hidden">

@@ -556,3 +556,31 @@ export type CampaignConversion = {
         timestamp: string; // ISO
     };
 };
+
+// --- Insurance Module ---
+
+export type InsuranceStatus = 'PENDING' | 'QUOTED' | 'APPROVED' | 'REJECTED' | 'PAYMENT_LINK_SENT' | 'PAID' | 'CLOSED';
+
+export interface InsuranceRequest {
+  id: string;
+  bikeId: string;
+  userId: string;
+  userName?: string; 
+  userPhone: string;
+  userEmail: string;
+  bikeInfo: {
+    brand: string;
+    model: string;
+    color: string;
+    year: string;
+  };
+  status: InsuranceStatus;
+  createdAt: string; // ISO string
+  updatedAt: string; // ISO string
+  // Admin fields
+  premium?: number;
+  commission?: number;
+  policyValidity?: string;
+  paymentLink?: string; 
+  policyUrl?: string; // URL del PDF subido por usuario
+}

@@ -86,6 +86,12 @@ service firebase.storage {
         allow write: if request.auth != null;
     }
 
+    // --- Insurance Module Rules ---
+    // Allow authenticated users to upload their insurance policy.
+    match /insurance-policies/{bikeId}/{fileName} {
+      allow read, write: if request.auth != null;
+    }
+
     // Fallback rule: Disallow all other reads and writes by default
     match /{allPaths=**} {
       allow read, write: if false;
