@@ -13,6 +13,7 @@ import { Loader2, ShieldCheck, FileText, CheckCircle, XCircle, ExternalLink, Upl
 import Link from 'next/link';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { cn } from '@/lib/utils';
+import { InsuranceStepper } from './insurance-stepper';
 
 interface InsuranceCardProps {
     bike: Bike;
@@ -101,8 +102,10 @@ export function InsuranceCard({ bike, user, insuranceRequest }: InsuranceCardPro
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <InsuranceStepper status={status} hasPolicyUrl={!!insuranceRequest.policyUrl} />
+
                     {insuranceRequest.policyUrl ? (
-                        <Button variant="outline" className="w-full bg-white dark:bg-transparent" asChild>
+                        <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white" asChild>
                             <a href={insuranceRequest.policyUrl} target="_blank" rel="noopener noreferrer">
                                 <Download className="mr-2 h-4 w-4" />
                                 Descargar Póliza
@@ -160,7 +163,11 @@ export function InsuranceCard({ bike, user, insuranceRequest }: InsuranceCardPro
                     Protege tu rodada con la cobertura integral de Clupp.
                 </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+                {status && status !== 'REJECTED' && status !== 'CLOSED' && (
+                    <InsuranceStepper status={status} hasPolicyUrl={!!insuranceRequest?.policyUrl} />
+                )}
+
                 {!status && (
                     <div className="space-y-4">
                         <p className="text-sm text-muted-foreground">
