@@ -90,7 +90,7 @@ export function InsuranceCard({ bike, user, insuranceRequest }: InsuranceCardPro
 
     if (status === 'PAID' && insuranceRequest) {
         return (
-            <Card className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
+            <Card id="tour-bike-insurance" className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
                 <CardHeader>
                     <CardTitle className="text-green-800 dark:text-green-300 flex items-center gap-2">
                         <ShieldCheck className="h-6 w-6" />
@@ -148,7 +148,7 @@ export function InsuranceCard({ bike, user, insuranceRequest }: InsuranceCardPro
     // Status: QUOTED, PENDING, APPROVED, PAYMENT_LINK_SENT, REJECTED, or NULL (New)
 
     return (
-        <Card className={cn("border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900", 
+        <Card id="tour-bike-insurance" className={cn("border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-900", 
             status === 'REJECTED' && "bg-gray-50 border-gray-200 dark:bg-gray-900/10 dark:border-gray-800"
         )}>
             <CardHeader>

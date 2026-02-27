@@ -137,6 +137,15 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
                     }
                 },
                 {
+                    element: '#tour-bike-insurance',
+                    popover: {
+                        title: 'Blindaje 360°: Tu Seguro de Bicicleta 🛡️✨',
+                        description: 'La verdadera paz mental llega cuando sabes que tu inversión está protegida ante lo inesperado, accede a coberturas exclusivas contra robo total, accidentes en ruta y daños a terceros.',
+                        side: 'top',
+                        align: 'start',
+                    }
+                },
+                {
                     element: '#tour-bike-bikon',
                     popover: {
                         title: 'Tu Radar Privado',
