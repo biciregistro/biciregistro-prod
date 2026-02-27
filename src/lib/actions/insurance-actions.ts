@@ -41,6 +41,7 @@ export async function createInsuranceRequest(
             premium: 0,
             commission: 0,
             paymentLink: '',
+            quoteUrl: '',
             policyUrl: ''
         });
         revalidatePath(`/dashboard/bikes/${bikeId}`);
@@ -130,7 +131,13 @@ export async function getAllInsuranceRequests() {
 
 export async function updateQuoteDetails(
     requestId: string, 
-    data: { premium: number; commission: number; policyValidity: string; status?: InsuranceStatus }
+    data: { 
+        premium: number; 
+        commission: number; 
+        policyValidity: string; 
+        status?: InsuranceStatus;
+        quoteUrl?: string;
+    }
 ) {
     const user = await getCurrentUser();
     if (!user || user.role !== 'admin') throw new Error('Unauthorized');

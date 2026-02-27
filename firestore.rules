@@ -193,10 +193,16 @@ service cloud.firestore {
       allow write: if isSignedIn(); // Tighter control in backend functions/actions
     }
     
-    // NEW: Event Payouts (Dispersiones)
+    // Event Payouts (Dispersiones)
     match /event-payouts/{payoutId} {
         allow read: if isAdmin() || (isSignedIn() && resource.data.ongId == request.auth.uid);
         allow write: if isAdmin();
+    }
+
+    // NEW: Insurance Requests
+    match /insurance_requests/{requestId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow write: if isAdmin(); // User writes via Server Actions (adminDb)
     }
 
     // Homepage content (used by current app logic)

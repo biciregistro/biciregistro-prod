@@ -256,7 +256,17 @@ export function InsuranceCard({ bike, user, insuranceRequest }: InsuranceCardPro
 
                 {status === 'QUOTED' && (
                     <div className="space-y-3">
-                         <p className="text-sm font-medium">Tu cotización ya se encuentra en tu correo electrónico.</p>
+                         <p className="text-sm font-medium">Tu cotización ya está disponible.</p>
+                         
+                         {insuranceRequest?.quoteUrl && (
+                            <Button variant="outline" className="w-full border-blue-600 text-blue-600 hover:bg-blue-50" asChild>
+                                <a href={insuranceRequest.quoteUrl} target="_blank" rel="noopener noreferrer">
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Descargar Cotización
+                                </a>
+                            </Button>
+                         )}
+
                          <div className="grid grid-cols-2 gap-2">
                              <Button onClick={handleApprove} disabled={isPending} className="bg-blue-600 hover:bg-blue-700 text-white">
                                 {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aprobar Cotización'}

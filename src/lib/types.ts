@@ -582,5 +582,6 @@ export interface InsuranceRequest {
   commission?: number;
   policyValidity?: string;
   paymentLink?: string; 
+  quoteUrl?: string; // URL de la cotización subida por el admin
   policyUrl?: string; // URL del PDF subido por usuario
 }
