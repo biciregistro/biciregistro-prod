@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import { Loader2, Upload, AlertCircle } from "lucide-react";
+import { Loader2, Upload, X, ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { bikeBrands } from '@/lib/bike-brands';
 import { modalityOptions } from '@/lib/bike-types';
-import { registerBikeWizardAction } from '@/lib/actions'; // Reutilizamos la acción que ya maneja la creación
+import { registerBikeWizardAction } from '@/lib/actions'; 
+import Image from 'next/image';
 
 const simpleBikeSchema = z.object({
   serialNumber: z.string().min(3, "El número de serie es importante para recuperarla."),
@@ -23,8 +24,7 @@ const simpleBikeSchema = z.object({
   type: z.string().min(1, "El tipo es obligatorio"),
   year: z.string().min(4, "Selecciona un año"),
   value: z.string().min(1, "El valor estimado es requerido"),
-  // En este formulario simple, la foto podría ser opcional si es urgente, 
-  // pero para recuperación es vital. La haremos requerida pero simple.
+  // La imagen ya no se valida aquí como FileList, sino que gestionamos el string base64 aparte o permitimos any
   bikeImage: z.any().optional(), 
 });
 
@@ -34,8 +34,53 @@ interface SimpleBikeFormProps {
   onSuccess: (bikeData: any) => void;
 }
 
+// Función auxiliar de compresión
+const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = document.createElement('img');
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1200;
+                const MAX_HEIGHT = 1200;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                // Comprimir a JPEG con calidad 0.8
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                resolve(dataUrl);
+            };
+            img.onerror = (error) => reject(error);
+        };
+        reader.onerror = (error) => reject(error);
+    });
+};
+
 export function SimpleBikeForm({ onSuccess }: SimpleBikeFormProps) {
   const [loading, setLoading] = useState(false);
+  const [compressing, setCompressing] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [compressedImageBase64, setCompressedImageBase64] = useState<string | null>(null);
+  
   const { toast } = useToast();
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: (currentYear + 1) - 1980 + 1 }, (_, i) => (currentYear + 1) - i);
@@ -54,21 +99,57 @@ export function SimpleBikeForm({ onSuccess }: SimpleBikeFormProps) {
     },
   });
 
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) {
+          setImagePreview(null);
+          setCompressedImageBase64(null);
+          form.setValue('bikeImage', null);
+          return;
+      }
+
+      // Validaciones básicas antes de procesar
+      if (!file.type.startsWith('image/')) {
+          toast({ variant: "destructive", title: "Formato inválido", description: "Por favor selecciona un archivo de imagen (JPG, PNG)." });
+          return;
+      }
+
+      setCompressing(true);
+      // Limpiamos preview anterior mientras procesamos
+      setImagePreview(null); 
+
+      try {
+          // Comprimir
+          const compressed = await compressImage(file);
+          
+          setCompressedImageBase64(compressed);
+          setImagePreview(compressed);
+          
+          // Actualizar el form con algo (simbólico) para que sepa que hay imagen, 
+          // aunque usaremos el base64 en onSubmit
+          form.setValue('bikeImage', "image_ready"); 
+      } catch (error) {
+          console.error("Error al procesar imagen:", error);
+          toast({ variant: "destructive", title: "Error", description: "No pudimos procesar la imagen. Intenta con otra." });
+          setImagePreview(null);
+          setCompressedImageBase64(null);
+          form.setValue('bikeImage', null);
+      } finally {
+          setCompressing(false);
+      }
+  };
+
+  const clearImage = () => {
+      setImagePreview(null);
+      setCompressedImageBase64(null);
+      form.setValue('bikeImage', null);
+      const fileInput = document.getElementById('bike-image-input') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+  };
+
   const onSubmit = async (data: SimpleBikeValues) => {
     setLoading(true);
     try {
-      // Preparar payload compatible con la acción existente
-      // Necesitamos convertir la imagen a base64 si existe
-      let imageBase64 = null;
-      if (data.bikeImage && data.bikeImage[0]) {
-        const file = data.bikeImage[0];
-        const reader = new FileReader();
-        imageBase64 = await new Promise((resolve) => {
-            reader.onload = (e) => resolve(e.target?.result);
-            reader.readAsDataURL(file);
-        });
-      }
-
       const finalBrand = data.brand === 'Otra' ? data.customBrand : data.brand;
 
       const payload = {
@@ -79,17 +160,14 @@ export function SimpleBikeForm({ onSuccess }: SimpleBikeFormProps) {
         type: data.type,
         year: data.year,
         value: data.value,
-        bikeImage: imageBase64,
-        serialImage: null, // No pedimos foto del serial en el flujo rápido
+        bikeImage: compressedImageBase64, // Enviamos la versión optimizada
+        serialImage: null, 
       };
 
       const result = await registerBikeWizardAction(payload);
 
       if (result.success) {
         toast({ title: "Bicicleta Registrada", description: "Ahora reportemos los detalles del robo." });
-        // Importante: La acción actual no devuelve el ID de la bici creada.
-        // Pero como acabamos de crearla, es la más reciente del usuario.
-        // El componente padre manejará la búsqueda de la bici recién creada.
         onSuccess(payload); 
       } else {
         toast({ variant: "destructive", title: "Error", description: result.message });
@@ -260,24 +338,80 @@ export function SimpleBikeForm({ onSuccess }: SimpleBikeFormProps) {
             <FormItem>
               <FormLabel>Foto de la bicicleta (Opcional)</FormLabel>
               <FormControl>
-                <Input
-                  {...fieldProps}
-                  placeholder="Picture"
-                  type="file"
-                  accept="image/*"
-                  onChange={(event) => {
-                    onChange(event.target.files && event.target.files);
-                  }}
-                />
+                <div className="space-y-3">
+                    {!imagePreview && !compressing ? (
+                        <div className="flex items-center justify-center w-full">
+                            <label htmlFor="bike-image-input" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 border-gray-300 transition-colors">
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <Upload className="w-8 h-8 mb-2 text-gray-400" />
+                                    <p className="text-xs text-gray-500 font-medium text-center">Toca para subir foto</p>
+                                    <p className="text-[10px] text-gray-400 mt-1 text-center">Optimizamos tu imagen automáticamente</p>
+                                </div>
+                                <Input
+                                    {...fieldProps}
+                                    id="bike-image-input"
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handleImageChange(e)}
+                                    // Removemos onChange del spread para manejarlo manualmente
+                                    value="" // Forzar reset para permitir re-selección del mismo archivo si se limpia
+                                />
+                            </label>
+                        </div>
+                    ) : (
+                        <div className="relative w-full h-48 rounded-lg overflow-hidden border bg-gray-50 flex items-center justify-center">
+                             {compressing ? (
+                                 <div className="flex flex-col items-center gap-2 text-gray-500 animate-in fade-in duration-300">
+                                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                     <span className="text-xs font-medium">Procesando imagen...</span>
+                                 </div>
+                             ) : (
+                                <>
+                                    {imagePreview && (
+                                        <div className="relative w-full h-full">
+                                            <Image 
+                                                src={imagePreview} 
+                                                alt="Preview" 
+                                                fill 
+                                                className="object-contain p-2" 
+                                            />
+                                        </div>
+                                    )}
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="icon"
+                                        className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-md z-10"
+                                        onClick={clearImage}
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </Button>
+                                    <div className="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded-full flex items-center gap-1 backdrop-blur-sm">
+                                        <ImageIcon className="w-3 h-3" /> Lista para subir
+                                    </div>
+                                </>
+                             )}
+                        </div>
+                    )}
+                </div>
               </FormControl>
+              <FormDescription className="text-xs">
+                Se recomienda una foto clara del costado de la bici.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <Button type="submit" className="w-full" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Registrar Bicicleta
+        <Button type="submit" className="w-full" disabled={loading || compressing}>
+            {loading ? (
+                <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Registrando...
+                </>
+            ) : (
+                'Registrar y Continuar'
+            )}
         </Button>
       </form>
     </Form>
