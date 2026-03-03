@@ -24,8 +24,10 @@ const simpleBikeSchema = z.object({
   type: z.string().min(1, "El tipo es obligatorio"),
   year: z.string().min(4, "Selecciona un año"),
   value: z.string().min(1, "El valor estimado es requerido"),
-  // La imagen ya no se valida aquí como FileList, sino que gestionamos el string base64 aparte o permitimos any
-  bikeImage: z.any().optional(), 
+  // Hacemos la imagen obligatoria
+  bikeImage: z.any().refine((val) => val !== null && val !== undefined && val !== "", {
+    message: "La fotografía de la bicicleta es obligatoria para el reporte.",
+  }), 
 });
 
 type SimpleBikeValues = z.infer<typeof simpleBikeSchema>;
@@ -125,9 +127,8 @@ export function SimpleBikeForm({ onSuccess }: SimpleBikeFormProps) {
           setCompressedImageBase64(compressed);
           setImagePreview(compressed);
           
-          // Actualizar el form con algo (simbólico) para que sepa que hay imagen, 
-          // aunque usaremos el base64 en onSubmit
-          form.setValue('bikeImage', "image_ready"); 
+          // Actualizar el form con algo (simbólico) para que sepa que hay imagen y pase la validación
+          form.setValue('bikeImage', "image_ready", { shouldValidate: true }); 
       } catch (error) {
           console.error("Error al procesar imagen:", error);
           toast({ variant: "destructive", title: "Error", description: "No pudimos procesar la imagen. Intenta con otra." });
@@ -148,6 +149,12 @@ export function SimpleBikeForm({ onSuccess }: SimpleBikeFormProps) {
   };
 
   const onSubmit = async (data: SimpleBikeValues) => {
+    // Validación de respaldo por si acaso el usuario no subió imagen
+    if (!compressedImageBase64) {
+        form.setError("bikeImage", { message: "Debes subir una foto de la bicicleta." });
+        return;
+    }
+
     setLoading(true);
     try {
       const finalBrand = data.brand === 'Otra' ? data.customBrand : data.brand;
@@ -336,7 +343,7 @@ export function SimpleBikeForm({ onSuccess }: SimpleBikeFormProps) {
           name="bikeImage"
           render={({ field: { value, onChange, ...fieldProps } }) => (
             <FormItem>
-              <FormLabel>Foto de la bicicleta (Opcional)</FormLabel>
+              <FormLabel>Foto de la bicicleta</FormLabel>
               <FormControl>
                 <div className="space-y-3">
                     {!imagePreview && !compressing ? (
