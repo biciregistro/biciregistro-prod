@@ -74,6 +74,14 @@ Te esperamos!! 🚴💨`.trim();
     };
 
     const handleFacebook = () => {
+        // Copy message to clipboard first for easier posting
+        const message = generateMessage();
+        navigator.clipboard.writeText(message);
+        toast({ 
+            title: "Mensaje copiado", 
+            description: "¡Listo! Pega el mensaje en tu publicación de Facebook." 
+        });
+        
         window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(eventUrl)}`, '_blank');
     };
 
