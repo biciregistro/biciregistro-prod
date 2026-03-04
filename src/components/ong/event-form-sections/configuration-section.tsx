@@ -20,6 +20,7 @@ type EventFormValues = z.infer<typeof eventFormSchema>;
 interface ConfigurationSectionProps {
     form: UseFormReturn<EventFormValues>;
     isPublished?: boolean; // Prop to indicate if the event is already published
+    isWizardMode?: boolean; // Prop to hide duplicated fields in wizard
 }
 
 const RequiredLabel = ({ children }: { children: React.ReactNode }) => (
@@ -28,7 +29,7 @@ const RequiredLabel = ({ children }: { children: React.ReactNode }) => (
   </span>
 );
 
-export function ConfigurationSection({ form, isPublished }: ConfigurationSectionProps) {
+export function ConfigurationSection({ form, isPublished, isWizardMode = false }: ConfigurationSectionProps) {
     const { fields: categoryFields, append: appendCategory, remove: removeCategory } = useFieldArray({
         control: form.control,
         name: "categories",
@@ -101,57 +102,59 @@ export function ConfigurationSection({ form, isPublished }: ConfigurationSection
                 )}
             </div>
 
-            <div className="space-y-4">
-                <div className="flex items-center justify-between border rounded-lg p-4 bg-muted/5">
-                    <div>
-                        <h3 className="text-lg font-medium">Requisitos de Bicicleta</h3>
-                        <p className="text-sm text-muted-foreground">¿Es necesario que los participantes lleven bicicleta?</p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <FormLabel className="font-normal cursor-pointer" htmlFor="bike-toggle">
-                            {requiresBike ? "Sí" : "No"}
-                        </FormLabel>
-                        <Switch
-                            id="bike-toggle"
-                            checked={requiresBike}
-                            onCheckedChange={(checked) => {
-                                form.setValue('requiresBike', checked);
-                            }}
-                        />
-                    </div>
-                </div>
-
-                <div className="space-y-4 border rounded-lg p-4 bg-muted/5">
-                    <div className="flex items-center justify-between">
+            {!isWizardMode && (
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between border rounded-lg p-4 bg-muted/5">
                         <div>
-                            <h3 className="text-lg font-medium">Información de Emergencia</h3>
-                            <p className="text-sm text-muted-foreground">¿Solicitar contacto de emergencia, tipo de sangre y seguro?</p>
+                            <h3 className="text-lg font-medium">Requisitos de Bicicleta</h3>
+                            <p className="text-sm text-muted-foreground">¿Es necesario que los participantes lleven bicicleta?</p>
                         </div>
                         <div className="flex items-center space-x-2">
-                            <FormLabel className="font-normal cursor-pointer" htmlFor="emergency-toggle">
-                                {requiresEmergency ? "Sí" : "No"}
+                            <FormLabel className="font-normal cursor-pointer" htmlFor="bike-toggle">
+                                {requiresBike ? "Sí" : "No"}
                             </FormLabel>
                             <Switch
-                                id="emergency-toggle"
-                                checked={requiresEmergency}
+                                id="bike-toggle"
+                                checked={requiresBike}
                                 onCheckedChange={(checked) => {
-                                    form.setValue('requiresEmergencyContact', checked);
+                                    form.setValue('requiresBike', checked);
                                 }}
                             />
                         </div>
                     </div>
 
-                    {requiresEmergency && (
-                        <Alert className="animate-in fade-in bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900 text-xs">
-                            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                            <AlertTitle className="text-blue-800 dark:text-blue-300">Aviso de Privacidad</AlertTitle>
-                            <AlertDescription className="text-blue-700 dark:text-blue-400/80 mt-1">
-                                Estos datos están protegidos y sólo estarán visibles para el organizador hasta 24 hrs después del evento, después de este tiempo se eliminarán de su base de información visible.
-                            </AlertDescription>
-                        </Alert>
-                    )}
+                    <div className="space-y-4 border rounded-lg p-4 bg-muted/5">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-medium">Información de Emergencia</h3>
+                                <p className="text-sm text-muted-foreground">¿Solicitar contacto de emergencia, tipo de sangre y seguro?</p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <FormLabel className="font-normal cursor-pointer" htmlFor="emergency-toggle">
+                                    {requiresEmergency ? "Sí" : "No"}
+                                </FormLabel>
+                                <Switch
+                                    id="emergency-toggle"
+                                    checked={requiresEmergency}
+                                    onCheckedChange={(checked) => {
+                                        form.setValue('requiresEmergencyContact', checked);
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        {requiresEmergency && (
+                            <Alert className="animate-in fade-in bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900 text-xs">
+                                <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                <AlertTitle className="text-blue-800 dark:text-blue-300">Aviso de Privacidad</AlertTitle>
+                                <AlertDescription className="text-blue-700 dark:text-blue-400/80 mt-1">
+                                    Estos datos están protegidos y sólo estarán visibles para el organizador hasta 24 hrs después del evento, después de este tiempo se eliminarán de su base de información visible.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
              {/* Bib Number Configuration */}
              <div className="space-y-4 border rounded-lg p-4 bg-muted/5 mt-6">

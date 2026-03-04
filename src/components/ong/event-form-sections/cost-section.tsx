@@ -24,6 +24,7 @@ interface CostSectionProps {
     financialSettings: FinancialSettings;
     hasFinancialData: boolean;
     ongProfile?: Partial<OngUser>;
+    isWizardMode?: boolean;
 }
 
 const CostTierCalculator = ({ index, control, settings }: { index: number, control: Control<EventFormValues>, settings: FinancialSettings }) => {
@@ -100,7 +101,7 @@ const CostTierCalculator = ({ index, control, settings }: { index: number, contr
     );
 };
 
-export function CostSection({ form, financialSettings, hasFinancialData: initialHasFinancialData, ongProfile }: CostSectionProps) {
+export function CostSection({ form, financialSettings, hasFinancialData: initialHasFinancialData, ongProfile, isWizardMode = false }: CostSectionProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [localHasFinancialData, setLocalHasFinancialData] = useState(initialHasFinancialData);
 
@@ -133,6 +134,11 @@ export function CostSection({ form, financialSettings, hasFinancialData: initial
         form.setValue('costType', 'Con Costo');
     };
 
+    // Si estamos en modo wizard y el evento es gratuito, no mostrar la sección de costos en absoluto.
+    if (isWizardMode && !isCostEnabled) {
+        return null;
+    }
+
     return (
         <div className="space-y-4 border rounded-lg p-4 bg-muted/5">
             {ongProfile && (
@@ -144,22 +150,33 @@ export function CostSection({ form, financialSettings, hasFinancialData: initial
                 />
             )}
 
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-lg font-medium">Configuración de Costos</h3>
-                    <p className="text-sm text-muted-foreground">¿El evento tiene costo de inscripción?</p>
+            {/* Header Logic: Show switch ONLY if NOT wizard mode */}
+            {!isWizardMode && (
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-lg font-medium">Configuración de Costos</h3>
+                        <p className="text-sm text-muted-foreground">¿El evento tiene costo de inscripción?</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <FormLabel className="font-normal cursor-pointer" htmlFor="cost-mode">
+                            {isCostEnabled ? "Con Costo" : "Gratuito"}
+                        </FormLabel>
+                        <Switch
+                            id="cost-mode"
+                            checked={isCostEnabled}
+                            onCheckedChange={handleToggle}
+                        />
+                    </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                    <FormLabel className="font-normal cursor-pointer" htmlFor="cost-mode">
-                        {isCostEnabled ? "Con Costo" : "Gratuito"}
-                    </FormLabel>
-                    <Switch
-                        id="cost-mode"
-                        checked={isCostEnabled}
-                        onCheckedChange={handleToggle}
-                    />
+            )}
+
+             {/* Wizard Mode Header when Cost is Enabled (Replaces Switch) */}
+             {isWizardMode && isCostEnabled && (
+                 <div className="mb-4">
+                    <h3 className="text-lg font-medium">Configuración Financiera</h3>
+                    <p className="text-sm text-muted-foreground">Define las cuentas de depósito y los precios de inscripción.</p>
                 </div>
-            </div>
+            )}
 
             {isCostEnabled && (
                 <div className="space-y-6 mt-4 animate-in fade-in slide-in-from-top-2">

@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getAuthenticatedUser, getOngProfile } from '@/lib/data';
 import { getFinancialSettings } from '@/lib/financial-data';
-import { EventForm } from '@/components/ong/event-form';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { EventWizard } from '@/components/ong/event-wizard/event-wizard';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
@@ -35,7 +34,7 @@ export default async function CreateEventPage() {
   return (
     <div className="container py-8 px-4 md:px-6">
         <div className="max-w-4xl mx-auto mb-6">
-            <Link href="/dashboard/ong">
+            <Link href="/dashboard/ong?tab=events">
                 <Button variant="ghost" className="pl-0 hover:bg-transparent hover:text-primary">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Volver al Tablero
@@ -44,22 +43,16 @@ export default async function CreateEventPage() {
         </div>
         
       <div className="max-w-4xl mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle>Crear Nuevo Evento</CardTitle>
-            <CardDescription>
-              Completa la información para publicar un nuevo evento para tu comunidad.
-              Los campos marcados con * son obligatorios para publicar.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <EventForm 
-                financialSettings={financialSettings} 
-                hasFinancialData={hasFinancialData}
-                ongProfile={ongProfile} // Nuevo prop
-            />
-          </CardContent>
-        </Card>
+         <div className="mb-6">
+             <h1 className="text-3xl font-bold tracking-tight">Crear Nuevo Evento</h1>
+             <p className="text-muted-foreground">Sigue los pasos para publicar tu evento.</p>
+         </div>
+
+         <EventWizard 
+            financialSettings={financialSettings} 
+            hasFinancialData={hasFinancialData}
+            ongProfile={ongProfile}
+        />
       </div>
     </div>
   );
