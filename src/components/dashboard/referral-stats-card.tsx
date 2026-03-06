@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Share2, Trophy, Users } from 'lucide-react';
+import { Share2, Trophy, Gauge, Star } from 'lucide-react';
 import { getReferralData, ReferralData } from '@/lib/actions/referral-actions';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -26,8 +26,7 @@ export function ReferralStatsCard() {
     const handleShare = async () => {
         if (!data) return;
 
-        // Nuevo mensaje personalizado solicitado
-        const shareText = `¡Hola! Te invito a usar mi enlace para blindar tu bici con *Biciregistro*, proteger a la banda ciclista del robo y combatir el mercado negro. Si te registras con mi link ambos podemos ganar premios de aliados.\n\nMi link 👉 ${data.shareUrl}\n\n¡Además, le das identidad a tu bici, la vinculas legalmente a ti y obtienes herramientas de protección activa y pasiva contra el robo!`;
+        const shareText = `¡Hola! Te invito a usar mi enlace para blindar tu bici con *Biciregistro*, proteger a la banda ciclista del robo y combatir el mercado negro. Si te registras con mi link ambos podemos ganar premios de aliados y acumular kilómetros.\n\nMi link 👉 ${data.shareUrl}\n\n¡Además, le das identidad a tu bici, la vinculas legalmente a ti y obtienes herramientas de protección activa y pasiva contra el robo!`;
         
         const shareData = {
             title: 'Únete a BiciRegistro',
@@ -39,11 +38,9 @@ export function ReferralStatsCard() {
                 await navigator.share(shareData);
             } catch (err) {
                 console.log('Error sharing:', err);
-                // Fallback copy if share fails or is cancelled
                 navigator.clipboard.writeText(shareText);
             }
         } else {
-            // Fallback: Copy to clipboard
             navigator.clipboard.writeText(shareText);
             toast({
                 title: "Mensaje copiado",
@@ -58,13 +55,17 @@ export function ReferralStatsCard() {
 
     if (!data) return null;
 
-    // Calcular porcentaje de progreso para la barra
-    const nextTierGoal = (data.stats.referralsCount || 0) + (data.referralsToNextTier || 0);
+    // Calcular progreso usando Kilómetros
+    const currentKm = data.totalKm || 0;
+    const kmNeeded = data.kmToNextTier || 0;
+    const nextTierTotal = currentKm + kmNeeded;
     
-    // Evitar division por cero
-    const progress = nextTierGoal > 0 
-        ? Math.min(100, ((data.stats.referralsCount || 0) / nextTierGoal) * 100)
-        : 100;
+    // Si ya es embajador o no hay siguiente tier, progreso = 100%
+    const progress = !data.nextTierLabel 
+        ? 100 
+        : nextTierTotal > 0 
+            ? Math.min(100, (currentKm / nextTierTotal) * 100) 
+            : 0;
 
     return (
         <Card id="tour-referral" className="bg-gradient-to-br from-white to-slate-50 border-slate-200 shadow-sm">
@@ -73,10 +74,11 @@ export function ReferralStatsCard() {
                     <div>
                         <CardTitle className="flex items-center gap-2 text-lg">
                             <Trophy className="h-5 w-5 text-yellow-500" />
-                            Invita y Gana
+                            ¡Acumula kilómetros y gana premios!
                         </CardTitle>
-                        <CardDescription className="text-xs md:text-sm mt-1">
-                            Invita a tus amigos para ganar premios de nuestros aliados y subir en el ranking.
+                        <CardDescription className="text-xs md:text-sm mt-1 leading-relaxed">
+                            Acumula kilómetros invitando amigos y realizando acciones positivas en la comunidad. 
+                            Busca el icono <Star className="h-3 w-3 fill-yellow-400 text-yellow-500 inline-block align-text-top" /> para saber cuantos kilómetros te suma cada acción.
                         </CardDescription>
                     </div>
                     <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider whitespace-nowrap">
@@ -91,31 +93,34 @@ export function ReferralStatsCard() {
                     <div>
                         <div className="flex justify-between text-sm mb-2">
                             <span className="text-muted-foreground flex items-center gap-1 font-medium">
-                                <Users className="h-4 w-4" />
-                                {data.stats.referralsCount} Amigos referidos
+                                <Gauge className="h-4 w-4" />
+                                {currentKm} KM Recorridos
                             </span>
                             {data.nextTierLabel ? (
                                 <span className="text-xs text-muted-foreground">
-                                    Faltan <span className="font-bold text-foreground">{data.referralsToNextTier}</span> para {data.nextTierLabel}
+                                    Faltan <span className="font-bold text-foreground">{kmNeeded} KM</span> para {data.nextTierLabel}
                                 </span>
                             ) : (
                                 <span className="text-green-600 font-bold text-xs">¡Nivel Máximo!</span>
                             )}
                         </div>
                         <Progress value={progress} className="h-2 w-full" indicatorClassName="bg-yellow-500" />
+                        <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                            {data.stats.referralsCount} amigos invitados
+                        </p>
                     </div>
 
                     {/* Action Button */}
                     <div className="space-y-2">
                         <Button onClick={handleShare} className="w-full gap-2 font-semibold" size="default">
                             <Share2 className="h-4 w-4" />
-                            Invitar a mis amigos
+                            Invitar a mis amigos (Suma {data.referralPoints} KM)
                         </Button>
                         <p className="text-[10px] text-center text-muted-foreground">
                            Tu enlace: <span className="font-mono select-all hover:text-primary transition-colors cursor-pointer" onClick={() => {
-                               const textToCopy = `¡Hola! Te invito a usar mi enlace para blindar tu bici con *Biciregistro*, proteger a la banda ciclista del robo y combatir el mercado negro. Si te registras con mi link ambos podemos ganar premios de aliados.\n\nMi link 👉 ${data.shareUrl}\n\n¡Además, le das identidad a tu bici, la vinculas legalmente a ti y obtienes herramientas de protección activa y pasiva contra el robo!`;
+                               const textToCopy = `¡Hola! Te invito a usar mi enlace para blindar tu bici con *Biciregistro*... ${data.shareUrl}`;
                                navigator.clipboard.writeText(textToCopy);
-                               toast({ title: "Copiado", description: "Mensaje completo copiado." });
+                               toast({ title: "Copiado", description: "Enlace copiado." });
                            }}>{data.shareUrl}</span>
                         </p>
                     </div>

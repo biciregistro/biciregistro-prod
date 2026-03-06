@@ -307,7 +307,7 @@ export async function getAllBikeSerials(): Promise<string[]> {
     return Array.from(serials);
 }
 
-export async function addBike(bikeData: Omit<Bike, 'id' | 'createdAt' | 'status'>) {
+export async function addBike(bikeData: Omit<Bike, 'id' | 'createdAt' | 'status'>): Promise<string> {
     const db = adminDb;
     const newBike = {
         ...bikeData,
@@ -315,7 +315,8 @@ export async function addBike(bikeData: Omit<Bike, 'id' | 'createdAt' | 'status'
         status: 'safe' as const,
         createdAt: FieldValue.serverTimestamp(),
     };
-    await db.collection('bikes').add(newBike);
+    const docRef = await db.collection('bikes').add(newBike);
+    return docRef.id;
 }
 
 export async function updateBikeData(bikeId: string, data: Partial<Omit<Bike, 'id'>>) {

@@ -19,6 +19,7 @@ import crypto from 'crypto';
 import { sendTheftAlert } from '@/lib/notifications/service';
 import { FieldValue } from 'firebase-admin/firestore';
 import { headers } from 'next/headers';
+import { awardPoints } from './gamification-actions';
 
 // --- Schemas y Helpers ---
 
@@ -137,7 +138,7 @@ export async function registerBike(prevState: BikeFormState, formData: FormData)
         // Capturar IP
         const ip = await getClientIp();
 
-        await addBike({
+        const newBikeId = await addBike({
             ...bikeData,
             userId: session.uid,
             serialNumber,
@@ -150,6 +151,11 @@ export async function registerBike(prevState: BikeFormState, formData: FormData)
                 additionalPhoto2Url,
             ].filter((url): url is string => !!url),
         });
+
+        // GAMIFICACIÓN: Otorgar puntos por registro
+        if (newBikeId) {
+            await awardPoints(session.uid, 'bike_registration', { bikeId: newBikeId });
+        }
 
         revalidatePath('/dashboard');
         return { success: true, message: '¡Bicicleta registrada exitosamente!' };
@@ -276,6 +282,10 @@ export async function markAsRecovered(bikeId: string) {
         await updateBikeData(bikeId, {
             status: 'recovered',
         });
+
+        // GAMIFICACIÓN: Otorgar puntos por recuperar bici
+        await awardPoints(session.uid, 'bike_recovery', { bikeId });
+
         revalidatePath('/dashboard');
         revalidatePath(`/dashboard/bikes/${bikeId}`);
         revalidatePath('/admin');
@@ -321,6 +331,10 @@ export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
         await updateBikeData(bikeId, {
             ownershipProof: proofUrl,
         });
+        
+        // GAMIFICACIÓN: Puntos por verificar documentos
+        await awardPoints(session.uid, 'document_verification', { bikeId });
+
         revalidatePath(`/dashboard/bikes/${bikeId}`);
     } catch (error) {
         console.error("Failed to update ownership proof:", error);
@@ -368,6 +382,9 @@ export async function transferOwnership(prevState: { error?: string; success?: b
 
         await updateBikeData(bikeId, { userId: newOwner.id });
         
+        // GAMIFICACIÓN: Puntos al vendedor por ceder propiedad correctamente
+        await awardPoints(currentUserId, 'ownership_transfer', { bikeId, newOwnerId: newOwner.id });
+
         revalidatePath('/dashboard');
         
         return { success: true };
@@ -411,7 +428,7 @@ export async function registerBikeWizardAction(formData: any) {
         // Capturar IP
         const ip = await getClientIp();
 
-        await addBike({
+        const newBikeId = await addBike({
             userId,
             serialNumber: formData.serialNumber,
             make: formData.brand,
@@ -424,6 +441,11 @@ export async function registerBikeWizardAction(formData: any) {
             registrationIp: ip,
             photos: photoUrls,
         });
+
+        // GAMIFICACIÓN: Puntos por registro wizard
+        if (newBikeId) {
+            await awardPoints(userId, 'bike_registration', { bikeId: newBikeId, method: 'wizard' });
+        }
 
         revalidatePath('/dashboard');
         return { success: true, message: '¡Bicicleta registrada exitosamente con Sprock!' };

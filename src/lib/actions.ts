@@ -27,6 +27,7 @@ import { adminAuth } from './firebase/server';
 import { sendWelcomeEmail } from './email/resend-service';
 import { processReferral } from './actions/referral-actions';
 import { REFERRAL_COOKIE_NAME } from './gamification/constants';
+import { recordUniqueAction, awardPoints } from './actions/gamification-actions'; // GAMIFICACIÓN: awardPoints añadido
 
 // Import implementations from bike-actions
 import { 
@@ -150,6 +151,13 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
         );
 
         await createFirestoreUser(cleanUserData as any);
+
+        // GAMIFICACIÓN: Puntos de bienvenida por crear cuenta
+        try {
+            await awardPoints(userRecord.uid, 'user_signup');
+        } catch (e) {
+            console.error("Error awarding signup points", e);
+        }
 
         // --- REFERRAL SYSTEM INTEGRATION ---
         try {
@@ -379,6 +387,18 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         };
 
         await updateUserData(session.uid, updatePayload);
+
+        // GAMIFICACIÓN: Verificar si el perfil está completo
+        if (
+            updatePayload.emergencyContactName && 
+            updatePayload.emergencyContactPhone && 
+            updatePayload.bloodType &&
+            updatePayload.state && 
+            updatePayload.city
+        ) {
+            // Intentar dar puntos (recordUniqueAction evita duplicados)
+            await recordUniqueAction(session.uid, 'profile_completion');
+        }
 
         revalidatePath('/dashboard/profile');
         return { 

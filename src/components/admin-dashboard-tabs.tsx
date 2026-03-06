@@ -9,15 +9,16 @@ import { FinancialSettingsForm } from '@/components/admin/financial-settings-for
 import { AdminEventFinancialList } from '@/components/admin/admin-event-financial-list';
 import { HomepageSection, User, OngUser, Event, FinancialSettings, LandingEventsContent, Bike, InsuranceRequest } from '@/lib/types';
 import { EventCard } from '@/components/ong/event-card';
-import { UserPlus, CalendarPlus, AlertTriangle, Megaphone, ShieldCheck } from 'lucide-react';
+import { UserPlus, CalendarPlus, AlertTriangle, Megaphone, ShieldCheck, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardFilterBar } from '@/components/admin/dashboard-filter-bar';
 import { NotificationComposer } from '@/components/admin/notifications/notification-composer';
-import { LandingEventsEditor } from './admin/landing-editor/landing-events-editor';
-import { StolenBikesList } from './admin/stolen-bikes-list';
+import { LandingEventsEditor } from '@/components/admin/landing-editor/landing-events-editor';
+import { StolenBikesList } from '@/components/admin/stolen-bikes-list';
 import { BikonGenerator } from '@/components/admin/bikon-generator';
 import { CampaignManager } from '@/components/admin/campaigns/campaign-manager';
 import { InsuranceList } from '@/components/admin/insurance/insurance-list';
+import { GamificationRulesEditor } from '@/components/admin/gamification/rules-editor';
 
 interface AdminDashboardTabsProps {
   homepageSections: HomepageSection[];
@@ -64,7 +65,7 @@ function AdminDashboardTabsContent({
     // Optimistic update via router.push which triggers re-render
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', value);
-    params.delete('subtab'); 
+    // params.delete('subtab'); // Removed to persist subtab state if needed, but usually good to reset
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
@@ -77,13 +78,17 @@ function AdminDashboardTabsContent({
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-      <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-8 mb-8 h-auto">
+      <TabsList className="flex flex-wrap h-auto gap-2 mb-8 bg-muted/50 p-2 rounded-lg">
         <TabsTrigger value="stats">Indicadores</TabsTrigger>
         <TabsTrigger value="thefts" className="gap-1.5">
             <AlertTriangle className="h-4 w-4 text-destructive" />
             Alertas
         </TabsTrigger>
         <TabsTrigger value="bikon">Bikon</TabsTrigger>
+        <TabsTrigger value="gamification" className="gap-1.5">
+            <Trophy className="h-4 w-4 text-yellow-500" />
+            Gamificación
+        </TabsTrigger>
         <TabsTrigger value="insurance" className="gap-1.5">
             <ShieldCheck className="h-4 w-4" />
             Seguros
@@ -115,6 +120,14 @@ function AdminDashboardTabsContent({
 
       <TabsContent value="bikon" className="space-y-6">
           <BikonGenerator initialDevices={bikonDevices} />
+      </TabsContent>
+
+      <TabsContent value="gamification" className="space-y-6">
+          <div className="flex flex-col gap-2 mb-6">
+              <h2 className="text-2xl font-bold">Rodada Infinita (KM)</h2>
+              <p className="text-muted-foreground">Configura las recompensas en kilómetros para incentivar a la comunidad.</p>
+          </div>
+          <GamificationRulesEditor />
       </TabsContent>
 
       <TabsContent value="insurance" className="space-y-6">

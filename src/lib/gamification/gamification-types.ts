@@ -19,6 +19,7 @@ export type GamificationProfile = {
     currentTier: 'novice' | 'bronze' | 'silver' | 'gold' | 'legend';
     stats: UserStats;
     badges: UserBadge[];
-    // Espacio para recompensas futuras
+    // Nuevas propiedades para Rodada Infinita
     pointsBalance?: number; 
+    lifetimePoints?: number;
 };

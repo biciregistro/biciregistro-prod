@@ -10,6 +10,7 @@ import { CURRENT_PRIVACY_POLICY_VERSION, MARKETING_CONSENT_TEXT } from '@/lib/le
 import { sendRegistrationEmail, sendOrganizerNewParticipantEmail } from '@/lib/email/resend-service';
 import type { MarketingConsent, EventCategory } from '@/lib/types';
 import crypto from 'crypto';
+import { awardPoints } from './gamification-actions';
 
 /**
  * Registra a un usuario en un evento.
@@ -112,6 +113,10 @@ export async function registerForEventAction(
     const result = await registerUserToEvent(registrationInput);
 
     if (result.success) {
+        
+        // GAMIFICACIÓN: Puntos por asistir (inscribirse) a evento
+        await awardPoints(session.uid, 'event_attendance', { eventId, registrationId: result.registrationId });
+
         revalidatePath(`/events/${eventId}`);
         revalidatePath(`/dashboard/events/${eventId}`);
         revalidatePath(`/dashboard/ong/events/${eventId}`);

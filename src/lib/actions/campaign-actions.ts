@@ -8,6 +8,7 @@ import { FieldValue, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { headers } from 'next/headers';
 import { getCampaignAnalytics } from '@/lib/data/campaign-analytics';
 import { EventAnalyticsData } from '@/lib/data/event-analytics';
+import { awardPoints } from '@/lib/actions/gamification-actions'; // Importar gamificación
 
 // --- User Facing Actions ---
 
@@ -143,6 +144,9 @@ export async function recordCampaignConversion(
         clickCount: FieldValue.increment(1),
         uniqueConversionCount: FieldValue.increment(1)
     });
+
+    // GAMIFICACIÓN: Puntos por participar
+    await awardPoints(userId, 'campaign_participation', { campaignId });
 
     return { success: true, message: 'Conversión registrada correctamente.' };
 

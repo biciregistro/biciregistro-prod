@@ -4,6 +4,7 @@ import { adminDb as db } from '@/lib/firebase/server';
 import { InsuranceRequest, InsuranceStatus } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { getAuthenticatedUser as getCurrentUser } from '@/lib/data';
+import { awardPoints } from '@/lib/actions/gamification-actions'; // Importar gamificación
 
 const COLLECTION = 'insurance_requests';
 
@@ -142,11 +143,20 @@ export async function updateQuoteDetails(
     const user = await getCurrentUser();
     if (!user || user.role !== 'admin') throw new Error('Unauthorized');
 
-    await db.collection(COLLECTION).doc(requestId).update({
+    const docRef = db.collection(COLLECTION).doc(requestId);
+    const prevSnap = await docRef.get();
+    const prevData = prevSnap.data() as InsuranceRequest;
+
+    await docRef.update({
         ...data,
         updatedAt: new Date().toISOString()
     });
     
+    // GAMIFICACIÓN: Si se actualiza el status a PAID (Pagado/Activo) desde aquí
+    if (data.status === 'PAID' && prevData.status !== 'PAID') {
+         await awardPoints(prevData.userId, 'insurance_purchase', { requestId, bikeId: prevData.bikeId });
+    }
+
     revalidatePath('/admin'); // Revalidar la ruta principal del admin
     return { success: true };
 }
@@ -155,10 +165,20 @@ export async function updateInsuranceStatus(requestId: string, status: Insurance
     const user = await getCurrentUser();
     if (!user || user.role !== 'admin') throw new Error('Unauthorized');
 
-    await db.collection(COLLECTION).doc(requestId).update({
+    const docRef = db.collection(COLLECTION).doc(requestId);
+    const prevSnap = await docRef.get();
+    const prevData = prevSnap.data() as InsuranceRequest;
+
+    await docRef.update({
         status,
         updatedAt: new Date().toISOString()
     });
+
+    // GAMIFICACIÓN: Puntos por seguro pagado
+    if (status === 'PAID' && prevData.status !== 'PAID') {
+         await awardPoints(prevData.userId, 'insurance_purchase', { requestId, bikeId: prevData.bikeId });
+    }
+
     revalidatePath('/admin'); // Revalidar la ruta principal del admin
     return { success: true };
 }

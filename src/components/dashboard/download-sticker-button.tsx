@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { User } from '@/lib/types';
 import { getOrCreateEmergencyQr } from '@/lib/actions/emergency-actions';
 import { cn } from '@/lib/utils';
+import { recordDownloadAction } from '@/lib/actions/download-actions'; // Importar acción de gamificación
 
 interface DownloadStickerButtonProps extends ButtonProps {
   user: User;
@@ -64,7 +65,6 @@ export function DownloadEmergencyStickerButton({ user, className, ...props }: Do
       });
 
       // 5. Generate PDF Blob
-      // Note: We use the component variable directly in JSX
       const blob = await pdf(
         <EmergencyPDFDocument qrDataUrl={qrDataUrl} userName={`${user.name} ${user.lastName || ''}`} />
       ).toBlob();
@@ -76,6 +76,9 @@ export function DownloadEmergencyStickerButton({ user, className, ...props }: Do
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      // GAMIFICACIÓN: Registrar descarga
+      await recordDownloadAction('qr');
       
       toast({
         title: "Etiqueta Generada",

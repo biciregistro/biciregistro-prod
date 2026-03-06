@@ -2,12 +2,19 @@
 
 import { revalidatePath } from 'next/cache';
 import { getAuthenticatedUser, updateUserData } from '../data';
+import { awardPoints } from './gamification-actions';
 
 export async function completeOnboardingAction(tourType: 'dashboard' | 'bike') {
     const user = await getAuthenticatedUser();
     if (!user) return { success: false, error: 'No autenticado' };
 
     const currentOnboarding = user.onboarding || { dashboardSeen: false, bikeDetailSeen: false };
+    
+    // Check if points should be awarded (only first time)
+    if (tourType === 'dashboard' && !currentOnboarding.dashboardSeen) {
+        // Run in background, don't block response
+        awardPoints(user.id, 'onboarding_complete', { tourType }).catch(console.error);
+    }
     
     const updatedOnboarding = {
         ...currentOnboarding,

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { cn } from '@/lib/utils';
+import { recordDownloadAction } from '@/lib/actions/download-actions'; // Importar acción de gamificación
 
 const styles = StyleSheet.create({
   page: {
@@ -152,9 +153,14 @@ export default function BikePDFDownloader({ bike, className }: { bike: Bike, cla
             
             const logoUrl = `${baseUrl}/logo.png`; 
 
+            // Crear el PDF en el cliente
+            // @ts-ignore
             const blob = await pdf(<BikePDFTag bike={bike} qrCodeUrl={qrCodeUrl} logoUrl={logoUrl} />).toBlob();
-            
             saveAs(blob, `etiqueta-seguridad-${bike.serialNumber}.pdf`);
+
+            // GAMIFICACIÓN: Registrar descarga
+            await recordDownloadAction('sticker');
+
         } catch (error) {
             console.error("Failed to generate and download PDF", error);
         } finally {
