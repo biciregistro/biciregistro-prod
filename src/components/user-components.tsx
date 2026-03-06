@@ -207,15 +207,22 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
 
     const password = form.watch(isEditing ? "newPassword" : "password");
 
-    // Initialize cities if state is already selected (e.g. on load)
+    // Fix: Watch specific fields to avoid infinite loops with form object dependency
+    const watchedCountry = form.watch('country');
+    const watchedState = form.watch('state');
+
+    // Initialize cities if state is already selected (e.g. on load) or changed
     useEffect(() => {
-        const currentCountry = form.getValues('country');
-        const currentState = form.getValues('state');
-        if (currentCountry && currentState) {
-             const availableCities = getCities(currentCountry, currentState);
+        if (watchedCountry && watchedState) {
+             const availableCities = getCities(watchedCountry, watchedState);
              setCities(availableCities);
+        } else {
+             // Optional: clear cities if state is cleared, 
+             // but handleStateChange usually handles this too.
+             // Keeping it safe here.
+             setCities([]);
         }
-    }, [user, form]);
+    }, [watchedCountry, watchedState]);
 
 
     useEffect(() => {
@@ -235,9 +242,15 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                 // If the password was changed, the server has already killed the session.
                 // Redirecting to login is the only necessary step.
                 router.push('/login');
+                // No reset needed here as we are navigating away
+                return;
             } else if (isEditing) {
-                // If only profile data was changed, redirect to dashboard.
-                router.push('/dashboard');
+                // If only profile data was changed, redirect to dashboard with a slight delay
+                // to allow toast and confetti to render properly without race conditions
+                const timer = setTimeout(() => {
+                    router.push('/dashboard');
+                }, 1500);
+                return () => clearTimeout(timer);
             } else if (state.customToken) {
                 // Handle new user signup session creation
                 setIsSigningIn(true);
@@ -273,7 +286,12 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                     }
                 };
                 handleSignInAndSession();
+                // Return here to avoid resetting form which might cause issues
+                return;
             }
+            
+            // Only reset form if we are NOT navigating away immediately
+            // This prevents "maximum update depth" errors when state updates conflict with unmounting
              form.reset({
                 ...form.getValues(),
                 currentPassword: "",

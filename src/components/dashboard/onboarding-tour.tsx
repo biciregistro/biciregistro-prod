@@ -97,23 +97,39 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
             steps = [
                 {
                     popover: {
-                        title: `¡Bienvenido al Centro de Mando! 🚲🛡️`,
-                        description: 'Aquí tienes todas las herramientas para blindar, rastrear y asegurar tu bicicleta.',
+                        title: `Expediente Digital: ${bikeName} 📂`,
+                        description: 'Este es el panel de control de tu unidad. Aquí gestionas su estatus legal, protección financiera y trazabilidad.',
                         side: 'bottom',
                         align: 'center',
                     }
                 },
                 {
                     element: '#tour-bike-edit',
-                    popover: { title: 'ADN al día', description: 'Mantén el registro impecable.', side: 'bottom', align: 'end' }
+                    popover: { title: 'Actualización de ADN 🧬', description: 'Mantén las características de tu bici al día. Un registro preciso es clave para la identificación en caso de robo.', side: 'bottom', align: 'end' }
                 },
                 {
                     element: '#tour-bike-insurance',
-                    popover: { title: 'Seguro 🛡️✨', description: 'Protección contra robo y accidentes.', side: 'top', align: 'start' }
+                    popover: { title: 'Respaldo Financiero 🛡️', description: 'Protege tu inversión. Cotiza y gestiona un seguro especializado contra robo y accidentes directamente desde la plataforma.', side: 'top', align: 'start' }
                 },
                 {
                     element: '#tour-bike-bikon',
-                    popover: { title: 'Radar Privado', description: 'Activa el rastreo GPS.', side: 'top', align: 'start' }
+                    popover: { title: 'Rastreo Satelital Activo 📡', description: 'Vincula un dispositivo GPS Bikon para monitoreo en tiempo real. La recuperación comienza con la localización.', side: 'top', align: 'start' }
+                },
+                {
+                    element: '#tour-bike-certificate',
+                    popover: { title: 'Certificado de Legitimidad 📜', description: 'Tu documento oficial de registro. Descárgalo para acreditar tu propiedad ante autoridades o compradores, avalado por nuestro ecosistema.', side: 'top', align: 'start' }
+                },
+                {
+                    element: '#tour-bike-ownership',
+                    popover: { title: 'Trazabilidad Legal 📄', description: 'El eslabón más fuerte. Sube tu factura o ticket para blindar legalmente la propiedad y facilitar reclamos de seguro.', side: 'top', align: 'start' }
+                },
+                {
+                    element: '#tour-bike-report',
+                    popover: { title: 'Protocolo de Robo 🚨', description: 'Activa la alerta a la comunidad y genera una ficha de búsqueda instantánea. La velocidad de reporte es vital para la recuperación.', side: 'top', align: 'start' }
+                },
+                {
+                    element: '#tour-bike-transfer',
+                    popover: { title: 'Transferencia de Dominio 🔄', description: '¿Vendes tu bici? Realiza un traspaso digital seguro. Garantiza al comprador que adquiere un bien lícito y mantiene el historial del activo.', side: 'top', align: 'start' }
                 }
             ];
         }
@@ -132,8 +148,8 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
                 if (!driverObj.isActive()) return;
                 driverObj.destroy();
                 completeOnboardingAction(tourType).then((res) => {
-                    // GAMIFICACIÓN: Celebrar fin de tour de dashboard
-                    if (tourType === 'dashboard' && res?.success) {
+                    // GAMIFICACIÓN: Celebrar fin de tour
+                    if (res?.success) {
                         showRewardToast(10, "¡Tour completado! Ya conoces las herramientas para blindar tu pasión.");
                     }
                 });

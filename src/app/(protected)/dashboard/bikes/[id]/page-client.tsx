@@ -24,6 +24,8 @@ import { BikeTheftShareMenu } from '@/components/dashboard/bike-theft-share-menu
 import { BikonLinker } from '@/components/bike-components/bikon-linker';
 import { OnboardingTour } from '@/components/dashboard/onboarding-tour';
 import { InsuranceCard } from '@/components/bike-components/insurance-card';
+import { useRouter } from 'next/navigation';
+import { useGamificationToast } from '@/hooks/use-gamification-toast';
 
 // Dynamic import for PDF downloaders
 const BikePDFDownloader = dynamic(
@@ -72,6 +74,8 @@ function OwnershipProofSection({ bike }: { bike: Bike }) {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
     const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
+    const { showRewardToast } = useGamificationToast();
+    const router = useRouter();
 
     useEffect(() => {
         if (!auth) return;
@@ -86,12 +90,21 @@ function OwnershipProofSection({ bike }: { bike: Bike }) {
     const handleUploadSuccess = (url: string) => {
         startTransition(async () => {
             try {
-                await updateOwnershipProof(bike.id, url);
-                toast({
-                    title: "Éxito",
-                    description: "El documento de propiedad se ha cargado y guardado.",
-                });
-                window.location.reload();
+                // Cast result to any because updateOwnershipProof returns { success: boolean, pointsAwarded?: number }
+                // but typescript definition might be lagging in the imports
+                const result = await updateOwnershipProof(bike.id, url) as any;
+                
+                if (result.success) {
+                    if (result.pointsAwarded && result.pointsAwarded > 0) {
+                        showRewardToast(result.pointsAwarded, "¡Documento blindado! Has aumentado la certeza jurídica de tu bicicleta.");
+                    } else {
+                        toast({
+                            title: "Éxito",
+                            description: "El documento de propiedad se ha cargado y guardado.",
+                        });
+                    }
+                    router.refresh();
+                }
             } catch (error) {
                 toast({
                     title: "Error",
@@ -282,7 +295,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                   </CardContent>
               </Card>
 
-              <Card>
+              <Card id="tour-bike-certificate">
                   <CardHeader>
                       <CardTitle>Certificado y Etiqueta QR</CardTitle>
                       <CardDescription>

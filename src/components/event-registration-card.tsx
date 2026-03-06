@@ -210,16 +210,26 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
             );
             
             if (result.success) {
-                toast({ title: "¡Inscripción Exitosa!", description: "Te has registrado correctamente al evento. Redirigiendo a tu panel..." });
+                // If points are awarded, the destination page will handle the toast/confetti via GamificationListener.
+                // We avoid showing a toast here to prevent conflicts and "Max update depth" errors.
+                if (!result.pointsAwarded) {
+                    toast({ title: "¡Inscripción Exitosa!", description: "Te has registrado correctamente al evento." });
+                }
+                
                 setIsConfirmModalOpen(false);
                 setIsWaiverModalOpen(false);
                 
-                // GAMIFICACIÓN: Redirigir con parámetros de confeti
                 let url = `/dashboard/events/${event.id}`;
                 if (result.pointsAwarded) {
                     url += `?points=30&action_type=event_join`;
                 }
-                router.push(url);
+                
+                // Delay redirection slightly to allow state updates to settle
+                // and avoid race conditions with unmounting components
+                setTimeout(() => {
+                    router.push(url);
+                }, 100);
+
             } else {
                 toast({ variant: "destructive", title: "Error en el registro", description: result.error || "Ocurrió un error inesperado." });
             }

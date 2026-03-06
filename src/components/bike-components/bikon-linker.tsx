@@ -19,6 +19,7 @@ import { Loader2, ShieldCheck, MapPin, ScanBarcode, Smartphone, Apple, CheckCirc
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useGamificationToast } from '@/hooks/use-gamification-toast'; // GAMIFICACIÓN
+import { useRouter } from 'next/navigation';
 
 interface BikonLinkerProps {
   bike: Bike;
@@ -36,6 +37,7 @@ export function BikonLinker({ bike, userId }: BikonLinkerProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { showRewardToast } = useGamificationToast(); // Hook
+  const router = useRouter();
 
   // Detectar OS al montar
   useEffect(() => {
@@ -105,7 +107,9 @@ export function BikonLinker({ bike, userId }: BikonLinkerProps) {
 
   const handleFinish = () => {
     setIsOpen(false);
-    window.location.reload();
+    // Use router.refresh() instead of window.reload() to maintain SPA state (toast, confetti)
+    // and provide a better UX.
+    router.refresh();
   };
 
   const openInstructions = () => {

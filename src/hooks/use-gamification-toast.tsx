@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { triggerConfetti } from '@/lib/confetti';
 import { Star } from 'lucide-react';
@@ -7,7 +8,7 @@ import { Star } from 'lucide-react';
 export function useGamificationToast() {
   const { toast } = useToast();
 
-  const showRewardToast = (points: number, message: string) => {
+  const showRewardToast = useCallback((points: number, message: string) => {
     // 1. Disparar confeti
     triggerConfetti();
 
@@ -22,7 +23,7 @@ export function useGamificationToast() {
       ),
       className: "border-yellow-400 border-2 bg-yellow-50 dark:bg-yellow-950/50 flex items-center gap-2",
     });
-  };
+  }, [toast]);
 
   return { showRewardToast };
 }
