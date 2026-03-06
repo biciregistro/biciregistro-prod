@@ -18,6 +18,7 @@ import { Bike } from '@/lib/types';
 import { Loader2, ShieldCheck, MapPin, ScanBarcode, Smartphone, Apple, CheckCircle2, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useGamificationToast } from '@/hooks/use-gamification-toast'; // GAMIFICACIÓN
 
 interface BikonLinkerProps {
   bike: Bike;
@@ -34,6 +35,7 @@ export function BikonLinker({ bike, userId }: BikonLinkerProps) {
   const [serialNumber, setSerialNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { showRewardToast } = useGamificationToast(); // Hook
 
   // Detectar OS al montar
   useEffect(() => {
@@ -79,10 +81,9 @@ export function BikonLinker({ bike, userId }: BikonLinkerProps) {
       const result = await linkBikonToBike(bike.id, userId, serialNumber.trim());
       
       if (result.success) {
-        toast({
-          title: '¡Código vinculado!',
-          description: 'Ahora procede a conectar el dispositivo con tu teléfono.',
-        });
+        // GAMIFICACIÓN
+        showRewardToast(200, "¡GPS Bikon vinculado! Tu bicicleta ahora cuenta con protección activa.");
+        
         setStep('instructions'); // Cambiar a paso de instrucciones
       } else {
         toast({

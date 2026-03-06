@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Download, ExternalLink } from 'lucide-react';
+import { useGamificationToast } from '@/hooks/use-gamification-toast'; // GAMIFICACIÓN
 
 interface CampaignWithAdvertiser extends Campaign {
     advertiserName?: string;
@@ -29,13 +30,13 @@ export function PromotionalBanner() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [consent, setConsent] = useState(false);
   const { toast } = useToast();
+  const { showRewardToast } = useGamificationToast(); // Hook
 
   useEffect(() => {
     async function loadCampaign() {
       try {
         const campaigns = await getActiveCampaigns('dashboard_main');
         if (campaigns.length > 0) {
-          // Select the most recent one or rotate randomly if multiple
           setCampaign(campaigns[0] as CampaignWithAdvertiser);
         }
       } catch (error) {
@@ -48,7 +49,7 @@ export function PromotionalBanner() {
   }, []);
 
   const handleCtaClick = () => {
-    setConsent(false); // Reset consent on open
+    setConsent(false);
     setIsModalOpen(true);
   };
 
@@ -63,7 +64,7 @@ export function PromotionalBanner() {
       const result = await recordCampaignConversion(campaign.id, {
           accepted: true,
           text: consentText
-      });
+      }) as any; // Cast for gamification check
 
       if (result?.error) {
         toast({
@@ -74,21 +75,14 @@ export function PromotionalBanner() {
         return;
       }
 
-      // Success
-      toast({
-        title: "¡Listo!",
-        description: campaign.type === 'download' 
-            ? "Tu descarga comenzará en breve." 
-            : "Redirigiendo...",
-      });
+      // GAMIFICACIÓN: Celebrar si es la primera vez en esta campaña
+      // recordCampaignConversion suma puntos via awardPoints en el server
+      // Asumimos 50 KM por defecto para campañas de leads
+      showRewardToast(50, `¡Beneficio desbloqueado! Gracias por participar en la campaña de ${campaign.advertiserName}.`);
 
       // Perform the action (Download or Redirect)
       if (campaign.assetUrl) {
-          if (campaign.type === 'download') {
-              window.open(campaign.assetUrl, '_blank');
-          } else {
-              window.open(campaign.assetUrl, '_blank');
-          }
+          window.open(campaign.assetUrl, '_blank');
       }
 
       setIsModalOpen(false);
@@ -107,11 +101,8 @@ export function PromotionalBanner() {
 
   return (
     <>
-      {/* Banner Container */}
       <div className="w-full mb-6 relative group cursor-pointer overflow-hidden rounded-xl border shadow-sm hover:shadow-md transition-all" onClick={handleCtaClick}>
-        {/* Responsive Image Handling */}
         <div className="relative w-full aspect-[3/1] md:aspect-[4/1] bg-gray-100">
-             {/* Fallback to regular banner if mobile not present */}
              <Image 
                 src={campaign.bannerImageUrl} 
                 alt={campaign.title}
@@ -123,7 +114,6 @@ export function PromotionalBanner() {
         </div>
       </div>
 
-      {/* Consent Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>

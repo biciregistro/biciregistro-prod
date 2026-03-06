@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { markAsRecovered } from '@/lib/actions/bike-actions';
 import { ShieldCheck } from 'lucide-react';
+import { useGamificationToast } from '@/hooks/use-gamification-toast'; // GAMIFICACIÓN
 
 function SubmitButton() {
     const { pending } = useFormStatus();
@@ -31,15 +32,16 @@ interface RecoverBikeButtonProps {
 export function RecoverBikeButton({ bikeId, onSuccess }: RecoverBikeButtonProps) {
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
+    const { showRewardToast } = useGamificationToast(); // Hook
     const router = useRouter();
 
     const handleRecovery = () => {
         startTransition(async () => {
             await markAsRecovered(bikeId);
-            toast({
-                title: "Bicicleta Actualizada",
-                description: "La bicicleta ha sido marcada como recuperada."
-            });
+            
+            // GAMIFICACIÓN
+            showRewardToast(100, "¡Qué gran noticia! Tu bicicleta ha sido recuperada. Sumaste kilómetros a tu perfil.");
+
             router.refresh();
             if (onSuccess) {
                 onSuccess();

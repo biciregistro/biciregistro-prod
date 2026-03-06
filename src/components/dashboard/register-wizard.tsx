@@ -230,7 +230,8 @@ export function RegisterWizard({ userRole }: RegisterWizardProps) {
     };
 
     setLoading(true);
-    const result = await registerBikeWizardAction(payload);
+    // Cast result to any to access pointsAwarded
+    const result = await registerBikeWizardAction(payload) as any;
     setLoading(false);
 
     if (result.success) {
@@ -242,7 +243,14 @@ export function RegisterWizard({ userRole }: RegisterWizardProps) {
         }
 
         const redirectPath = userRole === 'ong' ? '/dashboard/ong?tab=garage' : '/dashboard';
-        router.push(redirectPath);
+        
+        let finalPath = redirectPath;
+        if (result.pointsAwarded) {
+            const separator = finalPath.includes('?') ? '&' : '?';
+            finalPath += `${separator}points=50&action_type=bike_register`;
+        }
+
+        router.push(finalPath);
     } else {
         toast({ variant: "destructive", title: "Error", description: result.message });
     }

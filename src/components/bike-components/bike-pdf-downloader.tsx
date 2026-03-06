@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import { cn } from '@/lib/utils';
-import { recordDownloadAction } from '@/lib/actions/download-actions'; // Importar acción de gamificación
+import { recordDownloadAction } from '@/lib/actions/download-actions';
+import { useGamificationToast } from '@/hooks/use-gamification-toast';
 
 const styles = StyleSheet.create({
   page: {
@@ -140,6 +141,7 @@ const BikePDFTag = ({ bike, qrCodeUrl, logoUrl }: { bike: Bike; qrCodeUrl: strin
 
 export default function BikePDFDownloader({ bike, className }: { bike: Bike, className?: string }) {
     const [loading, setLoading] = useState(false);
+    const { showRewardToast } = useGamificationToast();
 
     const handleDownload = async () => {
         setLoading(true);
@@ -153,13 +155,15 @@ export default function BikePDFDownloader({ bike, className }: { bike: Bike, cla
             
             const logoUrl = `${baseUrl}/logo.png`; 
 
-            // Crear el PDF en el cliente
             // @ts-ignore
             const blob = await pdf(<BikePDFTag bike={bike} qrCodeUrl={qrCodeUrl} logoUrl={logoUrl} />).toBlob();
             saveAs(blob, `etiqueta-seguridad-${bike.serialNumber}.pdf`);
 
-            // GAMIFICACIÓN: Registrar descarga
-            await recordDownloadAction('sticker');
+            // GAMIFICACIÓN
+            const result = await recordDownloadAction('sticker') as any;
+            if (result && result.success && result.points) {
+                showRewardToast(result.points, "Por descargar tu primera etiqueta disuasiva.");
+            }
 
         } catch (error) {
             console.error("Failed to generate and download PDF", error);

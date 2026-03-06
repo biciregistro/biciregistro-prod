@@ -16,6 +16,7 @@ import { countries, type Country } from '@/lib/countries';
 import { getCities } from '@/lib/cities';
 import { userFormSchema } from '@/lib/schemas';
 import { signInWithToken, auth } from '@/lib/firebase/client';
+import { useGamificationToast } from '@/hooks/use-gamification-toast'; // GAMIFICACIÓN
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -152,6 +153,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
     const [isSigningIn, setIsSigningIn] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
+    const { showRewardToast } = useGamificationToast(); // Hook
     const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === (user?.country || 'México')));
     const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
     const [cities, setCities] = useState<string[]>([]);
@@ -221,8 +223,13 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
         if (!state) return;
 
         if (state.success) {
-            // This toast will show the message from the server action.
-            toast({ title: "Éxito", description: state.message });
+            
+            // GAMIFICACIÓN: Celebrar completitud de perfil si aplica
+            if (isEditing && state.pointsAwarded) {
+                showRewardToast(20, "¡Perfil Completado! Has fortalecido tu seguridad y ganado kilómetros.");
+            } else {
+                toast({ title: "Éxito", description: state.message });
+            }
             
             if (state.passwordChanged) {
                 // If the password was changed, the server has already killed the session.
@@ -251,11 +258,14 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                         if (!response.ok) throw new Error('La creación de la sesión en el servidor falló.');
                         toast({ title: '¡Éxito!', description: 'Por favor, completa tu perfil para continuar.' });
                         
-                        if (callbackUrl) {
-                            router.push(callbackUrl);
-                        } else {
-                            router.push('/dashboard/profile');
+                        let targetUrl = callbackUrl || '/dashboard/profile';
+                        // Add gamification welcome param if needed
+                        if (state.pointsAwarded) {
+                            const separator = targetUrl.includes('?') ? '&' : '?';
+                            targetUrl += `${separator}welcome=100`;
                         }
+                        router.push(targetUrl);
+
                     } catch (sessionError) {
                         toast({ title: 'Error de Sesión', description: 'No pudimos sincronizar tu sesión. Por favor, intenta iniciar sesión manualmente.', variant: 'destructive' });
                         setIsSigningIn(false);
@@ -293,7 +303,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                 description: state.error,
             });
         }
-    }, [state, toast, form, isEditing, router, callbackUrl]);
+    }, [state, toast, form, isEditing, router, callbackUrl, showRewardToast]);
 
     const handleCountryChange = (countryName: string) => {
         const country = countries.find(c => c.name === countryName);

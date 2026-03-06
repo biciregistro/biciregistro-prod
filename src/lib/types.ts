@@ -381,6 +381,7 @@ export type ActionFormState = {
   message?: string;
   customToken?: string;
   passwordChanged?: boolean;
+  pointsAwarded?: boolean; // Nuevo campo
 } | null;
 
 export type BikeFormState = {

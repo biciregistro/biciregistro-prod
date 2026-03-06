@@ -213,7 +213,13 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                 toast({ title: "¡Inscripción Exitosa!", description: "Te has registrado correctamente al evento. Redirigiendo a tu panel..." });
                 setIsConfirmModalOpen(false);
                 setIsWaiverModalOpen(false);
-                router.push(`/dashboard/events/${event.id}`);
+                
+                // GAMIFICACIÓN: Redirigir con parámetros de confeti
+                let url = `/dashboard/events/${event.id}`;
+                if (result.pointsAwarded) {
+                    url += `?points=30&action_type=event_join`;
+                }
+                router.push(url);
             } else {
                 toast({ variant: "destructive", title: "Error en el registro", description: result.error || "Ocurrió un error inesperado." });
             }

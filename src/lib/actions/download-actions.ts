@@ -4,8 +4,8 @@ import { recordUniqueAction } from './gamification-actions';
 
 export async function recordDownloadAction(type: 'sticker' | 'qr') {
     const session = await getDecodedSession();
-    if (!session?.uid) return;
+    if (!session?.uid) return { success: false, error: 'Unauthorized' };
 
     const actionId = type === 'sticker' ? 'download_sticker_pdf' : 'download_emergency_qr';
-    await recordUniqueAction(session.uid, actionId);
+    return await recordUniqueAction(session.uid, actionId);
 }

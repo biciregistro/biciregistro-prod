@@ -8,7 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { User } from '@/lib/types';
 import { getOrCreateEmergencyQr } from '@/lib/actions/emergency-actions';
 import { cn } from '@/lib/utils';
-import { recordDownloadAction } from '@/lib/actions/download-actions'; // Importar acción de gamificación
+import { recordDownloadAction } from '@/lib/actions/download-actions';
+import { useGamificationToast } from '@/hooks/use-gamification-toast';
 
 interface DownloadStickerButtonProps extends ButtonProps {
   user: User;
@@ -18,6 +19,7 @@ export function DownloadEmergencyStickerButton({ user, className, ...props }: Do
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { showRewardToast } = useGamificationToast();
 
   const handleDownload = async () => {
     // 1. Validation
@@ -78,12 +80,15 @@ export function DownloadEmergencyStickerButton({ user, className, ...props }: Do
       document.body.removeChild(link);
 
       // GAMIFICACIÓN: Registrar descarga
-      await recordDownloadAction('qr');
-      
-      toast({
-        title: "Etiqueta Generada",
-        description: "Tu PDF se ha descargado correctamente.",
-      });
+      const result = await recordDownloadAction('qr') as any;
+      if (result && result.success && result.points) {
+          showRewardToast(result.points, "Por descargar tu primer QR de emergencia.");
+      } else {
+          toast({
+            title: "Etiqueta Generada",
+            description: "Tu PDF se ha descargado correctamente.",
+          });
+      }
 
     } catch (error) {
       console.error('Error generating sticker:', error);

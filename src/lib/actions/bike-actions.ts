@@ -99,15 +99,13 @@ async function getClientIp(): Promise<string | undefined> {
     if (forwardedFor) {
         return forwardedFor.split(',')[0].trim();
     }
-    // En entornos locales o sin proxy, podría no estar disponible fácilmente desde headers
-    // pero para App Hosting/Vercel/Cloud Run, x-forwarded-for es el estándar.
     return undefined;
 }
 
 
 // --- Actions ---
 
-export async function registerBike(prevState: BikeFormState, formData: FormData): Promise<BikeFormState> {
+export async function registerBike(prevState: any, formData: FormData): Promise<any> {
     const session = await getDecodedSession();
     if (!session?.uid) {
         return { success: false, message: 'No estás autenticado.' };
@@ -135,7 +133,6 @@ export async function registerBike(prevState: BikeFormState, formData: FormData)
     }
 
     try {
-        // Capturar IP
         const ip = await getClientIp();
 
         const newBikeId = await addBike({
@@ -152,13 +149,15 @@ export async function registerBike(prevState: BikeFormState, formData: FormData)
             ].filter((url): url is string => !!url),
         });
 
-        // GAMIFICACIÓN: Otorgar puntos por registro
+        // GAMIFICACIÓN DINÁMICA
+        let pointsAwarded = 0;
         if (newBikeId) {
-            await awardPoints(session.uid, 'bike_registration', { bikeId: newBikeId });
+            const pointsResult = await awardPoints(session.uid, 'bike_registration', { bikeId: newBikeId });
+            pointsAwarded = pointsResult?.points || 0;
         }
 
         revalidatePath('/dashboard');
-        return { success: true, message: '¡Bicicleta registrada exitosamente!' };
+        return { success: true, message: '¡Bicicleta registrada exitosamente!', pointsAwarded };
 
     } catch (error) {
         console.error("Database error during bike registration:", error);
@@ -254,7 +253,7 @@ export async function reportTheft(prevState: any, formData: FormData) {
                         reward: theftData.reward,
                         ownerName: ownerName,
                         ownerPhone: ownerPhone,
-                        contactProfile: theftData.contactProfile // Pasar nuevo campo
+                        contactProfile: theftData.contactProfile 
                     });
                 }
             }
@@ -264,7 +263,7 @@ export async function reportTheft(prevState: any, formData: FormData) {
 
         revalidatePath('/dashboard');
         revalidatePath(`/dashboard/bikes/${bikeId}`);
-        revalidatePath('/admin'); // Revalidar admin panel para ver la nueva alerta
+        revalidatePath('/admin'); 
         return { message: 'El robo ha sido reportado exitosamente.' };
     } catch (error) {
         console.error("Error reporting theft:", error);
@@ -276,21 +275,23 @@ export async function reportTheft(prevState: any, formData: FormData) {
 export async function markAsRecovered(bikeId: string) {
     const session = await getDecodedSession();
     if (!session?.uid) {
-        return;
+        return { success: false, error: 'Unauthorized' };
     }
     try {
         await updateBikeData(bikeId, {
             status: 'recovered',
         });
 
-        // GAMIFICACIÓN: Otorgar puntos por recuperar bici
-        await awardPoints(session.uid, 'bike_recovery', { bikeId });
+        // GAMIFICACIÓN DINÁMICA
+        const pointsResult = await awardPoints(session.uid, 'bike_recovery', { bikeId });
 
         revalidatePath('/dashboard');
         revalidatePath(`/dashboard/bikes/${bikeId}`);
         revalidatePath('/admin');
+        return { success: true, pointsAwarded: pointsResult?.points || 0 };
     } catch (error) {
         console.error("Failed to mark as recovered:", error);
+        return { success: false, error: 'Internal Error' };
     }
 }
 
@@ -302,7 +303,6 @@ export async function markBikeAsSharedAction(bikeId: string) {
     }
 
     try {
-        // Solo administradores pueden marcar como compartido (Verificación simple de rol en Firestore)
         const userDoc = await adminDb.collection('users').doc(session.uid).get();
         const userData = userDoc.data();
         
@@ -332,17 +332,18 @@ export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
             ownershipProof: proofUrl,
         });
         
-        // GAMIFICACIÓN: Puntos por verificar documentos
-        await awardPoints(session.uid, 'document_verification', { bikeId });
+        // GAMIFICACIÓN DINÁMICA
+        const pointsResult = await awardPoints(session.uid, 'document_verification', { bikeId });
 
         revalidatePath(`/dashboard/bikes/${bikeId}`);
+        return { success: true, pointsAwarded: pointsResult?.points || 0 };
     } catch (error) {
         console.error("Failed to update ownership proof:", error);
         throw new Error("Could not update ownership proof.");
     }
 }
 
-export async function transferOwnership(prevState: { error?: string; success?: boolean }, formData: FormData): Promise<{ error?: string; success?: boolean }> {
+export async function transferOwnership(prevState: { error?: string; success?: boolean }, formData: FormData): Promise<{ error?: string; success?: boolean, pointsAwarded?: number }> {
     const session = await getDecodedSession();
     if (!session?.uid) {
         return { error: 'Debes iniciar sesión para transferir la propiedad.' };
@@ -382,12 +383,12 @@ export async function transferOwnership(prevState: { error?: string; success?: b
 
         await updateBikeData(bikeId, { userId: newOwner.id });
         
-        // GAMIFICACIÓN: Puntos al vendedor por ceder propiedad correctamente
-        await awardPoints(currentUserId, 'ownership_transfer', { bikeId, newOwnerId: newOwner.id });
+        // GAMIFICACIÓN DINÁMICA
+        const pointsResult = await awardPoints(currentUserId, 'ownership_transfer', { bikeId, newOwnerId: newOwner.id });
 
         revalidatePath('/dashboard');
         
-        return { success: true };
+        return { success: true, pointsAwarded: pointsResult?.points || 0 };
 
     } catch (error) {
         console.error('Error al transferir la propiedad:', error);
@@ -425,7 +426,6 @@ export async function registerBikeWizardAction(formData: any) {
             };
         }
 
-        // Capturar IP
         const ip = await getClientIp();
 
         const newBikeId = await addBike({
@@ -442,13 +442,15 @@ export async function registerBikeWizardAction(formData: any) {
             photos: photoUrls,
         });
 
-        // GAMIFICACIÓN: Puntos por registro wizard
+        // GAMIFICACIÓN DINÁMICA
+        let pointsAwarded = 0;
         if (newBikeId) {
-            await awardPoints(userId, 'bike_registration', { bikeId: newBikeId, method: 'wizard' });
+            const pointsResult = await awardPoints(userId, 'bike_registration', { bikeId: newBikeId, method: 'wizard' });
+            pointsAwarded = pointsResult?.points || 0;
         }
 
         revalidatePath('/dashboard');
-        return { success: true, message: '¡Bicicleta registrada exitosamente con Sprock!' };
+        return { success: true, message: '¡Bicicleta registrada exitosamente con Sprock!', pointsAwarded };
 
     } catch (error: any) {
         console.error("Wizard Registration Error:", error);

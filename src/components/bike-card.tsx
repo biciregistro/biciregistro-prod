@@ -1,8 +1,8 @@
 'use client';
 
+import { useActionState, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useActionState, useEffect, useState, useCallback } from 'react';
 import { useFormStatus } from 'react-dom';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -106,10 +106,10 @@ export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
                     {/* Header */}
                     <div className="flex justify-between items-start mb-2">
                         <div>
-                            <CardTitle className="text-2xl">{bike.make} {bike.model}</CardTitle>
+                            <CardTitle className="text-2xl text-ellipsis overflow-hidden whitespace-nowrap max-w-[200px] md:max-w-none">{bike.make} {bike.model}</CardTitle>
                             <CardDescription className="font-mono">{bike.serialNumber}</CardDescription>
                         </div>
-                        <Badge className={cn("text-base", bikeStatusStyles[bike.status])}>
+                        <Badge className={cn("text-base whitespace-nowrap", bikeStatusStyles[bike.status])}>
                             {bikeStatusTexts[bike.status]}
                         </Badge>
                     </div>
@@ -143,7 +143,6 @@ export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
                                         <DialogTitle>Reportar el Robo de tu Bicicleta</DialogTitle>
                                         <DialogDescription>
                                             Estás a punto de reportar tu {bike.make} {bike.model} como robada.
-                                            Por favor, proporciona los detalles del incidente.
                                         </DialogDescription>
                                     </DialogHeader>
                                     <TheftReportForm 
@@ -256,11 +255,16 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                 if (onSuccess) {
                     onSuccess();
                 } else {
-                    router.push('/dashboard');
+                    // GAMIFICACIÓN: Redirigir con parámetros de puntos si es nuevo registro
+                    if (!isEditing && state.pointsAwarded) {
+                        router.push('/dashboard?points=50&action_type=bike_register');
+                    } else {
+                        router.push('/dashboard');
+                    }
                 }
             }
         }
-    }, [state, toast, onSuccess, router]);
+    }, [state, toast, onSuccess, router, isEditing]);
 
     return (
         <Form {...form}>
@@ -286,7 +290,7 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                                     <RequiredLabel>Número de Serie</RequiredLabel>
                                     <FormControl>
                                         <Input 
-                                            placeholder="Ubicado en la parte inferior del cuadro de tu bicicleta" 
+                                            placeholder="Ubicado en la parte inferior del cuadro" 
                                             {...field}
                                             onBlur={(e) => {
                                                 field.onBlur();
@@ -377,39 +381,18 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                             <div className="space-y-2">
                                 <Label>Foto Lateral <span className="text-red-500">*</span></Label>
                                 <ImageUpload onUploadSuccess={setPhotoUrl} storagePath="bike-photos" disabled={!authUser} />
-                                <p className="text-xs text-muted-foreground">Toma una foto completa del costado de tu bicicleta.</p>
-                                {state?.errors?.photoUrl && (
-                                    <p className="text-sm font-medium text-destructive">
-                                        {state.errors.photoUrl[0]}
-                                    </p>
-                                )}
+                                <p className="text-xs text-muted-foreground">Toma una foto completa del costado.</p>
                             </div>
                             <div className="space-y-2">
                                 <Label>Foto de Número de Serie <span className="text-red-500">*</span></Label>
                                 <ImageUpload onUploadSuccess={setSerialNumberPhotoUrl} storagePath="serial-photos" disabled={!authUser} />
-                                <p className="text-xs text-muted-foreground">Toma una foto clara y legible del número de serie.</p>
-                                {state?.errors?.serialNumberPhotoUrl && (
-                                    <p className="text-sm font-medium text-destructive">
-                                        {state.errors.serialNumberPhotoUrl[0]}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Foto Adicional 1 (Componentes)</Label>
-                                <ImageUpload onUploadSuccess={setAdditionalPhoto1Url} storagePath="bike-photos" disabled={!authUser} />
-                                <p className="text-xs text-muted-foreground">Foto de alguna modificación o componente específico.</p>
-                            </div>
-                             <div className="space-y-2">
-                                <Label>Foto Adicional 2 (Seña Particular)</Label>
-                                <ImageUpload onUploadSuccess={setAdditionalPhoto2Url} storagePath="bike-photos" disabled={!authUser} />
-                                <p className="text-xs text-muted-foreground">Foto de alguna otra seña particular o componente.</p>
+                                <p className="text-xs text-muted-foreground">Toma una foto clara del número.</p>
                             </div>
                         </div>
                         
                         <div className="space-y-2 pt-4">
                             <Label>Prueba de Propiedad</Label>
                             <ImageUpload onUploadSuccess={setOwnershipProofUrl} storagePath={`ownership-proofs/${userId}`} disabled={!authUser} />
-                            <p className="text-xs text-muted-foreground">Sube la factura, recibo o alguna otra prueba de propiedad (opcional).</p>
                         </div>
                         <input type="hidden" name="photoUrl" value={photoUrl} />
                         <input type="hidden" name="serialNumberPhotoUrl" value={serialNumberPhotoUrl} />

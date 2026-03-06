@@ -31,7 +31,7 @@ export async function registerForEventAction(
     jerseySize?: string,
     allergies?: string,
     customAnswers?: Record<string, string | string[]>
-): Promise<{ success: boolean; error?: string; message?: string }> {
+): Promise<{ success: boolean; error?: string; message?: string; pointsAwarded?: boolean }> {
     const session = await getDecodedSession();
     
     if (!session?.uid) {
@@ -115,7 +115,7 @@ export async function registerForEventAction(
     if (result.success) {
         
         // GAMIFICACIÓN: Puntos por asistir (inscribirse) a evento
-        await awardPoints(session.uid, 'event_attendance', { eventId, registrationId: result.registrationId });
+        const pointsAwarded = await awardPoints(session.uid, 'event_attendance', { eventId, registrationId: result.registrationId });
 
         revalidatePath(`/events/${eventId}`);
         revalidatePath(`/dashboard/events/${eventId}`);
@@ -152,7 +152,7 @@ export async function registerForEventAction(
             console.error(`[CRITICAL] Failed to send registration emails for regId: ${result.registrationId}`, emailError);
         }
 
-        return { success: true, message: result.message };
+        return { success: true, message: result.message, pointsAwarded: !!pointsAwarded?.success };
     } else {
         return { success: false, error: result.error };
     }
