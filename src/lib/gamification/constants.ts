@@ -84,7 +84,7 @@ export const GAMIFICATION_RULES: Record<GamificationRuleId, GamificationRule> = 
     insurance_purchase: {
         id: 'insurance_purchase',
         label: 'Contratar Seguro',
-        description: 'Puntos por proteger la bicicleta con un seguro aliado (Clupp)',
+        description: 'Puntos al contratar desde la app y subir tu póliza para validar la protección',
         defaultPoints: 200
     },
     download_sticker_pdf: {

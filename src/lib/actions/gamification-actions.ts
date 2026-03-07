@@ -168,3 +168,33 @@ export async function getGamificationRules() {
         return {};
     }
 }
+
+/**
+ * Public: Get catalog with merged static and dynamic data for UI
+ */
+export async function getPublicGamificationCatalog() {
+    try {
+        const dynamicRules = await getGamificationRules();
+        
+        const catalog = Object.values(GAMIFICATION_RULES).map(rule => {
+            // Check dynamic override
+            const dynamicPoints = dynamicRules && typeof dynamicRules[`${rule.id}_points`] === 'number' 
+                ? dynamicRules[`${rule.id}_points`] 
+                : rule.defaultPoints;
+
+            return {
+                id: rule.id,
+                label: rule.label,
+                description: rule.description,
+                points: dynamicPoints,
+                type: ['user_signup', 'profile_completion', 'download_sticker_pdf', 'download_emergency_qr'].includes(rule.id) ? 'once' : 'recurring'
+            };
+        });
+
+        // Ordenar por puntos (opcional)
+        return { success: true, data: catalog.sort((a, b) => b.points - a.points) };
+    } catch (error) {
+        console.error("Error fetching public catalog", error);
+        return { success: false, error: "Failed to load rules" };
+    }
+}

@@ -14,6 +14,8 @@ import Link from 'next/link';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { cn } from '@/lib/utils';
 import { InsuranceStepper } from './insurance-stepper';
+import { useRouter } from 'next/navigation';
+import { useGamificationToast } from '@/hooks/use-gamification-toast';
 
 interface InsuranceCardProps {
     bike: Bike;
@@ -26,6 +28,8 @@ export function InsuranceCard({ bike, user, insuranceRequest }: InsuranceCardPro
     const [isPending, startTransition] = useTransition();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [termsAccepted, setTermsAccepted] = useState(false);
+    const { showRewardToast } = useGamificationToast();
+    const router = useRouter();
     
     // Derived state
     const hasOwnershipProof = !!bike.ownershipProof;
@@ -82,8 +86,17 @@ export function InsuranceCard({ bike, user, insuranceRequest }: InsuranceCardPro
     const handlePolicyUpload = (url: string) => {
          if (!insuranceRequest) return;
          startTransition(async () => {
-             await uploadPolicyUrl(insuranceRequest.id, url);
-             toast({ title: "Póliza Subida", description: "Tu seguro está activo y documentado." });
+             // Cast result to any to access pointsAwarded
+             const result = await uploadPolicyUrl(insuranceRequest.id, url) as any;
+             
+             if (result.success) {
+                 if (result.pointsAwarded && result.pointsAwarded > 0) {
+                     showRewardToast(result.pointsAwarded, "¡Seguro Activado! Tu bicicleta ahora cuenta con protección financiera.");
+                 } else {
+                     toast({ title: "Póliza Subida", description: "Tu seguro está activo y documentado." });
+                 }
+                 router.refresh();
+             }
         });
     };
 

@@ -4,7 +4,7 @@ import { adminDb as db } from '@/lib/firebase/server';
 import { InsuranceRequest, InsuranceStatus } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { getAuthenticatedUser as getCurrentUser } from '@/lib/data';
-import { awardPoints } from '@/lib/actions/gamification-actions'; // Importar gamificación
+import { awardPoints, recordUniqueAction } from '@/lib/actions/gamification-actions'; // Importar gamificación
 
 const COLLECTION = 'insurance_requests';
 
@@ -105,19 +105,29 @@ export async function rejectQuote(requestId: string) {
 }
 
 export async function uploadPolicyUrl(requestId: string, url: string) {
-     const user = await getCurrentUser();
+    const user = await getCurrentUser();
     if (!user) throw new Error('Unauthorized');
     
-    await db.collection(COLLECTION).doc(requestId).update({
+    const docRef = db.collection(COLLECTION).doc(requestId);
+    const docSnap = await docRef.get();
+    
+    if (!docSnap.exists) throw new Error('Request not found');
+    const data = docSnap.data() as InsuranceRequest;
+
+    await docRef.update({
         policyUrl: url,
         updatedAt: new Date().toISOString()
     });
-     const doc = await db.collection(COLLECTION).doc(requestId).get();
-    if (doc.exists) {
-        const data = doc.data() as InsuranceRequest;
-        revalidatePath(`/dashboard/bikes/${data.bikeId}`);
-    }
-    return { success: true };
+
+    // GAMIFICACIÓN: Intentar otorgar puntos si no se han dado antes
+    const pointsResult = await recordUniqueAction(user.id, 'insurance_purchase', { requestId, bikeId: data.bikeId });
+
+    revalidatePath(`/dashboard/bikes/${data.bikeId}`);
+    
+    // Type-safe extraction of points
+    const points = (pointsResult && pointsResult.success && 'points' in pointsResult) ? (pointsResult as any).points : 0;
+
+    return { success: true, pointsAwarded: points };
 }
 
 // --- Actions for Admin ---
@@ -154,7 +164,7 @@ export async function updateQuoteDetails(
     
     // GAMIFICACIÓN: Si se actualiza el status a PAID (Pagado/Activo) desde aquí
     if (data.status === 'PAID' && prevData.status !== 'PAID') {
-         await awardPoints(prevData.userId, 'insurance_purchase', { requestId, bikeId: prevData.bikeId });
+         await recordUniqueAction(prevData.userId, 'insurance_purchase', { requestId, bikeId: prevData.bikeId });
     }
 
     revalidatePath('/admin'); // Revalidar la ruta principal del admin
@@ -176,7 +186,7 @@ export async function updateInsuranceStatus(requestId: string, status: Insurance
 
     // GAMIFICACIÓN: Puntos por seguro pagado
     if (status === 'PAID' && prevData.status !== 'PAID') {
-         await awardPoints(prevData.userId, 'insurance_purchase', { requestId, bikeId: prevData.bikeId });
+         await recordUniqueAction(prevData.userId, 'insurance_purchase', { requestId, bikeId: prevData.bikeId });
     }
 
     revalidatePath('/admin'); // Revalidar la ruta principal del admin
