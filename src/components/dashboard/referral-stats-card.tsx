@@ -5,16 +5,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Share2, Trophy, Gauge, Star, Info } from 'lucide-react';
+import { Share2, Trophy, Gauge, Star, Info, Wallet } from 'lucide-react';
 import { getReferralData, ReferralData } from '@/lib/actions/referral-actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { GamificationRulesSheet } from './gamification-rules-sheet';
 import { cn } from '@/lib/utils';
+import { getAuthenticatedUser } from '@/lib/data'; // Importar para obtener el balance real
+import { User } from '@/lib/types';
 
-export function ReferralStatsCard() {
+interface ReferralStatsCardProps {
+    user?: User | null;
+}
+
+export function ReferralStatsCard({ user }: ReferralStatsCardProps) {
     const [data, setData] = useState<ReferralData | null>(null);
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
+
+    // El balance disponible real en vivo
+    const pointsBalance = user?.gamification?.pointsBalance || 0;
 
     useEffect(() => {
         getReferralData().then((res) => {
@@ -57,15 +66,15 @@ export function ReferralStatsCard() {
 
     if (!data) return null;
 
-    // Calcular progreso usando Kilómetros
-    const currentKm = data.totalKm || 0;
+    // Calcular progreso usando Kilómetros Históricos (Lifetime) para el Nivel
+    const lifetimeKm = data.totalKm || 0;
     const kmNeeded = data.kmToNextTier || 0;
-    const nextTierTotal = currentKm + kmNeeded;
+    const nextTierTotal = lifetimeKm + kmNeeded;
     
     const progress = !data.nextTierLabel 
         ? 100 
         : nextTierTotal > 0 
-            ? Math.min(100, (currentKm / nextTierTotal) * 100) 
+            ? Math.min(100, (lifetimeKm / nextTierTotal) * 100) 
             : 0;
 
     // Helper para los colores de los materiales de los badges
@@ -80,19 +89,19 @@ export function ReferralStatsCard() {
     };
 
     const StatusBlock = () => (
-        <div className="flex items-center gap-3 shrink-0">
-            <div className={cn(
+        <div className="flex flex-row sm:flex-col items-center sm:items-end justify-start sm:justify-center gap-2 sm:gap-1 shrink-0">
+             <div className={cn(
                 "px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors duration-500",
                 getTierStyles(data.tierLabel)
             )}>
                 Nivel {data.tierLabel}
             </div>
             {data.nextTierLabel ? (
-                <span className="text-xs text-muted-foreground leading-none">
-                    Faltan <span className="font-bold text-foreground">{kmNeeded} KM</span> para {data.nextTierLabel}
+                <span className="text-[10px] text-muted-foreground leading-none">
+                    Faltan {kmNeeded} KM para {data.nextTierLabel}
                 </span>
             ) : (
-                <span className="text-green-600 font-bold text-xs leading-none uppercase tracking-tight">¡Nivel Máximo!</span>
+                <span className="text-green-600 font-bold text-[10px] leading-none uppercase tracking-tight">¡Nivel Máximo!</span>
             )}
         </div>
     );
@@ -102,7 +111,7 @@ export function ReferralStatsCard() {
             <CardHeader className="pb-2">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
                     <div className="flex flex-col gap-2 sm:gap-1 flex-1">
-                        <div className="sm:hidden w-full flex justify-start">
+                        <div className="sm:hidden w-full">
                             <StatusBlock />
                         </div>
 
@@ -111,7 +120,7 @@ export function ReferralStatsCard() {
                             ¡Acumula kilómetros y gana premios!
                         </CardTitle>
                         
-                        <CardDescription className="text-xs md:text-sm leading-relaxed text-muted-foreground w-full">
+                        <CardDescription className="text-xs md:text-sm leading-relaxed text-muted-foreground w-full pr-4">
                             Acumula kilómetros invitando amigos y realizando acciones positivas en la comunidad. 
                             <GamificationRulesSheet>
                                 <button className="ml-1 text-primary font-bold hover:underline inline-flex items-center gap-0.5 group">
@@ -127,35 +136,46 @@ export function ReferralStatsCard() {
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="space-y-5">
+                <div className="space-y-5 mt-2">
+                    {/* Progress Bar for Tiers (Lifetime KM) */}
                     <div>
-                        <div className="flex justify-between text-sm mb-2">
-                            <span className="text-muted-foreground flex items-center gap-1 font-medium">
-                                <Gauge className="h-4 w-4 text-primary" />
-                                {currentKm} KM Recorridos
-                            </span>
-                            <span className="text-[10px] font-bold text-primary bg-primary/5 px-2 py-0.5 rounded-md">
-                                {Math.round(progress)}%
+                        <div className="flex justify-between text-xs mb-1.5 px-1">
+                            <span className="text-muted-foreground font-medium">Progreso de Nivel</span>
+                            <span className="font-bold text-muted-foreground">
+                                {lifetimeKm} / {nextTierTotal} KM Históricos
                             </span>
                         </div>
                         <Progress value={progress} className="h-2 w-full" indicatorClassName="bg-yellow-500" />
-                        <p className="text-[10px] text-muted-foreground mt-1 text-right">
-                            {data.stats.referralsCount} amigos invitados
-                        </p>
                     </div>
 
-                    <div className="space-y-2">
-                        <Button onClick={handleShare} className="w-full gap-2 font-semibold" size="default">
-                            <Share2 className="h-4 w-4" />
-                            Invitar a mis amigos
-                        </Button>
-                        <p className="text-[10px] text-center text-muted-foreground">
-                           Tu enlace: <span className="font-mono select-all hover:text-primary transition-colors cursor-pointer" onClick={() => {
-                               const textToCopy = `¡Hola! Te invito a usar mi enlace para blindar tu bici con *Biciregistro*... ${data.shareUrl}`;
-                               navigator.clipboard.writeText(textToCopy);
-                               toast({ title: "Copiado", description: "Enlace copiado." });
-                           }}>{data.shareUrl}</span>
-                        </p>
+                    {/* Spendable Balance and Actions */}
+                    <div className="flex flex-col sm:flex-row gap-4 items-center bg-white p-3 rounded-lg border shadow-sm">
+                         <div className="flex flex-col items-center sm:items-start flex-1 w-full border-b sm:border-b-0 sm:border-r pb-3 sm:pb-0 sm:pr-4 border-slate-100">
+                             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
+                                 <Wallet className="w-3 h-3" /> Saldo Disponible
+                             </span>
+                             <div className="flex items-baseline gap-1">
+                                <span className="text-3xl font-black text-emerald-600 font-mono tracking-tight">{pointsBalance}</span>
+                                <span className="text-sm font-bold text-emerald-600/70">KM</span>
+                             </div>
+                             <span className="text-[10px] text-muted-foreground mt-1 text-center sm:text-left">
+                                Listos para canjear por recompensas
+                             </span>
+                         </div>
+                         
+                         <div className="flex-1 w-full space-y-2">
+                            <Button onClick={handleShare} className="w-full gap-2 font-semibold bg-primary hover:bg-primary/90 text-white shadow-sm" size="sm">
+                                <Share2 className="h-4 w-4" />
+                                Invitar a mis amigos
+                            </Button>
+                            <p className="text-[10px] text-center text-muted-foreground px-2">
+                               <span className="font-mono select-all hover:text-primary transition-colors cursor-pointer truncate block w-full" onClick={() => {
+                                   const textToCopy = `¡Hola! Te invito a usar mi enlace para blindar tu bici con *Biciregistro*... ${data.shareUrl}`;
+                                   navigator.clipboard.writeText(textToCopy);
+                                   toast({ title: "Copiado", description: "Enlace copiado." });
+                               }}>{data.shareUrl}</span>
+                            </p>
+                         </div>
                     </div>
                 </div>
             </CardContent>

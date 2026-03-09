@@ -2,6 +2,8 @@ import { Resend } from 'resend';
 import { getRegistrationEmailTemplate } from './templates/registration';
 import { getWelcomeEmailTemplate } from './templates/welcome';
 import { getOrganizerNotificationEmailTemplate } from './templates/organizer-notification';
+import { getCyclistRewardTemplate, CyclistRewardTemplateProps } from './templates/reward-cyclist';
+import { getOngRewardTemplate, OngRewardTemplateProps } from './templates/reward-ong';
 import { Event, User, EventRegistration } from '@/lib/types';
 
 // Initialize Resend only if API key is present
@@ -157,6 +159,78 @@ export async function sendOrganizerNewParticipantEmail({
         return { success: true, id: data?.id };
     } catch (error) {
         console.error("Email Service Exception (Organizer Notification):", error);
+        return { success: false, error };
+    }
+}
+
+export async function sendRewardPurchaseEmail(toEmail: string, props: Omit<CyclistRewardTemplateProps, 'appUrl'>) {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
+    const appUrl = `${baseUrl}/dashboard?tab=rewards`;
+    
+    const { subject, html, text } = getCyclistRewardTemplate({
+        ...props,
+        appUrl
+    });
+
+    if (!resend) {
+        console.log('--- [MOCK REWARD USER EMAIL] ---');
+        console.log(`To: ${toEmail}`);
+        console.log(`Subject: ${subject}`);
+        console.log('--------------------------------');
+        return { success: true, id: 'mock-reward-user-id' };
+    }
+
+    try {
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [toEmail],
+            subject: subject,
+            html: html,
+            text: text
+        });
+
+        if (error) {
+            console.error("Resend API Error (Reward User):", error.name, error.message);
+            return { success: false, error };
+        }
+
+        console.log("Reward User Email sent successfully:", data?.id);
+        return { success: true, id: data?.id };
+    } catch (error: any) {
+        console.error("Email Service Exception (Reward User):", error.message || error);
+        return { success: false, error };
+    }
+}
+
+export async function sendRewardPurchaseOngEmail(toEmail: string, props: OngRewardTemplateProps) {
+    const { subject, html, text } = getOngRewardTemplate(props);
+
+    if (!resend) {
+        console.log('--- [MOCK REWARD ONG EMAIL] ---');
+        console.log(`To: ${toEmail}`);
+        console.log(`Subject: ${subject}`);
+        console.log('-------------------------------');
+        return { success: true, id: 'mock-reward-ong-id' };
+    }
+
+    try {
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [toEmail],
+            subject: subject,
+            html: html,
+            text: text
+        });
+
+        if (error) {
+            console.error("Resend API Error (Reward ONG):", error.name, error.message);
+            return { success: false, error };
+        }
+
+        console.log("Reward ONG Email sent successfully:", data?.id);
+        return { success: true, id: data?.id };
+    } catch (error: any) {
+        console.error("Email Service Exception (Reward ONG):", error.message || error);
         return { success: false, error };
     }
 }

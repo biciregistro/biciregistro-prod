@@ -13,6 +13,7 @@ import { DownloadEmergencyStickerButton } from '@/components/dashboard/download-
 import { OnboardingTour } from '@/components/dashboard/onboarding-tour';
 
 import { PlusCircle, User as UserIcon } from 'lucide-react';
+import { getActiveRewards, getUserRewards } from '@/lib/actions/reward-actions';
 
 // --- Helper function to check if the user profile is complete ---
 const isProfileComplete = (user: User): boolean => {
@@ -81,9 +82,15 @@ export default async function DashboardPage() {
     }
 
     const profileIsComplete = isProfileComplete(user);
-    const bikes = profileIsComplete ? await getBikes(user.id) : [];
-    // Optimization: Don't fetch registrations if profile is incomplete
-    const allRegistrations = profileIsComplete ? await getUserEventRegistrations(user.id) : [];
+    
+    // Concurrently fetch all necessary data to optimize loading times
+    const [bikes, allRegistrations, activeRewards, userPurchases] = await Promise.all([
+        profileIsComplete ? getBikes(user.id) : Promise.resolve([]),
+        profileIsComplete ? getUserEventRegistrations(user.id) : Promise.resolve([]),
+        getActiveRewards(),
+        getUserRewards()
+    ]);
+
     // Filter out cancelled registrations so they don't clutter the dashboard
     const registrations = allRegistrations.filter(reg => reg.status !== 'cancelled');
 
@@ -100,7 +107,7 @@ export default async function DashboardPage() {
             {/* Referral Stats Card */}
             {profileIsComplete && (
                 <div className="mb-8">
-                    <ReferralStatsCard />
+                    <ReferralStatsCard user={user} />
                 </div>
             )}
 
@@ -110,6 +117,8 @@ export default async function DashboardPage() {
                 registrations={registrations} 
                 user={user} 
                 isProfileComplete={profileIsComplete}
+                activeRewards={activeRewards}
+                userPurchases={userPurchases}
             />
             
             <OnboardingTour user={user} />

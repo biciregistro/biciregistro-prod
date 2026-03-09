@@ -6,11 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { createCampaign } from '@/lib/actions/campaign-actions';
+import { createCampaign, updateCampaign } from '@/lib/actions/campaign-actions';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import { CampaignType, CampaignPlacement, CampaignStatus } from '@/lib/types';
+import { CampaignType, CampaignPlacement, CampaignStatus, Campaign } from '@/lib/types';
 import { ImageUpload } from '@/components/shared/image-upload';
+import { RewardFieldsSection } from './reward-fields-section';
 
 interface AdvertiserOption {
     id: string;
@@ -19,28 +20,49 @@ interface AdvertiserOption {
 
 interface CampaignCreatorProps {
     advertisers: AdvertiserOption[];
+    initialData?: Campaign; // Added to support editing
     onSuccess?: () => void;
 }
 
-export function CampaignCreator({ advertisers, onSuccess }: CampaignCreatorProps) {
+export function CampaignCreator({ advertisers, initialData, onSuccess }: CampaignCreatorProps) {
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
+    const isEditing = !!initialData;
 
-    // Form State
+    // Helper to format Date to datetime-local expected string
+    const formatForInput = (isoString?: string) => {
+        if (!isoString) return '';
+        try {
+            const d = new Date(isoString);
+            // shift to local time representation for the input
+            const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+            return local.toISOString().slice(0, 16);
+        } catch {
+            return '';
+        }
+    };
+
+    // Form State initialized with either empty defaults or existing campaign data
     const [formData, setFormData] = useState({
-        title: '',
-        internalName: '',
-        advertiserId: '',
-        type: 'download' as CampaignType,
-        placement: 'dashboard_main' as CampaignPlacement,
-        status: 'draft' as CampaignStatus,
-        bannerImageUrl: '',
-        assetUrl: '', // PDF Link or External Link
-        startDate: '',
-        endDate: '',
+        title: initialData?.title || '',
+        internalName: initialData?.internalName || '',
+        advertiserId: initialData?.advertiserId || '',
+        type: (initialData?.type || 'download') as CampaignType,
+        placement: (initialData?.placement || 'dashboard_main') as CampaignPlacement,
+        status: (initialData?.status || 'draft') as CampaignStatus,
+        bannerImageUrl: initialData?.bannerImageUrl || '',
+        assetUrl: initialData?.assetUrl || '', 
+        startDate: formatForInput(initialData?.startDate),
+        endDate: formatForInput(initialData?.endDate),
+        // Reward / Giveaway Fields
+        priceKm: initialData?.priceKm || 0,
+        totalCoupons: initialData?.totalCoupons || 0,
+        maxPerUser: initialData?.maxPerUser !== undefined ? initialData.maxPerUser : 1,
+        description: initialData?.description || '',
+        conditions: initialData?.conditions || ''
     });
 
-    const handleChange = (field: string, value: string) => {
+    const handleChange = (field: string, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
@@ -62,30 +84,74 @@ export function CampaignCreator({ advertisers, onSuccess }: CampaignCreatorProps
                  return;
             }
 
+            if (formData.type === 'reward' || formData.type === 'giveaway') {
+                if (!formData.priceKm || formData.priceKm <= 0) {
+                    toast({ title: "Error", description: "Este tipo de campaña requiere un precio en KM mayor a 0.", variant: "destructive" });
+                    setLoading(false);
+                    return;
+                }
+                if (!formData.description) {
+                    toast({ title: "Error", description: "La campaña requiere una descripción.", variant: "destructive" });
+                    setLoading(false);
+                    return;
+                }
+            }
+
             if (new Date(formData.startDate) >= new Date(formData.endDate)) {
                  toast({ title: "Error", description: "La fecha de fin debe ser posterior a la de inicio", variant: "destructive" });
                  setLoading(false);
                  return;
             }
 
-            const result = await createCampaign(formData);
+            // Clean payload before sending
+            const payload = { ...formData };
+            if (payload.type !== 'reward' && payload.type !== 'giveaway') {
+                delete (payload as any).priceKm;
+                delete (payload as any).totalCoupons;
+                delete (payload as any).maxPerUser;
+                delete (payload as any).description;
+                delete (payload as any).conditions;
+            } else if (payload.type === 'giveaway') {
+                // Giveaways don't need physical redemption conditions
+                delete (payload as any).conditions;
+            }
+
+            // Proper Date conversion
+            const finalPayload = {
+                ...payload,
+                startDate: new Date(payload.startDate).toISOString(),
+                endDate: new Date(payload.endDate).toISOString()
+            };
+
+            let result;
+            if (isEditing && initialData) {
+                result = await updateCampaign(initialData.id, finalPayload);
+            } else {
+                result = await createCampaign(finalPayload);
+            }
 
             if (result?.success) {
-                toast({ title: "Campaña creada", description: "La campaña se ha guardado exitosamente." });
-                // Reset form
-                setFormData({
-                    title: '',
-                    internalName: '',
-                    advertiserId: '',
-                    type: 'download',
-                    placement: 'dashboard_main',
-                    status: 'draft',
-                    bannerImageUrl: '',
-                    assetUrl: '',
-                    startDate: '',
-                    endDate: '',
-                });
-                
+                toast({ title: isEditing ? "Campaña Actualizada" : "Campaña Creada", description: result.message || "Guardado exitosamente." });
+                if (!isEditing) {
+                    // Reset form only if creating
+                    setFormData({
+                        title: '',
+                        internalName: '',
+                        advertiserId: '',
+                        type: 'download',
+                        placement: 'dashboard_main',
+                        status: 'draft',
+                        bannerImageUrl: '',
+                        assetUrl: '',
+                        startDate: '',
+                        endDate: '',
+                        priceKm: 0,
+                        totalCoupons: 0,
+                        maxPerUser: 1,
+                        description: '',
+                        conditions: ''
+                    });
+                }
                 if (onSuccess) onSuccess();
             } else {
                 toast({ title: "Error", description: result?.error || "Error desconocido", variant: "destructive" });
@@ -101,7 +167,7 @@ export function CampaignCreator({ advertisers, onSuccess }: CampaignCreatorProps
     return (
         <Card className="w-full max-w-3xl mx-auto">
             <CardHeader>
-                <CardTitle>Nueva Campaña Publicitaria</CardTitle>
+                <CardTitle>{isEditing ? 'Editar Campaña' : 'Nueva Campaña Publicitaria / Beneficio'}</CardTitle>
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
@@ -111,13 +177,13 @@ export function CampaignCreator({ advertisers, onSuccess }: CampaignCreatorProps
                             <Label htmlFor="internalName">Nombre Interno *</Label>
                             <Input 
                                 id="internalName" 
-                                placeholder="Ej. Revista Mayo 2024"
+                                placeholder="Ej. Termo Juriquilla Julio 2024"
                                 value={formData.internalName}
                                 onChange={(e) => handleChange('internalName', e.target.value)}
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="advertiser">Anunciante (ONG) *</Label>
+                            <Label htmlFor="advertiser">Anunciante / Aliado *</Label>
                             <Select onValueChange={(val) => handleChange('advertiserId', val)} value={formData.advertiserId}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Seleccionar..." />
@@ -128,7 +194,7 @@ export function CampaignCreator({ advertisers, onSuccess }: CampaignCreatorProps
                                             <SelectItem key={adv.id} value={adv.id}>{adv.name}</SelectItem>
                                         ))
                                     ) : (
-                                        <SelectItem value="no-data" disabled>No hay anunciantes disponibles</SelectItem>
+                                        <SelectItem value="no-data" disabled>No hay aliados disponibles</SelectItem>
                                     )}
                                 </SelectContent>
                             </Select>
@@ -136,88 +202,109 @@ export function CampaignCreator({ advertisers, onSuccess }: CampaignCreatorProps
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="title">Título Público (Visible en Banner) *</Label>
+                        <Label htmlFor="title">Título Público (Visible por el Ciclista) *</Label>
                         <Input 
                             id="title" 
-                            placeholder="Ej. Descarga GRATIS la nueva edición..."
+                            placeholder="Ej. Termo Gratis en tu siguiente visita"
                             value={formData.title}
                             onChange={(e) => handleChange('title', e.target.value)}
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-b pb-4">
                         <div className="space-y-2">
-                            <Label>Tipo de Acción</Label>
+                            <Label>Tipo de Acción *</Label>
                             <Select onValueChange={(val) => handleChange('type', val)} value={formData.type}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="download">Descarga de Archivo</SelectItem>
+                                    <SelectItem value="download">Descarga de Archivo / Lead</SelectItem>
                                     <SelectItem value="link">Enlace Externo</SelectItem>
-                                    <SelectItem value="coupon">Cupón (Próximamente)</SelectItem>
+                                    <SelectItem value="reward">Recompensa Física (Canje Único)</SelectItem>
+                                    <SelectItem value="giveaway">Sorteo / Rifa (Múltiples Boletos)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
                             <Label>Ubicación</Label>
-                            <Select onValueChange={(val) => handleChange('placement', val)} value={formData.placement}>
+                            <Select 
+                                onValueChange={(val) => handleChange('placement', val)} 
+                                value={(formData.type === 'reward' || formData.type === 'giveaway') ? 'event_list' : formData.placement}
+                                disabled={formData.type === 'reward' || formData.type === 'giveaway'}
+                            >
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="dashboard_main">Dashboard Principal (Arriba)</SelectItem>
                                     <SelectItem value="dashboard_sidebar">Barra Lateral</SelectItem>
+                                    <SelectItem value="event_list">Lista de Recompensas / Eventos</SelectItem>
                                 </SelectContent>
                             </Select>
+                            {(formData.type === 'reward' || formData.type === 'giveaway') && (
+                                <p className="text-xs text-muted-foreground mt-1">Este tipo de campaña va a la pestaña "Mis Recompensas".</p>
+                            )}
                         </div>
                     </div>
 
+                    {/* Reward Specific Fields */}
+                    {(formData.type === 'reward' || formData.type === 'giveaway') && (
+                        <RewardFieldsSection formData={formData} handleChange={handleChange} />
+                    )}
+
                     {/* Banner Upload */}
                     <div className="space-y-2 p-4 border rounded-md bg-muted/20">
-                        <Label className="mb-2 block">Banner de la Campaña *</Label>
+                        <Label className="mb-2 block">
+                            {(formData.type === 'reward' || formData.type === 'giveaway') ? "Imagen de la Recompensa *" : "Banner de la Campaña *"}
+                        </Label>
                         <ImageUpload 
                             storagePath="campaign-assets" 
                             onUploadSuccess={(url) => handleChange('bannerImageUrl', url)}
-                            buttonText="Subir Imagen Banner"
-                            guidelinesText="Recomendado: 1200x300px (JPG, PNG). Máx 5MB."
+                            buttonText="Subir Imagen"
+                            guidelinesText={(formData.type === 'reward' || formData.type === 'giveaway') ? "Recomendado: 800x600px (4:3) para tarjeta. Máx 2MB." : "Recomendado: 1200x300px. Máx 5MB."}
                         />
                         {formData.bannerImageUrl && (
-                            <Input value={formData.bannerImageUrl} readOnly className="mt-2 text-xs bg-muted" />
+                            <div className="mt-2 flex items-center gap-2">
+                                <img src={formData.bannerImageUrl} alt="Preview" className="h-12 w-auto object-cover rounded shadow-sm border" />
+                                <Input value={formData.bannerImageUrl} readOnly className="text-xs bg-muted flex-1" />
+                            </div>
                         )}
                     </div>
 
-                    {/* Asset / Link Input */}
-                    <div className="space-y-2 p-4 border rounded-md bg-muted/20">
-                        <Label className="mb-2 block">
-                            {formData.type === 'download' ? "Archivo para Descargar *" : "Enlace de Destino *"}
-                        </Label>
-                        
-                        {formData.type === 'download' ? (
-                            <div className="space-y-2">
-                                <ImageUpload 
-                                    storagePath="campaign-assets" 
-                                    onUploadSuccess={(url) => handleChange('assetUrl', url)}
-                                    buttonText="Subir Archivo (PDF/Doc)"
-                                    guidelinesText="Formatos: PDF, ZIP, Imágenes. Máx 10MB."
-                                    maxSizeMB={10}
+                    {/* Asset / Link Input (Only for non-rewards) */}
+                    {(formData.type !== 'reward' && formData.type !== 'giveaway') && (
+                        <div className="space-y-2 p-4 border rounded-md bg-muted/20">
+                            <Label className="mb-2 block">
+                                {formData.type === 'download' ? "Archivo para Descargar *" : "Enlace de Destino *"}
+                            </Label>
+                            
+                            {formData.type === 'download' ? (
+                                <div className="space-y-2">
+                                    <ImageUpload 
+                                        storagePath="campaign-assets" 
+                                        onUploadSuccess={(url) => handleChange('assetUrl', url)}
+                                        buttonText="Subir Archivo (PDF/Doc)"
+                                        guidelinesText="Formatos: PDF, ZIP, Imágenes. Máx 10MB."
+                                        maxSizeMB={10}
+                                    />
+                                    {formData.assetUrl && (
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <span className="text-sm text-green-600 font-medium">Archivo cargado:</span>
+                                            <a href={formData.assetUrl} target="_blank" className="text-xs underline truncate max-w-xs">{formData.assetUrl}</a>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <Input 
+                                    id="assetUrl" 
+                                    placeholder="https://mi-sitio.com/promo"
+                                    value={formData.assetUrl}
+                                    onChange={(e) => handleChange('assetUrl', e.target.value)}
                                 />
-                                {formData.assetUrl && (
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <span className="text-sm text-green-600 font-medium">Archivo cargado:</span>
-                                        <a href={formData.assetUrl} target="_blank" className="text-xs underline truncate max-w-xs">{formData.assetUrl}</a>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <Input 
-                                id="assetUrl" 
-                                placeholder="https://mi-sitio.com/promo"
-                                value={formData.assetUrl}
-                                onChange={(e) => handleChange('assetUrl', e.target.value)}
-                            />
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="start">Fecha Inicio *</Label>
+                            <Label htmlFor="start">Fecha y Hora de Inicio (MX) *</Label>
                             <Input 
                                 id="start" 
                                 type="datetime-local"
@@ -226,7 +313,7 @@ export function CampaignCreator({ advertisers, onSuccess }: CampaignCreatorProps
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="end">Fecha Fin *</Label>
+                            <Label htmlFor="end">Fecha y Hora de Fin (MX) *</Label>
                             <Input 
                                 id="end" 
                                 type="datetime-local"
@@ -250,7 +337,7 @@ export function CampaignCreator({ advertisers, onSuccess }: CampaignCreatorProps
 
                     <Button type="submit" className="w-full" disabled={loading}>
                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Guardar Campaña
+                        {isEditing ? 'Guardar Cambios' : 'Guardar Configuración'}
                     </Button>
 
                 </form>

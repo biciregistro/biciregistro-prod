@@ -123,6 +123,8 @@ export async function recordCampaignConversion(
         userEmail: userData.email,
         userName: `${userData.name} ${userData.lastName || ''}`.trim(),
         userCity: userData.city || 'Desconocido',
+        userState: userData.state, // New explicit snapshot
+        userCountry: userData.country, // New explicit snapshot
         convertedAt: new Date().toISOString(),
         ipAddress: ip,
         privacyPolicyVersion: privacyPolicyVersion,
@@ -198,6 +200,64 @@ export async function createCampaign(data: Omit<Campaign, 'id' | 'createdAt' | '
 }
 
 /**
+ * Updates an existing campaign.
+ */
+export async function updateCampaign(campaignId: string, data: Partial<Campaign>): Promise<ActionFormState> {
+    try {
+        const session = await getDecodedSession();
+        if (!session) return { error: 'No autorizado' };
+        
+        const userDoc = await db.collection('users').doc(session.uid).get();
+        if (userDoc.data()?.role !== 'admin') {
+             return { error: 'No autorizado' };
+        }
+
+        // Remove protected fields from update payload
+        const updatePayload = { ...data, updatedAt: new Date().toISOString() };
+        delete updatePayload.id;
+        delete updatePayload.createdAt;
+        delete updatePayload.clickCount;
+        delete updatePayload.uniqueConversionCount;
+
+        await db.collection('campaigns').doc(campaignId).update(updatePayload);
+
+        revalidatePath('/admin/campaigns');
+        revalidatePath('/admin');
+        revalidatePath('/dashboard/rewards'); // Ensure rewards tab is refreshed if it's a reward
+        return { success: true, message: 'Campaña actualizada exitosamente.' };
+    } catch (error) {
+        console.error('Error updating campaign:', error);
+        return { error: 'Error al actualizar la campaña.' };
+    }
+}
+
+/**
+ * Deletes a campaign (soft delete or hard delete based on preference. Here doing Hard Delete).
+ */
+export async function deleteCampaign(campaignId: string): Promise<ActionFormState> {
+    try {
+        const session = await getDecodedSession();
+        if (!session) return { error: 'No autorizado' };
+        
+        const userDoc = await db.collection('users').doc(session.uid).get();
+        if (userDoc.data()?.role !== 'admin') {
+             return { error: 'No autorizado' };
+        }
+
+        await db.collection('campaigns').doc(campaignId).delete();
+
+        revalidatePath('/admin/campaigns');
+        revalidatePath('/admin');
+        revalidatePath('/dashboard/rewards'); 
+        return { success: true, message: 'Campaña eliminada correctamente.' };
+    } catch (error) {
+        console.error('Error deleting campaign:', error);
+        return { error: 'Error al eliminar la campaña.' };
+    }
+}
+
+
+/**
  * Fetches all users with role 'ong' to populate the advertiser select.
  */
 export async function getAdvertisersList(): Promise<{id: string, name: string}[]> {
@@ -256,6 +316,7 @@ export async function updateCampaignStatus(campaignId: string, newStatus: 'draft
 
         revalidatePath('/admin');
         revalidatePath('/dashboard'); // Update user dashboard banner
+        revalidatePath('/dashboard/rewards'); // Ensure changes reflect on rewards tab
         return { success: true, message: `Estado actualizado a: ${newStatus === 'active' ? 'Activa' : newStatus}.` };
     } catch (error) {
         console.error('Error updating status:', error);
@@ -320,7 +381,33 @@ export async function getCampaignLeads(campaignId: string, advertiserId: string)
             .orderBy('convertedAt', 'desc')
             .get();
 
-        return snapshot.docs.map((doc: QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as CampaignConversion));
+        // Enriquecer los leads antiguos que no tienen país o estado
+        const leads = await Promise.all(snapshot.docs.map(async (doc) => {
+            const data = doc.data() as CampaignConversion;
+            
+            // Si falta estado o país, tratamos de recuperarlo del usuario original para mostrarlo
+            if (!data.userState || !data.userCountry) {
+                try {
+                    const uDoc = await db.collection('users').doc(data.userId).get();
+                    if (uDoc.exists) {
+                        const uData = uDoc.data();
+                        // Mantenemos el 'id' de doc.id pero sobrescribimos el state y country
+                        return { 
+                            ...data, 
+                            id: doc.id,
+                            userState: uData?.state || '', 
+                            userCountry: uData?.country || '' 
+                        };
+                    }
+                } catch(e) {
+                    console.error('Could not enrich missing location data', e);
+                }
+            }
+            // Retornamos el objeto base con el ID
+            return { ...data, id: doc.id };
+        }));
+
+        return leads;
     } catch (error) {
         console.error('Error fetching leads:', error);
         return [];

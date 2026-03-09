@@ -9,69 +9,103 @@ import { BikeCard } from '@/components/bike-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, ArrowRight, Compass } from 'lucide-react';
-import type { Bike, UserEventRegistration, User } from '@/lib/types';
+import { Calendar, MapPin, ArrowRight, Compass, Gift } from 'lucide-react';
+import type { Bike, UserEventRegistration, User, Campaign, UserReward } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { RewardCard } from './reward-card';
 
 interface DashboardTabsProps {
     bikes: Bike[];
     registrations: UserEventRegistration[];
     user: User;
     isProfileComplete: boolean;
+    // New Props for Rewards
+    activeRewards?: (Campaign & { advertiserName?: string })[];
+    userPurchases?: UserReward[];
 }
 
-function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }: DashboardTabsProps) {
+function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, activeRewards = [], userPurchases = [] }: DashboardTabsProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
     
-    const defaultTab = searchParams.get('tab') === 'events' ? 'events' : 'garage';
-    const [activeTab, setActiveTab] = useState(defaultTab);
+    // Default Tab Logic
+    let initTab = 'garage';
+    const paramTab = searchParams.get('tab');
+    if (paramTab === 'events' || paramTab === 'rewards') initTab = paramTab;
 
-    // Sync state with URL params
+    const [activeTab, setActiveTab] = useState(initTab);
+
     useEffect(() => {
         const tab = searchParams.get('tab');
-        if (tab === 'events' || tab === 'garage') {
+        if (tab === 'events' || tab === 'garage' || tab === 'rewards') {
             setActiveTab(tab);
         }
     }, [searchParams]);
 
     const onTabChange = (value: string) => {
         setActiveTab(value);
-        // Update URL without full reload
         router.push(`${pathname}?tab=${value}`, { scroll: false });
     };
 
-    // --- Events Sorting Logic ---
     const now = new Date();
-    
-    // Sort registrations by date (upcoming first)
     const sortedRegistrations = [...registrations].sort((a, b) => {
         const dateA = new Date(a.event.date);
         const dateB = new Date(b.event.date);
         const isFinishedA = dateA < now;
         const isFinishedB = dateB < now;
-
-        // If one is finished and the other isn't, put the non-finished first
         if (!isFinishedA && isFinishedB) return -1;
         if (isFinishedA && !isFinishedB) return 1;
+        if (!isFinishedA && !isFinishedB) return dateA.getTime() - dateB.getTime();
+        return dateB.getTime() - dateA.getTime();
+    });
 
-        // If both are same status
-        if (!isFinishedA && !isFinishedB) {
-            // Both upcoming: Ascending (closest first)
-            return dateA.getTime() - dateB.getTime();
-        } else {
-            // Both finished: Descending (most recently finished first)
-            return dateB.getTime() - dateA.getTime();
+    // Reward Data Logic
+    const pointsBalance = user.gamification?.pointsBalance || 0;
+    const activeCampaignIds = new Set(activeRewards.map(r => r.id));
+    const unredeemedPurchases = userPurchases.filter(ur => ur.status === 'purchased');
+    
+    const combinedRewardsList = [...activeRewards];
+    unredeemedPurchases.forEach(ur => {
+        if (!activeCampaignIds.has(ur.campaignId)) {
+             combinedRewardsList.push({
+                 id: ur.campaignId,
+                 title: ur.campaignSnapshot.title,
+                 advertiserId: ur.advertiserId,
+                 advertiserName: ur.campaignSnapshot.advertiserName,
+                 bannerImageUrl: ur.campaignSnapshot.bannerImageUrl,
+                 description: ur.campaignSnapshot.description,
+                 conditions: ur.campaignSnapshot.conditions,
+                 endDate: ur.campaignSnapshot.endDate,
+                 priceKm: ur.pricePaidKm,
+                 internalName: 'Legacy',
+                 type: 'reward',
+                 status: 'ended', 
+                 placement: 'event_list',
+                 clickCount: 0,
+                 uniqueConversionCount: 0,
+                 createdAt: ur.purchasedAt,
+                 updatedAt: ur.purchasedAt
+             } as Campaign & { advertiserName?: string });
+             activeCampaignIds.add(ur.campaignId);
         }
     });
 
     return (
         <Tabs id="tour-garage" value={activeTab} onValueChange={onTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsList className="grid w-full grid-cols-3 mb-8">
                 <TabsTrigger value="garage">Mi Garaje ({bikes.length})</TabsTrigger>
-                <TabsTrigger value="events">
-                    Mis Eventos ({isProfileComplete ? registrations.length : '?'})
+                <TabsTrigger value="events">Mis Eventos</TabsTrigger>
+                <TabsTrigger value="rewards" className="relative">
+                    Mis Recompensas
+                    {unredeemedPurchases.length > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-4 w-4 bg-green-500 text-[10px] items-center justify-center text-white">
+                              {unredeemedPurchases.length}
+                          </span>
+                        </span>
+                    )}
                 </TabsTrigger>
             </TabsList>
             
@@ -81,7 +115,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }:
                         <AlertTitle>No tienes bicicletas registradas</AlertTitle>
                         <AlertDescription>
                             {isProfileComplete
-                                ? 'Usa el botón "Registrar Bici" para añadir tu primera bicicleta y empezar a protegerla.'
+                                ? 'Usa el botón "Registrar Bici" para añadir tu primera bicicleta.'
                                 : 'Completa tu perfil para poder registrar tu primera bicicleta.'
                             }
                         </AlertDescription>
@@ -107,14 +141,12 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }:
                 </div>
 
                 {!isProfileComplete ? (
-                    <Alert className="bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-200">
+                    <Alert className="bg-amber-50 border-amber-200 text-amber-800">
                         <AlertTitle className="text-lg font-semibold mb-2">Perfil Incompleto</AlertTitle>
                         <AlertDescription className="space-y-4">
-                            <p>Para acceder a tus eventos y gestionar tus inscripciones, es necesario que completes tu perfil.</p>
-                            <Button asChild variant="outline" className="bg-background text-foreground border-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50">
-                                <Link href="/dashboard/profile">
-                                    Completar Perfil Ahora
-                                </Link>
+                            <p>Para acceder a tus eventos, es necesario que completes tu perfil.</p>
+                            <Button asChild variant="outline" className="bg-background text-foreground border-amber-300">
+                                <Link href="/dashboard/profile">Completar Perfil Ahora</Link>
                             </Button>
                         </AlertDescription>
                     </Alert>
@@ -124,20 +156,15 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }:
                         <AlertDescription>
                             <p className="mb-4">Aún no te has registrado en ningún evento.</p>
                             <Button asChild size="sm">
-                                <Link href="/events">
-                                    Ver eventos disponibles
-                                </Link>
+                                <Link href="/events">Ver eventos disponibles</Link>
                             </Button>
                         </AlertDescription>
                     </Alert>
                 ) : (
                     <div className="grid gap-4 md:grid-cols-2">
-                        {sortedRegistrations.map((reg) => {
-                            // Lógica de Finalizado
+                         {sortedRegistrations.map((reg) => {
                             const eventDate = new Date(reg.event.date);
                             const isFinished = eventDate < now;
-                            
-                            // Lógica de estado visual (Badge)
                             let badgeText = reg.status === 'confirmed' ? 'Confirmado' : reg.status;
                             let badgeClassName = "text-xs shrink-0";
                             let badgeVariant: "default" | "secondary" | "destructive" | "outline" = "secondary";
@@ -159,7 +186,6 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }:
                                     badgeClassName = cn(badgeClassName, "bg-green-100 text-green-800 border-green-200");
                                 }
                             } else {
-                                // Cancelled or other
                                 badgeVariant = "destructive";
                             }
 
@@ -208,6 +234,52 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user }:
                                 </Card>
                             );
                         })}
+                    </div>
+                )}
+            </TabsContent>
+
+            <TabsContent value="rewards" className="space-y-6">
+                <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl p-5 text-white shadow-lg relative overflow-hidden">
+                    <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="flex-1">
+                            <h2 className="text-2xl font-bold mb-1 flex items-center gap-2 text-white">
+                                <Gift className="w-6 h-6" /> Mis Recompensas
+                            </h2>
+                            <p className="text-emerald-50/90 text-sm max-w-xl">
+                                Canjea tus Kilómetros (KM) acumulados por beneficios exclusivos de aliados.
+                            </p>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 px-6 flex items-center gap-4 border border-white/20 shadow-inner">
+                            <div className="text-right">
+                                <span className="block text-emerald-100/80 text-[10px] uppercase tracking-widest font-bold">Saldo Disponible</span>
+                                <span className="text-3xl font-black font-mono leading-none">{pointsBalance} KM</span>
+                            </div>
+                            <div className="h-10 w-px bg-white/20"></div>
+                            <Gift className="w-8 h-8 text-emerald-200/50" />
+                        </div>
+                    </div>
+                    {/* Decorative Elements */}
+                    <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl mix-blend-overlay"></div>
+                    <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-48 h-48 bg-emerald-300 opacity-10 rounded-full blur-2xl mix-blend-overlay"></div>
+                </div>
+
+                {combinedRewardsList.length === 0 ? (
+                    <Alert>
+                        <AlertTitle>Próximamente más beneficios</AlertTitle>
+                        <AlertDescription>
+                            No hay campañas activas. Sigue acumulando KM reportando robos o invitando amigos.
+                        </AlertDescription>
+                    </Alert>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {combinedRewardsList.map((campaign) => (
+                            <RewardCard 
+                                key={campaign.id} 
+                                campaign={campaign} 
+                                userPoints={pointsBalance}
+                                userPurchases={userPurchases}
+                            />
+                        ))}
                     </div>
                 )}
             </TabsContent>

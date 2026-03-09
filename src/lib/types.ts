@@ -1,4 +1,3 @@
-
 import { GamificationProfile } from './gamification/gamification-types';
 
 export type BikeStatus = 'safe' | 'stolen' | 'in_transfer' | 'recovered';
@@ -496,7 +495,7 @@ export type LandingEventsContent = {
 
 // --- Advertising & Lead Gen System ---
 
-export type CampaignType = 'download' | 'link' | 'coupon';
+export type CampaignType = 'download' | 'link' | 'coupon' | 'reward' | 'giveaway';
 export type CampaignStatus = 'draft' | 'active' | 'paused' | 'ended';
 export type CampaignPlacement = 'dashboard_main' | 'dashboard_sidebar' | 'event_list';
 
@@ -527,6 +526,13 @@ export type Campaign = {
     // Analytics (Denormalized for performance)
     clickCount: number;
     uniqueConversionCount: number;
+
+    // Reward / Giveaway System Fields
+    description?: string; // General description of the reward/campaign
+    priceKm?: number; // Cost in Kilometers
+    totalCoupons?: number; // Inventory (0 = unlimited)
+    maxPerUser?: number; // Limit per user (0 = unlimited)
+    conditions?: string; // Rich text / HTML for terms and conditions
     
     createdAt: string;
     updatedAt: string;
@@ -541,6 +547,8 @@ export type CampaignConversion = {
     userEmail: string;
     userName: string;
     userCity?: string;
+    userState?: string; // New: Add State snapshot
+    userCountry?: string; // New: Add Country snapshot
     
     convertedAt: string; // ISO Date
     
@@ -550,6 +558,7 @@ export type CampaignConversion = {
     metadata?: {
         userAgent?: string;
         deviceType?: string; // 'mobile', 'desktop'
+        rewardId?: string; // Link back to the purchased reward/ticket
     };
     consent?: {
         accepted: boolean;
@@ -586,3 +595,29 @@ export interface InsuranceRequest {
   quoteUrl?: string; // URL de la cotización subida por el admin
   policyUrl?: string; // URL del PDF subido por usuario
 }
+
+// --- Reward System ---
+// 'active' applies to giveaways, meaning the ticket is valid and waiting for the draw
+export type RewardStatus = 'purchased' | 'redeemed' | 'active';
+
+export type UserReward = {
+    id: string;
+    campaignId: string;
+    userId: string;
+    advertiserId: string; // To query easily by ONG
+    status: RewardStatus;
+    purchasedAt: string; // ISO string
+    redeemedAt?: string; // ISO string
+    pricePaidKm: number; // Snapshot of the price at time of purchase
+    
+    // Denormalized snapshot data for display without extra joins
+    campaignSnapshot: {
+        title: string;
+        description?: string;
+        bannerImageUrl: string;
+        conditions?: string;
+        endDate: string;
+        advertiserName: string;
+        type: CampaignType; // Track if it was a reward or giveaway
+    };
+};
