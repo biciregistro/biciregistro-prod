@@ -37,10 +37,18 @@ export function RecoverBikeButton({ bikeId, onSuccess }: RecoverBikeButtonProps)
 
     const handleRecovery = () => {
         startTransition(async () => {
-            await markAsRecovered(bikeId);
+            const result = await markAsRecovered(bikeId);
             
-            // GAMIFICACIÓN
-            showRewardToast(100, "¡Qué gran noticia! Tu bicicleta ha sido recuperada. Sumaste kilómetros a tu perfil.");
+            if (result.success) {
+                // GAMIFICACIÓN DINÁMICA
+                if (result.pointsAwarded && result.pointsAwarded > 0) {
+                    showRewardToast(result.pointsAwarded, "¡Qué gran noticia! Tu bicicleta ha sido recuperada. Sumaste kilómetros a tu perfil.");
+                } else {
+                    toast({ title: 'Éxito', description: 'Tu bicicleta ha sido marcada como recuperada.' });
+                }
+            } else {
+                toast({ title: 'Error', description: result.error || 'Ocurrió un error inesperado.', variant: 'destructive' });
+            }
 
             router.refresh();
             if (onSuccess) {

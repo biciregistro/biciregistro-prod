@@ -11,13 +11,13 @@ type ActionResult = {
   success: boolean;
   message: string;
   data?: any;
+  pointsAwarded?: number; // Agregado para soportar recompensas dinámicas
 };
 
 /**
  * Genera un lote de códigos Bikon (Solo Admin)
  */
 export async function generateBikonCodes(quantity: number): Promise<ActionResult> {
-  // ... (código existente sin cambios) ...
   if (quantity < 1 || quantity > 100) {
     return { success: false, message: 'Cantidad debe ser entre 1 y 100' };
   }
@@ -122,15 +122,16 @@ export async function linkBikonToBike(
     });
 
     // GAMIFICACIÓN: Puntos por vincular Bikon (fuera de la transacción para evitar contención)
+    let pointsAwarded = 0;
     try {
-        await awardPoints(userId, 'link_bikon', { bikeId, serialNumber });
+        const pointsResult = await awardPoints(userId, 'link_bikon', { bikeId, serialNumber });
+        pointsAwarded = pointsResult?.points || 0;
     } catch (gamificationError) {
         console.error('Error awarding points for Bikon link:', gamificationError);
-        // No fallamos la acción principal si falla la gamificación, pero lo logueamos
     }
 
     revalidatePath(`/dashboard/bikes/${bikeId}`);
-    return { success: true, message: 'Dispositivo vinculado exitosamente.' };
+    return { success: true, message: 'Dispositivo vinculado exitosamente.', pointsAwarded };
 
   } catch (error: any) {
     console.error('Error linking Bikon:', error);
@@ -145,7 +146,6 @@ export async function toggleBikonPrintedStatus(
   serialNumber: string, 
   currentStatus: boolean
 ): Promise<ActionResult> {
-  // ... (código existente) ...
   try {
     await db.collection('bikon_devices').doc(serialNumber).update({
       isPrinted: !currentStatus
@@ -163,7 +163,6 @@ export async function toggleBikonPrintedStatus(
  * Obtiene lista de dispositivos paginada y populada (Para Admin)
  */
 export async function getBikonDevices(limitCount = 50): Promise<BikonDevicePopulated[]> {
-    // ... (código existente) ...
     try {
         const snapshot = await db.collection('bikon_devices')
             .orderBy('createdAt', 'desc')

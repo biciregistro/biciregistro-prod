@@ -148,9 +148,9 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
                 if (!driverObj.isActive()) return;
                 driverObj.destroy();
                 completeOnboardingAction(tourType).then((res) => {
-                    // GAMIFICACIÓN: Celebrar fin de tour
-                    if (res?.success) {
-                        showRewardToast(10, "¡Tour completado! Ya conoces las herramientas para blindar tu pasión.");
+                    // GAMIFICACIÓN DINÁMICA
+                    if (res?.success && res.pointsAwarded && res.pointsAwarded > 0) {
+                        showRewardToast(res.pointsAwarded, "¡Tour completado! Ya conoces las herramientas para blindar tu pasión.");
                     }
                 });
             },

@@ -10,10 +10,16 @@ export async function completeOnboardingAction(tourType: 'dashboard' | 'bike') {
 
     const currentOnboarding = user.onboarding || { dashboardSeen: false, bikeDetailSeen: false };
     
+    let pointsAwarded = 0;
+
     // Check if points should be awarded (only first time)
     if (tourType === 'dashboard' && !currentOnboarding.dashboardSeen) {
-        // Run in background, don't block response
-        awardPoints(user.id, 'onboarding_complete', { tourType }).catch(console.error);
+        try {
+            const pointsResult = await awardPoints(user.id, 'onboarding_complete', { tourType });
+            pointsAwarded = pointsResult?.points || 0;
+        } catch (e) {
+            console.error("Error awarding onboarding points", e);
+        }
     }
     
     const updatedOnboarding = {
@@ -24,7 +30,7 @@ export async function completeOnboardingAction(tourType: 'dashboard' | 'bike') {
     try {
         await updateUserData(user.id, { onboarding: updatedOnboarding });
         revalidatePath('/dashboard');
-        return { success: true };
+        return { success: true, pointsAwarded };
     } catch (error) {
         console.error("Error completing onboarding:", error);
         return { success: false, error: 'Error al actualizar el estado de onboarding' };

@@ -233,7 +233,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
             
             // GAMIFICACIÓN: Celebrar completitud de perfil si aplica
             if (isEditing && state.pointsAwarded) {
-                showRewardToast(20, "¡Perfil Completado! Has fortalecido tu seguridad y ganado kilómetros.");
+                showRewardToast(state.pointsAwarded as number, "¡Perfil Completado! Has fortalecido tu seguridad y ganado kilómetros.");
             } else {
                 toast({ title: "Éxito", description: state.message });
             }

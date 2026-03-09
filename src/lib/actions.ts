@@ -170,8 +170,8 @@ export async function signup(prevState: ActionFormState, formData: FormData): Pr
 
         sendWelcomeEmail({ name: name, email: email }).catch(console.error);
         
-        // Retornar puntos dinámicos
-        return { success: true, customToken, pointsAwarded: pointsAwarded > 0 };
+        // Corregido: Retornar el número de puntos real
+        return { success: true, customToken, pointsAwarded };
         
     } catch (error: any) {
         if (error.code === 'auth/email-already-exists') return { error: 'Email en uso.' };
@@ -233,10 +233,12 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
         await updateUserData(session.uid, updatePayload);
 
         // GAMIFICACIÓN DINÁMICA: Completar perfil
-        let pointsAwarded = false;
+        let pointsAwarded = 0;
         if (updatePayload.emergencyContactName && updatePayload.emergencyContactPhone && updatePayload.bloodType && updatePayload.state && updatePayload.city) {
             const result = await recordUniqueAction(session.uid, 'profile_completion');
-            pointsAwarded = result.success || false;
+            if (result && result.success && 'points' in result) {
+                pointsAwarded = (result as any).points;
+            }
         }
 
         revalidatePath('/dashboard/profile');
@@ -244,7 +246,7 @@ export async function updateProfile(prevState: any, formData: FormData): Promise
             success: true, 
             message: passwordChanged ? 'Contraseña actualizada.' : 'Perfil actualizado.',
             passwordChanged,
-            pointsAwarded // Avisar si ganó puntos
+            pointsAwarded 
         };
 
     } catch (error: any) {

@@ -170,29 +170,65 @@ export async function getGamificationRules() {
 }
 
 /**
- * Public: Get catalog with merged static and dynamic data for UI
+ * Public: Get catalog with merged static, dynamic data, and user completion status for UI
  */
 export async function getPublicGamificationCatalog() {
     try {
+        const session = await getDecodedSession();
+        const userId = session?.uid;
+        
+        // 1. Fetch dynamic rules
         const dynamicRules = await getGamificationRules();
         
+        // 2. Fetch user's completed "once" actions if authenticated
+        const completedActions = new Set<string>();
+        if (userId) {
+            const historySnapshot = await db.collection('gamification_history')
+                .where('userId', '==', userId)
+                .get();
+            
+            historySnapshot.docs.forEach(doc => {
+                completedActions.add(doc.data().actionId);
+            });
+        }
+
+        // 3. Map and merge
         const catalog = Object.values(GAMIFICATION_RULES).map(rule => {
-            // Check dynamic override
             const dynamicPoints = dynamicRules && typeof dynamicRules[`${rule.id}_points`] === 'number' 
                 ? dynamicRules[`${rule.id}_points`] 
                 : rule.defaultPoints;
+
+            const isOnce = ['user_signup', 'profile_completion', 'download_sticker_pdf', 'download_emergency_qr'].includes(rule.id);
+            
+            let isCompleted = false;
+            if (isOnce) {
+                if (rule.id === 'user_signup') {
+                    // Si hay sesión activa (userId), el usuario ya hizo signup, sin importar el historial.
+                    isCompleted = !!userId;
+                } else {
+                    isCompleted = completedActions.has(rule.id);
+                }
+            }
 
             return {
                 id: rule.id,
                 label: rule.label,
                 description: rule.description,
                 points: dynamicPoints,
-                type: ['user_signup', 'profile_completion', 'download_sticker_pdf', 'download_emergency_qr'].includes(rule.id) ? 'once' : 'recurring'
+                type: isOnce ? 'once' : 'recurring',
+                completed: isCompleted
             };
         });
 
-        // Ordenar por puntos (opcional)
-        return { success: true, data: catalog.sort((a, b) => b.points - a.points) };
+        // Ordenar: No completadas primero, ordenadas por puntos. Luego las completadas.
+        catalog.sort((a, b) => {
+            if (a.completed === b.completed) {
+                return b.points - a.points; // Ambas igual estado: ordena por puntos desc
+            }
+            return a.completed ? 1 : -1; // No completadas van primero
+        });
+
+        return { success: true, data: catalog };
     } catch (error) {
         console.error("Error fetching public catalog", error);
         return { success: false, error: "Failed to load rules" };

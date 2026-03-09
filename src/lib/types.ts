@@ -380,7 +380,7 @@ export type ActionFormState = {
   message?: string;
   customToken?: string;
   passwordChanged?: boolean;
-  pointsAwarded?: boolean; // Nuevo campo
+  pointsAwarded?: number; // Corregido: de boolean a number
 } | null;
 
 export type BikeFormState = {
@@ -597,7 +597,7 @@ export interface InsuranceRequest {
 }
 
 // --- Reward System ---
-// 'active' applies to giveaways, meaning the ticket is valid and waiting for the draw
+// 'active' applies to giveaways, means the ticket is valid and waiting for the draw
 export type RewardStatus = 'purchased' | 'redeemed' | 'active';
 
 export type UserReward = {

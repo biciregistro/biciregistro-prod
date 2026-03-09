@@ -84,7 +84,11 @@ export function BikonLinker({ bike, userId }: BikonLinkerProps) {
       
       if (result.success) {
         // GAMIFICACIÓN
-        showRewardToast(200, "¡GPS Bikon vinculado! Tu bicicleta ahora cuenta con protección activa.");
+        if (result.pointsAwarded && result.pointsAwarded > 0) {
+            showRewardToast(result.pointsAwarded, "¡GPS Bikon vinculado! Tu bicicleta ahora cuenta con protección activa.");
+        } else {
+            toast({ title: 'Éxito', description: 'Dispositivo vinculado exitosamente.' });
+        }
         
         setStep('instructions'); // Cambiar a paso de instrucciones
       } else {

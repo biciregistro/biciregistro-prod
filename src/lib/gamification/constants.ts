@@ -71,8 +71,8 @@ export const GAMIFICATION_RULES: Record<GamificationRuleId, GamificationRule> = 
     },
     document_verification: {
         id: 'document_verification',
-        label: 'Verificar Documentos',
-        description: 'Puntos por subir pruebas de propiedad válidas',
+        label: 'Subir factura de Bici',
+        description: 'Puntos por subir la factura o prueba de propiedad de tus bicis',
         defaultPoints: 40
     },
     link_bikon: {
@@ -89,13 +89,13 @@ export const GAMIFICATION_RULES: Record<GamificationRuleId, GamificationRule> = 
     },
     download_sticker_pdf: {
         id: 'download_sticker_pdf',
-        label: 'Descargar Etiqueta',
+        label: 'Descargar Etiqueta Disuasiva',
         description: 'Puntos por descargar la etiqueta disuasiva (Primera vez)',
         defaultPoints: 50
     },
     download_emergency_qr: {
         id: 'download_emergency_qr',
-        label: 'Descargar QR',
+        label: 'Descargar QR de emergencia',
         description: 'Puntos por descargar el QR de emergencia (Primera vez)',
         defaultPoints: 50
     },

@@ -75,10 +75,12 @@ export function PromotionalBanner() {
         return;
       }
 
-      // GAMIFICACIÓN: Celebrar si es la primera vez en esta campaña
-      // recordCampaignConversion suma puntos via awardPoints en el server
-      // Asumimos 50 KM por defecto para campañas de leads
-      showRewardToast(50, `¡Beneficio desbloqueado! Gracias por participar en la campaña de ${campaign.advertiserName}.`);
+      // GAMIFICACIÓN DINÁMICA
+      if (result.pointsAwarded && result.pointsAwarded > 0) {
+          showRewardToast(result.pointsAwarded, `¡Beneficio desbloqueado! Gracias por participar en la campaña de ${campaign.advertiserName}.`);
+      } else {
+          toast({ title: "¡Éxito!", description: "Tu solicitud ha sido procesada." });
+      }
 
       // Perform the action (Download or Redirect)
       if (campaign.assetUrl) {
