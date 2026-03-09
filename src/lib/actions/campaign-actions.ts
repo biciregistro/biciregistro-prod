@@ -128,4 +128,299 @@ export async function recordCampaignConversion(
   }
 }
 
-// ... (Resto de acciones administrativas permanecen igual) ...
+// --- Admin Actions ---
+
+/**
+ * Creates a new advertising campaign.
+ * @param data - The campaign data.
+ * @returns The created campaign ID or error.
+ */
+export async function createCampaign(data: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt' | 'clickCount' | 'uniqueConversionCount'>): Promise<ActionFormState> {
+    try {
+        const session = await getDecodedSession();
+        
+        if (!session) return { error: 'No autorizado' };
+        
+        // Check for admin role
+        const userDoc = await db.collection('users').doc(session.uid).get();
+        const userData = userDoc.data();
+        
+        if (userData?.role !== 'admin') {
+            return { error: 'No tienes permisos de administrador.' };
+        }
+
+        // FORCE PLACEMENT FOR REWARDS/GIVEAWAYS TO PREVENT RENDER BUGS
+        let finalPlacement = data.placement;
+        if (data.type === 'reward' || data.type === 'giveaway') {
+            finalPlacement = 'event_list';
+        }
+
+        const newCampaign: Omit<Campaign, 'id'> = {
+            ...data,
+            placement: finalPlacement,
+            clickCount: 0,
+            uniqueConversionCount: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
+
+        await db.collection('campaigns').add(newCampaign);
+        revalidatePath('/admin/campaigns');
+        revalidatePath('/admin');
+        return { success: true, message: 'Campaña creada exitosamente.' };
+
+    } catch (error) {
+        console.error('Error creating campaign:', error);
+        return { error: 'Error al crear la campaña.' };
+    }
+}
+
+/**
+ * Updates an existing campaign.
+ */
+export async function updateCampaign(campaignId: string, data: Partial<Campaign>): Promise<ActionFormState> {
+    try {
+        const session = await getDecodedSession();
+        if (!session) return { error: 'No autorizado' };
+        
+        const userDoc = await db.collection('users').doc(session.uid).get();
+        if (userDoc.data()?.role !== 'admin') {
+             return { error: 'No autorizado' };
+        }
+
+        // Remove protected fields from update payload
+        const updatePayload = { ...data, updatedAt: new Date().toISOString() };
+        delete (updatePayload as any).id;
+        delete (updatePayload as any).createdAt;
+        delete (updatePayload as any).clickCount;
+        delete (updatePayload as any).uniqueConversionCount;
+
+        // FORCE PLACEMENT FOR REWARDS/GIVEAWAYS TO PREVENT RENDER BUGS
+        if (updatePayload.type === 'reward' || updatePayload.type === 'giveaway') {
+            updatePayload.placement = 'event_list';
+        }
+
+        await db.collection('campaigns').doc(campaignId).update(updatePayload);
+
+        revalidatePath('/admin/campaigns');
+        revalidatePath('/admin');
+        revalidatePath('/dashboard/rewards'); // Ensure rewards tab is refreshed if it's a reward
+        return { success: true, message: 'Campaña actualizada exitosamente.' };
+    } catch (error) {
+        console.error('Error updating campaign:', error);
+        return { error: 'Error al actualizar la campaña.' };
+    }
+}
+
+/**
+ * Deletes a campaign (soft delete or hard delete based on preference. Here doing Hard Delete).
+ */
+export async function deleteCampaign(campaignId: string): Promise<ActionFormState> {
+    try {
+        const session = await getDecodedSession();
+        if (!session) return { error: 'No autorizado' };
+        
+        const userDoc = await db.collection('users').doc(session.uid).get();
+        if (userDoc.data()?.role !== 'admin') {
+             return { error: 'No autorizado' };
+        }
+
+        await db.collection('campaigns').doc(campaignId).delete();
+
+        revalidatePath('/admin/campaigns');
+        revalidatePath('/admin');
+        revalidatePath('/dashboard/rewards'); 
+        return { success: true, message: 'Campaña eliminada correctamente.' };
+    } catch (error) {
+        console.error('Error deleting campaign:', error);
+        return { error: 'Error al eliminar la campaña.' };
+    }
+}
+
+
+/**
+ * Fetches all users with role 'ong' to populate the advertiser select.
+ */
+export async function getAdvertisersList(): Promise<{id: string, name: string}[]> {
+    try {
+        const snapshot = await db.collection('users')
+            .where('role', '==', 'ong')
+            .get();
+
+        return snapshot.docs.map((doc: QueryDocumentSnapshot) => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                name: data.organizationName || data.name || 'Sin Nombre'
+            };
+        });
+    } catch (error) {
+        console.error('Error fetching advertisers:', error);
+        return [];
+    }
+}
+
+/**
+ * Fetches all campaigns for the admin dashboard.
+ */
+export async function getAllCampaignsForAdmin(): Promise<Campaign[]> {
+    try {
+        const snapshot = await db.collection('campaigns')
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        return snapshot.docs.map((doc: QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as Campaign));
+    } catch (error) {
+        console.error('Error fetching all campaigns:', error);
+        return [];
+    }
+}
+
+/**
+ * Updates the status of a campaign.
+ */
+export async function updateCampaignStatus(campaignId: string, newStatus: 'draft' | 'active' | 'paused' | 'ended'): Promise<ActionFormState> {
+    try {
+        const session = await getDecodedSession();
+        if (!session) return { error: 'No autorizado' };
+        
+        // Check admin role
+        const userDoc = await db.collection('users').doc(session.uid).get();
+        if (userDoc.data()?.role !== 'admin') {
+             return { error: 'No autorizado' };
+        }
+
+        await db.collection('campaigns').doc(campaignId).update({
+            status: newStatus,
+            updatedAt: new Date().toISOString()
+        });
+
+        revalidatePath('/admin');
+        revalidatePath('/dashboard'); // Update user dashboard banner
+        revalidatePath('/dashboard/rewards'); // Ensure changes reflect on rewards tab
+        return { success: true, message: `Estado actualizado a: ${newStatus === 'active' ? 'Activa' : newStatus}.` };
+    } catch (error) {
+        console.error('Error updating status:', error);
+        return { error: 'Error al actualizar estado.' };
+    }
+}
+
+
+// --- Advertiser (ONG) Actions ---
+
+/**
+ * Fetches campaigns associated with a specific advertiser (ONG).
+ * @param advertiserId - The ID of the ONG/Advertiser.
+ * @returns List of campaigns.
+ */
+export async function getAdvertiserCampaigns(advertiserId: string): Promise<Campaign[]> {
+    try {
+        const snapshot = await db.collection('campaigns')
+            .where('advertiserId', '==', advertiserId)
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        return snapshot.docs.map((doc: QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() } as Campaign));
+    } catch (error) {
+        console.error('Error fetching advertiser campaigns:', error);
+        return [];
+    }
+}
+
+/**
+ * Fetches conversions (leads) for a specific campaign.
+ * Used for CSV export and analytics.
+ */
+export async function getCampaignLeads(campaignId: string, advertiserId: string): Promise<CampaignConversion[]> {
+     try {
+        const session = await getDecodedSession();
+        if (!session) throw new Error('No autorizado');
+
+        // Security Check: Verify the campaign belongs to the requester OR requester is admin
+        const campaignDoc = await db.collection('campaigns').doc(campaignId).get();
+        if (!campaignDoc.exists) throw new Error('Campaña no encontrada');
+        
+        const campaignData = campaignDoc.data() as Campaign;
+        
+        // Strict Authorization Logic
+        if (session.uid !== advertiserId) {
+             // If not the owner, check if it's an admin
+             const userDoc = await db.collection('users').doc(session.uid).get();
+             const userData = userDoc.data();
+             if (userData?.role !== 'admin') {
+                 throw new Error('No autorizado para ver estos datos.');
+             }
+        }
+        
+        // Double check: if passed advertiserId doesn't match campaign owner
+        if (campaignData.advertiserId !== advertiserId) {
+             throw new Error('Discrepancia de datos de campaña.');
+        }
+
+        const snapshot = await db.collection('campaign_conversions')
+            .where('campaignId', '==', campaignId)
+            .orderBy('convertedAt', 'desc')
+            .get();
+
+        // Enriquecer los leads antiguos que no tienen país o estado
+        const leads = await Promise.all(snapshot.docs.map(async (doc) => {
+            const data = doc.data() as CampaignConversion;
+            
+            // Si falta estado o país, tratamos de recuperarlo del usuario original para mostrarlo
+            if (!data.userState || !data.userCountry) {
+                try {
+                    const uDoc = await db.collection('users').doc(data.userId).get();
+                    if (uDoc.exists) {
+                        const uData = uDoc.data();
+                        // Mantenemos el 'id' de doc.id pero sobrescribimos el state y country
+                        return { 
+                            ...data, 
+                            id: doc.id,
+                            userState: uData?.state || '', 
+                            userCountry: uData?.country || '' 
+                        };
+                    }
+                } catch(e) {
+                    console.error('Could not enrich missing location data', e);
+                }
+            }
+            // Retornamos el objeto base con el ID
+            return { ...data, id: doc.id };
+        }));
+
+        return leads;
+    } catch (error) {
+        console.error('Error fetching leads:', error);
+        return [];
+    }
+}
+
+/**
+ * Fetches analytics data for a campaign.
+ * Validates user permissions.
+ */
+export async function getCampaignAnalyticsAction(campaignId: string): Promise<EventAnalyticsData | null> {
+    try {
+        const session = await getDecodedSession();
+        if (!session) return null;
+
+        // Security check: Ensure user is admin or campaign owner
+        const campaignDoc = await db.collection('campaigns').doc(campaignId).get();
+        if (!campaignDoc.exists) return null;
+        
+        const campaign = campaignDoc.data() as Campaign;
+        
+        if (session.uid !== campaign.advertiserId) {
+             const userDoc = await db.collection('users').doc(session.uid).get();
+             if (userDoc.data()?.role !== 'admin') {
+                 console.error('Unauthorized access to campaign analytics');
+                 return null;
+             }
+        }
+
+        return await getCampaignAnalytics(campaignId);
+    } catch (error) {
+        console.error('Error in getCampaignAnalyticsAction:', error);
+        return null;
+    }
+}
