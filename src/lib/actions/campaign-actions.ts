@@ -22,10 +22,18 @@ export async function getActiveCampaigns(placement: 'dashboard_main' | 'dashboar
     const now = new Date();
     
     // Query: Status=active AND Placement=X (Date filter in memory for robustness)
-    const campaignsSnapshot = await db.collection('campaigns')
+    let query = db.collection('campaigns')
       .where('status', '==', 'active')
-      .where('placement', '==', placement)
-      .get();
+      .where('placement', '==', placement);
+
+    // CRITICAL DIAGNOSIS FIX:
+    // If we are looking for 'dashboard_main' or 'dashboard_sidebar', 
+    // we should EXCLUDE 'reward' and 'giveaway' types as they belong to the Rewards Tab.
+    if (placement === 'dashboard_main' || placement === 'dashboard_sidebar') {
+        query = query.where('type', 'in', ['download', 'link']);
+    }
+
+    const campaignsSnapshot = await query.get();
 
     const campaigns: Campaign[] = [];
 
@@ -180,8 +188,15 @@ export async function createCampaign(data: Omit<Campaign, 'id' | 'createdAt' | '
             return { error: 'No tienes permisos de administrador.' };
         }
 
+        // FORCE PLACEMENT FOR REWARDS/GIVEAWAYS TO PREVENT RENDER BUGS
+        let finalPlacement = data.placement;
+        if (data.type === 'reward' || data.type === 'giveaway') {
+            finalPlacement = 'event_list';
+        }
+
         const newCampaign: Omit<Campaign, 'id'> = {
             ...data,
+            placement: finalPlacement,
             clickCount: 0,
             uniqueConversionCount: 0,
             createdAt: new Date().toISOString(),
@@ -218,6 +233,11 @@ export async function updateCampaign(campaignId: string, data: Partial<Campaign>
         delete updatePayload.createdAt;
         delete updatePayload.clickCount;
         delete updatePayload.uniqueConversionCount;
+
+        // FORCE PLACEMENT FOR REWARDS/GIVEAWAYS TO PREVENT RENDER BUGS
+        if (updatePayload.type === 'reward' || updatePayload.type === 'giveaway') {
+            updatePayload.placement = 'event_list';
+        }
 
         await db.collection('campaigns').doc(campaignId).update(updatePayload);
 

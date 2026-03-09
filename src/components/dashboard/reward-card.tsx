@@ -42,21 +42,26 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
     const price = campaign.priceKm || 0;
     const isAffordable = userPoints >= price;
     const diff = price - userPoints;
+    const maxLimit = campaign.maxPerUser !== undefined ? campaign.maxPerUser : 1;
 
     // Filter purchases specifically for this campaign
     const purchasedCoupons = userPurchases.filter(ur => ur.campaignId === campaign.id);
+    const totalPurchasedForCampaign = purchasedCoupons.length;
     
-    // For standard 'reward': check if user has an active (unredeemed) coupon
+    // For standard 'reward': check if user has an UNREDEEMED coupon pending to be used
     const unredeemedCoupons = purchasedCoupons.filter(ur => ur.status === 'purchased');
     const hasActiveCoupon = !isGiveaway && unredeemedCoupons.length > 0;
     const activeCouponId = hasActiveCoupon ? unredeemedCoupons[0].id : null;
 
-    // For 'giveaway': count total tickets
-    const totalTickets = isGiveaway ? purchasedCoupons.length : 0;
-    const hasTickets = totalTickets > 0;
+    // Evaluate Max Limits
+    // maxReached is true IF the campaign has a limit (maxLimit > 0) AND the user bought that exact amount or more.
+    const maxReached = maxLimit > 0 && totalPurchasedForCampaign >= maxLimit;
 
-    // Check Max limit (applies to both, but visually impacts giveaway differently)
-    const maxReached = campaign.maxPerUser !== undefined && campaign.maxPerUser > 0 && purchasedCoupons.length >= campaign.maxPerUser;
+    // A reward is "fully redeemed" (Exhausted) if they reached the max limit AND have nothing left to redeem.
+    const isFullyRedeemed = !isGiveaway && maxReached && !hasActiveCoupon;
+
+    // A giveaway is "exhausted" if they reached the max limit (no redeeming needed).
+    const isGiveawayExhausted = isGiveaway && maxReached;
 
     const handlePurchase = async () => {
         if (!consentAccepted) return;
@@ -152,6 +157,11 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                                 <CheckCircle2 className="w-3 h-3" /> Adquirido
                             </div>
                         )}
+                        {isFullyRedeemed && (
+                            <div className="bg-slate-700 text-white px-3 py-1 rounded-full text-xs font-bold shadow flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-slate-300" /> Canjeado
+                            </div>
+                        )}
                     </div>
                 </div>
                 
@@ -167,22 +177,22 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                     
                     <div className="mt-auto space-y-3">
                         
-                        {/* Giveaway Stats Row */}
-                        {isGiveaway && hasTickets && (
-                            <div className="bg-purple-50 text-purple-900 text-xs p-2 rounded border border-purple-100 font-medium flex justify-between items-center">
-                                <span>Tus boletos:</span>
-                                <Badge variant="secondary" className="bg-purple-200 text-purple-900 hover:bg-purple-200">
-                                    {totalTickets} {campaign.maxPerUser ? `/ ${campaign.maxPerUser}` : ''}
+                        {/* Stats Row: Shown if it's a Giveaway OR if it's a Reward with multiple uses allowed */}
+                        {((isGiveaway && totalPurchasedForCampaign > 0) || (!isGiveaway && (maxLimit > 1 || maxLimit === 0) && totalPurchasedForCampaign > 0)) && (
+                            <div className={`text-xs p-2 rounded border font-medium flex justify-between items-center ${isGiveaway ? 'bg-purple-50 text-purple-900 border-purple-100' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
+                                <span>{isGiveaway ? 'Tus boletos:' : 'Comprados:'}</span>
+                                <Badge variant="secondary" className={isGiveaway ? 'bg-purple-200 text-purple-900' : ''}>
+                                    {totalPurchasedForCampaign} {maxLimit > 0 ? `/ ${maxLimit}` : ''}
                                 </Badge>
                             </div>
                         )}
 
                         <div className="flex justify-between items-center">
-                            <Badge variant={hasActiveCoupon ? "outline" : "secondary"} className={`text-sm px-3 py-1 font-mono ${isGiveaway ? 'bg-purple-100 text-purple-900 border-transparent' : ''}`}>
+                            <Badge variant={(hasActiveCoupon || isFullyRedeemed || isGiveawayExhausted) ? "outline" : "secondary"} className={`text-sm px-3 py-1 font-mono ${isGiveaway && !isGiveawayExhausted ? 'bg-purple-100 text-purple-900 border-transparent' : ''}`}>
                                 {price} KM
                             </Badge>
                             
-                            {!hasActiveCoupon && !isAffordable && !maxReached && (
+                            {!hasActiveCoupon && !isFullyRedeemed && !isGiveawayExhausted && !isAffordable && (
                                 <span className="text-xs text-amber-600 font-medium">Te faltan {diff} KM</span>
                             )}
                         </div>
@@ -192,13 +202,22 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                                 <Info className="w-4 h-4 mr-1" /> Detalles
                             </Button>
                             
+                            {/* Decision Matrix for Main Action Button */}
                             {hasActiveCoupon ? (
+                                // Priority 1: User has an active unredeemed physical reward. Must redeem before buying another.
                                 <Button size="sm" onClick={() => setRedeemConfirmOpen(true)} className="w-full bg-green-600 hover:bg-green-700">
                                     Canjear
                                 </Button>
+                            ) : isFullyRedeemed ? (
+                                // Priority 2: User exhausted all allowed physical rewards.
+                                <Button size="sm" disabled variant="secondary" className="w-full bg-slate-100 text-slate-500 border-slate-200">
+                                    Canjeado
+                                </Button>
                             ) : maxReached ? (
+                                // Priority 3: User reached the max limit (applies to giveaways or rewards).
                                 <Button size="sm" disabled className="w-full">Límite alcanzado</Button>
                             ) : (
+                                // Priority 4: User is allowed to buy.
                                 <Button 
                                     size="sm" 
                                     onClick={() => setConsentOpen(true)} 
@@ -251,7 +270,7 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
 
                     <DialogFooter className="mt-6 flex gap-2">
                         <Button variant="outline" onClick={() => setDetailsOpen(false)} className="flex-1">Cerrar</Button>
-                        {(!hasActiveCoupon && !maxReached) && (
+                        {(!hasActiveCoupon && !isFullyRedeemed && !maxReached) && (
                             <Button 
                                 onClick={() => { setDetailsOpen(false); setConsentOpen(true); }} 
                                 disabled={!isAffordable}
