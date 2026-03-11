@@ -30,7 +30,7 @@ export function FeedbackButton() {
     }
   }, []);
 
-  const phoneNumber = "525547716640"; // Formato internacional sin + para wa.me link
+  const phoneNumber = "525569691709"; // Formato internacional sin + para wa.me link
   
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     // Calcular URL al momento del clic para tener la ruta exacta actual

@@ -8,7 +8,7 @@ interface HeroSectionProps {
   content: LandingEventsHero;
 }
 
-const WHATSAPP_NUMBER = "5215547716640"; // Country code (52) + Area code (1) + Number
+const WHATSAPP_NUMBER = "5215569691709"; // Country code (52) + Area code (1) + Number
 const WHATSAPP_MESSAGE = "Hola me interesa conocer mas sobre su plataforma de gestión de eventos.";
 
 export function HeroSection({ content }: HeroSectionProps) {

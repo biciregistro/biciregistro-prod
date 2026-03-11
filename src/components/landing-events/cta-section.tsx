@@ -9,7 +9,7 @@ interface CtaSectionProps {
   allies: LandingEventsAlly[];
 }
 
-const WHATSAPP_NUMBER = "5215547716640";
+const WHATSAPP_NUMBER = "5215569691709";
 const WHATSAPP_MESSAGE = "Hola me interesa conocer mas sobre su plataforma de gestión de eventos.";
 
 export function CtaSection({ cta, allies }: CtaSectionProps) {

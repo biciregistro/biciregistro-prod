@@ -145,9 +145,9 @@ export default function FAQPage() {
             </Link>
           </Button>
           <Button size="lg" asChild className="gap-2 h-14 text-base bg-green-600 hover:bg-green-700">
-            <Link href="https://wa.me/525547716640" target="_blank" rel="noopener noreferrer">
+            <Link href="https://wa.me/525569691709" target="_blank" rel="noopener noreferrer">
               <MessageCircle className="h-5 w-5" />
-              WhatsApp: 55 4771 6640
+              WhatsApp: 55 6969 1709
             </Link>
           </Button>
         </div>
