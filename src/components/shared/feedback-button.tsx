@@ -5,6 +5,8 @@ import { MessageSquareText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
+// IMPORTANTE: Asegurarnos de exportar el componente de forma predeterminada
+// O exportarlo con nombre como ya estaba.
 export function FeedbackButton() {
   // Usamos estado para la URL para asegurar consistencia en hidratación
   const [currentUrl, setCurrentUrl] = useState('');
@@ -13,20 +15,8 @@ export function FeedbackButton() {
   useEffect(() => {
     setIsMounted(true);
     if (typeof window !== 'undefined') {
-      // Actualizar URL cuando cambie (aunque en layout se monta una vez, 
-      // si navegamos, el href del link se recalcula al hacer click si es un <a> simple,
-      // pero para el estado inicial usamos esto).
-      // Mejor aún: leer window.location.href en el momento del click o renderizar dinámicamente.
-      // Dado que es un <a> nativo, podemos dejar que el navegador maneje el evento, 
-      // pero para pre-llenar el href necesitamos saber la URL.
-      
       const updateUrl = () => setCurrentUrl(window.location.href);
       updateUrl();
-      
-      // Opcional: Escuchar cambios de ruta si fuera necesario actualizar el href dinámicamente
-      // sin recargar componentes, pero un <a> con href fijo necesita reactividad.
-      // En Next.js App Router, layout no se desmonta. 
-      // Usaremos un onClick para garantizar la URL más reciente.
     }
   }, []);
 
@@ -46,30 +36,53 @@ export function FeedbackButton() {
   if (!isMounted) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 print:hidden animate-in fade-in zoom-in duration-300">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              asChild
-              size="icon"
-              className="h-14 w-14 rounded-full shadow-xl bg-green-600 hover:bg-green-700 text-white border-2 border-white dark:border-slate-800 transition-transform hover:scale-110"
-            >
-              <a 
-                href="#" 
-                onClick={handleClick} 
-                aria-label="Reportar problema o enviar feedback"
-              >
-                <MessageSquareText className="h-7 w-7" />
-              </a>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="left" className="mr-2">
-            <p className="font-semibold">¿Tienes feedback?</p>
-            <p className="text-xs text-muted-foreground">Repórtalo por WhatsApp</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </div>
+    <>
+        {/* Desktop Feedback Button */}
+        <div className="hidden md:block fixed bottom-6 right-6 z-50 print:hidden animate-in fade-in zoom-in duration-300">
+        <TooltipProvider>
+            <Tooltip>
+            <TooltipTrigger asChild>
+                <Button
+                asChild
+                size="icon"
+                className="h-14 w-14 rounded-full shadow-xl bg-green-600 hover:bg-green-700 text-white border-2 border-white dark:border-slate-800 transition-transform hover:scale-110"
+                >
+                <a 
+                    href="#" 
+                    onClick={handleClick} 
+                    aria-label="Reportar problema o enviar feedback"
+                >
+                    <MessageSquareText className="h-7 w-7" />
+                </a>
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="mr-2">
+                <p className="font-semibold">¿Tienes feedback?</p>
+                <p className="text-xs text-muted-foreground">Repórtalo por WhatsApp</p>
+            </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+        </div>
+
+        {/* Mobile Feedback Button (Floating Tab on Center Right) */}
+        {/* Usamos origin-bottom-right y ajustamos para que quede adherido EXACTAMENTE al borde */}
+        <div className="md:hidden fixed top-1/2 right-0 z-40 print:hidden -translate-y-1/2">
+            <div className="-rotate-90 origin-bottom-right absolute right-0 bottom-0 translate-y-[50%] hover:scale-105 transition-transform duration-200">
+                <Button
+                    asChild
+                    className="h-10 rounded-t-xl rounded-b-none shadow-lg bg-green-600 hover:bg-green-700 text-white border-2 border-b-0 border-white dark:border-slate-800 flex items-center gap-2 px-4 text-xs font-semibold"
+                >
+                    <a 
+                        href="#" 
+                        onClick={handleClick} 
+                        aria-label="Reportar problema o enviar feedback"
+                    >
+                        <MessageSquareText className="h-4 w-4" />
+                        <span>Feedback</span>
+                    </a>
+                </Button>
+            </div>
+        </div>
+    </>
   );
 }

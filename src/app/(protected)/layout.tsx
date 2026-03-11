@@ -4,6 +4,8 @@ import { Header } from '@/components/shared/header';
 import { Footer } from '@/components/shared/footer';
 import { NotificationsInitializer } from '@/components/shared/notifications-initializer';
 import { GamificationListener } from '@/components/shared/gamification-listener';
+import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
+import { Suspense } from 'react';
 
 // This forces all pages within this layout to be dynamically rendered.
 // It's essential for routes that depend on user authentication.
@@ -41,11 +43,18 @@ export default async function ProtectedLayout({
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen pb-16 md:pb-0"> {/* Add padding bottom for mobile nav */}
       <NotificationsInitializer userId={user.id} />
       <GamificationListener />
       <Header user={user} />
       <main className="flex-1">{children}</main>
+      {/* 
+        The MobileBottomNav uses useSearchParams(), which requires it to be wrapped in a Suspense boundary
+        when used inside a Server Component layout.
+      */}
+      <Suspense fallback={null}>
+         <MobileBottomNav user={user} />
+      </Suspense>
       <Footer />
     </div>
   );

@@ -115,10 +115,11 @@ export default function FAQPage() {
             <Accordion type="single" collapsible className="w-full">
               {section.items.map((item, itemIdx) => (
                 <AccordionItem key={itemIdx} value={`item-${idx}-${itemIdx}`}>
-                  <AccordionTrigger className="text-left font-medium text-lg hover:no-underline hover:text-primary">
+                  {/* Min height 44px ensures minimum touch target size for mobile */}
+                  <AccordionTrigger className="text-left font-medium text-lg hover:no-underline hover:text-primary min-h-[44px] py-3">
                     {item.question}
                   </AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground text-base leading-relaxed">
+                  <AccordionContent className="text-muted-foreground text-base leading-relaxed pb-4">
                     {item.answer}
                   </AccordionContent>
                 </AccordionItem>

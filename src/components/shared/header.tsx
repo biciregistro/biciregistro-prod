@@ -90,8 +90,15 @@ export function Header({ user }: { user: UserType | null }) {
   const userNameInitial = (user?.name || user?.email || "?").charAt(0).toUpperCase();
   const displayName = user?.name || "Usuario";
 
+  // Hide header on mobile if user is authenticated and is in dashboard area
+  const isDashboardArea = pathname.startsWith('/dashboard');
+  const hideOnMobile = user && isDashboardArea;
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className={cn(
+      "sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+      hideOnMobile && "hidden md:flex"
+    )}>
       <div className="container flex h-16 items-center px-4">
         <div className="flex w-full items-center justify-between">
             <div className="flex items-center gap-6">

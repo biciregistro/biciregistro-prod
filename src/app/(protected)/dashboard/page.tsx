@@ -1,18 +1,12 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { getAuthenticatedUser, getBikes, getUserEventRegistrations } from '@/lib/data';
 import type { User } from '@/lib/types';
 
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DashboardTabs } from '@/components/dashboard/dashboard-tabs';
-import { ReferralStatsCard } from '@/components/dashboard/referral-stats-card';
-import { PromotionalBanner } from '@/components/dashboard/promotional-banner';
-import { DownloadEmergencyStickerButton } from '@/components/dashboard/download-sticker-button';
 import { OnboardingTour } from '@/components/dashboard/onboarding-tour';
+import { ActionPanel } from '@/components/dashboard/action-panel';
 
-import { PlusCircle, User as UserIcon } from 'lucide-react';
 import { getActiveRewards, getUserRewards } from '@/lib/actions/reward-actions';
 
 // --- Helper function to check if the user profile is complete ---
@@ -22,56 +16,6 @@ const isProfileComplete = (user: User): boolean => {
     return !!user.birthDate && !!user.country && !!user.state;
 };
 
-// --- Action Panel Component ---
-function ActionPanel({ user, isComplete }: { user: User, isComplete: boolean }) {
-    return (
-        <div className="p-6 bg-card border rounded-lg mb-8">
-            <h1 className="text-2xl font-bold">¡Hola, {user.name}!</h1>
-            <p className="text-muted-foreground mb-4">
-                {isComplete 
-                    ? "Bienvenido de nuevo a tu garaje. Desde aquí puedes gestionar tus bicicletas y tu perfil."
-                    : "¡Bienvenido a BiciRegistro! Completa tu perfil para poder registrar tu primera bicicleta."
-                }
-            </p>
-            <div className="flex flex-col sm:flex-row gap-2">
-                <Button asChild>
-                    <Link href="/dashboard/profile" id="tour-profile">
-                        <UserIcon className="mr-2 h-4 w-4" />
-                        {isComplete ? 'Mi Perfil' : 'Completa tu perfil'}
-                    </Link>
-                </Button>
-                
-                {isComplete ? (
-                    <Button asChild>
-                        <Link href="/dashboard/register" id="tour-register-bike">
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Registrar Bici
-                        </Link>
-                    </Button>
-                ) : (
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                {/* The span is necessary for the tooltip to work on a disabled button */}
-                                <span tabIndex={0}>
-                                    <Button disabled className="w-full sm:w-auto" id="tour-register-bike">
-                                        <PlusCircle className="mr-2 h-4 w-4" />
-                                        Registrar Bici
-                                    </Button>
-                                </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Por favor completa tu perfil antes de registrar una bicicleta.</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                )}
-
-                <DownloadEmergencyStickerButton user={user} />
-            </div>
-        </div>
-    );
-}
 
 // --- Main Dashboard Page ---
 export default async function DashboardPage() {
@@ -96,22 +40,10 @@ export default async function DashboardPage() {
 
     return (
         <div className="container max-w-5xl mx-auto py-6 md:py-8 px-4">
-            {/* Action Panel */}
+            {/* Action Panel extracted */}
             <ActionPanel user={user} isComplete={profileIsComplete} />
 
-            {/* Campaign Banner - NEW (Zero-Regression Placement) */}
-            <div className="mb-6">
-                <PromotionalBanner />
-            </div>
-
-            {/* Referral Stats Card */}
-            {profileIsComplete && (
-                <div className="mb-8">
-                    <ReferralStatsCard user={user} />
-                </div>
-            )}
-
-            {/* Tabs Section */}
+            {/* Tabs Section now handles the layout of bikes, events and rewards including the promotional banners */}
             <DashboardTabs 
                 bikes={bikes} 
                 registrations={registrations} 
