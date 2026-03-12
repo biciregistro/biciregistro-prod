@@ -148,8 +148,8 @@ export function ReferralStatsCard({ user }: ReferralStatsCardProps) {
                         <Progress value={progress} className="h-2 w-full" indicatorClassName="bg-yellow-500" />
                     </div>
 
-                    {/* Spendable Balance and Actions */}
-                    <div className="flex flex-col sm:flex-row gap-4 items-center bg-white p-3 rounded-lg border shadow-sm">
+                    {/* Spendable Balance and Actions - Hidden on Mobile */}
+                    <div className="hidden md:flex flex-col sm:flex-row gap-4 items-center bg-white p-3 rounded-lg border shadow-sm">
                          <div className="flex flex-col items-center sm:items-start flex-1 w-full border-b sm:border-b-0 sm:border-r pb-3 sm:pb-0 sm:pr-4 border-slate-100">
                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
                                  <Wallet className="w-3 h-3" /> Saldo Disponible

@@ -8,12 +8,14 @@ import { BikeCard } from '@/components/bike-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, ArrowRight, Compass, Gift, HelpCircle, FileText, PlusCircle } from 'lucide-react';
+import { Calendar, MapPin, ArrowRight, Compass, Gift, HelpCircle, FileText, PlusCircle, Share2 } from 'lucide-react';
 import type { Bike, UserEventRegistration, User, Campaign, UserReward } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { RewardCard } from './reward-card';
 import { PromotionalBanner } from './promotional-banner';
 import { ReferralStatsCard } from './referral-stats-card';
+import { getReferralData, ReferralData } from '@/lib/actions/referral-actions';
+import { useToast } from '@/hooks/use-toast';
 
 interface DashboardTabsProps {
     bikes: Bike[];
@@ -29,7 +31,9 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
-    
+    const { toast } = useToast();
+    const [referralData, setReferralData] = useState<ReferralData | null>(null);
+
     // Default Tab Logic
     let initTab = 'garage';
     const paramTab = searchParams.get('tab');
@@ -44,10 +48,48 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
         }
     }, [searchParams]);
 
+    // Fetch referral data for the floating button sharing
+    useEffect(() => {
+        if (activeTab === 'rewards') {
+            getReferralData().then((res) => {
+                if (res.success && res.data) {
+                    setReferralData(res.data);
+                }
+            });
+        }
+    }, [activeTab]);
+
     const onTabChange = (value: string) => {
         setActiveTab(value);
         router.push(`${pathname}?tab=${value}`, { scroll: false });
     };
+
+    const handleShare = async () => {
+        if (!referralData) return;
+
+        const shareText = `¡Hola! Te invito a usar mi enlace para blindar tu bici con *Biciregistro*, proteger a la banda ciclista del robo y combatir el mercado negro. Si te registras con mi link ambos podemos ganar premios de aliados y acumular kilómetros.\n\nMi link 👉 ${referralData.shareUrl}\n\n¡Además, le das identidad a tu bici, la vinculas legalmente a ti y obtienes herramientas de protección activa y pasiva contra el robo!`;
+        
+        const shareData = {
+            title: 'Únete a BiciRegistro',
+            text: shareText,
+        };
+
+        if (navigator.share) {
+            try {
+                await navigator.share(shareData);
+            } catch (err) {
+                console.log('Error sharing:', err);
+                navigator.clipboard.writeText(shareText);
+            }
+        } else {
+            navigator.clipboard.writeText(shareText);
+            toast({
+                title: "Mensaje copiado",
+                description: "El mensaje de invitación ha sido copiado al portapapeles.",
+            });
+        }
+    };
+
 
     const now = new Date();
     const sortedRegistrations = [...registrations].sort((a, b) => {
@@ -304,8 +346,9 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                 )}
             </TabsContent>
 
-            <TabsContent value="rewards" className="space-y-6">
-                <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl p-5 text-white shadow-lg relative overflow-hidden">
+            <TabsContent value="rewards" className="space-y-4 pb-28 md:pb-0"> {/* Use pb-28 to avoid overlapping the new floating button on mobile */}
+                {/* Desktop: Green Points Card. Mobile: Hidden. */}
+                <div className="hidden md:block bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl p-5 text-white shadow-lg relative overflow-hidden">
                     <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-4">
                         <div className="flex-1">
                             <h2 className="text-2xl font-bold mb-1 flex items-center gap-2 text-white">
@@ -329,13 +372,14 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                     <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-48 h-48 bg-emerald-300 opacity-10 rounded-full blur-2xl mix-blend-overlay"></div>
                 </div>
 
-                {/* Referral Card moved to Rewards Tab */}
+                {/* Referral Card (Gamification Explanation) */}
                 {isProfileComplete && (
-                    <div className="mb-8">
+                    <div className="mb-6">
                         <ReferralStatsCard user={user} />
                     </div>
                 )}
 
+                {/* Rewards List */}
                 {combinedRewardsList.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-muted/30">
                         <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6">
@@ -353,7 +397,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                         </Button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {combinedRewardsList.map((campaign) => (
                             <RewardCard 
                                 key={campaign.id} 
@@ -362,6 +406,19 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                                 userPurchases={userPurchases}
                             />
                         ))}
+                    </div>
+                )}
+
+                {/* Mobile prominently centered Share / Invite button */}
+                {isProfileComplete && (
+                    <div className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-40">
+                        <Button 
+                            onClick={handleShare}
+                            className="h-12 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-white font-bold px-6 flex items-center gap-2"
+                        >
+                            <Share2 className="h-5 w-5" />
+                            <span>Invitar Amigos</span>
+                        </Button>
                     </div>
                 )}
             </TabsContent>

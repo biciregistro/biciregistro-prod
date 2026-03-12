@@ -39,19 +39,21 @@ export default async function DashboardPage() {
     const registrations = allRegistrations.filter(reg => reg.status !== 'cancelled');
 
     return (
-        <div className="container max-w-5xl mx-auto py-6 md:py-8 px-4">
+        <div className="container max-w-5xl mx-auto md:py-8 px-4">
             {/* Action Panel extracted */}
             <ActionPanel user={user} isComplete={profileIsComplete} />
 
             {/* Tabs Section now handles the layout of bikes, events and rewards including the promotional banners */}
-            <DashboardTabs 
-                bikes={bikes} 
-                registrations={registrations} 
-                user={user} 
-                isProfileComplete={profileIsComplete}
-                activeRewards={activeRewards}
-                userPurchases={userPurchases}
-            />
+            <div className="mt-2 md:mt-0">
+                <DashboardTabs 
+                    bikes={bikes} 
+                    registrations={registrations} 
+                    user={user} 
+                    isProfileComplete={profileIsComplete}
+                    activeRewards={activeRewards}
+                    userPurchases={userPurchases}
+                />
+            </div>
             
             <OnboardingTour user={user} />
         </div>

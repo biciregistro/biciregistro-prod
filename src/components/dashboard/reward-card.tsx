@@ -134,101 +134,115 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
         );
     };
 
+    // Determine what button to render to avoid repetition
+    const renderActionButton = () => {
+        if (hasActiveCoupon) {
+            return (
+                <Button size="sm" onClick={() => setRedeemConfirmOpen(true)} className="w-full bg-green-600 hover:bg-green-700 h-8 sm:h-9 text-xs sm:text-sm">
+                    Canjear
+                </Button>
+            );
+        }
+        if (isFullyRedeemed) {
+            return (
+                <Button size="sm" disabled variant="secondary" className="w-full bg-slate-100 text-slate-500 border-slate-200 h-8 sm:h-9 text-xs sm:text-sm">
+                    Canjeado
+                </Button>
+            );
+        }
+        if (maxReached) {
+            return (
+                <Button size="sm" disabled className="w-full h-8 sm:h-9 text-xs sm:text-sm">
+                    Límite
+                </Button>
+            );
+        }
+        return (
+            <Button 
+                size="sm" 
+                onClick={() => setConsentOpen(true)} 
+                disabled={!isAffordable} 
+                className={`w-full h-8 sm:h-9 text-xs sm:text-sm ${isGiveaway ? 'bg-purple-600 hover:bg-purple-700 text-white' : ''}`}
+            >
+                {isGiveaway ? 'Boleto' : 'Comprar'}
+            </Button>
+        );
+    };
+
     return (
         <>
-            {/* MAIN CARD */}
-            <Card className={`overflow-hidden hover:shadow-md transition-all flex flex-col h-full relative group ${isGiveaway ? 'border-purple-200' : ''}`}>
-                <div className="relative aspect-[16/9] w-full bg-muted">
+            {/* MAIN CARD - Responsive Layout (Row on Mobile, Column on Desktop) */}
+            <Card className={`overflow-hidden hover:shadow-md transition-all flex flex-row sm:flex-col h-full relative group ${isGiveaway ? 'border-purple-200' : ''}`}>
+                
+                {/* Image Section - Square/Thumbnail on Mobile, 16/9 Banner on Desktop */}
+                <div className="relative w-28 sm:w-full h-auto sm:aspect-[16/9] flex-shrink-0 bg-muted border-r sm:border-r-0 sm:border-b border-border/50">
                     <Image 
                         src={campaign.bannerImageUrl} 
                         alt={campaign.title} 
                         fill
                         className="object-cover"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        sizes="(max-width: 768px) 112px, (max-width: 1200px) 50vw, 33vw"
                     />
                     
-                    {/* Visual Badges top-right */}
-                    <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+                    {/* Visual Badges - Top Right on Desktop, Top Left overlapping image on Mobile */}
+                    <div className="absolute top-1 left-1 sm:top-2 sm:right-2 sm:left-auto flex flex-col gap-1 items-start sm:items-end scale-90 sm:scale-100 origin-top-left sm:origin-top-right">
                         {isGiveaway && (
-                            <div className="bg-purple-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow flex items-center gap-1">
-                                <Ticket className="w-3 h-3" /> Sorteo
+                            <div className="bg-purple-600 text-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold shadow flex items-center gap-1">
+                                <Ticket className="w-3 h-3" /> <span className="hidden sm:inline">Sorteo</span>
                             </div>
                         )}
                         {hasActiveCoupon && (
-                            <div className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3" /> Adquirido
+                            <div className="bg-green-500 text-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold shadow flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" /> <span className="hidden sm:inline">Adquirido</span>
                             </div>
                         )}
                         {isFullyRedeemed && (
-                            <div className="bg-slate-700 text-white px-3 py-1 rounded-full text-xs font-bold shadow flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3 text-slate-300" /> Canjeado
+                            <div className="bg-slate-700 text-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold shadow flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-slate-300" /> <span className="hidden sm:inline">Canjeado</span>
                             </div>
                         )}
                     </div>
                 </div>
                 
-                <CardContent className="p-4 flex flex-col flex-grow">
-                    <div className="flex justify-between items-start gap-2 mb-2">
-                        <h3 className="font-bold text-lg line-clamp-2 leading-tight">{campaign.title}</h3>
+                {/* Content Section */}
+                <CardContent className="p-3 sm:p-4 flex flex-col flex-grow min-w-0">
+                    <div className="flex flex-col mb-2">
+                        <h3 className="font-bold text-sm sm:text-lg line-clamp-2 leading-tight mb-1">{campaign.title}</h3>
+                        <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
+                            <Store className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                            <span className="line-clamp-1">{campaign.advertiserName}</span>
+                        </div>
                     </div>
                     
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                        <Store className="w-4 h-4" />
-                        <span className="line-clamp-1">{campaign.advertiserName}</span>
-                    </div>
-                    
-                    <div className="mt-auto space-y-3">
-                        
+                    <div className="mt-auto space-y-2.5 sm:space-y-3">
                         {/* Stats Row: Shown if it's a Giveaway OR if it's a Reward with multiple uses allowed */}
                         {((isGiveaway && totalPurchasedForCampaign > 0) || (!isGiveaway && (maxLimit > 1 || maxLimit === 0) && totalPurchasedForCampaign > 0)) && (
-                            <div className={`text-xs p-2 rounded border font-medium flex justify-between items-center ${isGiveaway ? 'bg-purple-50 text-purple-900 border-purple-100' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
+                            <div className={`text-[10px] sm:text-xs p-1.5 sm:p-2 rounded border font-medium flex justify-between items-center ${isGiveaway ? 'bg-purple-50 text-purple-900 border-purple-100' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>
                                 <span>{isGiveaway ? 'Tus boletos:' : 'Comprados:'}</span>
-                                <Badge variant="secondary" className={isGiveaway ? 'bg-purple-200 text-purple-900' : ''}>
+                                <Badge variant="secondary" className={`text-[10px] sm:text-xs px-1.5 py-0 ${isGiveaway ? 'bg-purple-200 text-purple-900' : ''}`}>
                                     {totalPurchasedForCampaign} {maxLimit > 0 ? `/ ${maxLimit}` : ''}
                                 </Badge>
                             </div>
                         )}
 
                         <div className="flex justify-between items-center">
-                            <Badge variant={(hasActiveCoupon || isFullyRedeemed || isGiveawayExhausted) ? "outline" : "secondary"} className={`text-sm px-3 py-1 font-mono ${isGiveaway && !isGiveawayExhausted ? 'bg-purple-100 text-purple-900 border-transparent' : ''}`}>
+                            <Badge variant={(hasActiveCoupon || isFullyRedeemed || isGiveawayExhausted) ? "outline" : "secondary"} className={`text-xs sm:text-sm px-2 sm:px-3 py-0.5 sm:py-1 font-mono ${isGiveaway && !isGiveawayExhausted ? 'bg-purple-100 text-purple-900 border-transparent' : ''}`}>
                                 {price} KM
                             </Badge>
                             
                             {!hasActiveCoupon && !isFullyRedeemed && !isGiveawayExhausted && !isAffordable && (
-                                <span className="text-xs text-amber-600 font-medium">Te faltan {diff} KM</span>
+                                <span className="text-[10px] sm:text-xs text-amber-600 font-medium">Faltan {diff}</span>
                             )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setDetailsOpen(true)} className="w-full">
-                                <Info className="w-4 h-4 mr-1" /> Detalles
+                        {/* Actions Row */}
+                        <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setDetailsOpen(true)} className="flex-1 h-8 sm:h-9 text-xs sm:text-sm px-0">
+                                <Info className="w-3 h-3 sm:w-4 sm:h-4 mr-1" /> Detalles
                             </Button>
-                            
-                            {/* Decision Matrix for Main Action Button */}
-                            {hasActiveCoupon ? (
-                                // Priority 1: User has an active unredeemed physical reward. Must redeem before buying another.
-                                <Button size="sm" onClick={() => setRedeemConfirmOpen(true)} className="w-full bg-green-600 hover:bg-green-700">
-                                    Canjear
-                                </Button>
-                            ) : isFullyRedeemed ? (
-                                // Priority 2: User exhausted all allowed physical rewards.
-                                <Button size="sm" disabled variant="secondary" className="w-full bg-slate-100 text-slate-500 border-slate-200">
-                                    Canjeado
-                                </Button>
-                            ) : maxReached ? (
-                                // Priority 3: User reached the max limit (applies to giveaways or rewards).
-                                <Button size="sm" disabled className="w-full">Límite alcanzado</Button>
-                            ) : (
-                                // Priority 4: User is allowed to buy.
-                                <Button 
-                                    size="sm" 
-                                    onClick={() => setConsentOpen(true)} 
-                                    disabled={!isAffordable} 
-                                    className={`w-full ${isGiveaway ? 'bg-purple-600 hover:bg-purple-700 text-white' : ''}`}
-                                >
-                                    {isGiveaway ? 'Comprar Boleto' : 'Comprar'}
-                                </Button>
-                            )}
+                            <div className="flex-1">
+                                {renderActionButton()}
+                            </div>
                         </div>
                     </div>
                 </CardContent>
