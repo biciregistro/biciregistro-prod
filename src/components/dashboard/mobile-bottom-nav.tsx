@@ -69,6 +69,7 @@ export function MobileBottomNav({ user }: MobileBottomNavProps) {
                 )}
 
                 <Link
+                    id="tour-mobile-profile"
                     href={profilePath}
                     className={cn(
                         "flex flex-col items-center justify-center w-full h-full space-y-1 text-muted-foreground transition-colors",

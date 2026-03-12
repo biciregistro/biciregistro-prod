@@ -75,12 +75,12 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
                     }
                 },
                 {
-                    element: '#tour-qr',
+                    element: '#tour-mobile-profile', // MODIFIED: Point to the profile icon in the bottom nav
                     popover: {
                         title: 'Tu protección vital 🚑',
                         description: 'En tu perfil encontrarás este botón para descargar tu QR de Emergencia. Llévalo siempre en tu casco o bici para que los paramédicos sepan a quién llamar.',
-                        side: 'top',
-                        align: 'center',
+                        side: 'top', // popover appears above the icon
+                        align: 'end', // align the popover to the right side (esquina superior izquierda de la burbuja, pero posicionado al final de la barra)
                     }
                 },
                 {
