@@ -203,7 +203,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                         ))}
                         
                         {/* Mobile prominently centered add bike button */}
-                        <div className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-40">
+                        <div id="tour-main-action" className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-40">
                              {isProfileComplete ? (
                                 <Button asChild className="h-12 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-white font-bold px-6">
                                     <Link href="/dashboard/register" className="flex items-center gap-2">
@@ -411,7 +411,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
 
                 {/* Mobile prominently centered Share / Invite button */}
                 {isProfileComplete && (
-                    <div className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-40">
+                    <div id="tour-main-action" className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-40">
                         <Button 
                             onClick={handleShare}
                             className="h-12 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-white font-bold px-6 flex items-center gap-2"

@@ -13,9 +13,10 @@ import { useGamificationToast } from '@/hooks/use-gamification-toast';
 
 interface DownloadStickerButtonProps extends ButtonProps {
   user: User;
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
 }
 
-export function DownloadEmergencyStickerButton({ user, className, ...props }: DownloadStickerButtonProps) {
+export function DownloadEmergencyStickerButton({ user, className, variant, ...props }: DownloadStickerButtonProps) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -105,7 +106,11 @@ export function DownloadEmergencyStickerButton({ user, className, ...props }: Do
   return (
     <Button 
       id="tour-qr"
-      className={cn("bg-red-600 hover:bg-red-700 text-white border-red-700", className)}
+      variant={variant || "default"}
+      className={cn(
+        variant === undefined && "bg-red-600 hover:bg-red-700 text-white border-red-700", 
+        className
+      )}
       onClick={handleDownload}
       disabled={loading}
       {...props}
@@ -115,7 +120,7 @@ export function DownloadEmergencyStickerButton({ user, className, ...props }: Do
       ) : (
         <HeartPulse className="mr-2 h-4 w-4" />
       )}
-      Mi QR de emergencia
+      <span>Descargar QR de emergencia</span>
     </Button>
   );
 }

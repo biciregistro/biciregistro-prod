@@ -48,38 +48,38 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
                     }
                 },
                 {
-                    element: '#tour-profile',
+                    element: '#tour-mobile-header',
                     popover: {
                         title: 'Tú eres el motor 👤',
-                        description: 'Antes de cuidar la máquina, te cuidamos a ti. Completa tu perfil para ser el Dueño Oficial ante cualquier autoridad y para que el sistema sepa quién es el capitán de la ruta.',
+                        description: 'Aquí tienes acceso rápido a tu perfil y puedes ver tu saldo de Kilómetros acumulados en tiempo real para canjear por premios.',
                         side: 'bottom',
-                        align: 'start',
+                        align: 'center',
                     }
                 },
                 {
-                    element: '#tour-register-bike',
+                    element: '#tour-mobile-nav',
                     popover: {
-                        title: 'Crea su ADN Digital 🧬',
-                        description: 'Una bici con registro es una bici "tóxica" para el robo. Deja que Sprock nuestra IA te ayude con el número de serie y las fotos para que tu compañera deje de ser anónima y sea única e intocable.',
-                        side: 'bottom',
-                        align: 'start',
+                        title: 'Todo a un toque 📱',
+                        description: 'Usa esta barra para moverte entre tu Garaje, Eventos y Premios de forma instantánea.',
+                        side: 'top',
+                        align: 'center',
+                    }
+                },
+                {
+                    element: '#tour-main-action',
+                    popover: {
+                        title: 'Tu centro de acción ⚡',
+                        description: 'Desde aquí puedes realizar las acciones más importantes rápidamente, como registrar una nueva bicicleta o invitar a tus amigos.',
+                        side: 'top',
+                        align: 'center',
                     }
                 },
                 {
                     element: '#tour-qr',
                     popover: {
-                        title: 'Tu ángel de la guarda en el casco 🚑',
-                        description: 'Descarga tu etiqueta QR para Emergencias. Es anónima para extraños pero si llegas a tener un percance, los paramédicos sabrán tus datos vitales y a quien llamar.',
+                        title: 'Tu protección vital 🚑',
+                        description: 'En tu perfil encontrarás este botón para descargar tu QR de Emergencia. Llévalo siempre en tu casco o bici para que los paramédicos sepan a quién llamar.',
                         side: 'top',
-                        align: 'start',
-                    }
-                },
-                {
-                    element: '#tour-referral',
-                    popover: {
-                        title: 'Rueda, invita y gana 🏆',
-                        description: 'Nadie te regala nada por rodar... hasta ahora. Sube de nivel invitando a tus amigos a proteger sus bicis.',
-                        side: 'top', 
                         align: 'center',
                     }
                 },
@@ -122,6 +122,10 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
                 {
                     element: '#tour-bike-ownership',
                     popover: { title: 'Trazabilidad Legal 📄', description: 'El eslabón más fuerte. Sube tu factura o ticket para blindar legalmente la propiedad y facilitar reclamos de seguro.', side: 'top', align: 'start' }
+                },
+                {
+                    element: '#tour-bike-report',
+                    popover: { title: 'Protocolo de Robo 🚨', description: 'Activa la alerta a la comunidad y genera una ficha de búsqueda instantánea. La velocidad de reporte es vital para la recuperación.', side: 'top', align: 'start' }
                 },
                 {
                     element: '#tour-bike-report',

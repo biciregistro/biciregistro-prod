@@ -66,8 +66,7 @@ export function ActionPanel({ user, isComplete }: ActionPanelProps) {
             </div>
 
             {/* Mobile Version: Compact Header */}
-            {/* Changed from sticky to fixed to prevent jumpiness on mobile scroll, added bg-background for solidity */}
-            <div className="md:hidden fixed top-0 left-0 right-0 flex flex-col bg-background/95 backdrop-blur-md border-b px-4 py-3 z-40 space-y-3 shadow-sm">
+            <div id="tour-mobile-header" className="md:hidden fixed top-0 left-0 right-0 flex flex-col bg-background/95 backdrop-blur-md border-b px-4 py-3 z-40 space-y-3 shadow-sm">
                 {/* Top Row: Logo (Left) & User Info (Right) */}
                 <div className="flex items-center justify-between">
                     <Link href="/" className="flex items-center scale-75 origin-left">
@@ -104,13 +103,7 @@ export function ActionPanel({ user, isComplete }: ActionPanelProps) {
                 </div>
             </div>
             
-            {/* 
-               Spacer for Mobile: 
-               Since the header is now 'fixed', it's taken out of the document flow. 
-               We need an invisible block of the exact same height to push the content down 
-               so it doesn't get hidden behind the header on initial load.
-               The header is approx 100px tall.
-            */}
+            {/* Spacer for Mobile */}
             <div className="md:hidden h-[100px] w-full" aria-hidden="true" />
         </>
     );
