@@ -8,7 +8,7 @@ import { BikeCard } from '@/components/bike-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, ArrowRight, Compass, Gift, HelpCircle, FileText, PlusCircle, Share2 } from 'lucide-react';
+import { Calendar, MapPin, ArrowRight, Compass, Gift, HelpCircle, FileText, PlusCircle, Share2, Coins } from 'lucide-react';
 import type { Bike, UserEventRegistration, User, Campaign, UserReward } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { RewardCard } from './reward-card';
@@ -416,8 +416,8 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                             onClick={handleShare}
                             className="h-12 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-white font-bold px-6 flex items-center gap-2"
                         >
-                            <Share2 className="h-5 w-5" />
-                            <span>Invitar Amigos</span>
+                            <Coins className="h-5 w-5" />
+                            <span>Ganar {referralData?.referralPoints || 200} KM</span>
                         </Button>
                     </div>
                 )}
