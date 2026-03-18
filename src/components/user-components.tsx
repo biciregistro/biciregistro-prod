@@ -54,7 +54,37 @@ const toISODate = (val: string | undefined | null): string => {
     return ''; 
 };
 
-type FormValues = z.infer<typeof userFormSchema>;
+// Modificamos el Schema base SOLO para el frontend. 
+// Hacemos que todos los campos sean super flexibles temporalmente para que react-hook-form 
+// no bloquee el submit por errores en campos que están "ocultos" en otra pestaña.
+// La validación estricta y segura SIEMPRE sucede en el Server Action (updateProfile) con el payload completo.
+const looseFormSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().optional().or(z.literal('')),
+    lastName: z.string().optional().or(z.literal('')),
+    email: z.string().email().optional().or(z.literal('')),
+    birthDate: z.string().optional().or(z.literal('')),
+    country: z.string().optional().or(z.literal('')),
+    state: z.string().optional().or(z.literal('')),
+    city: z.string().optional().or(z.literal('')),
+    gender: z.enum(['masculino', 'femenino', 'otro']).optional(),
+    postalCode: z.string().optional().or(z.literal('')),
+    whatsapp: z.string().optional().or(z.literal('')),
+    emergencyContactName: z.string().optional().or(z.literal('')),
+    emergencyContactPhone: z.string().optional().or(z.literal('')),
+    bloodType: z.string().optional().or(z.literal('')),
+    allergies: z.string().optional().or(z.literal('')),
+    notificationsSafety: z.boolean().optional(),
+    notificationsMarketing: z.boolean().optional(),
+    password: z.string().optional(), // FIX: Agregado para el registro
+    currentPassword: z.string().optional(),
+    newPassword: z.string().optional(),
+    confirmPassword: z.string().optional(),
+    termsAccepted: z.boolean().optional(),
+    communityId: z.string().optional()
+});
+
+type FormValues = z.infer<typeof looseFormSchema>;
 
 function SubmitButton({ isEditing, isSigningIn, isSubmitting, loadingAuth, termsAccepted }: { isEditing?: boolean, isSigningIn?: boolean, isSubmitting?: boolean, loadingAuth?: boolean, termsAccepted?: boolean }) {
     const { pending } = useFormStatus();
@@ -147,7 +177,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
     }, []);
 
     const form = useForm<FormValues>({
-        resolver: zodResolver(userFormSchema),
+        resolver: zodResolver(isEditing ? looseFormSchema : (userFormSchema as unknown as z.ZodType<FormValues>)),
         defaultValues: {
             id: user?.id || undefined,
             name: user?.name || "",
@@ -174,10 +204,14 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
             currentPassword: "",
             newPassword: "",
         },
-        mode: 'onTouched',
+        mode: 'onSubmit',
     });
 
-    const password = form.watch(isEditing ? "newPassword" : "password");
+    // FIX: Separamos el watch para evitar problemas de tipos con ternarias dinámicas
+    const signupPassword = form.watch("password");
+    const editNewPassword = form.watch("newPassword");
+    const passwordValue = isEditing ? editNewPassword : signupPassword;
+
     const watchedCountry = form.watch('country');
     const watchedState = form.watch('state');
 
@@ -206,10 +240,10 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                 router.push('/login');
                 return;
             } else if (isEditing) {
-                const timer = setTimeout(() => {
-                    router.push('/dashboard');
-                }, 1500);
-                return () => clearTimeout(timer);
+                // FIX: Instead of router.push('/dashboard') which changes the page,
+                // we refresh the router to update global states (like header name/km) 
+                // but keep the user on the same tab and page they are currently editing.
+                router.refresh();
             } else if (state.customToken) {
                 setIsSigningIn(true);
                 const handleSignInAndSession = async () => {
@@ -255,22 +289,37 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
         }
 
         if (state.errors) {
-            Object.keys(state.errors).forEach((key) => {
-                const field = key as keyof FormValues;
-                const message = state.errors?.[field]?.[0];
+            let errorTabToFocus = activeTab;
+            const errorObj = state.errors as Record<string, string[]>;
+
+            Object.keys(errorObj).forEach((key) => {
+                const message = errorObj[key]?.[0];
                 if (message) {
-                    form.setError(field, { type: 'server', message });
+                    form.setError(key as any, { type: 'server', message });
+
+                    if (['name', 'lastName', 'birthDate', 'country', 'state', 'city', 'gender'].includes(key)) {
+                        errorTabToFocus = 'general';
+                    } else if (['emergencyContactName', 'emergencyContactPhone', 'bloodType'].includes(key)) {
+                        errorTabToFocus = 'emergency';
+                    } else if (['currentPassword', 'newPassword', 'confirmPassword'].includes(key)) {
+                        errorTabToFocus = 'security';
+                    }
                 }
             });
-             toast({
+            
+            if (errorTabToFocus !== activeTab) {
+                setActiveTab(errorTabToFocus);
+            }
+
+            toast({
                 variant: 'destructive',
-                title: "Error de Validación",
-                description: state.error || "Revisa los campos marcados en rojo.",
+                title: "Información Incompleta",
+                description: state.error || "Por favor revisa los campos requeridos.",
             });
         } else if (state.error) {
             toast({ variant: 'destructive', title: "Error", description: state.error });
         }
-    }, [state, toast, form, isEditing, router, callbackUrl, showRewardToast]);
+    }, [state, toast, form, isEditing, router, callbackUrl, showRewardToast, activeTab]);
 
     const handleCountryChange = (countryName: string) => {
         const country = countries.find(c => c.name === countryName);
@@ -325,8 +374,21 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
 
         if (formRef.current) {
             const formData = new FormData(formRef.current);
+            
+            // Re-hidratar campos que pudieran estar ocultos por el tab forceMount
+            Object.entries(values).forEach(([key, val]) => {
+                if (val !== undefined && val !== null) {
+                    if (typeof val === 'boolean') {
+                        formData.set(key, val ? 'on' : 'false');
+                    } else if (!formData.has(key)) {
+                        formData.set(key, String(val));
+                    }
+                }
+            });
+
             if (values.birthDate) formData.set('birthDate', values.birthDate);
             if (!isEditing) formData.set('termsAccepted', 'true');
+            if (communityId) formData.set('communityId', communityId);
 
             startTransition(() => {
                 if (!isEditing || !newPassword) {
@@ -335,8 +397,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                 }
 
                 if (!currentPassword) {
-                    form.setError('currentPassword', { type: 'manual', message: 'Contraseña actual requerida.' });
-                    // Switch to security tab to show error
+                    form.setError('currentPassword' as any, { type: 'manual', message: 'Contraseña actual requerida.' });
                     setActiveTab("security");
                     return;
                 }
@@ -354,7 +415,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                         let errorMessage = 'Error al verificar identidad.';
                         if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
                             errorMessage = 'Contraseña actual incorrecta.';
-                            form.setError('currentPassword', { type: 'manual', message: errorMessage });
+                            form.setError('currentPassword' as any, { type: 'manual', message: errorMessage });
                         }
                         toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
                         setActiveTab("security");
@@ -364,11 +425,37 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
         }
     };
 
-    // If it's signup (not editing), show the old flat layout
+    const onInvalidSubmit = (errors: any) => {
+        let errorTabToFocus = activeTab;
+        const errorKeys = Object.keys(errors);
+
+        if (errorKeys.length > 0) {
+            const firstErrorKey = errorKeys[0];
+
+            if (['name', 'lastName', 'birthDate', 'country', 'state', 'city', 'gender'].includes(firstErrorKey)) {
+                errorTabToFocus = 'general';
+            } else if (['emergencyContactName', 'emergencyContactPhone', 'bloodType'].includes(firstErrorKey)) {
+                errorTabToFocus = 'emergency';
+            } else if (['currentPassword', 'newPassword', 'confirmPassword'].includes(firstErrorKey)) {
+                errorTabToFocus = 'security';
+            }
+
+            if (errorTabToFocus !== activeTab) {
+                setActiveTab(errorTabToFocus);
+            }
+
+            toast({
+                variant: 'destructive',
+                title: "Información Incompleta",
+                description: "Por favor completa todos los campos obligatorios.",
+            });
+        }
+    };
+
     if (!isEditing) {
         return (
             <Form {...form}>
-                <form ref={formRef} onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8 max-w-2xl mx-auto">
+                <form ref={formRef} onSubmit={form.handleSubmit(handleFormSubmit, onInvalidSubmit)} className="space-y-8 max-w-2xl mx-auto">
                     {communityId && <input type="hidden" name="communityId" value={communityId} />}
                     <Card>
                         <CardHeader>
@@ -381,14 +468,14 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                         <CardContent className="space-y-4 px-4 sm:px-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField control={form.control} name="name" render={({ field }) => (
-                                    <FormItem><FormLabel>Nombre(s)</FormLabel><FormControl><Input placeholder="Tu nombre" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Nombre(s)</FormLabel><FormControl><Input placeholder="Tu nombre" {...field} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField control={form.control} name="lastName" render={({ field }) => (
-                                    <FormItem><FormLabel>Apellidos</FormLabel><FormControl><Input placeholder="Tus apellidos" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Apellidos</FormLabel><FormControl><Input placeholder="Tus apellidos" {...field} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
                                 )} />
                             </div>
                             <FormField control={form.control} name="email" render={({ field }) => (
-                                <FormItem><FormLabel>Correo Electrónico</FormLabel><FormControl><Input type="email" placeholder="m@example.com" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Correo Electrónico</FormLabel><FormControl><Input type="email" placeholder="m@example.com" {...field} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </CardContent>
                     </Card>
@@ -405,7 +492,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                                         <FormLabel>Contraseña</FormLabel>
                                         <FormControl>
                                             <div className="relative">
-                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={field.value || ''} />
+                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={(field.value as string) || ''} />
                                                 <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground" onClick={() => setShowPassword(prev => !prev)}>
                                                     {showPassword ? <EyeOff /> : <Eye />}
                                                 </Button>
@@ -419,7 +506,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                                         <FormLabel>Repetir Contraseña</FormLabel>
                                         <FormControl>
                                             <div className="relative">
-                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={field.value || ''} />
+                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={(field.value as string) || ''} />
                                                 <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground" onClick={() => setShowPassword(prev => !prev)}>
                                                     {showPassword ? <EyeOff /> : <Eye />}
                                                 </Button>
@@ -429,7 +516,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                                     </FormItem>
                                 )} />
                             </div>
-                            <PasswordStrengthIndicator password={password} />
+                            <PasswordStrengthIndicator password={passwordValue as string} />
                             <div className="flex items-start space-x-2 pt-4">
                                 <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(checked) => setTermsAccepted(checked as boolean)} />
                                 <div className="grid gap-1.5 leading-none">
@@ -458,13 +545,12 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
         <Form {...form}>
             <form 
                 ref={formRef}
-                onSubmit={form.handleSubmit(handleFormSubmit)} 
+                onSubmit={form.handleSubmit(handleFormSubmit, onInvalidSubmit)} 
                 className="w-full max-w-2xl mx-auto flex flex-col min-h-[calc(100vh-140px)]"
             >
                 {user && <input type="hidden" {...form.register('id')} />}
                 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-grow">
-                    {/* Modern App-Style Tab List - Now solid color for active tab */}
                     <TabsList className="grid grid-cols-4 h-14 bg-muted/30 p-1 mb-6 rounded-xl border border-border/50">
                         <TabsTrigger value="general" className="flex flex-col gap-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md rounded-lg py-2 transition-all">
                             <UserIcon className="h-4 w-4" />
@@ -484,8 +570,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                         </TabsTrigger>
                     </TabsList>
 
-                    {/* GENERAL TAB */}
-                    <TabsContent value="general" className="space-y-4 focus-visible:outline-none">
+                    <TabsContent value="general" forceMount className={cn("space-y-4 focus-visible:outline-none", activeTab !== 'general' && 'hidden')}>
                         <Card className="border-0 shadow-none sm:border sm:shadow-sm">
                             <CardHeader className="px-4 sm:px-6">
                                 <CardTitle>Datos Personales</CardTitle>
@@ -494,20 +579,20 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                             <CardContent className="space-y-4 px-4 sm:px-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <FormField control={form.control} name="name" render={({ field }) => (
-                                        <FormItem><FormLabel>Nombre(s)</FormLabel><FormControl><Input placeholder="Tu nombre" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Nombre(s)</FormLabel><FormControl><Input placeholder="Tu nombre" {...field} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
                                     )} />
                                     <FormField control={form.control} name="lastName" render={({ field }) => (
-                                        <FormItem><FormLabel>Apellidos</FormLabel><FormControl><Input placeholder="Tus apellidos" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Apellidos</FormLabel><FormControl><Input placeholder="Tus apellidos" {...field} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
                                     )} />
                                 </div>
                                 <FormField control={form.control} name="email" render={({ field }) => (
-                                    <FormItem><FormLabel>Correo Electrónico</FormLabel><FormControl><Input type="email" {...field} disabled={true} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Correo Electrónico</FormLabel><FormControl><Input type="email" {...field} disabled={true} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField control={form.control} name="birthDate" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Fecha de Nacimiento</FormLabel>
                                         <FormControl>
-                                            <Input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" {...field} value={toDisplayDate(field.value) || ''} onChange={(e) => handleDateChange(e, field.onChange)} />
+                                            <Input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" {...field} value={toDisplayDate(field.value as string) || ''} onChange={(e) => handleDateChange(e, field.onChange)} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -516,7 +601,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                                     <FormItem className="space-y-3">
                                         <FormLabel>Género</FormLabel>
                                         <FormControl>
-                                            <RadioGroup onValueChange={field.onChange} value={field.value || ''} className="flex flex-row space-x-4" name={field.name}>
+                                            <RadioGroup onValueChange={field.onChange} value={(field.value as string) || ''} className="flex flex-row space-x-4" name={field.name}>
                                                 <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="masculino" /></FormControl><FormLabel className="font-normal">M</FormLabel></FormItem>
                                                 <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="femenino" /></FormControl><FormLabel className="font-normal">F</FormLabel></FormItem>
                                                 <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="otro" /></FormControl><FormLabel className="font-normal">Otro</FormLabel></FormItem>
@@ -528,18 +613,17 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                                 <FormField control={form.control} name="whatsapp" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Teléfono / WhatsApp (Opcional)</FormLabel>
-                                        <FormControl><Input type="tel" placeholder="+52..." {...field} value={field.value || ''} /></FormControl>
+                                        <FormControl><Input type="tel" placeholder="+52..." {...field} value={(field.value as string) || ''} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )} />
                                 
-                                {/* Location Fields */}
                                 <div className="pt-4 mt-4 border-t space-y-4">
                                     <h4 className="font-medium text-sm text-muted-foreground">Ubicación</h4>
                                     <FormField control={form.control} name="country" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>País</FormLabel>
-                                            <Select onValueChange={handleCountryChange} value={field.value || ''} name={field.name}>
+                                            <Select onValueChange={handleCountryChange} value={(field.value as string) || ''} name={field.name}>
                                                 <FormControl><SelectTrigger><SelectValue placeholder="Selecciona país" /></SelectTrigger></FormControl>
                                                 <SelectContent>
                                                     {countries.map(c => <SelectItem key={c.code} value={c.name}>{c.name}</SelectItem>)}
@@ -552,7 +636,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                                         <FormField control={form.control} name="state" render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Estado</FormLabel>
-                                                <Select onValueChange={handleStateChange} value={field.value || ''} disabled={!selectedCountry} name={field.name}>
+                                                <Select onValueChange={handleStateChange} value={(field.value as string) || ''} disabled={!selectedCountry} name={field.name}>
                                                     <FormControl><SelectTrigger><SelectValue placeholder="Estado" /></SelectTrigger></FormControl>
                                                     <SelectContent>
                                                         {states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -565,14 +649,14 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                                             <FormItem>
                                                 <FormLabel>Municipio</FormLabel>
                                                 {cities.length > 0 ? (
-                                                    <Select onValueChange={field.onChange} value={field.value || ''} disabled={!form.watch('state')} name={field.name}>
+                                                    <Select onValueChange={field.onChange} value={(field.value as string) || ''} disabled={!form.watch('state')} name={field.name}>
                                                         <FormControl><SelectTrigger><SelectValue placeholder="Municipio" /></SelectTrigger></FormControl>
                                                         <SelectContent>
                                                             {cities.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
                                                         </SelectContent>
                                                     </Select>
                                                 ) : (
-                                                    <FormControl><Input placeholder="Tu municipio" {...field} value={field.value || ''} /></FormControl>
+                                                    <FormControl><Input placeholder="Tu municipio" {...field} value={(field.value as string) || ''} /></FormControl>
                                                 )}
                                                 <FormMessage />
                                             </FormItem>
@@ -583,8 +667,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                         </Card>
                     </TabsContent>
 
-                    {/* EMERGENCY TAB */}
-                    <TabsContent value="emergency" className="space-y-4 focus-visible:outline-none">
+                    <TabsContent value="emergency" forceMount className={cn("space-y-4 focus-visible:outline-none", activeTab !== 'emergency' && 'hidden')}>
                         <Card className="border-0 shadow-none sm:border sm:shadow-sm border-t-4 sm:border-t-red-500 border-t-red-500 rounded-t-none sm:rounded-t-lg">
                             <CardHeader className="px-4 sm:px-6">
                                 <CardTitle className="flex items-center gap-2 text-red-600"><Ambulance className="w-5 h-5"/> Datos Médicos</CardTitle>
@@ -593,15 +676,15 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                             <CardContent className="space-y-4 px-4 sm:px-6 bg-red-50/30 p-4 sm:p-6 rounded-b-xl sm:rounded-b-lg">
                                 <div className="grid grid-cols-1 gap-4">
                                     <FormField control={form.control} name="emergencyContactName" render={({ field }) => (
-                                        <FormItem><FormLabel>Nombre del Contacto</FormLabel><FormControl><Input placeholder="Familiar o amigo" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Nombre del Contacto</FormLabel><FormControl><Input placeholder="Familiar o amigo" {...field} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
                                     )} />
                                     <FormField control={form.control} name="emergencyContactPhone" render={({ field }) => (
-                                        <FormItem><FormLabel>Teléfono de Emergencia</FormLabel><FormControl><Input type="tel" placeholder="10 dígitos" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Teléfono de Emergencia</FormLabel><FormControl><Input type="tel" placeholder="10 dígitos" {...field} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
                                     )} />
                                     <FormField control={form.control} name="bloodType" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Tipo de Sangre</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value || ''} name={field.name}>
+                                            <Select onValueChange={field.onChange} value={(field.value as string) || ''} name={field.name}>
                                                 <FormControl><SelectTrigger className="bg-white"><SelectValue placeholder="Seleccionar" /></SelectTrigger></FormControl>
                                                 <SelectContent>{BLOOD_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                                             </Select>
@@ -610,9 +693,9 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                                     )} />
                                     <FormField control={form.control} name="allergies" render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Alergias o Condiciones</FormLabel>
+                                            <FormLabel>Alergias o Condiciones (Opcional)</FormLabel>
                                             <FormControl>
-                                                <Textarea placeholder="Diabetes, alergia a penicilina, etc. (Opcional)" className="bg-white resize-none" {...field} value={field.value || ''} />
+                                                <Textarea placeholder="Diabetes, alergia a penicilina, etc. O escribe 'Ninguna'" className="bg-white resize-none" {...field} value={(field.value as string) || ''} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -622,8 +705,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                         </Card>
                     </TabsContent>
 
-                    {/* ALERTS TAB */}
-                    <TabsContent value="alerts" className="space-y-4 focus-visible:outline-none">
+                    <TabsContent value="alerts" forceMount className={cn("space-y-4 focus-visible:outline-none", activeTab !== 'alerts' && 'hidden')}>
                          <Card className="border-0 shadow-none sm:border sm:shadow-sm">
                             <CardHeader className="px-4 sm:px-6">
                                 <CardTitle>Preferencias de Notificación</CardTitle>
@@ -632,7 +714,16 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                             <CardContent className="space-y-4 px-4 sm:px-6">
                                 <FormField control={form.control} name="notificationsSafety" render={({ field }) => (
                                     <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-background">
-                                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} name={field.name} /></FormControl>
+                                        {/* FIX: Envolvemos onChange en un timeout para evitar error flushSync con Radix + Slot */}
+                                        <FormControl>
+                                            <Checkbox 
+                                                checked={field.value as boolean} 
+                                                onCheckedChange={(checked) => {
+                                                    setTimeout(() => field.onChange(checked), 0);
+                                                }} 
+                                                name={field.name} 
+                                            />
+                                        </FormControl>
                                         <div className="space-y-1 leading-none">
                                             <FormLabel>Seguridad y Comunidad (Recomendado)</FormLabel>
                                             <FormDescription>Recibe alertas sobre robos cercanos y el estado legal de tu bicicleta.</FormDescription>
@@ -641,7 +732,15 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                                 )} />
                                 <FormField control={form.control} name="notificationsMarketing" render={({ field }) => (
                                     <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-background">
-                                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} name={field.name} /></FormControl>
+                                        <FormControl>
+                                            <Checkbox 
+                                                checked={field.value as boolean} 
+                                                onCheckedChange={(checked) => {
+                                                    setTimeout(() => field.onChange(checked), 0);
+                                                }} 
+                                                name={field.name} 
+                                            />
+                                        </FormControl>
                                         <div className="space-y-1 leading-none">
                                             <FormLabel>Eventos y Beneficios</FormLabel>
                                             <FormDescription>Entérate de nuevas rodadas, carreras y recompensas de aliados.</FormDescription>
@@ -652,8 +751,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                         </Card>
                     </TabsContent>
 
-                    {/* SECURITY TAB */}
-                    <TabsContent value="security" className="space-y-4 focus-visible:outline-none">
+                    <TabsContent value="security" forceMount className={cn("space-y-4 focus-visible:outline-none", activeTab !== 'security' && 'hidden')}>
                          <Card className="border-0 shadow-none sm:border sm:shadow-sm">
                             <CardHeader className="px-4 sm:px-6">
                                 <CardTitle>Cambiar Contraseña</CardTitle>
@@ -665,7 +763,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                                         <FormLabel>Contraseña Actual</FormLabel>
                                         <FormControl>
                                             <div className="relative">
-                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={field.value || ''} />
+                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={(field.value as string) || ''} />
                                                 <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground" onClick={() => setShowPassword(prev => !prev)}>
                                                     {showPassword ? <EyeOff /> : <Eye />}
                                                 </Button>
@@ -679,7 +777,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                                         <FormLabel>Nueva Contraseña</FormLabel>
                                         <FormControl>
                                             <div className="relative">
-                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={field.value || ''} />
+                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={(field.value as string) || ''} />
                                             </div>
                                         </FormControl>
                                         <FormMessage />
@@ -690,20 +788,18 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                                         <FormLabel>Repetir Nueva Contraseña</FormLabel>
                                         <FormControl>
                                             <div className="relative">
-                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={field.value || ''} />
+                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={(field.value as string) || ''} />
                                             </div>
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )} />
-                                <PasswordStrengthIndicator password={password} />
+                                <PasswordStrengthIndicator password={passwordValue as string} />
                             </CardContent>
                         </Card>
                     </TabsContent>
                 </Tabs>
 
-                {/* GLOBAL SAVE BUTTON */}
-                {/* Posicionado lo suficientemente alto para no quedar debajo del FAB de emergencia (bottom-36) */}
                 <div className="mt-8 mb-6 sticky bottom-36 sm:static z-30 px-4 sm:px-0">
                     <SubmitButton 
                         isEditing={isEditing} 
