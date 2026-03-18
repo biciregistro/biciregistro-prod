@@ -16,29 +16,27 @@ import { countries, type Country } from '@/lib/countries';
 import { getCities } from '@/lib/cities';
 import { userFormSchema } from '@/lib/schemas';
 import { signInWithToken, auth } from '@/lib/firebase/client';
-import { useGamificationToast } from '@/hooks/use-gamification-toast'; // GAMIFICACIÓN
+import { useGamificationToast } from '@/hooks/use-gamification-toast';
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from "@/components/ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Eye, EyeOff, CheckCircle, XCircle, BellRing, Info, Ambulance } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, XCircle, BellRing, Ambulance, User as UserIcon, ShieldCheck } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Logo } from './icons/logo';
 import { cn } from '@/lib/utils';
 import { Textarea } from './ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-// Helper to convert ISO date (YYYY-MM-DD) to Display Format (DD/MM/YYYY)
+// Date Helpers
 const toDisplayDate = (val: string | undefined | null): string => {
     if (!val) return '';
-    // If already DD/MM/YYYY
     if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(val)) return val;
-    // If YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
         const [y, m, d] = val.split('-');
         return `${d}/${m}/${y}`;
@@ -46,12 +44,9 @@ const toDisplayDate = (val: string | undefined | null): string => {
     return val;
 };
 
-// Helper to convert Display Format (DD/MM/YYYY) to ISO (YYYY-MM-DD) for backend
 const toISODate = (val: string | undefined | null): string => {
     if (!val) return '';
-    // If already YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
-    // If DD/MM/YYYY
     if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(val)) {
         const [d, m, y] = val.split('/');
         return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
@@ -59,39 +54,10 @@ const toISODate = (val: string | undefined | null): string => {
     return ''; 
 };
 
-// --- Dashboard Navigation ---
-export function DashboardNav() {
-    const pathname = usePathname();
-    const navItems = [
-      { href: '/dashboard', label: 'Mi Garaje' },
-      { href: '/dashboard/register', label: 'Registrar Bici' },
-      { href: '/dashboard/profile', label: 'Mi Perfil' },
-    ];
-  
-    return (
-      <nav className="grid items-start gap-2">
-        {navItems.map((item) => (
-          <Link key={item.href} href={item.href}>
-            <span
-              className={cn(
-                'group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground',
-                pathname === item.href ? 'bg-accent' : 'transparent'
-              )}
-            >
-              <span>{item.label}</span>
-            </span>
-          </Link>
-        ))}
-      </nav>
-    );
-}
-
-
 type FormValues = z.infer<typeof userFormSchema>;
 
 function SubmitButton({ isEditing, isSigningIn, isSubmitting, loadingAuth, termsAccepted }: { isEditing?: boolean, isSigningIn?: boolean, isSubmitting?: boolean, loadingAuth?: boolean, termsAccepted?: boolean }) {
     const { pending } = useFormStatus();
-    // Validate terms acceptance if not editing (i.e. signing up)
     const termsValid = isEditing ? true : termsAccepted;
     const isDisabled = pending || isSigningIn || isSubmitting || loadingAuth || !termsValid;
 
@@ -102,7 +68,15 @@ function SubmitButton({ isEditing, isSigningIn, isSubmitting, loadingAuth, terms
     let pendingText = isEditing ? 'Guardando...' : 'Creando...';
     if (isSigningIn) pendingText = 'Finalizando...';
 
-    return <Button type="submit" disabled={isDisabled} className="w-full">{isDisabled && !termsValid && !isEditing ? 'Acepta los términos' : (isDisabled ? pendingText : text)}</Button>;
+    return (
+        <Button 
+            type="submit" 
+            disabled={isDisabled} 
+            className="w-full h-12 text-lg font-bold shadow-lg bg-primary hover:bg-primary/90 text-white"
+        >
+            {isDisabled && !termsValid && !isEditing ? 'Acepta los términos' : (isDisabled ? pendingText : text)}
+        </Button>
+    );
 }
 
 export function PasswordStrengthIndicator({ password = "" }: { password?: string }) {
@@ -153,14 +127,16 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
     const [isSigningIn, setIsSigningIn] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
-    const { showRewardToast } = useGamificationToast(); // Hook
+    const { showRewardToast } = useGamificationToast();
+    
     const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === (user?.country || 'México')));
     const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
     const [cities, setCities] = useState<string[]>([]);
     const [showPassword, setShowPassword] = useState(false);
-    
-    // State for terms acceptance
     const [termsAccepted, setTermsAccepted] = useState(false);
+
+    // Navigation Tab state for Mobile Feel
+    const [activeTab, setActiveTab] = useState("general");
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -185,15 +161,11 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
             postalCode: user?.postalCode || "",
             whatsapp: user?.whatsapp || "",
             
-            // Emergency Info Defaults
             emergencyContactName: user?.emergencyContactName || "",
             emergencyContactPhone: user?.emergencyContactPhone || "",
             bloodType: user?.bloodType || "",
             allergies: user?.allergies || "",
 
-            // Notification Preferences Defaults
-            // If editing, use existing prefs or default to false/true
-            // If signing up, default safety=true, marketing=false
             notificationsSafety: isEditing ? (user?.notificationPreferences?.safety ?? true) : true,
             notificationsMarketing: isEditing ? (user?.notificationPreferences?.marketing ?? false) : false,
 
@@ -206,20 +178,14 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
     });
 
     const password = form.watch(isEditing ? "newPassword" : "password");
-
-    // Fix: Watch specific fields to avoid infinite loops with form object dependency
     const watchedCountry = form.watch('country');
     const watchedState = form.watch('state');
 
-    // Initialize cities if state is already selected (e.g. on load) or changed
     useEffect(() => {
         if (watchedCountry && watchedState) {
              const availableCities = getCities(watchedCountry, watchedState);
              setCities(availableCities);
         } else {
-             // Optional: clear cities if state is cleared, 
-             // but handleStateChange usually handles this too.
-             // Keeping it safe here.
              setCities([]);
         }
     }, [watchedCountry, watchedState]);
@@ -230,8 +196,6 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
         if (!state) return;
 
         if (state.success) {
-            
-            // GAMIFICACIÓN: Celebrar completitud de perfil si aplica
             if (isEditing && state.pointsAwarded) {
                 showRewardToast(state.pointsAwarded as number, "¡Perfil Completado! Has fortalecido tu seguridad y ganado kilómetros.");
             } else {
@@ -239,25 +203,19 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
             }
             
             if (state.passwordChanged) {
-                // If the password was changed, the server has already killed the session.
-                // Redirecting to login is the only necessary step.
                 router.push('/login');
-                // No reset needed here as we are navigating away
                 return;
             } else if (isEditing) {
-                // If only profile data was changed, redirect to dashboard with a slight delay
-                // to allow toast and confetti to render properly without race conditions
                 const timer = setTimeout(() => {
                     router.push('/dashboard');
                 }, 1500);
                 return () => clearTimeout(timer);
             } else if (state.customToken) {
-                // Handle new user signup session creation
                 setIsSigningIn(true);
                 const handleSignInAndSession = async () => {
                     const { success, idToken, error: signInError } = await signInWithToken(state.customToken!);
                     if (!success || !idToken) {
-                        toast({ title: 'Error de Autenticación', description: signInError || 'No se pudo obtener el token de sesión.', variant: 'destructive' });
+                        toast({ title: 'Error', description: signInError, variant: 'destructive' });
                         setIsSigningIn(false);
                         router.push('/login');
                         return;
@@ -268,11 +226,10 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ idToken }),
                         });
-                        if (!response.ok) throw new Error('La creación de la sesión en el servidor falló.');
-                        toast({ title: '¡Éxito!', description: 'Por favor, completa tu perfil para continuar.' });
+                        if (!response.ok) throw new Error('Falló sesión.');
+                        toast({ title: '¡Éxito!', description: 'Completa tu perfil.' });
                         
                         let targetUrl = callbackUrl || '/dashboard/profile';
-                        // Add gamification welcome param if needed
                         if (state.pointsAwarded) {
                             const separator = targetUrl.includes('?') ? '&' : '?';
                             targetUrl += `${separator}welcome=100`;
@@ -280,18 +237,14 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                         router.push(targetUrl);
 
                     } catch (sessionError) {
-                        toast({ title: 'Error de Sesión', description: 'No pudimos sincronizar tu sesión. Por favor, intenta iniciar sesión manualmente.', variant: 'destructive' });
                         setIsSigningIn(false);
                         router.push('/login');
                     }
                 };
                 handleSignInAndSession();
-                // Return here to avoid resetting form which might cause issues
                 return;
             }
             
-            // Only reset form if we are NOT navigating away immediately
-            // This prevents "maximum update depth" errors when state updates conflict with unmounting
              form.reset({
                 ...form.getValues(),
                 currentPassword: "",
@@ -312,14 +265,10 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
              toast({
                 variant: 'destructive',
                 title: "Error de Validación",
-                description: state.error || "Por favor, revisa los campos marcados en rojo.",
+                description: state.error || "Revisa los campos marcados en rojo.",
             });
         } else if (state.error) {
-            toast({
-                variant: 'destructive',
-                title: "Error",
-                description: state.error,
-            });
+            toast({ variant: 'destructive', title: "Error", description: state.error });
         }
     }, [state, toast, form, isEditing, router, callbackUrl, showRewardToast]);
 
@@ -335,7 +284,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
 
     const handleStateChange = (stateName: string) => {
         form.setValue('state', stateName);
-        form.setValue('city', ''); // Reset city when state changes
+        form.setValue('city', '');
         
         const countryName = form.getValues('country');
         if (countryName) {
@@ -346,13 +295,9 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
         }
     };
     
-    // Auto-format Date Logic
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>, onChange: (value: string) => void) => {
-        let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-        
-        if (value.length > 8) value = value.substring(0, 8); // Max 8 digits (DDMMAAAA)
-
-        // Insert slashes
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 8) value = value.substring(0, 8);
         let formattedValue = '';
         if (value.length > 4) {
              formattedValue = `${value.substring(0, 2)}/${value.substring(2, 4)}/${value.substring(4)}`;
@@ -361,46 +306,27 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
         } else {
              formattedValue = value;
         }
-
-        // Update the visual input
         e.target.value = formattedValue;
-        
         onChange(formattedValue);
     };
 
-
     const handleFormSubmit = async (values: FormValues) => {
-        // Prevent submission if terms not accepted (Double check)
         if (!isEditing && !termsAccepted) {
-            toast({
-                title: "Atención",
-                description: "Debes aceptar los Términos y Condiciones y el Aviso de Privacidad para crear una cuenta.",
-                variant: "destructive"
-            });
+            toast({ title: "Atención", description: "Debes aceptar los Términos.", variant: "destructive" });
             return;
         }
 
         const { currentPassword, newPassword, birthDate } = values;
         
-        // Convert display date to ISO for submission
         if (birthDate) {
              const isoDate = toISODate(birthDate);
-             if (isoDate) {
-                 values.birthDate = isoDate;
-             }
+             if (isoDate) values.birthDate = isoDate;
         }
 
         if (formRef.current) {
             const formData = new FormData(formRef.current);
-            // Manually override the birthDate in formData because the input might have the formatted value
-            if (values.birthDate) {
-                formData.set('birthDate', values.birthDate);
-            }
-            
-            // Add terms info if signing up
-            if (!isEditing) {
-                formData.set('termsAccepted', 'true');
-            }
+            if (values.birthDate) formData.set('birthDate', values.birthDate);
+            if (!isEditing) formData.set('termsAccepted', 'true');
 
             startTransition(() => {
                 if (!isEditing || !newPassword) {
@@ -409,14 +335,13 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                 }
 
                 if (!currentPassword) {
-                    form.setError('currentPassword', { type: 'manual', message: 'Debes introducir tu contraseña actual para cambiarla.' });
+                    form.setError('currentPassword', { type: 'manual', message: 'Contraseña actual requerida.' });
+                    // Switch to security tab to show error
+                    setActiveTab("security");
                     return;
                 }
                 
-                if (!firebaseUser || !firebaseUser.email) {
-                    toast({ title: "Error", description: "No se pudo encontrar el usuario actual. Por favor, inicia sesión de nuevo.", variant: 'destructive' });
-                    return;
-                }
+                if (!firebaseUser || !firebaseUser.email) return;
 
                 setIsSubmitting(true);
                 const credential = EmailAuthProvider.credential(firebaseUser.email, currentPassword);
@@ -426,537 +351,368 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                         formAction(formData);
                     })
                     .catch((error: any) => {
-                        console.error("Re-authentication failed:", error);
-                        let errorMessage = 'Ocurrió un error al verificar tu identidad.';
+                        let errorMessage = 'Error al verificar identidad.';
                         if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                            errorMessage = 'La contraseña actual no es correcta.';
+                            errorMessage = 'Contraseña actual incorrecta.';
                             form.setError('currentPassword', { type: 'manual', message: errorMessage });
                         }
-                        toast({
-                            title: 'Error de Autenticación',
-                            description: errorMessage,
-                            variant: 'destructive',
-                        });
+                        toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
+                        setActiveTab("security");
                     })
-                    .finally(() => {
-                        setIsSubmitting(false);
-                    });
+                    .finally(() => setIsSubmitting(false));
             });
         }
     };
 
-    const loginLink = callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login";
+    // If it's signup (not editing), show the old flat layout
+    if (!isEditing) {
+        return (
+            <Form {...form}>
+                <form ref={formRef} onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8 max-w-2xl mx-auto">
+                    {communityId && <input type="hidden" name="communityId" value={communityId} />}
+                    <Card>
+                        <CardHeader>
+                            <div className="text-center mb-4">
+                                <Link href="/" className="flex justify-center mb-4"><Logo /></Link>
+                                <CardTitle>Crear una cuenta</CardTitle>
+                                <CardDescription>Ingresa tu información para crear una cuenta</CardDescription>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4 px-4 sm:px-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField control={form.control} name="name" render={({ field }) => (
+                                    <FormItem><FormLabel>Nombre(s)</FormLabel><FormControl><Input placeholder="Tu nombre" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name="lastName" render={({ field }) => (
+                                    <FormItem><FormLabel>Apellidos</FormLabel><FormControl><Input placeholder="Tus apellidos" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                            </div>
+                            <FormField control={form.control} name="email" render={({ field }) => (
+                                <FormItem><FormLabel>Correo Electrónico</FormLabel><FormControl><Input type="email" placeholder="m@example.com" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                        </CardContent>
+                    </Card>
 
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Define tu Contraseña</CardTitle>
+                            <CardDescription>Mínimo 6 caracteres, mayúscula, número y carácter especial.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4 px-4 sm:px-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField control={form.control} name="password" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Contraseña</FormLabel>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={field.value || ''} />
+                                                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground" onClick={() => setShowPassword(prev => !prev)}>
+                                                    {showPassword ? <EyeOff /> : <Eye />}
+                                                </Button>
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="confirmPassword" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Repetir Contraseña</FormLabel>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={field.value || ''} />
+                                                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground" onClick={() => setShowPassword(prev => !prev)}>
+                                                    {showPassword ? <EyeOff /> : <Eye />}
+                                                </Button>
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                            </div>
+                            <PasswordStrengthIndicator password={password} />
+                            <div className="flex items-start space-x-2 pt-4">
+                                <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(checked) => setTermsAccepted(checked as boolean)} />
+                                <div className="grid gap-1.5 leading-none">
+                                    <label htmlFor="terms" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                        He leído y acepto los <Link href="/terms" target="_blank" className="text-primary hover:underline">Términos y Condiciones</Link> y el <Link href="/privacy" target="_blank" className="text-primary hover:underline">Aviso de Privacidad</Link>
+                                    </label>
+                                </div>
+                            </div>
+                        </CardContent>
+                        <CardFooter>
+                            <div className="flex flex-col gap-4 w-full">
+                                <SubmitButton isSigningIn={isSigningIn} isSubmitting={isSubmitting || isPending} loadingAuth={loadingAuth} termsAccepted={termsAccepted} />
+                                <div className="text-sm text-center text-muted-foreground">
+                                    ¿Ya tienes una cuenta? <Link href="/login" className="underline hover:text-primary">Inicia Sesión</Link>
+                                </div>
+                            </div>
+                        </CardFooter>
+                    </Card>
+                </form>
+            </Form>
+        );
+    }
+
+    // --- TABBED LAYOUT FOR EDITING (MOBILE APP STYLE) ---
     return (
         <Form {...form}>
             <form 
                 ref={formRef}
                 onSubmit={form.handleSubmit(handleFormSubmit)} 
-                className="space-y-8 max-w-2xl mx-auto"
+                className="w-full max-w-2xl mx-auto flex flex-col min-h-[calc(100vh-140px)]"
             >
-                {!isEditing && communityId && <input type="hidden" name="communityId" value={communityId} />}
-                {/* Form content remains the same */}
-                <Card>
-                    <CardHeader>
-                        {!isEditing && (
-                             <div className="text-center mb-4">
-                                <Link href="/" className="flex justify-center mb-4"><Logo /></Link>
-                                <CardTitle>Crear una cuenta</CardTitle>
-                                <CardDescription>Ingresa tu información para crear una cuenta</CardDescription>
-                            </div>
-                        )}
-                        {isEditing && (
-                            <>
-                                <CardTitle>Editar Perfil</CardTitle>
-                                <CardDescription>Actualiza tu información personal.</CardDescription>
-                            </>
-                        )}
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                                control={form.control}
-                                name="name"
-                                render={({ field }) => (
+                {user && <input type="hidden" {...form.register('id')} />}
+                
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-grow">
+                    {/* Modern App-Style Tab List - Now solid color for active tab */}
+                    <TabsList className="grid grid-cols-4 h-14 bg-muted/30 p-1 mb-6 rounded-xl border border-border/50">
+                        <TabsTrigger value="general" className="flex flex-col gap-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md rounded-lg py-2 transition-all">
+                            <UserIcon className="h-4 w-4" />
+                            <span className="text-[10px] sm:text-xs font-semibold">General</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="emergency" className="flex flex-col gap-1 data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg py-2 transition-all">
+                            <Ambulance className="h-4 w-4" />
+                            <span className="text-[10px] sm:text-xs font-semibold">Emergencia</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="alerts" className="flex flex-col gap-1 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg py-2 transition-all">
+                            <BellRing className="h-4 w-4" />
+                            <span className="text-[10px] sm:text-xs font-semibold">Alertas</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="security" className="flex flex-col gap-1 data-[state=active]:bg-slate-800 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg py-2 transition-all">
+                            <ShieldCheck className="h-4 w-4" />
+                            <span className="text-[10px] sm:text-xs font-semibold">Seguridad</span>
+                        </TabsTrigger>
+                    </TabsList>
+
+                    {/* GENERAL TAB */}
+                    <TabsContent value="general" className="space-y-4 focus-visible:outline-none">
+                        <Card className="border-0 shadow-none sm:border sm:shadow-sm">
+                            <CardHeader className="px-4 sm:px-6">
+                                <CardTitle>Datos Personales</CardTitle>
+                                <CardDescription>La información básica de tu identidad digital.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4 px-4 sm:px-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <FormField control={form.control} name="name" render={({ field }) => (
+                                        <FormItem><FormLabel>Nombre(s)</FormLabel><FormControl><Input placeholder="Tu nombre" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="lastName" render={({ field }) => (
+                                        <FormItem><FormLabel>Apellidos</FormLabel><FormControl><Input placeholder="Tus apellidos" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                </div>
+                                <FormField control={form.control} name="email" render={({ field }) => (
+                                    <FormItem><FormLabel>Correo Electrónico</FormLabel><FormControl><Input type="email" {...field} disabled={true} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name="birthDate" render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Nombre(s)</FormLabel>
+                                        <FormLabel>Fecha de Nacimiento</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Tu nombre" {...field} />
+                                            <Input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" {...field} value={toDisplayDate(field.value) || ''} onChange={(e) => handleDateChange(e, field.onChange)} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name="lastName"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Apellidos</FormLabel>
+                                )} />
+                                <FormField control={form.control} name="gender" render={({ field }) => (
+                                    <FormItem className="space-y-3">
+                                        <FormLabel>Género</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Tus apellidos" {...field} />
+                                            <RadioGroup onValueChange={field.onChange} value={field.value || ''} className="flex flex-row space-x-4" name={field.name}>
+                                                <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="masculino" /></FormControl><FormLabel className="font-normal">M</FormLabel></FormItem>
+                                                <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="femenino" /></FormControl><FormLabel className="font-normal">F</FormLabel></FormItem>
+                                                <FormItem className="flex items-center space-x-2 space-y-0"><FormControl><RadioGroupItem value="otro" /></FormControl><FormLabel className="font-normal">Otro</FormLabel></FormItem>
+                                            </RadioGroup>
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
-                                )}
-                            />
-                        </div>
-
-                        <FormField
-                            control={form.control}
-                            name="email"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Correo Electrónico</FormLabel>
-                                    <FormControl>
-                                        <Input type="email" placeholder="m@example.com" {...field} disabled={isEditing} />
-                                    </FormControl>
-                                    <FormMessage />
-                                 </FormItem>
-                            )}
-                        />
-                        
-                        {isEditing && (
-                            <>
-                               <FormField
-                                    control={form.control}
-                                    name="birthDate"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Fecha de Nacimiento</FormLabel>
-                                            <FormControl>
-                                                <Input 
-                                                    type="text" 
-                                                    inputMode="numeric"
-                                                    placeholder="DD/MM/AAAA"
-                                                    {...field}
-                                                    value={toDisplayDate(field.value) || ''}
-                                                    onChange={(e) => handleDateChange(e, field.onChange)}
-                                                />
-                                            </FormControl>
-                                            <FormDescription>Ej. 25/12/1990</FormDescription>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-
-                                <FormField
-                                    control={form.control}
-                                    name="country"
-                                    render={({ field }) => (
+                                )} />
+                                <FormField control={form.control} name="whatsapp" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Teléfono / WhatsApp (Opcional)</FormLabel>
+                                        <FormControl><Input type="tel" placeholder="+52..." {...field} value={field.value || ''} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                
+                                {/* Location Fields */}
+                                <div className="pt-4 mt-4 border-t space-y-4">
+                                    <h4 className="font-medium text-sm text-muted-foreground">Ubicación</h4>
+                                    <FormField control={form.control} name="country" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>País</FormLabel>
                                             <Select onValueChange={handleCountryChange} value={field.value || ''} name={field.name}>
-                                                <FormControl>
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Selecciona un país" />
-                                                    </SelectTrigger>
-                                                </FormControl>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Selecciona país" /></SelectTrigger></FormControl>
                                                 <SelectContent>
-                                                    {countries.map(country => (
-                                                        <SelectItem key={country.code} value={country.name}>{country.name}</SelectItem>
-                                                    ))}
+                                                    {countries.map(c => <SelectItem key={c.code} value={c.name}>{c.name}</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
                                             <FormMessage />
                                         </FormItem>
-                                    )}
-                                />
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="state"
-                                        render={({ field }) => (
+                                    )} />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <FormField control={form.control} name="state" render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Estado / Provincia</FormLabel>
+                                                <FormLabel>Estado</FormLabel>
                                                 <Select onValueChange={handleStateChange} value={field.value || ''} disabled={!selectedCountry} name={field.name}>
-                                                    <FormControl>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Selecciona un estado/provincia" />
-                                                        </SelectTrigger>
-                                                    </FormControl>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Estado" /></SelectTrigger></FormControl>
                                                     <SelectContent>
-                                                        {states.map(state => (
-                                                            <SelectItem key={state} value={state}>{state}</SelectItem>
-                                                        ))}
+                                                        {states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />
                                             </FormItem>
-                                        )}
-                                    />
-                                     <FormField
-                                        control={form.control}
-                                        name="city"
-                                        render={({ field }) => (
+                                        )} />
+                                        <FormField control={form.control} name="city" render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Municipio / Ciudad</FormLabel>
+                                                <FormLabel>Municipio</FormLabel>
                                                 {cities.length > 0 ? (
-                                                     <Select onValueChange={field.onChange} value={field.value || ''} disabled={!form.watch('state')} name={field.name}>
-                                                        <FormControl>
-                                                            <SelectTrigger>
-                                                                <SelectValue placeholder="Selecciona un municipio" />
-                                                            </SelectTrigger>
-                                                        </FormControl>
+                                                    <Select onValueChange={field.onChange} value={field.value || ''} disabled={!form.watch('state')} name={field.name}>
+                                                        <FormControl><SelectTrigger><SelectValue placeholder="Municipio" /></SelectTrigger></FormControl>
                                                         <SelectContent>
-                                                            {cities.map(city => (
-                                                                <SelectItem key={city} value={city}>{city}</SelectItem>
-                                                            ))}
+                                                            {cities.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
                                                         </SelectContent>
                                                     </Select>
                                                 ) : (
-                                                    <FormControl>
-                                                        <Input placeholder="Escribe tu municipio" {...field} value={field.value || ''} />
-                                                    </FormControl>
+                                                    <FormControl><Input placeholder="Tu municipio" {...field} value={field.value || ''} /></FormControl>
                                                 )}
                                                 <FormMessage />
                                             </FormItem>
-                                        )}
-                                    />
+                                        )} />
+                                    </div>
                                 </div>
-                                
-                                <FormField
-                                    control={form.control}
-                                    name="postalCode"
-                                    render={({ field }) => (
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* EMERGENCY TAB */}
+                    <TabsContent value="emergency" className="space-y-4 focus-visible:outline-none">
+                        <Card className="border-0 shadow-none sm:border sm:shadow-sm border-t-4 sm:border-t-red-500 border-t-red-500 rounded-t-none sm:rounded-t-lg">
+                            <CardHeader className="px-4 sm:px-6">
+                                <CardTitle className="flex items-center gap-2 text-red-600"><Ambulance className="w-5 h-5"/> Datos Médicos</CardTitle>
+                                <CardDescription>Esta información formará parte de tu Etiqueta de Emergencia (QR) para agilizar atención médica.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4 px-4 sm:px-6 bg-red-50/30 p-4 sm:p-6 rounded-b-xl sm:rounded-b-lg">
+                                <div className="grid grid-cols-1 gap-4">
+                                    <FormField control={form.control} name="emergencyContactName" render={({ field }) => (
+                                        <FormItem><FormLabel>Nombre del Contacto</FormLabel><FormControl><Input placeholder="Familiar o amigo" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="emergencyContactPhone" render={({ field }) => (
+                                        <FormItem><FormLabel>Teléfono de Emergencia</FormLabel><FormControl><Input type="tel" placeholder="10 dígitos" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="bloodType" render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Código Postal</FormLabel>
+                                            <FormLabel>Tipo de Sangre</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value || ''} name={field.name}>
+                                                <FormControl><SelectTrigger className="bg-white"><SelectValue placeholder="Seleccionar" /></SelectTrigger></FormControl>
+                                                <SelectContent>{BLOOD_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={form.control} name="allergies" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Alergias o Condiciones</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Tu código postal" {...field} value={field.value || ''} />
+                                                <Textarea placeholder="Diabetes, alergia a penicilina, etc. (Opcional)" className="bg-white resize-none" {...field} value={field.value || ''} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
-                                    )}
-                                />
-
-                                <FormField
-                                    control={form.control}
-                                    name="gender"
-                                    render={({ field }) => (
-                                        <FormItem className="space-y-3">
-                                        <FormLabel>Género</FormLabel>
-                                        <FormControl>
-                                            <RadioGroup
-                                            onValueChange={field.onChange}
-                                            value={field.value || ''}
-                                            className="flex flex-col sm:flex-row space-y-1"
-                                            name={field.name}
-                                            >
-                                            <FormItem className="flex items-center space-x-3 space-y-0">
-                                                <FormControl>
-                                                <RadioGroupItem value="masculino" />
-                                                </FormControl>
-                                                <FormLabel className="font-normal">Masculino</FormLabel>
-                                            </FormItem>
-                                            <FormItem className="flex items-center space-x-3 space-y-0">
-                                                <FormControl>
-                                                <RadioGroupItem value="femenino" />
-                                                </FormControl>
-                                                <FormLabel className="font-normal">Femenino</FormLabel>
-                                            </FormItem>
-                                            <FormItem className="flex items-center space-x-3 space-y-0">
-                                                <FormControl>
-                                                <RadioGroupItem value="otro" />
-                                                </FormControl>
-                 
-                                <FormLabel className="font-normal">Otro</FormLabel>
-                                            </FormItem>
-                                            </RadioGroup>
-                                        </FormControl>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-
-                                <FormField
-                                    control={form.control}
-                                    name="whatsapp"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Teléfono de WhatsApp (Opcional)</FormLabel>
-                                            <FormControl>
-                                                <Input type="tel" placeholder="+52 1 55 1234 5678" {...field} value={field.value || ''} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </>
-                        )}
-                        
-                        {/* EMERGENCY INFO SECTION (New) - Only visible when editing profile */}
-                        {isEditing && (
-                            <div className="space-y-4 pt-4 border-t">
-                                <h3 className="text-lg font-medium flex items-center gap-2 text-primary">
-                                    <Ambulance className="h-5 w-5" />
-                                    Información de Emergencia
-                                </h3>
-                                <p className="text-sm text-muted-foreground">Esta información es vital en caso de accidente y agiliza tu inscripción a eventos.</p>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-lg">
-                                    <FormField
-                                        control={form.control}
-                                        name="emergencyContactName"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Nombre del Contacto</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="Nombre de familiar o amigo" {...field} value={field.value || ''} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="emergencyContactPhone"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Teléfono del Contacto</FormLabel>
-                                                <FormControl>
-                                                    <Input type="tel" placeholder="Número de emergencia" {...field} value={field.value || ''} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="bloodType"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Tipo de Sangre</FormLabel>
-                                                <Select onValueChange={field.onChange} value={field.value || ''} name={field.name}>
-                                                    <FormControl>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Seleccionar" />
-                                                        </SelectTrigger>
-                                                    </FormControl>
-                                                    <SelectContent>
-                                                        {BLOOD_TYPES.map(type => (
-                                                            <SelectItem key={type} value={type}>{type}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="allergies"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Alergias (Opcional)</FormLabel>
-                                                <FormControl>
-                                                    <Textarea 
-                                                        placeholder="Ej. Penicilina, Nueces, etc. O escribe 'Ninguna'" 
-                                                        className="resize-none h-10 min-h-[40px] py-2" 
-                                                        {...field} 
-                                                        value={field.value || ''} 
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
+                                    )} />
                                 </div>
-                            </div>
-                        )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
 
-                        {/* Seccion de Preferencias de Notificacion (Visible en Registro y Edición) */}
-                         <div className="space-y-4 pt-4 border-t">
-                            <h3 className="text-lg font-medium flex items-center gap-2">
-                                <BellRing className="h-5 w-5" />
-                                Preferencias de Notificación
-                            </h3>
-                            <div className="bg-muted/50 p-4 rounded-lg space-y-4">
-                                <FormField
-                                    control={form.control}
-                                    name="notificationsSafety"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-background">
-                                            <FormControl>
-                                                <Checkbox
-                                                    checked={field.value}
-                                                    onCheckedChange={field.onChange}
-                                                    name={field.name}
-                                                />
-                                            </FormControl>
-                                            <div className="space-y-1 leading-none">
-                                                <FormLabel>
-                                                    Seguridad y Comunidad
-                                                </FormLabel>
-                                                <FormDescription>
-                                                    Recibe alertas sobre el estado de tu bicicleta (Robo, indicios, mantenimiento) y avisos importantes de la comunidad.
-                                                </FormDescription>
-                                            </div>
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="notificationsMarketing"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-background">
-                                            <FormControl>
-                                                <Checkbox
-                                                    checked={field.value}
-                                                    onCheckedChange={field.onChange}
-                                                    name={field.name}
-                                                />
-                                            </FormControl>
-                                            <div className="space-y-1 leading-none">
-                                                <FormLabel>
-                                                    Eventos y Promociones
-                                                </FormLabel>
-                                                <FormDescription>
-                                                    Entérate de nuevos eventos, talleres y ofertas exclusivas para ciclistas.
-                                                </FormDescription>
-                                            </div>
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-                        </div>
-                       
-                        {user && <input type="hidden" {...form.register('id')} />}
-                    </CardContent>
-                </Card>
+                    {/* ALERTS TAB */}
+                    <TabsContent value="alerts" className="space-y-4 focus-visible:outline-none">
+                         <Card className="border-0 shadow-none sm:border sm:shadow-sm">
+                            <CardHeader className="px-4 sm:px-6">
+                                <CardTitle>Preferencias de Notificación</CardTitle>
+                                <CardDescription>Decide qué información deseas recibir en tu correo o teléfono.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4 px-4 sm:px-6">
+                                <FormField control={form.control} name="notificationsSafety" render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-background">
+                                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} name={field.name} /></FormControl>
+                                        <div className="space-y-1 leading-none">
+                                            <FormLabel>Seguridad y Comunidad (Recomendado)</FormLabel>
+                                            <FormDescription>Recibe alertas sobre robos cercanos y el estado legal de tu bicicleta.</FormDescription>
+                                        </div>
+                                    </FormItem>
+                                )} />
+                                <FormField control={form.control} name="notificationsMarketing" render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-background">
+                                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} name={field.name} /></FormControl>
+                                        <div className="space-y-1 leading-none">
+                                            <FormLabel>Eventos y Beneficios</FormLabel>
+                                            <FormDescription>Entérate de nuevas rodadas, carreras y recompensas de aliados.</FormDescription>
+                                        </div>
+                                    </FormItem>
+                                )} />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
 
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>{isEditing ? 'Cambiar Contraseña' : 'Define tu Contraseña'}</CardTitle>
-                        <CardDescription>
-                            {isEditing 
-                                ? 'Si no deseas cambiar tu contraseña, deja estos campos en blanco.'
-                                : 'Tu contraseña debe tener al menos 6 caracteres, una mayúscula, un número y un carácter especial.'
-                            }
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {isEditing && (
-                             <FormField
-                                control={form.control}
-                                name="currentPassword"
-                                render={({ field }) => (
+                    {/* SECURITY TAB */}
+                    <TabsContent value="security" className="space-y-4 focus-visible:outline-none">
+                         <Card className="border-0 shadow-none sm:border sm:shadow-sm">
+                            <CardHeader className="px-4 sm:px-6">
+                                <CardTitle>Cambiar Contraseña</CardTitle>
+                                <CardDescription>Si no deseas cambiarla, deja estos campos en blanco.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4 px-4 sm:px-6">
+                                <FormField control={form.control} name="currentPassword" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Contraseña Actual</FormLabel>
                                         <FormControl>
                                             <div className="relative">
                                                 <Input type={showPassword ? 'text' : 'password'} {...field} value={field.value || ''} />
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
-                                                    onClick={() => setShowPassword(prev => !prev)}
-                                                >
+                                                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground" onClick={() => setShowPassword(prev => !prev)}>
                                                     {showPassword ? <EyeOff /> : <Eye />}
                                                 </Button>
                                             </div>
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
-                                )}
-                            />
-                        )}
-                        <div className={cn("grid grid-cols-1 gap-4", !isEditing && "md:grid-cols-2")}>
-                            <FormField
-                                control={form.control}
-                                name={isEditing ? "newPassword" : "password"}
-                                render={({ field }) => (
+                                )} />
+                                <FormField control={form.control} name="newPassword" render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>{isEditing ? 'Nueva Contraseña' : 'Contraseña'}</FormLabel>
+                                        <FormLabel>Nueva Contraseña</FormLabel>
                                         <FormControl>
                                             <div className="relative">
                                                 <Input type={showPassword ? 'text' : 'password'} {...field} value={field.value || ''} />
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
-                                                    onClick={() => setShowPassword(prev => !prev)}
-                                                >
-                                                    {showPassword ? <EyeOff /> : <Eye />}
-                                                </Button>
                                             </div>
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name="confirmPassword"
-                                render={({ field }) => (
+                                )} />
+                                <FormField control={form.control} name="confirmPassword" render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>{isEditing ? 'Repetir Nueva Contraseña': 'Repetir Contraseña'}</FormLabel>
+                                        <FormLabel>Repetir Nueva Contraseña</FormLabel>
                                         <FormControl>
                                             <div className="relative">
                                                 <Input type={showPassword ? 'text' : 'password'} {...field} value={field.value || ''} />
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
-                                                    onClick={() => setShowPassword(prev => !prev)}
-                                                >
-                                                    {showPassword ? <EyeOff /> : <Eye />}
-                                                </Button>
                                             </div>
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
-                                )}
-                            />
-                        </div>
-                         <PasswordStrengthIndicator password={password} />
-                         
-                         {/* LEGAL TERMS CHECKBOX - ONLY ON SIGNUP */}
-                         {!isEditing && (
-                             <div className="flex items-start space-x-2 pt-4">
-                                <Checkbox 
-                                    id="terms" 
-                                    checked={termsAccepted}
-                                    onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
-                                />
-                                <div className="grid gap-1.5 leading-none">
-                                    <label
-                                        htmlFor="terms"
-                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                    >
-                                        He leído y acepto los <Link href="/terms" target="_blank" className="text-primary hover:underline">Términos y Condiciones</Link> y el <Link href="/privacy" target="_blank" className="text-primary hover:underline">Aviso de Privacidad</Link>
-                                    </label>
-                                    <p className="text-[0.8rem] text-muted-foreground">
-                                        Debes aceptar las políticas legales para crear tu cuenta.
-                                    </p>
-                                </div>
-                             </div>
-                         )}
+                                )} />
+                                <PasswordStrengthIndicator password={password} />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
 
-                    </CardContent>
-                    <CardFooter>
-                         <div className="flex flex-col gap-4 w-full">
-                            <SubmitButton 
-                                isEditing={isEditing} 
-                                isSigningIn={isSigningIn} 
-                                isSubmitting={isSubmitting || isPending} 
-                                loadingAuth={loadingAuth} 
-                                termsAccepted={termsAccepted}
-                            />
-                            {!isEditing && (
-                                 <div className="text-sm text-center text-muted-foreground">
-                                    ¿Ya tienes una cuenta?{' '}
-                                    <Link href={loginLink} className="underline hover:text-primary">
-                                        Inicia Sesión
-                                    </Link>
-                                </div>
-                            )}
-                        </div>
-                    </CardFooter>
-                </Card>
+                {/* GLOBAL SAVE BUTTON */}
+                {/* Posicionado lo suficientemente alto para no quedar debajo del FAB de emergencia (bottom-36) */}
+                <div className="mt-8 mb-6 sticky bottom-36 sm:static z-30 px-4 sm:px-0">
+                    <SubmitButton 
+                        isEditing={isEditing} 
+                        isSigningIn={isSigningIn} 
+                        isSubmitting={isSubmitting || isPending} 
+                        loadingAuth={loadingAuth} 
+                        termsAccepted={termsAccepted}
+                    />
+                </div>
             </form>
         </Form>
     );

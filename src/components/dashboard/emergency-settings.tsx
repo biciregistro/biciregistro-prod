@@ -108,6 +108,7 @@ export default function EmergencySettings({ user }: EmergencyFormProps) {
 
   const hasIncompleteData = !user.bloodType || !user.emergencyContactName || !user.emergencyContactPhone;
 
+  // We are now treating this as a pure summary card on mobile since the action moved to a FAB
   return (
     <Card className="border-l-4 border-l-red-500 shadow-sm">
         <CardHeader>
@@ -118,7 +119,7 @@ export default function EmergencySettings({ user }: EmergencyFormProps) {
             <div>
               <CardTitle>Etiqueta de Emergencia Inteligente</CardTitle>
               <CardDescription>
-                Descarga tu sticker de seguridad (5x5cm) para tu casco o bicicleta.
+                Resumen de tu etiqueta médica de seguridad (5x5cm).
               </CardDescription>
             </div>
           </div>
@@ -131,7 +132,7 @@ export default function EmergencySettings({ user }: EmergencyFormProps) {
                   <div className="text-sm text-yellow-800">
                       <p className="font-bold mb-1">Información Incompleta</p>
                       <p>
-                          Para que la etiqueta sea útil, necesitamos que completes tu <strong>Tipo de Sangre</strong> y <strong>Contacto de Emergencia</strong> en el formulario de abajo.
+                          Para que la etiqueta sea útil, asegúrate de haber llenado tu <strong>Tipo de Sangre</strong> y <strong>Contacto de Emergencia</strong> en la pestaña General.
                       </p>
                   </div>
               </div>
@@ -139,7 +140,7 @@ export default function EmergencySettings({ user }: EmergencyFormProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                    <Label className="text-xs text-gray-500 uppercase">Datos a mostrar</Label>
+                    <Label className="text-xs text-gray-500 uppercase">Datos listos para imprimir</Label>
                     <div className="p-3 bg-gray-50 rounded-lg border text-sm space-y-1">
                         <div className="flex justify-between">
                             <span className="text-gray-500">Sangre:</span>
@@ -157,10 +158,11 @@ export default function EmergencySettings({ user }: EmergencyFormProps) {
                 </div>
 
                 <div className="flex flex-col justify-end gap-3">
+                    {/* Hide download button on mobile since we have the FAB */}
                     <Button 
                       onClick={generateAndDownload} 
                       disabled={loading || hasIncompleteData} 
-                      className="w-full bg-red-600 hover:bg-red-700 text-white"
+                      className="hidden md:flex w-full bg-red-600 hover:bg-red-700 text-white"
                     >
                         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
                         Descargar PDF
