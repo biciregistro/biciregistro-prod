@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Camera, CheckCircle, AlertCircle, Upload, Bike, Sparkles } from "lucide-react";
+import { Loader2, Camera, CheckCircle, AlertCircle, Upload, Bike, Sparkles, ImagePlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 // Actions centralizadas
 import { analyzeSerialNumberAction, analyzeBikeImageAction } from '@/lib/actions/ai-actions';
@@ -295,6 +295,7 @@ export function RegisterWizard({ userRole }: RegisterWizardProps) {
                         <Sparkles className="w-10 h-10 text-primary animate-pulse" />
                     </div>
                     <CardTitle className="text-3xl font-bold text-primary">Bienvenido al Registro Inteligente</CardTitle>
+                    <CardTitle className="text-xl font-bold text-primary mt-2">¡Completar tu registro te otorga 50km de seguridad!</CardTitle>
                     <CardDescription className="text-lg mt-2">
                         Estás a punto de registrar tu bicicleta.
                     </CardDescription>
@@ -321,12 +322,12 @@ export function RegisterWizard({ userRole }: RegisterWizardProps) {
             <CardHeader>
                 <CardTitle className="text-2xl flex items-center gap-2">
                     {step === 1 && "1. Escanea el Número de Serie"}
-                    {step === 2 && "2. Toma una foto lateral"}
+                    {step === 2 && "2. Foto de tu bicicleta"}
                     {step === 3 && "3. Detalles Finales"}
                 </CardTitle>
                 <CardDescription>
                     {step === 1 && "Empecemos por lo más importante. Escanea el número de serie de tu bici y deja que Sprock nuestra IA lo escriba por ti."}
-                    {step === 2 && "Toma una foto lateral de tu bicicleta, Sprock intentará reconocerla."}
+                    {step === 2 && "Toma una foto en el momento o sube una imagen de tu galería. Sprock intentará reconocer la marca y el modelo."}
                     {step === 3 && "Solo unos datos más para estimar su valor."}
                 </CardDescription>
             </CardHeader>
@@ -400,22 +401,25 @@ export function RegisterWizard({ userRole }: RegisterWizardProps) {
             {/* --- STEP 2 CONTENT --- */}
             {step === 2 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                     <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-8 bg-gray-50 hover:bg-gray-100 transition-colors relative overflow-hidden min-h-[250px]">
+                     <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-8 bg-gray-50 hover:bg-gray-100 transition-colors relative overflow-hidden min-h-[250px] group">
                         <input 
                             type="file" 
                             accept="image/*" 
-                            capture="environment" 
                             onChange={handleBikePhoto}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                         />
                         {formData.bikeImage ? (
-                            <div className="relative w-full h-48">
+                            <div className="relative w-full h-48 group-hover:opacity-90 transition-opacity">
                                 <Image src={formData.bikeImage} alt="Bike" fill className="object-contain" />
+                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+                                    <p className="text-white font-medium bg-black/50 px-3 py-1 rounded-full">Cambiar foto</p>
+                                </div>
                             </div>
                         ) : (
                             <div className="text-center">
-                                <Bike className="w-12 h-12 text-primary/60 mx-auto mb-2" />
-                                <p className="text-sm text-gray-600 font-medium">Sube una foto lateral completa</p>
+                                <ImagePlus className="w-12 h-12 text-primary/60 mx-auto mb-3" />
+                                <p className="text-base text-gray-700 font-semibold mb-1">Toca para elegir una foto</p>
+                                <p className="text-xs text-gray-400">Puedes tomar una nueva o elegir de tu galería</p>
                             </div>
                         )}
                         {loading && <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center z-20 gap-2">
