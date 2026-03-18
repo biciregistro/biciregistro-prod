@@ -67,7 +67,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
     const handleShare = async () => {
         if (!referralData) return;
 
-        const shareText = `¡Hola! Te invito a usar mi enlace para blindar tu bici con *Biciregistro*, proteger a la banda ciclista del robo y combatir el mercado negro. Si te registras con mi link ambos podemos ganar premios de aliados y acumular kilómetros.\n\nMi link 👉 ${referralData.shareUrl}\n\n¡Además, le das identidad a tu bici, la vinculas legalmente a ti y obtienes herramientas de protección activa y pasiva contra el robo!`;
+        const shareText = `¡Qué onda! Te conseguí una invitación para Biciregistro. Mi bici ya tiene su Identidad Digital y fue ¡gratis!. Si registras tu bici con este link, a los dos nos regalan 200 Kilómetros para canjear por equipo, servicios o café en tiendas ciclistas. 🚴‍♂️⚡\n\nTardas 30 segundos, protege la tuya aquí 👉: ${referralData.shareUrl}`;
         
         const shareData = {
             title: 'Únete a BiciRegistro',
