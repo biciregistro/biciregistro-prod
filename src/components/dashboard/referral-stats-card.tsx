@@ -37,7 +37,7 @@ export function ReferralStatsCard({ user }: ReferralStatsCardProps) {
     const handleShare = async () => {
         if (!data) return;
 
-        const shareText = `¡Hola! Te invito a usar mi enlace para blindar tu bici con *Biciregistro*, proteger a la banda ciclista del robo y combatir el mercado negro. Si te registras con mi link ambos podemos ganar premios de aliados y acumular kilómetros.\n\nMi link 👉 ${data.shareUrl}\n\n¡Además, le das identidad a tu bici, la vinculas legalmente a ti y obtienes herramientas de protección activa y pasiva contra el robo!`;
+        const shareText = `¡Qué onda! Te conseguí una invitación para Biciregistro. Mi bici ya tiene su Identidad Digital y fue ¡gratis!. Si registras tu bici con este link, a los dos nos regalan 200 Kilómetros para canjear por equipo, servicios o café en tiendas ciclistas. 🚴‍♂️⚡\n\nTardas 30 segundos, protege la tuya aquí 👉: ${data.shareUrl}`;
         
         const shareData = {
             title: 'Únete a BiciRegistro',
@@ -170,7 +170,7 @@ export function ReferralStatsCard({ user }: ReferralStatsCardProps) {
                             </Button>
                             <p className="text-[10px] text-center text-muted-foreground px-2">
                                <span className="font-mono select-all hover:text-primary transition-colors cursor-pointer truncate block w-full" onClick={() => {
-                                   const textToCopy = `¡Hola! Te invito a usar mi enlace para blindar tu bici con *Biciregistro*... ${data.shareUrl}`;
+                                   const textToCopy = `¡Qué onda! Te conseguí una invitación para Biciregistro. Mi bici ya tiene su Identidad Digital y fue ¡gratis!. Si registras tu bici con este link, a los dos nos regalan 200 Kilómetros para canjear por equipo, servicios o café en tiendas ciclistas. 🚴‍♂️⚡\n\nTardas 30 segundos, protege la tuya aquí 👉: ${data.shareUrl}`;
                                    navigator.clipboard.writeText(textToCopy);
                                    toast({ title: "Copiado", description: "Enlace copiado." });
                                }}>{data.shareUrl}</span>
