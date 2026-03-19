@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { getAuth, signInWithCustomToken, type Auth, type AuthError } from "firebase/auth";
+import { getAuth, signInWithCustomToken, GoogleAuthProvider, type Auth, type AuthError } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 import { getMessaging, type Messaging, isSupported } from "firebase/messaging";
@@ -23,6 +23,10 @@ let db: Firestore;
 let storage: FirebaseStorage;
 let messaging: Messaging | undefined; // Messaging might not be supported
 let appCheck: AppCheck | undefined;
+
+// Providers
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 // This promise will be resolved once Firebase services are initialized.
 // Note: We don't wait for App Check token here to avoid blocking UI on token errors.

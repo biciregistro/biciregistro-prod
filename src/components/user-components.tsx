@@ -30,6 +30,7 @@ import { Logo } from './icons/logo';
 import { cn } from '@/lib/utils';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SocialAuthButtons } from './auth/social-auth';
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -455,15 +456,41 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
     if (!isEditing) {
         return (
             <Form {...form}>
-                <form ref={formRef} onSubmit={form.handleSubmit(handleFormSubmit, onInvalidSubmit)} className="space-y-8 max-w-2xl mx-auto">
+                <form ref={formRef} onSubmit={form.handleSubmit(handleFormSubmit, onInvalidSubmit)} className="space-y-6 max-w-xl mx-auto">
                     {communityId && <input type="hidden" name="communityId" value={communityId} />}
-                    <Card>
-                        <CardHeader>
-                            <div className="text-center mb-4">
-                                <Link href="/" className="flex justify-center mb-4"><Logo /></Link>
-                                <CardTitle>Crear una cuenta</CardTitle>
-                                <CardDescription>Ingresa tu información para crear una cuenta</CardDescription>
+                    
+                    {/* Tarjeta 1: Happy Path (Google) */}
+                    <Card className="border-2 border-primary/10 shadow-md">
+                        <CardHeader className="text-center pb-4">
+                            <div className="flex justify-center mb-6">
+                                <Link href="/" className="flex justify-center"><Logo /></Link>
                             </div>
+                            <CardTitle className="text-2xl font-bold">Únete a BiciRegistro</CardTitle>
+                            <CardDescription className="text-base">La forma más rápida y segura de crear tu cuenta</CardDescription>
+                        </CardHeader>
+                        <CardContent className="px-6 pb-6">
+                             <div className="w-full">
+                                <SocialAuthButtons callbackUrl={callbackUrl} mode="signup" />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t border-muted-foreground/20" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-background px-4 text-muted-foreground font-medium">
+                                O registrate con correo electrónico
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Tarjeta 2: Plan B (Formulario Manual) */}
+                    <Card className="shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="text-xl">Datos de Registro</CardTitle>
+                            <CardDescription>Llena los siguientes campos para crear tu cuenta.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4 px-4 sm:px-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -477,16 +504,8 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                             <FormField control={form.control} name="email" render={({ field }) => (
                                 <FormItem><FormLabel>Correo Electrónico</FormLabel><FormControl><Input type="email" placeholder="m@example.com" {...field} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
                             )} />
-                        </CardContent>
-                    </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Define tu Contraseña</CardTitle>
-                            <CardDescription>Mínimo 6 caracteres, mayúscula, número y carácter especial.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4 px-4 sm:px-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
                                 <FormField control={form.control} name="password" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Contraseña</FormLabel>
@@ -517,20 +536,21 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                                 )} />
                             </div>
                             <PasswordStrengthIndicator password={passwordValue as string} />
-                            <div className="flex items-start space-x-2 pt-4">
+                            
+                            <div className="flex items-start space-x-2 pt-6 pb-2">
                                 <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(checked) => setTermsAccepted(checked as boolean)} />
                                 <div className="grid gap-1.5 leading-none">
-                                    <label htmlFor="terms" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                        He leído y acepto los <Link href="/terms" target="_blank" className="text-primary hover:underline">Términos y Condiciones</Link> y el <Link href="/privacy" target="_blank" className="text-primary hover:underline">Aviso de Privacidad</Link>
+                                    <label htmlFor="terms" className="text-sm font-medium leading-relaxed peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-muted-foreground">
+                                        He leído y acepto los <Link href="/terms" target="_blank" className="text-primary hover:underline font-semibold">Términos y Condiciones</Link> y el <Link href="/privacy" target="_blank" className="text-primary hover:underline font-semibold">Aviso de Privacidad</Link>
                                     </label>
                                 </div>
                             </div>
                         </CardContent>
-                        <CardFooter>
+                        <CardFooter className="flex-col gap-4 bg-muted/20 border-t pt-6">
                             <div className="flex flex-col gap-4 w-full">
                                 <SubmitButton isSigningIn={isSigningIn} isSubmitting={isSubmitting || isPending} loadingAuth={loadingAuth} termsAccepted={termsAccepted} />
-                                <div className="text-sm text-center text-muted-foreground">
-                                    ¿Ya tienes una cuenta? <Link href="/login" className="underline hover:text-primary">Inicia Sesión</Link>
+                                <div className="text-sm text-center text-muted-foreground mt-2">
+                                    ¿Ya tienes una cuenta? <Link href="/login" className="underline hover:text-primary font-semibold">Inicia Sesión</Link>
                                 </div>
                             </div>
                         </CardFooter>

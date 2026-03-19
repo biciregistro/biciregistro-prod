@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Logo } from './icons/logo';
 import { PasswordStrengthIndicator } from './user-components';
+import { SocialAuthButtons } from './auth/social-auth';
 
 function LoginFormContent() {
     const router = useRouter();
@@ -89,6 +90,21 @@ function LoginFormContent() {
                 <CardDescription>Ingresa a tu cuenta de BiciRegistro</CardDescription>
             </CardHeader>
             <CardContent>
+                <div className="mb-6 w-full">
+                    <SocialAuthButtons callbackUrl={callbackUrl} mode="login" />
+                </div>
+
+                <div className="relative mb-6">
+                    <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">
+                            O continuar con tu correo
+                        </span>
+                    </div>
+                </div>
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {error && (
                         <Alert variant="destructive">
