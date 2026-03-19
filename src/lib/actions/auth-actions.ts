@@ -1,7 +1,6 @@
 'use server';
 
 import { adminAuth } from '@/lib/firebase/server';
-import { getDecodedSession, deleteSession } from '@/lib/auth';
 import { createUser, getUser, updateUserData } from '@/lib/data';
 import { awardPoints } from '@/lib/actions/gamification-actions';
 import { sendWelcomeEmail } from '@/lib/email/resend-service';
@@ -10,24 +9,23 @@ import { revalidatePath } from 'next/cache';
 /**
  * Syncs a social login user with Firestore.
  * This is called after the client has performed a successful social login.
- * It ensures a user document exists and handles first-time points.
+ * It uses the fresh ID token to ensure secure server-side validation.
  */
-export async function syncSocialUser() {
+export async function syncSocialUser(idToken: string) {
     try {
-        const session = await getDecodedSession();
-        
-        if (!session) {
-            return { success: false, error: 'No se pudo verificar la sesión social.' };
+        if (!idToken) {
+            return { success: false, error: 'Token de autenticación faltante.' };
         }
 
-        const { uid, email, name, picture } = session;
+        // Verify the ID token securely on the server
+        const decodedToken = await adminAuth.verifyIdToken(idToken);
+        const { uid, email, name, picture } = decodedToken;
 
         // 1. Check if user already exists in Firestore
         const existingUser = await getUser(uid);
 
         if (existingUser) {
             // Update profile picture if it changed
-            // FIX: Use 'avatarUrl' instead of 'imageUrl' as per User type in src/lib/types.ts
             if (picture && existingUser.avatarUrl !== picture) {
                 await updateUserData(uid, { avatarUrl: picture });
             }
@@ -44,7 +42,7 @@ export async function syncSocialUser() {
             email: email || '',
             name: firstName,
             lastName: lastName,
-            avatarUrl: picture || '', // FIX: Use 'avatarUrl'
+            avatarUrl: picture || '',
             role: 'ciclista' as const,
             notificationPreferences: {
                 safety: true,

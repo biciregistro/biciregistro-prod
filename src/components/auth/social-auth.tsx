@@ -23,17 +23,20 @@ export function SocialAuthButtons({ callbackUrl, mode = 'login' }: SocialAuthBut
             const { auth } = await getFirebaseServices();
             const result = await signInWithPopup(auth, googleProvider);
             
-            // Get ID Token to create session
+            // 1. Get ID Token directly from user credential
             const idToken = await result.user.getIdToken();
             
-            // 1. Sync user with Firestore (ensures profile exists)
-            const syncResult = await syncSocialUser();
+            // 2. Sync user with Firestore BEFORE creating the session 
+            // We pass the fresh ID Token to validate the user securely on the server
+            const syncResult = await syncSocialUser(idToken);
             
             if (!syncResult.success) {
+                // Si la sincronización falla, eliminamos la sesión local para que el usuario no quede "a medias"
+                await auth.signOut();
                 throw new Error(syncResult.error || 'Error al sincronizar perfil.');
             }
 
-            // 2. Create server session
+            // 3. Create server session (HTTP-Only Cookie)
             const response = await fetch('/api/auth/session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -41,20 +44,24 @@ export function SocialAuthButtons({ callbackUrl, mode = 'login' }: SocialAuthBut
             });
 
             if (!response.ok) {
+                // Si la sesión de Next.js falla, deshacemos la sesión de Firebase Client
+                await auth.signOut();
                 throw new Error('Falló la creación de la sesión.');
             }
 
             const sessionData = await response.json();
             
-            toast({ 
-                title: "¡Bienvenido!", 
-                description: syncResult.isNewUser 
-                    ? "Cuenta creada con Google. Completa tu perfil para ganar puntos." 
-                    : "Sesión iniciada correctamente." 
-            });
+            // No mostramos el toast de éxito genérico si es un usuario nuevo y le vamos a mostrar el toast de confetti
+            if (!syncResult.isNewUser) {
+                toast({ 
+                    title: "¡Bienvenido!", 
+                    description: "Sesión iniciada correctamente." 
+                });
+            }
 
-            // Redirect logic
+            // Redirect logic with Gamification parameters
             let targetUrl = '/dashboard';
+            
             if (callbackUrl) {
                 targetUrl = callbackUrl;
             } else if (syncResult.isNewUser) {
@@ -63,6 +70,12 @@ export function SocialAuthButtons({ callbackUrl, mode = 'login' }: SocialAuthBut
                 targetUrl = '/admin';
             } else if (sessionData.isOng) {
                 targetUrl = '/dashboard/ong';
+            }
+
+            // Si se otorgaron puntos de bienvenida, anexarlos a la URL para el GamificationListener
+            if (syncResult.pointsAwarded && syncResult.pointsAwarded > 0) {
+                const separator = targetUrl.includes('?') ? '&' : '?';
+                targetUrl += `${separator}welcome=${syncResult.pointsAwarded}`;
             }
 
             window.location.href = targetUrl;
