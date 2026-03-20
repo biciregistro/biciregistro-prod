@@ -72,9 +72,19 @@ function LoginFormContent() {
 
         } catch (error: any) {
             console.error("Login failed:", error);
-            const errorMessage = error.code === 'auth/invalid-credential'
-                ? 'Credenciales no válidas. Por favor, revisa tu correo y contraseña.'
-                : error.message || 'Ocurrió un error inesperado.';
+            
+            let errorMessage = 'Ocurrió un error inesperado. Por favor, intenta más tarde.';
+            
+            if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+                errorMessage = 'Credenciales incorrectas. Verifica tu contraseña, o si vinculaste tu cuenta con Google, usa el botón "Continuar con Google".';
+            } else if (error.code === 'auth/user-not-found') {
+                errorMessage = 'No se encontró ninguna cuenta con este correo electrónico.';
+            } else if (error.code === 'auth/too-many-requests') {
+                errorMessage = 'El acceso ha sido temporalmente bloqueado debido a múltiples intentos fallidos. Intenta más tarde.';
+            } else if (error.message) {
+                 errorMessage = error.message;
+            }
+
             setError(errorMessage);
             setIsLoading(false);
         }
@@ -108,7 +118,7 @@ function LoginFormContent() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {error && (
                         <Alert variant="destructive">
-                            <AlertTitle>Error de Autenticación</AlertTitle>
+                            <AlertTitle>Atención</AlertTitle>
                             <AlertDescription>{error}</AlertDescription>
                         </Alert>
                     )}
