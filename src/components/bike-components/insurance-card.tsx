@@ -189,27 +189,43 @@ export function InsuranceCard({ bike, user, insuranceRequest }: InsuranceCardPro
                         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                             <DialogTrigger asChild>
                                 <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                                    Asegurar Bicicleta con Clupp
+                                    Cotizar seguro para mi bicicleta
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent>
+                            <DialogContent className="max-w-2xl">
                                 <DialogHeader>
-                                    <DialogTitle>Asegura tu bici con Clupp</DialogTitle>
-                                    <DialogDescription>
-                                        Al contratar tu seguro obtendrás:
+                                    <DialogTitle>Cotiza tu seguro de bici con Clupp</DialogTitle>
+                                    <DialogDescription className="text-sm">
+                                        Biciregistro en alianza con Clupp Seguros te ofrecemos un seguro con la siguiente cobertura:
                                     </DialogDescription>
                                 </DialogHeader>
                                 
                                 {hasOwnershipProof ? (
-                                    <div className="space-y-4 py-4">
-                                        <ul className="list-disc list-inside space-y-1 text-sm">
-                                            <li>Cobertura de daños</li>
-                                            <li>Cobertura por robo</li>
-                                            <li>Cobertura de gastos médicos</li>
-                                            <li>Cobertura de daños a terceros</li>
+                                    <div className="space-y-4 py-2">
+                                        <ul className="space-y-3 text-sm">
+                                            <li className="flex flex-col gap-0.5">
+                                                <span className="font-bold">ROBO TOTAL - 10% Deducible</span>
+                                                <span className="text-muted-foreground">Te pagamos el valor cubierto de tu bicicleta</span>
+                                            </li>
+                                            <li className="flex flex-col gap-0.5">
+                                                <span className="font-bold">DAÑOS MATERIALES - 5% Deducible</span>
+                                                <span className="text-muted-foreground">Cubrimos daños que sufra tu bicicleta en caso de accidente</span>
+                                            </li>
+                                            <li className="flex flex-col gap-0.5">
+                                                <span className="font-bold">GASTOS MEDICOS - $500 de Deducible</span>
+                                                <span className="text-muted-foreground">En caso de que tengas un accidente en tu bicicleta y sufras lesiones físicas. Te reembolsamos los gastos en tratamientos médicos, hospitalización, enfermería, ambulancia o medicinas. Hasta por $20,000</span>
+                                            </li>
+                                            <li className="flex flex-col gap-0.5">
+                                                <span className="font-bold">ACCIDENTE PERSONAL - $500 de deducible</span>
+                                                <span className="text-muted-foreground">En caso de que tengas un accidente, que no sea en tu bicicleta, y sufras lesiones físicas, te reembolsamos los gastos en tratamientos médicos, hospitalización, enfermería, ambulancia o medicinas. Hasta por $20,000</span>
+                                            </li>
+                                            <li className="flex flex-col gap-0.5">
+                                                <span className="font-bold">RESPONSABILIDAD CIVIL POR DAÑOS A TERCEROS EN SUS BIENES O PERSONAS - Deducible $0</span>
+                                                <span className="text-muted-foreground">Si eres responsable de un accidente cubrimos los daños que ocasiones. Hasta por $20,000</span>
+                                            </li>
                                         </ul>
                                         
-                                        <div className="flex items-start space-x-2 pt-2">
+                                        <div className="flex items-start space-x-2 pt-2 border-t mt-4">
                                             <Checkbox 
                                                 id="terms" 
                                                 checked={termsAccepted} 
@@ -217,7 +233,7 @@ export function InsuranceCard({ bike, user, insuranceRequest }: InsuranceCardPro
                                             />
                                             <label
                                                 htmlFor="terms"
-                                                className="text-xs text-muted-foreground leading-tight peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                className="text-[10px] md:text-xs text-muted-foreground leading-tight peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                             >
                                                 Al hacer clic en 'Cotizar Seguro', autorizo a BICIREGISTRO a compartir mi nombre, correo electrónico y datos de mi bicicleta con Clupp (Clupp Mutualidad, S.C. de R.L. de C.V.) exclusivamente con la finalidad de generar una cotización de movilidad. Entiendo que la contratación del seguro será un acuerdo directo entre Clupp y mi persona.
                                             </label>
@@ -226,7 +242,7 @@ export function InsuranceCard({ bike, user, insuranceRequest }: InsuranceCardPro
                                         <Button 
                                             onClick={handleRequestQuote} 
                                             disabled={!termsAccepted || isPending}
-                                            className="w-full mt-4"
+                                            className="w-full mt-2"
                                         >
                                             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                             Cotizar Seguro
@@ -325,7 +341,7 @@ export function InsuranceCard({ bike, user, insuranceRequest }: InsuranceCardPro
                     <div className="space-y-2">
                          <p className="text-sm text-muted-foreground">El proceso anterior fue cerrado.</p>
                           <Button onClick={handleRequestQuote} className="w-full mt-2" disabled={isPending}>
-                             {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Asegurar Bicicleta con Clupp'}
+                             {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Cotizar seguro para mi bicicleta'}
                          </Button>
                     </div>
                 )}
