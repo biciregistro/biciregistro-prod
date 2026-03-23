@@ -196,9 +196,11 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
             </TabsList>
             
             <TabsContent value="garage" className="space-y-4">
+                {/* Desktop: Show promotional banner at top. */}
                 <div className="hidden md:block mb-6">
                     <PromotionalBanner />
                 </div>
+
                 {bikes.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-muted/30">
                         <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6">
@@ -223,14 +225,25 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                                  <span>¿Por qué debo registrar mi bici?</span>
                              </Link>
                         </Button>
+                        
+                        {/* Mobile Banner: Insert here if no bikes (Requirement: Below CTA) */}
+                        <div className="md:hidden mt-8 w-full">
+                            <PromotionalBanner />
+                        </div>
                     </div>
                 ) : (
                     <div className="space-y-4 pb-28 md:pb-0">
-                        <div className="md:hidden">
-                            <PromotionalBanner />
-                        </div>
-                        {bikes.map((bike: Bike) => (
-                            <div key={bike.id}><BikeCard bike={bike} user={user} /></div>
+                        {/* Mobile: Promotional banner NO LONGER at the top. Requirement: Below first bike or between 1st and 2nd. */}
+                        {bikes.map((bike: Bike, index: number) => (
+                            <div key={bike.id}>
+                                <BikeCard bike={bike} user={user} />
+                                {/* Mobile Banner: Insert after first bike (Requirement) */}
+                                {index === 0 && (
+                                    <div className="md:hidden mt-4">
+                                        <PromotionalBanner />
+                                    </div>
+                                )}
+                            </div>
                         ))}
                         <div id="tour-main-action" className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-40">
                              {isProfileComplete ? (
