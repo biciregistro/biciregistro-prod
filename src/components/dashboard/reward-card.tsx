@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { triggerConfetti } from '@/lib/confetti';
 import { Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 interface RewardCardProps {
     campaign: Campaign & { advertiserName?: string };
@@ -120,15 +121,31 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
         }
     };
 
-    const formatConditions = (conds: string | undefined) => {
-        if (!conds) return null;
-        if (conds.includes('<ul>') || conds.includes('<li>')) {
-            return <div dangerouslySetInnerHTML={{ __html: conds }} className="text-sm text-muted-foreground mt-2 list-inside list-disc" />;
+    /**
+     * Formats text into bullets if it contains hyphens at the start of lines.
+     */
+    const formatTextWithBullets = (text: string | undefined, className: string = "text-sm text-muted-foreground") => {
+        if (!text) return null;
+
+        // Check if the text has at least one line starting with a hyphen
+        const lines = text.split('\n').map(l => l.trim());
+        const hasBullets = lines.some(line => line.startsWith('-'));
+
+        if (!hasBullets) {
+            return <p className={className}>{text}</p>;
         }
+
+        // If it has HTML already (fallback)
+        if (text.includes('<ul>') || text.includes('<li>')) {
+            return <div dangerouslySetInnerHTML={{ __html: text }} className={cn(className, "mt-2 list-inside list-disc")} />;
+        }
+
         return (
-            <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
-                {conds.split('\n').filter(c => c.trim().length > 0).map((c, i) => (
-                    <li key={i}>{c.replace(/^-s*/, '')}</li>
+            <ul className={cn("list-disc list-inside space-y-1 mt-2", className)}>
+                {lines.filter(l => l.length > 0).map((line, i) => (
+                    <li key={i} className="leading-relaxed">
+                        {line.startsWith('-') ? line.substring(1).trim() : line}
+                    </li>
                 ))}
             </ul>
         );
@@ -227,7 +244,7 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
 
                         <div className="flex justify-between items-center">
                             <Badge variant={(hasActiveCoupon || isFullyRedeemed || isGiveawayExhausted) ? "outline" : "secondary"} className={`text-xs sm:text-sm px-2 sm:px-3 py-0.5 sm:py-1 font-mono ${isGiveaway && !isGiveawayExhausted ? 'bg-purple-100 text-purple-900 border-transparent' : ''}`}>
-                                {price} KM
+                                Precio: {price} KM
                             </Badge>
                             
                             {!hasActiveCoupon && !isFullyRedeemed && !isGiveawayExhausted && !isAffordable && (
@@ -268,13 +285,13 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                     <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
                         <div>
                             <h4 className="font-semibold text-sm mb-1">Descripción</h4>
-                            <p className="text-sm text-muted-foreground">{campaign.description}</p>
+                            {formatTextWithBullets(campaign.description)}
                         </div>
                         
                         {!isGiveaway && campaign.conditions && (
                             <div>
                                 <h4 className="font-semibold text-sm mb-1 text-amber-700">Condiciones de Canje</h4>
-                                {formatConditions(campaign.conditions)}
+                                {formatTextWithBullets(campaign.conditions)}
                             </div>
                         )}
                         
@@ -292,7 +309,7 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                                 disabled={!isAffordable}
                                 className={`flex-1 ${isGiveaway ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
                             >
-                                {isAffordable ? (isGiveaway ? `Comprar Boleto (${price} KM)` : `Comprar por ${price} KM`) : 'KM Insuficientes'}
+                                {isAffordable ? (isGiveaway ? `Comprar Boleto (Precio: ${price} KM)` : `Comprar por Precio: ${price} KM`) : 'KM Insuficientes'}
                             </Button>
                         )}
                     </DialogFooter>
@@ -305,7 +322,7 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                     <DialogHeader>
                         <DialogTitle>Confirmar Compra</DialogTitle>
                         <DialogDescription>
-                            Estás a punto de usar <strong>{price} KM</strong> para adquirir <strong>{isGiveaway ? '1 boleto para ' : ''}{campaign.title}</strong>.
+                            Estás a punto de usar <strong>Precio: {price} KM</strong> para adquirir <strong>{isGiveaway ? '1 boleto para ' : ''}{campaign.title}</strong>.
                         </DialogDescription>
                     </DialogHeader>
 
