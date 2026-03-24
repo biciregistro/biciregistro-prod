@@ -22,22 +22,28 @@ export default function SocialProofWidget({ messages }: SocialProofWidgetProps) 
     }
   }, [messages]);
 
-  // CA3: Comportamiento UX/UI
+  // CA3: Comportamiento UX/UI con Tiempos Específicos
   useEffect(() => {
     if (isDismissed || !messages || messages.length === 0) return;
 
     let isComponentMounted = true;
     
+    // Timer inicial antes de mostrar la primera notificación
     const initialDelay = setTimeout(() => {
       if (!isComponentMounted) return;
       setIsVisible(true);
     }, 5000);
 
+    // Bucle principal: 
+    // - Visible: 7.77 segundos
+    // - Oculto: 11.11 segundos
+    // - Total del ciclo: 18.88 segundos (18880ms)
     const cycleInterval = setInterval(() => {
       if (!isComponentMounted) return;
       
-      setIsVisible(false);
+      setIsVisible(false); // Fade-out
 
+      // Esperamos el tiempo de transición CSS (aprox 500ms) para cambiar el texto oculto
       setTimeout(() => {
         if (!isComponentMounted) return;
         
@@ -45,14 +51,16 @@ export default function SocialProofWidget({ messages }: SocialProofWidgetProps) 
           return prevIndex >= messages.length - 1 ? 0 : prevIndex + 1;
         });
         
+        // El widget permanecerá oculto 11.11s. Ya esperamos ~500ms en la transición, 
+        // por lo que esperamos el resto antes de hacer fade-in.
         setTimeout(() => {
           if (!isComponentMounted) return;
-          setIsVisible(true);
-        }, 8500); 
+          setIsVisible(true); 
+        }, 11110 - 500); // 11.11 segundos oculto
+        
+      }, 500);
 
-      }, 1500);
-
-    }, 15000);
+    }, 18880); // 7.77s (7770ms) + 11.11s (11110ms) = 18880ms
 
     return () => {
       isComponentMounted = false;
