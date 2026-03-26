@@ -2,13 +2,13 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Bike, Activity } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface GeneralStatsData {
     totalUsers: number;
     totalBikes: number;
     activeUsers: number;
-    dailyGrowth: { date: string; count: number }[];
+    dailyGrowth: { date: string; usersCount: number; bikesCount: number }[];
 }
 
 function StatCard({ title, value, icon: Icon, description }: { title: string, value: number | string, icon: any, description?: string }) {
@@ -47,13 +47,13 @@ export function GeneralStatsSection({ data }: { data: GeneralStatsData }) {
                     title="Usuarios Registrados" 
                     value={data.totalUsers} 
                     icon={Users} 
-                    description="Total histórico"
+                    description="Total con filtros actuales"
                 />
                 <StatCard 
                     title="Bicicletas Registradas" 
                     value={data.totalBikes} 
                     icon={Bike} 
-                    description="Total histórico"
+                    description="Total con filtros actuales"
                 />
                 <StatCard 
                     title="Usuarios Activos" 
@@ -65,7 +65,7 @@ export function GeneralStatsSection({ data }: { data: GeneralStatsData }) {
 
             <Card className="col-span-4">
                 <CardHeader>
-                    <CardTitle>Crecimiento de Usuarios</CardTitle>
+                    <CardTitle>Crecimiento de Ecosistema (Global)</CardTitle>
                 </CardHeader>
                 <CardContent className="pl-2">
                     {data.dailyGrowth.length > 0 ? (
@@ -98,11 +98,21 @@ export function GeneralStatsSection({ data }: { data: GeneralStatsData }) {
                                     <Tooltip 
                                         contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
                                     />
+                                    <Legend verticalAlign="top" height={36}/>
                                     <Area 
                                         type="monotone" 
-                                        dataKey="count" 
+                                        dataKey="usersCount" 
+                                        name="Usuarios"
                                         stroke="hsl(var(--primary))" 
                                         fill="hsl(var(--primary))" 
+                                        fillOpacity={0.2} 
+                                    />
+                                    <Area 
+                                        type="monotone" 
+                                        dataKey="bikesCount" 
+                                        name="Bicicletas"
+                                        stroke="#10b981" 
+                                        fill="#10b981" 
                                         fillOpacity={0.2} 
                                     />
                                 </AreaChart>

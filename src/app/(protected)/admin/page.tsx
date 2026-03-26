@@ -28,6 +28,7 @@ export default async function AdminPage({
   const filters: DashboardFilters = {
     country: typeof resolvedSearchParams['country'] === 'string' ? resolvedSearchParams['country'] : undefined,
     state: typeof resolvedSearchParams['state'] === 'string' ? resolvedSearchParams['state'] : undefined,
+    city: typeof resolvedSearchParams['city'] === 'string' ? resolvedSearchParams['city'] : undefined,
     brand: typeof resolvedSearchParams['brand'] === 'string' ? resolvedSearchParams['brand'] : undefined,
     modality: typeof resolvedSearchParams['modality'] === 'string' ? resolvedSearchParams['modality'] : undefined,
     gender: typeof resolvedSearchParams['gender'] === 'string' ? resolvedSearchParams['gender'] : undefined,

@@ -51,6 +51,14 @@ export type Bike = {
   // Seguimiento de difusión administrativa
   adminSharedAt?: string; // ISO string de cuándo el admin compartió el robo
   bikonId?: string | null; // ID of the linked Bikon device
+  
+  // --- CAMPOS DESNORMALIZADOS DEL DUEÑO (Para Filtros Cruzados Rápidos) ---
+  ownerGender?: string;
+  ownerBirthDate?: string;
+  ownerCountry?: string;
+  ownerState?: string;
+  ownerCity?: string;
+
   theftReport?: {
     date: string;
     time?: string;
@@ -117,6 +125,11 @@ export type User = {
   termsAcceptedAt?: string; // ISO string timestamp de aceptación
   termsVersion?: string; // Versión de los términos aceptados (ej. '2026-01-31')
   onboarding?: OnboardingStatus;
+
+  // --- CAMPOS DESNORMALIZADOS DEL GARAJE (Para Filtros Cruzados Rápidos) ---
+  ownedBrands?: string[];
+  ownedModalities?: string[];
+  hasStolenBikes?: boolean;
 };
 
 export type OngUser = {
@@ -399,6 +412,7 @@ export type FinancialSettings = {
 export type DashboardFilters = {
     country?: string;
     state?: string;
+    city?: string; // Added city dimension
     brand?: string;
     modality?: string;
     gender?: string;

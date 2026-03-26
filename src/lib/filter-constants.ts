@@ -17,7 +17,7 @@ export const STATES_MX = [
   { value: 'Coahuila', label: 'Coahuila' },
   { value: 'Colima', label: 'Colima' },
   { value: 'Durango', label: 'Durango' },
-  { value: 'Estado de México', label: 'Estado de México' },
+  { value: 'México', label: 'Estado de México' }, // Ajustado el value para que coincida con la BD (México)
   { value: 'Guanajuato', label: 'Guanajuato' },
   { value: 'Guerrero', label: 'Guerrero' },
   { value: 'Hidalgo', label: 'Hidalgo' },

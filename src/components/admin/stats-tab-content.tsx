@@ -29,6 +29,7 @@ import { GenerationInsightsCard } from './charts/generation-insights-card';
 import { BikeRangesChart } from './charts/bike-ranges-chart';
 import { BikeProfileCard } from './charts/bike-profile-card';
 import { Separator } from '@/components/ui/separator';
+import { MigrationButton } from './migration-button'; 
 
 interface StatsTabContentProps {
   filters: DashboardFilters;
@@ -55,7 +56,7 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
     getUserDemographics(filters),
     getMarketMetrics(filters),
     getFraudPreventionStats(),
-    getMarketingPotential(filters),
+    getMarketingPotential(),
   ]);
 
   const recoveryData = {
@@ -235,6 +236,12 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
             </div>
         </div>
       </div>
+      
+      <Separator className="my-6" />
+      
+      {/* BOTÓN TEMPORAL DE MIGRACIÓN MOVIDO AL FONDO */}
+      <MigrationButton />
+
     </div>
   );
 }

@@ -1,8 +1,8 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback } from 'react';
-import { X } from 'lucide-react';
+import { useCallback, useState, useEffect } from 'react';
+import { X, MapPin } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -12,12 +12,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 
 import { COUNTRIES, STATES_MX, BIKE_BRANDS, MODALITIES, GENDERS } from '@/lib/filter-constants';
+import { getCities } from '@/lib/cities'; // Importar utilidad de ciudades
 
 export function DashboardFilterBar() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Local state for free-text city input (fallback)
+  const [cityInput, setCityInput] = useState(searchParams.get('city') || '');
 
   // Helper to update URL params
   const createQueryString = useCallback(
@@ -34,21 +39,57 @@ export function DashboardFilterBar() {
   );
 
   const handleFilterChange = (key: string, value: string | null) => {
-    // If country changes to something other than Mexico, clear state
-    if (key === 'country' && value !== 'México') {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set('country', value || '');
-        params.delete('state');
-        router.push(`?${params.toString()}`, { scroll: false });
-        return;
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (value) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
     }
 
-    router.push(`?${createQueryString(key, value)}`, { scroll: false });
+    // Dependency Logic
+    if (key === 'country' && value !== 'México') {
+        params.delete('state');
+        params.delete('city');
+        setCityInput('');
+    }
+
+    if (key === 'state') {
+        params.delete('city');
+        setCityInput('');
+    }
+
+    router.push(`?${params.toString()}`, { scroll: false });
   };
 
   const clearFilters = () => {
+    setCityInput('');
     router.push('?tab=stats', { scroll: false });
   };
+
+  // Debounce effect for city free-text input (only used if not a known state)
+  // We need to be careful to ONLY trigger this if the input was actually typed by the user,
+  // not when it's just reacting to a state clear.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        const currentUrlCity = searchParams.get('city') || '';
+        // Only push to router if the local state differs from URL AND we are not in a cleared state
+        // The condition `cityInput !== '' || currentUrlCity !== ''` prevents infinite loops when both are empty
+        if (cityInput !== currentUrlCity && (cityInput !== '' || currentUrlCity !== '')) {
+            // Check if we are in dropdown mode. If so, ignore the text input debounce to avoid conflicts
+            const countryForCities = searchParams.get('country') || 'México';
+            const state = searchParams.get('state') || '';
+            const availableCities = state ? getCities(countryForCities, state) : [];
+            
+            if (availableCities.length === 0) {
+               handleFilterChange('city', cityInput.trim() !== '' ? cityInput.trim() : null);
+            }
+        }
+    }, 500); 
+
+    return () => clearTimeout(timer);
+  }, [cityInput, searchParams]);
+
 
   // Current values
   const currentCountry = searchParams.get('country') || '';
@@ -56,8 +97,14 @@ export function DashboardFilterBar() {
   const currentBrand = searchParams.get('brand') || '';
   const currentModality = searchParams.get('modality') || '';
   const currentGender = searchParams.get('gender') || '';
+  const currentCity = searchParams.get('city') || '';
 
-  const hasActiveFilters = currentCountry || currentState || currentBrand || currentModality || currentGender;
+  const hasActiveFilters = currentCountry || currentState || currentBrand || currentModality || currentGender || currentCity;
+
+  // Determine if we should show the dropdown or the input
+  const countryForCities = currentCountry || 'México'; // Default context
+  const availableCities = currentState ? getCities(countryForCities, currentState) : [];
+  const showCityDropdown = availableCities.length > 0;
 
   return (
     <div className="flex flex-col space-y-4 mb-6 p-4 bg-muted/30 rounded-lg border">
@@ -71,7 +118,7 @@ export function DashboardFilterBar() {
         )}
       </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {/* Country Filter */}
         <Select
           value={currentCountry}
@@ -109,7 +156,41 @@ export function DashboardFilterBar() {
           </SelectContent>
         </Select>
 
-        {/* Brand Filter - Switched to Select to avoid missing 'cmdk' dependency */}
+        {/* City/Municipality Dynamic Field */}
+        {showCityDropdown ? (
+            <Select
+              value={currentCity}
+              onValueChange={(val) => handleFilterChange('city', val === 'all' ? null : val)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Municipio / Ciudad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los municipios</SelectItem>
+                {availableCities.map((city) => (
+                  <SelectItem key={city} value={city}>
+                    {city}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+        ) : (
+            <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <Input
+                    type="text"
+                    placeholder="Municipio / Ciudad"
+                    value={cityInput}
+                    onChange={(e) => setCityInput(e.target.value)}
+                    className="pl-9"
+                    disabled={!currentState} // Disable free text if no state is selected to enforce hierarchy
+                />
+            </div>
+        )}
+
+        {/* Brand Filter */}
         <Select
           value={currentBrand}
           onValueChange={(val) => handleFilterChange('brand', val === 'all' ? null : val)}
