@@ -134,6 +134,18 @@ export async function registerBike(prevState: any, formData: FormData): Promise<
 
     try {
         const ip = await getClientIp();
+        
+        // OBTENER DATOS DEL USUARIO PARA DESNORMALIZACIÓN
+        const owner = await getUser(session.uid);
+        if (!owner) throw new Error("Owner not found");
+
+        const denormalizedData = {
+            ownerGender: owner.gender,
+            ownerBirthDate: owner.birthDate,
+            ownerCountry: owner.country,
+            ownerState: owner.state,
+            ownerCity: owner.city,
+        };
 
         const newBikeId = await addBike({
             ...bikeData,
@@ -147,7 +159,17 @@ export async function registerBike(prevState: any, formData: FormData): Promise<
                 additionalPhoto1Url,
                 additionalPhoto2Url,
             ].filter((url): url is string => !!url),
+            ...denormalizedData, // INYECTAR DATOS
         });
+
+        // ACTUALIZAR EL GARAJE DEL USUARIO (Desnormalización en colección users)
+        if (newBikeId) {
+            const userRef = adminDb.collection('users').doc(session.uid);
+            await userRef.update({
+                ownedBrands: FieldValue.arrayUnion(bikeData.make),
+                ...(bikeData.modality ? { ownedModalities: FieldValue.arrayUnion(bikeData.modality) } : {})
+            });
+        }
 
         // GAMIFICACIÓN DINÁMICA
         let pointsAwarded = 0;
@@ -207,6 +229,14 @@ export async function updateBike(prevState: BikeFormState, formData: FormData): 
                 additionalPhoto2Url,
             ].filter((url): url is string => !!url),
         });
+
+        // ACTUALIZAR EL GARAJE DEL USUARIO (Por si cambió de marca/modalidad)
+        const userRef = adminDb.collection('users').doc(session.uid);
+        await userRef.update({
+            ownedBrands: FieldValue.arrayUnion(bikeData.make),
+            ...(bikeData.modality ? { ownedModalities: FieldValue.arrayUnion(bikeData.modality) } : {})
+        });
+        
         revalidatePath('/dashboard');
         revalidatePath(`/dashboard/bikes/${id}`);
         return { success: true, message: 'Bicicleta actualizada correctamente.' };
@@ -235,6 +265,10 @@ export async function reportTheft(prevState: any, formData: FormData) {
             status: 'stolen',
             theftReport: theftData, 
         });
+
+        // ACTUALIZAR EL FLAG EN EL USUARIO
+        const userRef = adminDb.collection('users').doc(session.uid);
+        await userRef.update({ hasStolenBikes: true });
 
         try {
             const bike = await getBike(session.uid, bikeId);
@@ -381,8 +415,27 @@ export async function transferOwnership(prevState: { error?: string; success?: b
             return { error: 'No estás autorizado para transferir esta bicicleta.' };
         }
 
-        await updateBikeData(bikeId, { userId: newOwner.id });
+        // ACTUALIZAR EL DOCUMENTO DE LA BICICLETA
+        await updateBikeData(bikeId, { 
+            userId: newOwner.id,
+            ownerGender: newOwner.gender || undefined, // Corregido: undefined en lugar de null
+            ownerBirthDate: newOwner.birthDate || undefined,
+            ownerCountry: newOwner.country || undefined,
+            ownerState: newOwner.state || undefined,
+            ownerCity: newOwner.city || undefined,
+        });
         
+        // ACTUALIZAR EL GARAJE DEL NUEVO DUEÑO
+        const newOwnerRef = adminDb.collection('users').doc(newOwner.id);
+        await newOwnerRef.update({
+            ownedBrands: FieldValue.arrayUnion(bike.make),
+            ...(bike.modality ? { ownedModalities: FieldValue.arrayUnion(bike.modality) } : {})
+        });
+
+        // NOTA: Idealmente removeríamos la marca/modalidad del dueño anterior,
+        // pero como es un array plano y podría tener varias de la misma marca, 
+        // lo dejaremos así por ahora para no afectar performance.
+
         // GAMIFICACIÓN DINÁMICA
         const pointsResult = await awardPoints(currentUserId, 'ownership_transfer', { bikeId, newOwnerId: newOwner.id });
 
@@ -428,6 +481,18 @@ export async function registerBikeWizardAction(formData: any) {
 
         const ip = await getClientIp();
 
+        // OBTENER DATOS DEL USUARIO PARA DESNORMALIZACIÓN
+        const owner = await getUser(userId);
+        if (!owner) throw new Error("Owner not found");
+
+        const denormalizedData = {
+            ownerGender: owner.gender,
+            ownerBirthDate: owner.birthDate,
+            ownerCountry: owner.country,
+            ownerState: owner.state,
+            ownerCity: owner.city,
+        };
+
         const newBikeId = await addBike({
             userId,
             serialNumber: formData.serialNumber,
@@ -440,7 +505,17 @@ export async function registerBikeWizardAction(formData: any) {
             ownershipProof: '',
             registrationIp: ip,
             photos: photoUrls,
+            ...denormalizedData, // INYECTAR
         });
+
+        // ACTUALIZAR EL GARAJE DEL USUARIO
+        if (newBikeId) {
+            const userRef = adminDb.collection('users').doc(userId);
+            await userRef.update({
+                ownedBrands: FieldValue.arrayUnion(formData.brand),
+                ...(formData.type ? { ownedModalities: FieldValue.arrayUnion(formData.type) } : {})
+            });
+        }
 
         // GAMIFICACIÓN DINÁMICA
         let pointsAwarded = 0;
