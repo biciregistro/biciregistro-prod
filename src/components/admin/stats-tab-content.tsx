@@ -8,7 +8,8 @@ import {
     getUserDemographics,
     getMarketMetrics,
     getFraudPreventionStats,
-    getMarketingPotential
+    getMarketingPotential,
+    getSecurityMapData // Añadido
 } from '@/lib/analytics-data';
 import { RecoveryRatePie } from './charts/recovery-rate-pie';
 import { TopStolenBrandsChart } from './charts/top-stolen-brands-chart';
@@ -30,8 +31,10 @@ import { BikeRangesChart } from './charts/bike-ranges-chart';
 import { BikeProfileCard } from './charts/bike-profile-card';
 import { Separator } from '@/components/ui/separator';
 import { MigrationButton } from './migration-button'; 
-// Usaremos un wrapper de cliente para el botón que necesita ssr: false
 import { ReportGeneratorWrapper } from './report-generator-wrapper';
+
+// Usamos el wrapper montado en cliente para evitar problemas de SSR
+import { SecurityMapWrapper } from './charts/security-map-wrapper';
 
 interface StatsTabContentProps {
   filters: DashboardFilters;
@@ -48,7 +51,8 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
       userDemographics,
       marketMetrics,
       fraudStats,
-      marketingPotential
+      marketingPotential,
+      securityMapData // Añadido
   ] = await Promise.all([
     getBikeStatusCounts(filters),
     getTopStolenBrands(filters),
@@ -59,6 +63,7 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
     getMarketMetrics(filters),
     getFraudPreventionStats(),
     getMarketingPotential(),
+    getSecurityMapData(filters), // Añadido
   ]);
 
   const recoveryData = {
@@ -171,6 +176,11 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
           <p className="text-muted-foreground">
             Estadísticas en tiempo real sobre robos, recuperaciones y salud del ecosistema.
           </p>
+        </div>
+
+        {/* MAPA ANALÍTICO (INCLUIDO EN LA PARTE SUPERIOR DE LA SECCIÓN PARA MÁXIMA VISIBILIDAD) */}
+        <div className="w-full mb-6">
+            <SecurityMapWrapper data={securityMapData} />
         </div>
 
         {/* Metrics Masonry Layout */}

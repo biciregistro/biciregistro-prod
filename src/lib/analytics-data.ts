@@ -594,3 +594,63 @@ export const getMarketingPotential = unstable_cache(
     ['marketing-potential-global'], 
     { revalidate: 1, tags: ['analytics'] }
 );
+
+export const getSecurityMapData = unstable_cache(
+    async (filters: DashboardFilters) => {
+        const db = adminDb;
+        const bikesRef = db.collection('bikes');
+        
+        // Base query: only stolen bikes, applying context of the incident
+        let query = applyBikeFilters(bikesRef.where('status', '==', 'stolen'), filters, 'incident');
+        const snapshot = await query.get();
+        
+        if (snapshot.empty) return [];
+
+        const mapDataPromises = snapshot.docs.map(async (doc) => {
+            const data = doc.data();
+            const report = data.theftReport || {};
+            
+            let victimOrigin = "No especificado";
+            let victimState = data.ownerState || "";
+            let victimCity = data.ownerCity || "";
+            
+            if (victimCity || victimState) {
+                victimOrigin = [victimCity, victimState].filter(Boolean).join(", ");
+            } else if (data.userId) {
+                 try {
+                     const userDoc = await db.collection('users').doc(data.userId).get();
+                     if (userDoc.exists) {
+                         const userData = userDoc.data();
+                         if (userData) {
+                             victimCity = userData.city || "";
+                             victimState = userData.state || "";
+                             if (victimCity || victimState) {
+                                 victimOrigin = [victimCity, victimState].filter(Boolean).join(", ");
+                             }
+                         }
+                     }
+                 } catch (e) {
+                     console.error("Error fetching user origin for map", e);
+                 }
+            }
+
+            return {
+                id: doc.id,
+                lat: report.lat || null,
+                lng: report.lng || null,
+                state: report.state || 'Desconocido',
+                city: report.city || 'Desconocido',
+                date: report.date || null,
+                brand: data.make || 'Desconocido',
+                modality: data.modality || 'Desconocida',
+                victimOrigin,
+                victimState,
+                victimCity
+            };
+        });
+
+        return Promise.all(mapDataPromises);
+    },
+    ['security-map-context'],
+    { revalidate: 1, tags: ['analytics'] }
+);

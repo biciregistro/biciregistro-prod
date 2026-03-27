@@ -68,15 +68,10 @@ export function DashboardFilterBar() {
   };
 
   // Debounce effect for city free-text input (only used if not a known state)
-  // We need to be careful to ONLY trigger this if the input was actually typed by the user,
-  // not when it's just reacting to a state clear.
   useEffect(() => {
     const timer = setTimeout(() => {
         const currentUrlCity = searchParams.get('city') || '';
-        // Only push to router if the local state differs from URL AND we are not in a cleared state
-        // The condition `cityInput !== '' || currentUrlCity !== ''` prevents infinite loops when both are empty
         if (cityInput !== currentUrlCity && (cityInput !== '' || currentUrlCity !== '')) {
-            // Check if we are in dropdown mode. If so, ignore the text input debounce to avoid conflicts
             const countryForCities = searchParams.get('country') || 'México';
             const state = searchParams.get('state') || '';
             const availableCities = state ? getCities(countryForCities, state) : [];
@@ -107,11 +102,21 @@ export function DashboardFilterBar() {
   const showCityDropdown = availableCities.length > 0;
 
   return (
-    <div className="flex flex-col space-y-4 mb-6 p-4 bg-muted/30 rounded-lg border">
+    /* 
+       CAMBIO STICKY: 
+       - sticky top-0: Mantiene la barra fija al inicio del scroll.
+       - z-50: Asegura que esté por encima de todos los gráficos y el mapa.
+       - bg-background/95 backdrop-blur: Estética moderna que permite ver el contenido pasando por debajo.
+       - pt-4 pb-4 px-4: Padding ajustado para compensar el borde y la sombra.
+    */
+    <div className="sticky top-0 z-50 flex flex-col space-y-4 mb-6 p-4 bg-background/95 backdrop-blur-md rounded-lg border shadow-sm transition-all">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-muted-foreground">Filtros Globales</h3>
+        <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+            Filtros Globales de Inteligencia
+        </h3>
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 px-2 lg:px-3">
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 px-2 lg:px-3 text-destructive hover:text-destructive hover:bg-destructive/10">
             <X className="mr-2 h-4 w-4" />
             Limpiar filtros
           </Button>
@@ -124,7 +129,7 @@ export function DashboardFilterBar() {
           value={currentCountry}
           onValueChange={(val) => handleFilterChange('country', val === 'all' ? null : val)}
         >
-          <SelectTrigger>
+          <SelectTrigger className="bg-background">
             <SelectValue placeholder="País" />
           </SelectTrigger>
           <SelectContent>
@@ -137,13 +142,13 @@ export function DashboardFilterBar() {
           </SelectContent>
         </Select>
 
-        {/* State Filter (Only if Mexico is selected or no country selected - assuming default is MX context) */}
+        {/* State Filter */}
         <Select
           value={currentState}
           onValueChange={(val) => handleFilterChange('state', val === 'all' ? null : val)}
           disabled={!!currentCountry && currentCountry !== 'México'}
         >
-          <SelectTrigger>
+          <SelectTrigger className="bg-background">
             <SelectValue placeholder="Estado" />
           </SelectTrigger>
           <SelectContent>
@@ -162,7 +167,7 @@ export function DashboardFilterBar() {
               value={currentCity}
               onValueChange={(val) => handleFilterChange('city', val === 'all' ? null : val)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="bg-background">
                 <SelectValue placeholder="Municipio / Ciudad" />
               </SelectTrigger>
               <SelectContent>
@@ -184,8 +189,8 @@ export function DashboardFilterBar() {
                     placeholder="Municipio / Ciudad"
                     value={cityInput}
                     onChange={(e) => setCityInput(e.target.value)}
-                    className="pl-9"
-                    disabled={!currentState} // Disable free text if no state is selected to enforce hierarchy
+                    className="pl-9 bg-background"
+                    disabled={!currentState} 
                 />
             </div>
         )}
@@ -195,7 +200,7 @@ export function DashboardFilterBar() {
           value={currentBrand}
           onValueChange={(val) => handleFilterChange('brand', val === 'all' ? null : val)}
         >
-          <SelectTrigger>
+          <SelectTrigger className="bg-background">
             <SelectValue placeholder="Marca" />
           </SelectTrigger>
           <SelectContent>
@@ -213,7 +218,7 @@ export function DashboardFilterBar() {
           value={currentModality}
           onValueChange={(val) => handleFilterChange('modality', val === 'all' ? null : val)}
         >
-          <SelectTrigger>
+          <SelectTrigger className="bg-background">
             <SelectValue placeholder="Modalidad" />
           </SelectTrigger>
           <SelectContent>
@@ -231,7 +236,7 @@ export function DashboardFilterBar() {
           value={currentGender}
           onValueChange={(val) => handleFilterChange('gender', val === 'all' ? null : val)}
         >
-          <SelectTrigger>
+          <SelectTrigger className="bg-background">
             <SelectValue placeholder="Género" />
           </SelectTrigger>
           <SelectContent>
