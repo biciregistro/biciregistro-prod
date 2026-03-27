@@ -7,35 +7,42 @@ import { unstable_cache } from 'next/cache';
 import { BIKE_RANGES } from '@/lib/constants/bike-ranges';
 import { GENERATIONS } from '@/lib/constants/generations';
 
-// --- NEW STRATEGY: Cross-Filtering using Denormalized Fields ---
+// --- NUEVA ESTRATEGIA DE FILTRADO CON CONTEXTOS GEOGRÁFICOS ---
 
-// Helper function to build Firestore queries for BIKES based on ALL filters
-// applyGeoFilters: If false, skips country/state/city filters for theft reports, but still applies owner geo filters if requested.
-function applyFilters(query: FirebaseFirestore.Query, filters: DashboardFilters, applyGeoFilters: boolean = true): FirebaseFirestore.Query {
+type GeoContext = 'owner' | 'incident' | 'none';
+
+/**
+ * Construye consultas para BICICLETAS aplicando filtros demográficos, de mercado y opcionalmente de seguridad.
+ * @param query La referencia a la colección o consulta base.
+ * @param filters Los filtros provenientes del Dashboard.
+ * @param geoContext Define qué campos geográficos se usan ('owner' = residencia del dueño, 'incident' = lugar del robo, 'none' = ignora geografía).
+ */
+function applyBikeFilters(
+    query: FirebaseFirestore.Query, 
+    filters: DashboardFilters, 
+    geoContext: GeoContext
+): FirebaseFirestore.Query {
     let q = query;
     
-    // 1. User/Owner Demographics & Location Filters (Applied to bikes via denormalized fields)
+    // 1. Filtros Demográficos del Dueño (Siempre aplican al perfil del usuario)
     if (filters.gender) {
         q = q.where('ownerGender', '==', filters.gender);
     }
     
-    // We always apply owner location filters to get accurate "safe" counts based on user location
-    if (filters.country) {
-        q = q.where('ownerCountry', '==', filters.country);
+    // 2. Filtros Geográficos Contextuales
+    if (geoContext === 'owner') {
+        // Buscamos bicicletas basadas en DONDE VIVE el dueño
+        if (filters.country) q = q.where('ownerCountry', '==', filters.country);
+        if (filters.state) q = q.where('ownerState', '==', filters.state);
+        if (filters.city) q = q.where('ownerCity', '==', filters.city);
+    } else if (geoContext === 'incident') {
+        // Buscamos bicicletas robadas basadas en DÓNDE OCURRIÓ el robo
+        if (filters.country) q = q.where('theftReport.country', '==', filters.country);
+        if (filters.state) q = q.where('theftReport.state', '==', filters.state);
+        if (filters.city) q = q.where('theftReport.city', '==', filters.city);
     }
-    if (filters.state) {
-        q = q.where('ownerState', '==', filters.state);
-    }
-    if (filters.city) {
-        q = q.where('ownerCity', '==', filters.city);
-    }
-
-    // Optional: Overwrite location filters specifically for theft reports if we are querying stolen bikes
-    // This depends on business logic: Do we want "bikes stolen IN this state" or "stolen bikes OWNED BY people in this state"?
-    // Usually, it's the latter for demographic analysis, but let's keep the option open.
-    // We will stick to the owner's location for consistency across the dashboard.
     
-    // 2. Bike Specific Filters
+    // 3. Filtros de Mercado (Características de la Bicicleta)
     if (filters.brand) {
         q = q.where('make', '==', filters.brand);
     }
@@ -47,32 +54,25 @@ function applyFilters(query: FirebaseFirestore.Query, filters: DashboardFilters,
     return q;
 }
 
-// Helper function to build Firestore queries for USERS based on ALL filters
+/**
+ * Construye consultas para USUARIOS aplicando filtros demográficos y opcionalmente de mercado.
+ * NUNCA usa contexto de incidentes porque un usuario no es un robo.
+ */
 function applyUserFilters(query: FirebaseFirestore.Query, filters: DashboardFilters): FirebaseFirestore.Query {
     let q = query;
     
-    // 1. User Demographics & Location Filters
-    if (filters.country) {
-        q = q.where('country', '==', filters.country);
-    }
-    if (filters.state) {
-        q = q.where('state', '==', filters.state);
-    }
-    if (filters.city) {
-        q = q.where('city', '==', filters.city);
-    }
-    if (filters.gender) {
-        q = q.where('gender', '==', filters.gender);
-    }
+    // 1. Filtros Demográficos y Geográficos (Residencia del usuario)
+    if (filters.country) q = q.where('country', '==', filters.country);
+    if (filters.state) q = q.where('state', '==', filters.state);
+    if (filters.city) q = q.where('city', '==', filters.city);
+    if (filters.gender) q = q.where('gender', '==', filters.gender);
 
-    // 2. Bike Specific Filters (Applied to users via denormalized array fields)
+    // 2. Filtros de Mercado (Solo aplica si el usuario PUSO un filtro de bicicleta)
+    // Si no hay filtro de marca/modalidad, cuenta TODOS los usuarios del estado, tengan bicis o no.
     if (filters.brand) {
         q = q.where('ownedBrands', 'array-contains', filters.brand);
     }
     if (filters.modality) {
-        // array-contains-any is not supported combined with array-contains in the same query if we add more array filters
-        // For now, assume we just check the main modality string. If modality uses mapping, we might need client-side filtering 
-        // if Firestore rejects array-contains-any combined with other complex filters.
         const modalitiesToSearch = MODALITY_MAPPING[filters.modality] || [filters.modality];
         if (modalitiesToSearch.length === 1) {
             q = q.where('ownedModalities', 'array-contains', modalitiesToSearch[0]);
@@ -84,15 +84,12 @@ function applyUserFilters(query: FirebaseFirestore.Query, filters: DashboardFilt
     return q;
 }
 
-// Helper to parse dates in various formats (ISO, DDMMYYYY, DD/MM/YYYY)
+// Helper to parse dates in various formats
 function parseFlexibleDate(dateString: string): Date | null {
     if (!dateString) return null;
-
-    // 1. Try standard Date parsing first (ISO YYYY-MM-DD or standard strings)
     let date = new Date(dateString);
     if (!isNaN(date.getTime())) return date;
 
-    // 2. Try DDMMYYYY (8 digits continuous)
     const ddmmyyyy = /^\d{8}$/;
     if (ddmmyyyy.test(dateString)) {
         const day = parseInt(dateString.substring(0, 2), 10);
@@ -102,7 +99,6 @@ function parseFlexibleDate(dateString: string): Date | null {
         if (!isNaN(date.getTime())) return date;
     }
 
-    // 3. Try DD/MM/YYYY or DD-MM-YYYY
     const parts = dateString.split(/[\/\-]/);
     if (parts.length === 3) {
         const day = parseInt(parts[0], 10);
@@ -120,61 +116,73 @@ function parseFlexibleDate(dateString: string): Date | null {
 // Helper to parse Firebase Timestamps OR ISO Strings robustly
 function parseFirestoreDate(dateField: any): Date | null {
     if (!dateField) return null;
-    
-    // If it's a Firebase Timestamp (has toDate method)
-    if (typeof dateField.toDate === 'function') {
-        return dateField.toDate();
-    }
-    
-    // If it's a string (ISO)
+    if (typeof dateField.toDate === 'function') return dateField.toDate();
     if (typeof dateField === 'string') {
         const date = new Date(dateField);
         if (!isNaN(date.getTime())) return date;
     }
-
     return null;
 }
 
-// Cached function to get bike status counts
+// --- ANALÍTICAS (Optimizadas con Contextos Geográficos) ---
+
 export const getBikeStatusCounts = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
         const bikesRef = db.collection('bikes');
 
-        // Apply ALL filters (both user and bike)
-        let totalQuery = applyFilters(bikesRef, filters, false);
-        const stolenQuery = applyFilters(bikesRef.where('status', '==', 'stolen'), filters, true);
-        const recoveredQuery = applyFilters(bikesRef.where('status', '==', 'recovered'), filters, true);
+        // 1. Salud del Ecosistema (Basado en DÓNDE VIVE EL DUEÑO)
+        // Para saber qué porcentaje de las bicis de los residentes de X zona están seguras vs robadas.
+        let totalQuery = applyBikeFilters(bikesRef, filters, 'owner');
+        const residentStolenQuery = applyBikeFilters(bikesRef.where('status', '==', 'stolen'), filters, 'owner');
+        const residentRecoveredQuery = applyBikeFilters(bikesRef.where('status', '==', 'recovered'), filters, 'owner');
 
-        const [totalSnapshot, stolenSnapshot, recoveredSnapshot] = await Promise.all([
+        // 2. Incidentes Policiales (Basado en DÓNDE OCURRIÓ EL ROBO)
+        // Para los contadores puros de criminalidad en la zona (Tasa de Recuperación, Top Marcas Robadas, etc.)
+        const incidentStolenQuery = applyBikeFilters(bikesRef.where('status', '==', 'stolen'), filters, 'incident');
+        const incidentRecoveredQuery = applyBikeFilters(bikesRef.where('status', '==', 'recovered'), filters, 'incident');
+
+        const [
+            totalSnapshot, 
+            residentStolenSnapshot, 
+            residentRecoveredSnapshot,
+            incidentStolenSnapshot,
+            incidentRecoveredSnapshot
+        ] = await Promise.all([
             totalQuery.count().get(),
-            stolenQuery.count().get(),
-            recoveredQuery.count().get(),
+            residentStolenQuery.count().get(),
+            residentRecoveredQuery.count().get(),
+            incidentStolenQuery.count().get(),
+            incidentRecoveredQuery.count().get(),
         ]);
 
         const totalCount = totalSnapshot.data().count;
-        const stolenCount = stolenSnapshot.data().count;
-        const recoveredCount = recoveredSnapshot.data().count;
+        const residentStolenCount = residentStolenSnapshot.data().count;
+        const residentRecoveredCount = residentRecoveredSnapshot.data().count;
+        
+        // Bicicletas Seguras: Total de bicis de los residentes - (Robadas a residentes + Recuperadas de residentes)
+        const safeCount = Math.max(0, totalCount - (residentStolenCount + residentRecoveredCount));
 
-        const safeCount = Math.max(0, totalCount - (stolenCount + recoveredCount));
-
+        // Para la UI de "Monitor de Seguridad", entregamos los contadores de INCIDENTES (dónde pasó).
+        // Pero para la Barra de Salud, entregamos 'safeCount' que es coherente con el universo de residentes.
         return {
-            stolen: stolenCount,
-            recovered: recoveredCount,
+            stolen: incidentStolenSnapshot.data().count,
+            recovered: incidentRecoveredSnapshot.data().count,
             safe: safeCount, 
-            totalThefts: stolenCount + recoveredCount,
+            totalThefts: incidentStolenSnapshot.data().count + incidentRecoveredSnapshot.data().count,
         };
     },
-    ['bike-status-counts'], 
+    ['bike-status-counts-context'], 
     { revalidate: 1, tags: ['analytics'] } 
 );
 
-// Cached function to get top stolen brands
 export const getTopStolenBrands = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
         let query = db.collection('bikes').where('status', '==', 'stolen');
-        query = applyFilters(query, filters, true);
+        
+        // CONTEXTO: Incidente (Marcas más robadas EN esta zona)
+        query = applyBikeFilters(query, filters, 'incident');
 
         const snapshot = await query.select('make').get();
         if (snapshot.empty) return [];
@@ -192,11 +200,10 @@ export const getTopStolenBrands = unstable_cache(
             .sort((a, b) => b.count - a.count)
             .slice(0, 5); 
     },
-    ['top-stolen-brands'],
+    ['top-stolen-brands-context'],
     { revalidate: 1, tags: ['analytics'] } 
 );
 
-// Cached function to get thefts by modality using efficient count queries
 export const getTheftsByModality = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
@@ -209,7 +216,9 @@ export const getTheftsByModality = unstable_cache(
 
         const promises = targetModalities.map(async (option) => {
             let q = db.collection('bikes').where('status', '==', 'stolen');
-            q = applyFilters(q, { ...baseFilters, modality: option.value }, true);
+            
+            // CONTEXTO: Incidente (Modalidades más robadas EN esta zona)
+            q = applyBikeFilters(q, { ...baseFilters, modality: option.value }, 'incident');
             
             const snapshot = await q.count().get();
             
@@ -225,41 +234,25 @@ export const getTheftsByModality = unstable_cache(
             .filter(r => r.value > 0)
             .sort((a, b) => b.value - a.value);
     },
-    ['thefts-by-modality'],
+    ['thefts-by-modality-context'],
     { revalidate: 1, tags: ['analytics'] } 
 );
 
-// General App Stats
 export const getGeneralStats = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
         const usersRef = db.collection('users');
         const bikesRef = db.collection('bikes');
 
-        // Los totales SÍ se filtran por la combinación exacta seleccionada en el tablero.
+        // Total Usuarios: TODOS los registrados en la zona (a menos que se filtre por marca/modalidad)
         let totalUsersQuery = applyUserFilters(usersRef, filters);
-        let totalBikesQuery = applyFilters(bikesRef, filters, false);
+        
+        // Total Bicicletas: Las bicis que "viven" en la zona (Contexto: Dueño)
+        let totalBikesQuery = applyBikeFilters(bikesRef, filters, 'owner');
 
-        // La gráfica de crecimiento histórico NO se filtra para evitar 
-        // requerir decenas de índices compuestos en Firebase.
-        // Siempre mostrará el crecimiento global del ecosistema en los últimos 30 días.
+        // Crecimiento Histórico: GLOBAL (Sin filtros, para evitar saturación de índices en Firestore)
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        
-        // Dependiendo de cómo se guardó en la BD vieja o nueva, 
-        // a veces createdAt es String ISO, a veces Timestamp de Firestore.
-        // Consultamos todo lo de los últimos 30 días (y posteriores) 
-        // usando ambas comparaciones si es necesario, o resolvemos en memoria.
-        // Dado que la colección no es infinita para 30 días, podemos optimizar 
-        // con un select() y procesar en memoria si es necesario para evitar fallos de formato.
-        
-        // Asumimos que los strings ISO son el estándar nuevo, pero los Timestamps existen
-        // Firebase no puede mezclar >= para strings y timestamps al mismo tiempo fácilmente.
-        // Si tienes bikes guardadas como Timestamps y otras como strings, la consulta fallará o excluirá datos.
-        
-        // Haremos la consulta global sin filtro de fecha en la BD, pero con select('createdAt') 
-        // para minimizar ancho de banda, y filtraremos los 30 días en memoria. Esto asegura 
-        // capturar tanto ISO strings como Timestamps de Firebase de manera infalible.
         
         const [usersSnapshot, bikesSnapshot, allUsersSnapshot, allBikesSnapshot] = await Promise.all([
             totalUsersQuery.count().get(),
@@ -270,11 +263,9 @@ export const getGeneralStats = unstable_cache(
 
         const dailyCounts: { [key: string]: { usersCount: number, bikesCount: number } } = {};
         
-        // Process All Users, filter in memory for robustness against Date format changes
         allUsersSnapshot.forEach(doc => {
             const data = doc.data();
             const dateObj = parseFirestoreDate(data.createdAt);
-            
             if (dateObj && dateObj >= thirtyDaysAgo) {
                 const date = dateObj.toISOString().split('T')[0];
                 if (!dailyCounts[date]) dailyCounts[date] = { usersCount: 0, bikesCount: 0 };
@@ -282,11 +273,9 @@ export const getGeneralStats = unstable_cache(
             }
         });
 
-        // Process All Bikes, filter in memory for robustness against Timestamp vs String differences
         allBikesSnapshot.forEach(doc => {
             const data = doc.data();
             const dateObj = parseFirestoreDate(data.createdAt);
-            
             if (dateObj && dateObj >= thirtyDaysAgo) {
                 const date = dateObj.toISOString().split('T')[0];
                 if (!dailyCounts[date]) dailyCounts[date] = { usersCount: 0, bikesCount: 0 };
@@ -305,41 +294,53 @@ export const getGeneralStats = unstable_cache(
             dailyGrowth: dailyGrowth
         };
     },
-    ['general-stats'],
+    ['general-stats-context'],
     { revalidate: 1, tags: ['analytics'] }
 );
 
-// Cached function to get top theft locations
 export const getTopTheftLocations = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
         let query = db.collection('bikes').where('status', '==', 'stolen');
         
-        query = applyFilters(query, filters, true);
+        // CONTEXTO: Incidente (Queremos saber dónde pasan los robos de las bicis filtradas)
+        query = applyBikeFilters(query, filters, 'incident');
 
-        // We use theftReport location here to see where things are actually stolen
         const snapshot = await query.select('theftReport.state', 'theftReport.city').get();
         
         if (snapshot.empty) return [];
 
         const locationCounts: { [key: string]: number } = {};
         
+        // Aquí aplicamos jerarquía inteligente igual que en demografía
+        // Si hay un filtro de Estado aplicado, agrupamos por Municipio
+        // Si no hay filtro, agrupamos por Estado
+        const isStateFiltered = !!filters.state;
+        
         snapshot.forEach(doc => {
             const data = doc.data();
             const state = data.theftReport?.state?.trim(); 
             const city = data.theftReport?.city?.trim();   
             
-            let key = "Ubicación No Registrada";
+            let key = "No Registrada";
 
-            if (state && city) {
-                key = `${city}, ${state}`;
-            } else if (state) {
-                key = `Desconocido, ${state}`;
-            } else if (city) {
-                key = `${city}, (Estado Desc.)`;
+            if (isStateFiltered) {
+                if (city) {
+                    key = `${city}`; // Mostramos solo municipio si el estado ya es el contexto
+                } else if (state) {
+                    key = `Desconocido en ${state}`;
+                }
+            } else {
+                if (state) {
+                    key = state; // Agrupamos todo a nivel Estado
+                } else if (city) {
+                    key = city; // Caso raro: tiene municipio pero no estado
+                }
             }
 
-            locationCounts[key] = (locationCounts[key] || 0) + 1;
+            if (key !== "No Registrada") {
+                locationCounts[key] = (locationCounts[key] || 0) + 1;
+            }
         });
 
         return Object.entries(locationCounts)
@@ -347,14 +348,15 @@ export const getTopTheftLocations = unstable_cache(
             .sort((a, b) => b.count - a.count)
             .slice(0, 10); 
     },
-    ['top-theft-locations'],
+    ['top-theft-locations-context'],
     { revalidate: 1, tags: ['analytics'] } 
 );
 
-// Cached function to get user demographics
 export const getUserDemographics = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
+        
+        // CONTEXTO: Residencia del usuario (Aplica filtros si hay marca/modalidad, si no, agarra a todos los de la zona)
         let query = applyUserFilters(db.collection('users'), filters);
 
         const snapshot = await query.select('birthDate', 'gender', 'state', 'country', 'city').get();
@@ -378,6 +380,7 @@ export const getUserDemographics = unstable_cache(
         const generationsDistribution: Record<string, number> = {};
 
         const today = new Date();
+        const isStateFiltered = !!filters.state;
 
         snapshot.forEach(doc => {
             const data = doc.data();
@@ -388,7 +391,6 @@ export const getUserDemographics = unstable_cache(
 
             if (data.birthDate) {
                 const birthDate = parseFlexibleDate(data.birthDate);
-                
                 if (birthDate) {
                     let age = today.getFullYear() - birthDate.getFullYear();
                     const m = today.getMonth() - birthDate.getMonth();
@@ -416,17 +418,31 @@ export const getUserDemographics = unstable_cache(
 
             const state = data.state?.trim();
             const country = data.country?.trim();
-            const city = data.city?.trim(); // Include city
+            const city = data.city?.trim(); 
             
-            // Format Location: "City, State, Country" or variations
-            let locParts = [];
-            if(city) locParts.push(city);
-            if(state) locParts.push(state);
-            if(country && !state && !city) locParts.push(country); // Only show country if others are missing to save space
+            // JERARQUÍA INTELIGENTE DE UBICACIONES
+            // Si el admin filtró por Estado (ej. Querétaro), la tarjeta mostrará los Municipios (ej. El Marqués)
+            // Si el admin NO filtró por Estado (Panorama Global), la tarjeta agrupará a todos por Estado (ej. Querétaro consolidado)
+            let locKey = "";
+            
+            if (isStateFiltered) {
+                // Modo "Zoom": Ya sabemos en qué estado estamos, mostramos la distribución interna
+                if (city) {
+                    locKey = city; 
+                } else if (state) {
+                    locKey = `(Municipio no especificado)`;
+                }
+            } else {
+                // Modo "Macro": Mostramos la fuerza por estados/provincias
+                if (state) {
+                    locKey = state;
+                } else if (country && !state && !city) {
+                    locKey = country;
+                }
+            }
 
-            if (locParts.length > 0) {
-                const key = locParts.join(', ');
-                locationCounts[key] = (locationCounts[key] || 0) + 1;
+            if (locKey) {
+                locationCounts[locKey] = (locationCounts[locKey] || 0) + 1;
             }
         });
 
@@ -454,17 +470,17 @@ export const getUserDemographics = unstable_cache(
             generationsDistribution
         };
     },
-    ['user-demographics'],
+    ['user-demographics-context'],
     { revalidate: 1, tags: ['analytics'] } 
 );
 
-// Cached function to get market metrics
 export const getMarketMetrics = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
         let query: FirebaseFirestore.Query = db.collection('bikes'); 
         
-        query = applyFilters(query, filters, false); 
+        // CONTEXTO: Dueño (El mercado se mide por la residencia de los propietarios y sus activos)
+        query = applyBikeFilters(query, filters, 'owner'); 
 
         const snapshot = await query.select('make', 'modality', 'appraisedValue').get();
         
@@ -532,7 +548,7 @@ export const getMarketMetrics = unstable_cache(
             rangesDistribution
         };
     },
-    ['market-metrics'],
+    ['market-metrics-context'],
     { revalidate: 1, tags: ['analytics'] }
 );
 
@@ -552,20 +568,16 @@ export const getMarketingPotential = unstable_cache(
         const db = adminDb;
         const usersRef = db.collection('users');
         
-        // Contamos el total global para sacar el porcentaje real
+        // Métrica global, no afectada por filtros geográficos.
         const totalSnapshot = await usersRef.count().get();
         const totalUsers = totalSnapshot.data().count;
 
-        // Iteramos todos los usuarios seleccionando solo los campos necesarios.
-        // Al NO tener filtros, esta consulta es estable, no requiere índices extra
-        // y se procesa rápido porque el payload de red es minúsculo.
         const usersSnapshot = await usersRef.select('fcmTokens', 'notificationPreferences').get();
         
         let contactableUsers = 0;
         usersSnapshot.forEach(doc => {
             const data = doc.data();
             const hasTokens = Array.isArray(data.fcmTokens) && data.fcmTokens.length > 0;
-            // Si notificationPreferences no existe o marketing no está explícitamente en falso, es true
             const marketingConsent = data.notificationPreferences?.marketing !== false; 
 
             if (hasTokens && marketingConsent) {
@@ -579,6 +591,6 @@ export const getMarketingPotential = unstable_cache(
             percentage: totalUsers > 0 ? (contactableUsers / totalUsers) * 100 : 0
         };
     },
-    ['marketing-potential-global'], // Nuevo cache key para aislarlo de los filtros
+    ['marketing-potential-global'], 
     { revalidate: 1, tags: ['analytics'] }
 );
