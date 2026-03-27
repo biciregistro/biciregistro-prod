@@ -260,10 +260,15 @@ export function TheftReportForm({ bike, onSuccess, defaultOpen = false }: TheftR
                 </div>
 
                 <div className="p-4 border rounded-md bg-muted/20 space-y-4">
-                    <div className="flex justify-between items-center">
-                        <h4 className="font-medium text-sm">Ubicación del Incidente</h4>
-                        <Button type="button" variant="default" size="sm" onClick={() => setShowMap(true)}>
-                            <MapPin className="w-3 h-3 mr-1" /> Seleccionar en Mapa
+                    <div className="space-y-3">
+                        <h4 className="font-bold text-sm uppercase tracking-tight text-primary">Ubicación del Incidente</h4>
+                        <Button 
+                            type="button" 
+                            variant="default" 
+                            className="w-full justify-center flex items-center gap-2"
+                            onClick={() => setShowMap(true)}
+                        >
+                            <MapPin className="w-4 h-4" /> Seleccionar ubicación del robo
                         </Button>
                     </div>
 
