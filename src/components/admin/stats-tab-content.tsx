@@ -30,6 +30,8 @@ import { BikeRangesChart } from './charts/bike-ranges-chart';
 import { BikeProfileCard } from './charts/bike-profile-card';
 import { Separator } from '@/components/ui/separator';
 import { MigrationButton } from './migration-button'; 
+// Usaremos un wrapper de cliente para el botón que necesita ssr: false
+import { ReportGeneratorWrapper } from './report-generator-wrapper';
 
 interface StatsTabContentProps {
   filters: DashboardFilters;
@@ -97,11 +99,30 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
       ? Object.entries(marketMetrics.rangesDistribution!).reduce((a, b) => (a[1] > b[1] ? a : b))[0]
       : 'unknown';
 
+  // Consolidamos la data para la IA
+  const dashboardData = {
+      statusCounts,
+      topBrandsStolen,
+      modalityThefts,
+      generalStats,
+      topLocations,
+      userDemographics,
+      marketMetrics,
+      marketingPotential
+  };
+
   return (
     <div className="space-y-8">
       
+        {/* BOTÓN DE GENERACIÓN DE REPORTE (A la derecha arriba) */}
+        <div className="flex justify-end mb-4">
+            <ReportGeneratorWrapper dashboardData={dashboardData} />
+        </div>
+
       {/* SECTION 1: General Stats */}
-      <GeneralStatsSection data={generalStats} />
+      <div id="chart-global-growth">
+          <GeneralStatsSection data={generalStats} />
+      </div>
 
       <Separator className="my-6" />
 
@@ -123,7 +144,7 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
             </div>
             
             {/* Added Generations Chart */}
-            <div className="break-inside-avoid mb-6">
+            <div className="break-inside-avoid mb-6" id="chart-generations">
                 <GenerationsChart data={genData} />
             </div>
 
@@ -161,7 +182,7 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
           </div>
 
           {/* Metric 1: Ecosystem Health */}
-          <div className="break-inside-avoid mb-6">
+          <div className="break-inside-avoid mb-6" id="chart-ecosystem-health">
             <EcosystemHealthBar data={healthData} />
           </div>
 
@@ -171,7 +192,7 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
           </div>
           
           {/* Metric 3: Top Stolen Brands */}
-          <div className="break-inside-avoid mb-6">
+          <div className="break-inside-avoid mb-6" id="chart-top-stolen-brands">
             <TopStolenBrandsChart data={topBrandsStolen} />
           </div>
 
@@ -181,7 +202,7 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
           </div>
 
           {/* Metric 5: Theft by Modality */}
-          <div className="break-inside-avoid mb-6"> 
+          <div className="break-inside-avoid mb-6" id="chart-theft-by-modality"> 
               <TheftByModalityChart data={modalityThefts} />
           </div>
         </div>
@@ -208,7 +229,7 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
             </div>
 
             {/* Added Bike Ranges Chart */}
-            <div className="break-inside-avoid mb-6">
+            <div className="break-inside-avoid mb-6" id="chart-bike-ranges">
                 <BikeRangesChart data={rangesData} />
             </div>
 
