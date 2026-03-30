@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Skeleton } from './ui/skeleton';
 import { SponsorsCarousel } from './shared/sponsors-carousel';
+import { ValuationWidget } from './public/valuation-widget';
 
 // Helper to map an icon string to a component
 const iconMap = {
@@ -55,7 +56,7 @@ export function HeroSection({ section }: { section?: Extract<HomepageSection, { 
                     <Skeleton className="h-12 w-3/4 mx-auto" />
                     <Skeleton className="h-6 w-full mx-auto" />
                     <div className="mt-8 max-w-lg mx-auto">
-                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-[300px] w-full" />
                     </div>
                 </div>
             </div>
@@ -64,7 +65,7 @@ export function HeroSection({ section }: { section?: Extract<HomepageSection, { 
   }
 
   return (
-    <section className="relative w-full min-h-[60vh] flex items-center pt-5 pb-10">
+    <section className="relative w-full min-h-[70vh] flex items-center pt-5 pb-10">
       {section.imageUrl && (
         <Image
           src={section.imageUrl}
@@ -77,30 +78,57 @@ export function HeroSection({ section }: { section?: Extract<HomepageSection, { 
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
       <div className="relative z-10 w-full">
         <div className="container text-center text-foreground px-4">
-          <div className="bg-background/80 backdrop-blur-sm p-8 rounded-xl max-w-3xl mx-auto">
-            <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">
+          <div className="bg-background/80 backdrop-blur-sm p-8 rounded-xl max-w-3xl mx-auto shadow-xl">
+            <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl text-foreground">
               {section.title}
             </h1>
             <p className="mt-4 text-lg text-muted-foreground">
               {section.subtitle}
             </p>
-            <div className="mt-8 max-w-lg mx-auto space-y-4">
-               <BikeSearchForm />
-               
-               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-                   {section.buttonText && <Button asChild><Link href="/signup">{section.buttonText}</Link></Button>}
-                   
-                   <Link href="/reportar-robo" className="text-sm font-semibold text-red-600 hover:text-red-700 flex items-center gap-2 hover:underline underline-offset-4 bg-red-50 px-3 py-2 rounded-md border border-red-100 transition-colors hover:bg-red-100">
-                        <AlertTriangle className="w-4 h-4" />
-                        ¿Te robaron tu bici? Repórtala aquí
-                   </Link>
-               </div>
+            
+            <div className="mt-8 w-full max-w-2xl mx-auto">
+               <ValuationWidget />
             </div>
           </div>
         </div>
       </div>
     </section>
   );
+}
+
+// --- Bike Search Section (New) ---
+export function BikeSearchSection({ section }: { section?: Extract<HomepageSection, { id: 'hero' }> }) {
+    // Tomamos los botones de registro que estaban originalmente en el hero
+    const buttonText = section?.buttonText || "Crear cuenta gratis";
+
+    return (
+        <section className="py-12 bg-muted/30 border-b">
+            <div className="container px-4 text-center max-w-3xl mx-auto">
+                <h2 className="text-3xl font-bold tracking-tight mb-4">¿Vas a comprar una bici de segunda mano?</h2>
+                <p className="text-lg text-muted-foreground mb-8">
+                    Ingresa en el buscador el numero de serie y descubre si esta en regla o robada.
+                </p>
+                
+                <div className="bg-background p-6 rounded-xl shadow-sm border max-w-xl mx-auto mb-6">
+                    <BikeSearchForm />
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2 mb-8">
+                   <Button asChild><Link href="/signup">{buttonText}</Link></Button>
+                   
+                   <Link href="/reportar-robo" className="text-sm font-semibold text-red-600 hover:text-red-700 flex items-center gap-2 hover:underline underline-offset-4 bg-red-50 px-4 py-2.5 rounded-md border border-red-100 transition-colors hover:bg-red-100">
+                        <AlertTriangle className="w-4 h-4" />
+                        ¿Te robaron tu bici? Repórtala aquí
+                   </Link>
+               </div>
+
+               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
+                   <ShieldCheck className="w-4 h-4" />
+                   Cientos de bicicletas se validan en Biciregistro al dia para combatir el mercado negro.
+               </div>
+            </div>
+        </section>
+    );
 }
 
 // --- Allies Section ---

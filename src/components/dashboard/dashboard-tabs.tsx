@@ -8,7 +8,7 @@ import { BikeCard } from '@/components/bike-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, ArrowRight, Compass, Gift, HelpCircle, FileText, PlusCircle, Share2, Coins, ChevronRight, Info } from 'lucide-react';
+import { Calendar, MapPin, ArrowRight, Compass, Gift, HelpCircle, FileText, PlusCircle, Share2, Coins, ChevronRight, Info, AlertTriangle, UserCircle } from 'lucide-react';
 import type { Bike, UserEventRegistration, User, Campaign, UserReward } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { RewardCard } from './reward-card';
@@ -201,24 +201,34 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                     <PromotionalBanner />
                 </div>
 
-                {bikes.length === 0 ? (
+                {!isProfileComplete ? (
+                    <div className="flex flex-col items-center justify-center py-12 px-6 text-center border-2 border-amber-200 rounded-2xl bg-amber-50 shadow-sm max-w-2xl mx-auto my-8 animate-in fade-in zoom-in duration-500">
+                        <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-6 ring-8 ring-amber-50">
+                            <UserCircle className="h-10 w-10 text-amber-600" />
+                        </div>
+                        <h3 className="text-2xl font-black text-amber-900 tracking-tight mb-3">Perfil Incompleto</h3>
+                        <p className="text-amber-800 font-medium max-w-sm mb-8 leading-relaxed">
+                            Completa tu perfil para poder ver o registrar tus bicicletas en el Garaje Digital.
+                        </p>
+                        <Button asChild size="lg" className="w-full sm:w-auto font-bold px-10 h-14 text-lg bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200 transition-all hover:scale-105">
+                            <Link href="/dashboard/profile">Completar Perfil Ahora</Link>
+                        </Button>
+                        <div className="mt-8 flex items-center gap-2 text-amber-700/60 font-bold text-[10px] uppercase tracking-widest">
+                            <AlertTriangle className="h-3 w-3" /> Acción Requerida
+                        </div>
+                    </div>
+                ) : bikes.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-muted/30">
                         <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6">
                             <PlusCircle className="h-10 w-10 text-primary" />
                         </div>
                         <h3 className="text-2xl font-bold tracking-tight mb-2">No tienes bicicletas registradas</h3>
                         <p className="text-muted-foreground max-w-sm mb-8">
-                            {isProfileComplete ? 'Crea el ADN Digital de tu bicicleta para protegerla.' : 'Completa tu perfil para registrar tu primera bicicleta.'}
+                            Crea el ADN Digital de tu bicicleta para protegerla.
                         </p>
-                        {isProfileComplete ? (
-                            <Button asChild size="lg" className="w-full sm:w-auto font-semibold">
-                                <Link href="/dashboard/register">Registrar Bici Ahora</Link>
-                            </Button>
-                        ) : (
-                             <Button asChild size="lg" className="w-full sm:w-auto font-semibold">
-                                <Link href="/dashboard/profile">Ir a Completar Perfil</Link>
-                            </Button>
-                        )}
+                        <Button asChild size="lg" className="w-full sm:w-auto font-semibold">
+                            <Link href="/dashboard/register">Registrar Bici Ahora</Link>
+                        </Button>
                         <Button variant="link" asChild className="mt-4 text-muted-foreground min-h-[44px]">
                              <Link href="/faqs" className="flex items-center gap-2">
                                  <HelpCircle className="h-4 w-4" />

@@ -1,5 +1,5 @@
 import { getHomepageData } from '@/lib/data';
-import { HeroSection, FeaturesSection, CtaSection, AlliesSection, SecuritySection } from '@/components/homepage-components';
+import { HeroSection, FeaturesSection, CtaSection, AlliesSection, SecuritySection, BikeSearchSection } from '@/components/homepage-components';
 import { HomepageSection } from '@/lib/types';
 import { UpcomingEventsSection } from '@/components/landing-events/upcoming-events-section';
 import { getRecentSocialProofMessages } from '@/lib/data/social-proof-data';
@@ -15,6 +15,7 @@ export default async function HomePage() {
     <main>
       <HeroSection section={sections['hero'] as Extract<HomepageSection, { id: 'hero' }>} />
       <AlliesSection section={sections['allies'] as Extract<HomepageSection, { id: 'allies' }>} />
+      <BikeSearchSection section={sections['hero'] as Extract<HomepageSection, { id: 'hero' }>} />
       <FeaturesSection section={sections['features'] as Extract<HomepageSection, { id: 'features' }>} />
       <SecuritySection section={sections['security'] as Extract<HomepageSection, { id: 'security' }>} />
       <UpcomingEventsSection />

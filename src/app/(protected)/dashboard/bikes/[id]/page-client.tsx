@@ -13,7 +13,7 @@ import { TransferOwnershipForm } from '@/components/bike-components/transfer-own
 import { cn } from '@/lib/utils';
 import type { Bike, User, BikeStatus, InsuranceRequest } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Pencil, FileDown, Loader2, MessageCircle, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Pencil, FileDown, Loader2, MessageCircle, ShoppingCart, Zap, AlertCircle } from 'lucide-react';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { updateOwnershipProof } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -24,7 +24,7 @@ import { BikeTheftShareMenu } from '@/components/dashboard/bike-theft-share-menu
 import { BikonLinker } from '@/components/bike-components/bikon-linker';
 import { OnboardingTour } from '@/components/dashboard/onboarding-tour';
 import { InsuranceCard } from '@/components/bike-components/insurance-card';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useGamificationToast } from '@/hooks/use-gamification-toast';
 
 // Dynamic import for PDF downloaders
@@ -154,11 +154,15 @@ function OwnershipProofSection({ bike }: { bike: Bike }) {
 
 export default function BikeDetailsPageClient({ user, bike: initialBike, insuranceRequest }: { user: User; bike: Bike; insuranceRequest: InsuranceRequest | null }) {
   const [bike, setBike] = useState<Bike>(initialBike);
-  const [isEditing, setIsEditing] = useState(false);
+  const searchParams = useSearchParams();
+  const editParam = searchParams.get('edit');
+  
+  // Si la URL trae ?edit=true, arrancamos directamente en modo edición
+  const [isEditing, setIsEditing] = useState(editParam === 'true');
 
   const handleUpdateSuccess = async () => {
     setIsEditing(false);
-    window.location.reload(); 
+    window.location.href = `/dashboard/bikes/${bike.id}`; // Hard refresh and remove query params
   }
 
   const formattedValue = bike.appraisedValue 
@@ -170,6 +174,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
     : null;
 
   const isTransferable = bike.status === 'safe' || bike.status === 'recovered';
+  const isPendingSerial = bike.serialNumber.startsWith('PENDING_');
 
   const backUrl = user.role === 'ong' ? '/dashboard/ong?tab=garage' : '/dashboard';
 
@@ -213,12 +218,22 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                   <CarouselItem key={index}>
                     <div className="aspect-video relative rounded-lg overflow-hidden border">
                       <Image src={photo} alt={`Foto de la bicicleta ${index + 1}`} fill className="object-cover" />
+                      {isPendingSerial && index === 0 && (
+                          <div className="absolute top-2 left-2 bg-amber-500/90 text-white text-[10px] md:text-xs font-bold px-2 py-1 rounded shadow-sm flex items-center gap-1 backdrop-blur-sm z-10">
+                              <Zap className="w-3 h-3 md:w-4 md:h-4 fill-current" /> Registro Express
+                          </div>
+                      )}
                     </div>
                   </CarouselItem>
                 )) : (
                   <CarouselItem>
-                      <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+                      <div className="aspect-video bg-muted rounded-lg flex items-center justify-center relative">
                           <p className="text-muted-foreground">No hay fotos disponibles</p>
+                          {isPendingSerial && (
+                              <div className="absolute top-2 left-2 bg-amber-500/90 text-white text-xs font-bold px-2 py-1 rounded shadow-sm flex items-center gap-1 backdrop-blur-sm z-10">
+                                  <Zap className="w-4 h-4 fill-current" /> Registro Express
+                              </div>
+                          )}
                       </div>
                   </CarouselItem>
                 )}
@@ -230,12 +245,20 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
             </Carousel>
           </div>
           <div className="space-y-6">
-              <Card>
+              <Card className={cn(isPendingSerial && "border-amber-300/50 shadow-md")}>
                   <CardHeader>
                       <CardTitle className="text-3xl">{bike.make} {bike.model}</CardTitle>
-                      <CardDescription className="font-mono text-base pt-1">
-                          {bike.serialNumber}
-                      </CardDescription>
+                      
+                      {isPendingSerial ? (
+                           <CardDescription className="font-medium text-amber-600 flex items-center gap-1.5 mt-1 text-base">
+                               <AlertCircle className="w-5 h-5" /> Pendiente de registrar número de serie
+                           </CardDescription>
+                      ) : (
+                          <CardDescription className="font-mono text-base pt-1">
+                              {bike.serialNumber}
+                          </CardDescription>
+                      )}
+
                       <div className="pt-2">
                         <Badge className={cn(bikeStatusStyles[bike.status], "text-base")}>
                             Estado: {bikeStatusTexts[bike.status]}
@@ -251,6 +274,26 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                       <DetailItem label="Valor Aproximado" value={formattedValue} />
                   </CardContent>
               </Card>
+
+              {/* Pending Serial Call to Action */}
+              {isPendingSerial && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-5 text-amber-900 shadow-sm animate-in fade-in zoom-in duration-500">
+                      <div className="flex items-start gap-3">
+                          <div className="bg-amber-100 p-2 rounded-full shrink-0">
+                              <Zap className="w-6 h-6 text-amber-600" />
+                          </div>
+                          <div className="flex-1">
+                              <h3 className="font-bold text-lg mb-1">Completa tu registro</h3>
+                              <p className="text-sm text-amber-800/90 mb-4 leading-relaxed">
+                                  Tu bicicleta fue registrada de forma express. Para que el blindaje sea válido ante las autoridades y obtener tu Certificado Oficial Antirrobo, es indispensable que agregues el número de serie de tu bicicleta.
+                              </p>
+                              <Button onClick={() => setIsEditing(true)} className="bg-amber-500 hover:bg-amber-600 text-white shadow-md w-full sm:w-auto">
+                                  <Pencil className="mr-2 h-4 w-4" /> Registrar Serie Ahora
+                              </Button>
+                          </div>
+                      </div>
+                  </div>
+              )}
 
               {/* Insurance Card Module */}
               <InsuranceCard bike={bike} user={user} insuranceRequest={insuranceRequest} />
@@ -295,18 +338,21 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                   </CardContent>
               </Card>
 
-              <Card id="tour-bike-certificate">
-                  <CardHeader>
-                      <CardTitle>Certificado y Etiqueta QR</CardTitle>
-                      <CardDescription>
-                          Documentación oficial para proteger y avalar la propiedad de tu bicicleta.
-                      </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                      <BikePDFDownloader bike={bike} />
-                      <BikeOwnershipCertificate bike={bike} user={user} />
-                  </CardContent>
-              </Card>
+              {/* Only show certificate download if serial is registered */}
+              {!isPendingSerial && (
+                  <Card id="tour-bike-certificate">
+                      <CardHeader>
+                          <CardTitle>Certificado y Etiqueta QR</CardTitle>
+                          <CardDescription>
+                              Documentación oficial para proteger y avalar la propiedad de tu bicicleta.
+                          </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                          <BikePDFDownloader bike={bike} />
+                          <BikeOwnershipCertificate bike={bike} user={user} />
+                      </CardContent>
+                  </Card>
+              )}
 
               <OwnershipProofSection bike={bike} />
 
@@ -332,20 +378,23 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                   </Card>
               )}
 
-              <Card id="tour-bike-report">
-                  <CardHeader>
-                      <CardTitle>Gestionar Estado de la Bicicleta</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                      {bike.status === 'stolen' ? (
-                          <RecoverBikeButton bikeId={bike.id} />
-                      ) : (
-                          <TheftReportForm bike={bike} />
-                      )}
-                  </CardContent>
-              </Card>
+              {/* Only allow theft report if serial is registered */}
+              {!isPendingSerial && (
+                  <Card id="tour-bike-report">
+                      <CardHeader>
+                          <CardTitle>Gestionar Estado de la Bicicleta</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                          {bike.status === 'stolen' ? (
+                              <RecoverBikeButton bikeId={bike.id} />
+                          ) : (
+                              <TheftReportForm bike={bike} />
+                          )}
+                      </CardContent>
+                  </Card>
+              )}
               
-              {isTransferable && (
+              {isTransferable && !isPendingSerial && (
                   <Card id="tour-bike-transfer">
                       <CardHeader>
                           <CardTitle>Transferir Propiedad</CardTitle>
@@ -363,17 +412,20 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                   </Card>
               )}
               
-              <Card>
-                  <CardHeader>
-                      <CardTitle>Código QR de Registro</CardTitle>
-                      <CardDescription>
-                            Escanea o descarga este código QR para acceder rápidamente al perfil público de tu bicicleta.
-                      </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                      <QRCodeGenerator serialNumber={bike.serialNumber} />
-                  </CardContent>
-              </Card>
+              {/* Only show QR if serial is registered */}
+              {!isPendingSerial && (
+                  <Card>
+                      <CardHeader>
+                          <CardTitle>Código QR de Registro</CardTitle>
+                          <CardDescription>
+                                Escanea o descarga este código QR para acceder rápidamente al perfil público de tu bicicleta.
+                          </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                          <QRCodeGenerator serialNumber={bike.serialNumber} />
+                      </CardContent>
+                  </Card>
+              )}
           </div>
         </div>
       )}

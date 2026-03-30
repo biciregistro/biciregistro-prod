@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ShieldAlert, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { ImageUpload } from '@/components/shared/image-upload';
@@ -57,9 +57,9 @@ const bikeStatusTexts: { [key in BikeStatus]: string } = {
 };
 
 // Reusable component for the required field indicator
-const RequiredLabel = ({ children }: { children: React.ReactNode }) => (
+const RequiredLabel = ({ children, isOptional }: { children: React.ReactNode, isOptional?: boolean }) => (
   <FormLabel>
-    {children} <span className="text-red-500">*</span>
+    {children} {!isOptional && <span className="text-red-500">*</span>}
   </FormLabel>
 );
 
@@ -88,8 +88,14 @@ export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
         }
     }, [bike.status]);
 
+    const isPendingSerial = bike.serialNumber.startsWith('PENDING_');
+
     return (
-        <Card className={cn("overflow-hidden transition-all hover:shadow-lg w-full", bike.status === 'stolen' && "border-destructive/50 shadow-md shadow-destructive/10")}>
+        <Card className={cn(
+            "overflow-hidden transition-all hover:shadow-lg w-full", 
+            bike.status === 'stolen' && "border-destructive/50 shadow-md shadow-destructive/10",
+            isPendingSerial && "border-amber-300/50"
+        )}>
             <div className="flex flex-col md:flex-row">
                 {/* Image Section */}
                 <div className="md:w-1/3 relative aspect-video md:aspect-square">
@@ -99,6 +105,11 @@ export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
                         fill
                         className="object-cover"
                     />
+                    {isPendingSerial && (
+                        <div className="absolute top-2 left-2 bg-amber-500/90 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm flex items-center gap-1 backdrop-blur-sm">
+                            <Zap className="w-3 h-3 fill-current" /> Express
+                        </div>
+                    )}
                 </div>
 
                 {/* Content and Actions Section */}
@@ -107,7 +118,14 @@ export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
                     <div className="flex justify-between items-start mb-2">
                         <div>
                             <CardTitle className="text-2xl text-ellipsis overflow-hidden whitespace-nowrap max-w-[200px] md:max-w-none">{bike.make} {bike.model}</CardTitle>
-                            <CardDescription className="font-mono">{bike.serialNumber}</CardDescription>
+                            
+                            {isPendingSerial ? (
+                                <CardDescription className="font-medium text-amber-600 flex items-center gap-1.5 mt-1">
+                                    <AlertCircle className="w-4 h-4" /> Pendiente de registrar serie
+                                </CardDescription>
+                            ) : (
+                                <CardDescription className="font-mono mt-1">{bike.serialNumber}</CardDescription>
+                            )}
                         </div>
                         <Badge className={cn("text-base whitespace-nowrap", bikeStatusStyles[bike.status])}>
                             {bikeStatusTexts[bike.status]}
@@ -120,6 +138,20 @@ export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
                         <BikeDetailItem label="Modalidad" value={bike.modality} />
                         <BikeDetailItem label="Año Modelo" value={bike.modelYear} />
                     </div>
+
+                    {/* Pending Serial Call to Action */}
+                    {isPendingSerial && (
+                        <div className="mb-4 bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-800 flex items-start gap-2">
+                            <Zap className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-semibold mb-1">Completa el blindaje de tu bici</p>
+                                <p className="text-xs mb-2 opacity-90">Agrega el número de serie para obtener el Certificado Oficial Antirrobo y ganar 50 KM extras.</p>
+                                <Button size="sm" asChild className="bg-amber-500 hover:bg-amber-600 text-white h-8 text-xs px-4">
+                                    <Link href={`/dashboard/bikes/${bike.id}?edit=true`}>Registrar Serie Ahora</Link>
+                                </Button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Footer with Actions */}
                     <div className="flex flex-col sm:flex-row gap-2 mt-auto pt-4 border-t">
@@ -201,7 +233,7 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
     const form = useForm<BikeFormValues>({
         resolver: zodResolver(BikeRegistrationSchema),
         defaultValues: {
-            serialNumber: bike?.serialNumber || "",
+            serialNumber: bike?.serialNumber?.startsWith('PENDING_') ? '' : (bike?.serialNumber || ""),
             make: bike?.make || "",
             model: bike?.model || "",
             color: bike?.color || "",
@@ -379,14 +411,14 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                         <div className="space-y-6 pt-4">
                             <h4 className="font-medium text-base border-b pb-2">Fotografías</h4>
                             <div className="space-y-2">
-                                <Label>Foto Lateral <span className="text-red-500">*</span></Label>
+                                <RequiredLabel isOptional>Foto Lateral</RequiredLabel>
                                 <ImageUpload onUploadSuccess={setPhotoUrl} storagePath="bike-photos" disabled={!authUser} />
-                                <p className="text-xs text-muted-foreground">Toma una foto completa del costado.</p>
+                                <p className="text-xs text-muted-foreground">Sube una foto completa del costado. Requerido para primer registro, pero opcional si tu bici ya tenía foto.</p>
                             </div>
                             <div className="space-y-2">
-                                <Label>Foto de Número de Serie <span className="text-red-500">*</span></Label>
+                                <RequiredLabel isOptional>Foto de Número de Serie</RequiredLabel>
                                 <ImageUpload onUploadSuccess={setSerialNumberPhotoUrl} storagePath="serial-photos" disabled={!authUser} />
-                                <p className="text-xs text-muted-foreground">Toma una foto clara del número.</p>
+                                <p className="text-xs text-muted-foreground">Recomendada, pero no obligatoria si no tienes acceso a ella en este momento.</p>
                             </div>
                         </div>
                         

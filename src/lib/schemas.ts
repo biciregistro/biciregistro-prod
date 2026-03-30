@@ -81,7 +81,9 @@ export const financialProfileSchema = z.object({
 });
 
 export const BikeRegistrationSchema = z.object({
-  serialNumber: z.string().min(1, "El número de serie es obligatorio."),
+  serialNumber: z.string().min(1, "El número de serie es obligatorio.").refine(s => !s.startsWith('PENDING_'), {
+    message: "Debes ingresar tu número de serie real."
+  }),
   make: z.string().min(1, "La marca es obligatoria."),
   model: z.string().min(1, "El modelo es obligatorio."),
   color: z.string().min(1, "El color es obligatorio."),

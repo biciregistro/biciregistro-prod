@@ -163,8 +163,14 @@ function LoginFormContent() {
                     </Button>
                 </form>
             </CardContent>
-            <CardFooter className="text-center text-sm">
-                <p>¿No tienes una cuenta? <Link href={callbackUrl ? `/signup?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/signup"} className="underline">Regístrate</Link></p>
+            <CardFooter className="flex flex-col gap-2 text-center text-sm">
+                <p>¿No tienes una cuenta? <Link href={callbackUrl ? `/signup?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/signup"} className="underline font-semibold text-primary">Regístrate gratis</Link></p>
+                
+                {callbackUrl && callbackUrl.includes('express-register') && (
+                    <div className="mt-4 bg-primary/10 text-primary p-3 rounded-lg text-xs font-medium">
+                        Tu valuación está guardada. Inicia sesión para blindar tu patrimonio.
+                    </div>
+                )}
             </CardFooter>
         </Card>
     );

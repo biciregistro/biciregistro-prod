@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { Textarea } from './ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SocialAuthButtons } from './auth/social-auth';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -103,7 +104,7 @@ function SubmitButton({ isEditing, isSigningIn, isSubmitting, loadingAuth, terms
         <Button 
             type="submit" 
             disabled={isDisabled} 
-            className="w-full h-12 text-lg font-bold shadow-lg bg-primary hover:bg-primary/90 text-white"
+            className="w-full h-12 text-lg font-bold shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground"
         >
             {isDisabled && !termsValid && !isEditing ? 'Acepta los términos' : (isDisabled ? pendingText : text)}
         </Button>
@@ -233,7 +234,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
         if (state.success) {
             if (isEditing && state.pointsAwarded) {
                 showRewardToast(state.pointsAwarded as number, "¡Perfil Completado! Has fortalecido tu seguridad y ganado kilómetros.");
-            } else {
+            } else if (isEditing) {
                 toast({ title: "Éxito", description: state.message });
             }
             
@@ -241,9 +242,6 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                 router.push('/login');
                 return;
             } else if (isEditing) {
-                // FIX: Instead of router.push('/dashboard') which changes the page,
-                // we refresh the router to update global states (like header name/km) 
-                // but keep the user on the same tab and page they are currently editing.
                 router.refresh();
             } else if (state.customToken) {
                 setIsSigningIn(true);
@@ -262,9 +260,16 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                             body: JSON.stringify({ idToken }),
                         });
                         if (!response.ok) throw new Error('Falló sesión.');
-                        toast({ title: '¡Éxito!', description: 'Completa tu perfil.' });
                         
-                        let targetUrl = callbackUrl || '/dashboard/profile';
+                        // PRIORIDAD DE REDIRECCIÓN: Si hay callbackUrl, esa es la ley.
+                        if (callbackUrl) {
+                            window.location.href = callbackUrl;
+                            return;
+                        }
+
+                        toast({ title: '¡Éxito!', description: 'Has creado tu cuenta. Completa tu perfil para continuar.' });
+                        
+                        let targetUrl = '/dashboard/profile';
                         if (state.pointsAwarded) {
                             const separator = targetUrl.includes('?') ? '&' : '?';
                             targetUrl += `${separator}welcome=100`;
@@ -459,6 +464,16 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                 <form ref={formRef} onSubmit={form.handleSubmit(handleFormSubmit, onInvalidSubmit)} className="space-y-6 max-w-xl mx-auto">
                     {communityId && <input type="hidden" name="communityId" value={communityId} />}
                     
+                    {callbackUrl && callbackUrl.includes('express-register') && (
+                        <Alert className="bg-primary/10 border-primary/20 mb-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                            <ShieldCheck className="h-5 w-5 text-primary" />
+                            <AlertTitle className="text-primary font-bold">¡Valuación lista y guardada!</AlertTitle>
+                            <AlertDescription className="text-primary/80">
+                                Crea tu cuenta para blindar tu patrimonio en el Garaje Digital.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
                     {/* Tarjeta 1: Happy Path (Google) */}
                     <Card className="border-2 border-primary/10 shadow-md">
                         <CardHeader className="text-center pb-4">
@@ -550,7 +565,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                             <div className="flex flex-col gap-4 w-full">
                                 <SubmitButton isSigningIn={isSigningIn} isSubmitting={isSubmitting || isPending} loadingAuth={loadingAuth} termsAccepted={termsAccepted} />
                                 <div className="text-sm text-center text-muted-foreground mt-2">
-                                    ¿Ya tienes una cuenta? <Link href="/login" className="underline hover:text-primary font-semibold">Inicia Sesión</Link>
+                                    ¿Ya tienes una cuenta? <Link href={callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login"} className="underline hover:text-primary font-semibold">Inicia Sesión</Link>
                                 </div>
                             </div>
                         </CardFooter>

@@ -23,35 +23,33 @@ export function SocialAuthButtons({ callbackUrl, mode = 'login' }: SocialAuthBut
             const { auth } = await getFirebaseServices();
             const result = await signInWithPopup(auth, googleProvider);
             
-            // 1. Get ID Token directly from user credential
+            // 1. Get ID Token directamente desde la credencial del usuario
             const idToken = await result.user.getIdToken();
             
-            // 2. Sync user with Firestore BEFORE creating the session 
-            // We pass the fresh ID Token to validate the user securely on the server
+            // 2. Sincronizar el usuario con Firestore ANTES de crear la sesión
             const syncResult = await syncSocialUser(idToken);
             
             if (!syncResult.success) {
-                // Si la sincronización falla, eliminamos la sesión local para que el usuario no quede "a medias"
                 await auth.signOut();
                 throw new Error(syncResult.error || 'Error al sincronizar perfil.');
             }
 
-            // 3. Create server session (HTTP-Only Cookie)
+            // 3. Crear sesión en el servidor (HTTP-Only Cookie)
             const response = await fetch('/api/auth/session', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify({ idToken }),
             });
 
             if (!response.ok) {
-                // Si la sesión de Next.js falla, deshacemos la sesión de Firebase Client
                 await auth.signOut();
                 throw new Error('Falló la creación de la sesión.');
             }
 
             const sessionData = await response.json();
             
-            // No mostramos el toast de éxito genérico si es un usuario nuevo y le vamos a mostrar el toast de confetti
             if (!syncResult.isNewUser) {
                 toast({ 
                     title: "¡Bienvenido!", 
@@ -59,7 +57,12 @@ export function SocialAuthButtons({ callbackUrl, mode = 'login' }: SocialAuthBut
                 });
             }
 
-            // Redirect logic with Gamification parameters
+            // LÓGICA DE REDIRECCIÓN CON PRIORIDAD
+            // 1. Si hay un callbackUrl (ej. del cotizador), esa es la prioridad absoluta.
+            // 2. Si es un usuario nuevo sin callback, va al perfil.
+            // 3. Si es Admin o ONG, va a sus dashboards respectivos.
+            // 4. Por defecto, va al dashboard normal.
+            
             let targetUrl = '/dashboard';
             
             if (callbackUrl) {
@@ -72,12 +75,13 @@ export function SocialAuthButtons({ callbackUrl, mode = 'login' }: SocialAuthBut
                 targetUrl = '/dashboard/ong';
             }
 
-            // Si se otorgaron puntos de bienvenida, anexarlos a la URL para el GamificationListener
+            // Si se otorgaron puntos de bienvenida, anexarlos a la URL
             if (syncResult.pointsAwarded && syncResult.pointsAwarded > 0) {
                 const separator = targetUrl.includes('?') ? '&' : '?';
                 targetUrl += `${separator}welcome=${syncResult.pointsAwarded}`;
             }
 
+            // Redirección forzada para evitar cuelgues del router de Next.js
             window.location.href = targetUrl;
 
         } catch (error: any) {
@@ -107,7 +111,7 @@ export function SocialAuthButtons({ callbackUrl, mode = 'login' }: SocialAuthBut
                 className="w-full flex items-center justify-center gap-3 h-12 bg-white hover:bg-gray-50 text-gray-700 border-gray-300 font-medium shadow-sm"
             >
                 {isLoading ? (
-                    <span className="animate-spin">⏳</span>
+                    <span className="animate-spin text-primary">⏳</span>
                 ) : (
                     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5">
                         <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.73 17.74 9.5 24 9.5z"></path>

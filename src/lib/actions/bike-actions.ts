@@ -28,8 +28,8 @@ const optionalString = (schema: z.ZodString) =>
 
 const bikeFormSchema = BikeRegistrationSchema.extend({
     id: z.string().optional(),
-    photoUrl: z.string().url("URL de foto lateral inválida.").min(1, "La foto lateral es obligatoria."),
-    serialNumberPhotoUrl: z.string().url("URL de foto de serie inválida.").min(1, "La foto del número de serie es obligatoria."),
+    photoUrl: z.string().url("Debes subir una foto lateral de tu bicicleta.").min(1, "La foto lateral es obligatoria."),
+    serialNumberPhotoUrl: optionalString(z.string().url({ message: "URL de foto de serie inválida." })),
     additionalPhoto1Url: optionalString(z.string().url({ message: "URL de foto adicional 1 inválida." })),
     additionalPhoto2Url: optionalString(z.string().url({ message: "URL de foto adicional 2 inválida." })),
     ownershipProofUrl: optionalString(z.string().url({ message: "URL de prueba de propiedad inválida." })),
@@ -114,10 +114,17 @@ export async function registerBike(prevState: any, formData: FormData): Promise<
     const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
+        const errors = validatedFields.error.flatten().fieldErrors;
+        
+        // Si falta la foto lateral
+        if (errors.photoUrl) {
+            return { success: false, message: 'Falta información requerida: Por favor, sube la Foto Lateral de tu bicicleta.' };
+        }
+
         return {
             success: false,
-            message: 'Error de validación. Por favor, revisa los campos.',
-            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Error de validación. Por favor, revisa los campos del formulario.',
+            errors: errors,
         };
     }
 
@@ -196,10 +203,18 @@ export async function updateBike(prevState: BikeFormState, formData: FormData): 
     const validatedFields = bikeFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
+        const errors = validatedFields.error.flatten().fieldErrors;
+        console.error("Zod Validation Error:", errors);
+        
+        // Si falta la foto lateral
+        if (errors.photoUrl) {
+            return { success: false, message: 'Acción requerida: Para completar el registro de tu bicicleta, debes subir una Foto Lateral.' };
+        }
+
         return {
             success: false,
-            message: 'Error de validación. Por favor, revisa los campos.',
-            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Error de validación. Por favor, revisa que todos los campos obligatorios estén llenos.',
+            errors: errors,
         };
     }
 
@@ -208,6 +223,12 @@ export async function updateBike(prevState: BikeFormState, formData: FormData): 
         return { success: false, message: "Error: No se encontró el ID de la bicicleta para actualizar." };
     }
     
+    // Obtener la bicicleta actual para saber si el ID antiguo era PENDING
+    const currentBike = await getBike(session.uid, id);
+    if (!currentBike) {
+         return { success: false, message: "No tienes permiso para actualizar esta bicicleta." };
+    }
+
     const isUnique = await isSerialNumberUnique(serialNumber, id);
     if (!isUnique) {
         return {
@@ -236,6 +257,11 @@ export async function updateBike(prevState: BikeFormState, formData: FormData): 
             ownedBrands: FieldValue.arrayUnion(bikeData.make),
             ...(bikeData.modality ? { ownedModalities: FieldValue.arrayUnion(bikeData.modality) } : {})
         });
+
+        // RECOMPENSA EXTRA: Si el usuario está cambiando un PENDING_ a un real, le damos puntos adicionales
+        if (currentBike.serialNumber.startsWith('PENDING_') && !serialNumber.startsWith('PENDING_')) {
+            await awardPoints(session.uid, 'bike_registration', { bikeId: id, method: 'express_completion' });
+        }
         
         revalidatePath('/dashboard');
         revalidatePath(`/dashboard/bikes/${id}`);
