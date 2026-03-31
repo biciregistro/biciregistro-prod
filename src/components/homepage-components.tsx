@@ -3,10 +3,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, Bike, QrCode, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Bike, QrCode, AlertTriangle, Search, Info, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import type { HomepageSection } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Skeleton } from './ui/skeleton';
@@ -32,15 +32,20 @@ export function BikeSearchForm() {
     }
 
     return (
-        <form action={handleSearch} className="flex w-full items-center space-x-2">
-            <Input
-                type="text"
-                name="serial"
-                placeholder="Introduce el numero de serie de la bici"
-                className="flex-1"
-                aria-label="Número de serie de la bicicleta"
-            />
-            <Button type="submit">Buscar</Button>
+        <form action={handleSearch} className="flex flex-col sm:flex-row w-full items-center gap-3">
+            <div className="relative w-full flex-1 group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Input
+                    type="text"
+                    name="serial"
+                    placeholder="Introduce el número de serie de la bicicleta..."
+                    className="pl-10 h-14 text-lg border-2 border-slate-200 focus:border-primary focus:ring-primary/20 rounded-xl transition-all shadow-sm"
+                    aria-label="Número de serie de la bicicleta"
+                />
+            </div>
+            <Button type="submit" size="lg" className="h-14 px-8 text-base font-bold rounded-xl shadow-lg shadow-primary/20 w-full sm:w-auto transition-transform hover:scale-[1.02]">
+                Validar Estatus
+            </Button>
         </form>
     )
 }
@@ -98,34 +103,76 @@ export function HeroSection({ section }: { section?: Extract<HomepageSection, { 
 
 // --- Bike Search Section (New) ---
 export function BikeSearchSection({ section }: { section?: Extract<HomepageSection, { id: 'hero' }> }) {
-    // Tomamos los botones de registro que estaban originalmente en el hero
-    const buttonText = section?.buttonText || "Crear cuenta gratis";
+    const buttonText = section?.buttonText || "Únete a la red gratis";
 
     return (
-        <section className="py-12 bg-muted/30 border-b">
-            <div className="container px-4 text-center max-w-3xl mx-auto">
-                <h2 className="text-3xl font-bold tracking-tight mb-4">¿Vas a comprar una bici de segunda mano?</h2>
-                <p className="text-lg text-muted-foreground mb-8">
-                    Ingresa en el buscador el numero de serie y descubre si esta en regla o robada.
-                </p>
-                
-                <div className="bg-background p-6 rounded-xl shadow-sm border max-w-xl mx-auto mb-6">
-                    <BikeSearchForm />
+        <section className="py-16 md:py-24 bg-slate-50 border-y border-border/50 relative overflow-hidden">
+            {/* Elementos decorativos de fondo sutiles */}
+            <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none">
+                <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="currentColor" strokeWidth="1"/>
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
+                </svg>
+            </div>
+
+            <div className="container px-4 relative z-10">
+                <div className="max-w-4xl mx-auto text-center mb-10 md:mb-14">
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold uppercase tracking-[0.1em] mb-6 border border-primary/20">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Centro de Validación Oficial
+                    </div>
+                    <h2 className="text-3xl md:text-5xl font-extrabold text-foreground tracking-tight mb-4">
+                        ¿Vas a comprar una bici usada?
+                    </h2>
+                    <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                        Verifica el estatus legal de cualquier número de serie y compra con total tranquilidad.
+                    </p>
                 </div>
+                
+                <Card className="max-w-2xl mx-auto shadow-xl shadow-primary/5 border-border/50 rounded-2xl overflow-hidden mb-12 bg-background/80 backdrop-blur-sm">
+                    <CardContent className="p-6 md:p-10">
+                        <BikeSearchForm />
+                        
+                        <div className="flex items-start gap-3 mt-8 p-4 rounded-xl bg-primary/5 border border-primary/10 text-primary text-xs leading-relaxed">
+                            <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                            <p className="font-medium">
+                                <span className="font-bold">Privacidad de Datos:</span> Esta consulta es 100% anónima. El sistema solo confirmará si la serie cuenta con reporte vigente o está en regla, protegiendo siempre la identidad del propietario original.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
 
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2 mb-8">
-                   <Button asChild><Link href="/signup">{buttonText}</Link></Button>
-                   
-                   <Link href="/reportar-robo" className="text-sm font-semibold text-red-600 hover:text-red-700 flex items-center gap-2 hover:underline underline-offset-4 bg-red-50 px-4 py-2.5 rounded-md border border-red-100 transition-colors hover:bg-red-100">
-                        <AlertTriangle className="w-4 h-4" />
-                        ¿Te robaron tu bici? Repórtala aquí
-                   </Link>
-               </div>
+                <div className="flex flex-col items-center gap-10">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-lg">
+                        <Button asChild size="lg" className="w-full sm:w-1/2 h-14 font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95">
+                            <Link href="/signup">{buttonText}</Link>
+                        </Button>
+                        
+                        <Button asChild size="lg" className="w-full sm:w-1/2 h-14 font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-lg shadow-red-200 transition-all hover:scale-105 active:scale-95 gap-2">
+                            <Link href="/reportar-robo">
+                                <ShieldAlert className="w-4 h-4" />
+                                Reportar un robo
+                            </Link>
+                        </Button>
+                    </div>
 
-               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
-                   <ShieldCheck className="w-4 h-4" />
-                   Cientos de bicicletas se validan en Biciregistro al dia para combatir el mercado negro.
-               </div>
+                    <div className="flex flex-col md:flex-row items-center gap-4 px-8 py-4 rounded-full bg-background border border-border shadow-sm transition-all hover:shadow-md group">
+                        <div className="flex items-center gap-2">
+                            <div className="bg-primary/20 p-1.5 rounded-full">
+                                 <ShieldCheck className="w-4 h-4 text-primary" />
+                            </div>
+                            <span className="text-sm font-bold text-foreground">Validación Segura</span>
+                        </div>
+                        <div className="hidden md:block w-px h-4 bg-border"></div>
+                        <span className="text-sm text-muted-foreground font-medium text-center">
+                            Cientos de bicicletas se validan al día para combatir el mercado negro en México.
+                        </span>
+                    </div>
+                </div>
             </div>
         </section>
     );
