@@ -14,7 +14,11 @@ import { cn } from '@/lib/utils';
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: currentYear - 1980 + 1 }, (_, i) => currentYear - i);
 
-export function ValuationWidget() {
+interface ValuationWidgetProps {
+    isAuthenticated?: boolean;
+}
+
+export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProps) {
     const router = useRouter();
     const [step, setStep] = useState<'form' | 'loading' | 'result'>('form');
     const [brand, setBrand] = useState('');
@@ -80,10 +84,14 @@ export function ValuationWidget() {
         // Construimos la ruta de destino interna (el registro express)
         const expressRegisterPath = `/dashboard/express-register?brand=${encodedBrand}&model=${encodedModel}&year=${year}&value=${averageValue}`;
         
-        // Enviamos al usuario a SIGNUP, pasando la ruta interna como callbackUrl
-        const signupUrl = `/signup?callbackUrl=${encodeURIComponent(expressRegisterPath)}`;
-        
-        router.push(signupUrl);
+        if (isAuthenticated) {
+            // Usuario logueado: ir directo al registro express
+            router.push(expressRegisterPath);
+        } else {
+            // Usuario no logueado: ir a signup y luego redirigir
+            const signupUrl = `/signup?callbackUrl=${encodeURIComponent(expressRegisterPath)}`;
+            router.push(signupUrl);
+        }
     };
 
     if (step === 'loading') {

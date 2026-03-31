@@ -4,16 +4,22 @@ import { HomepageSection } from '@/lib/types';
 import { UpcomingEventsSection } from '@/components/landing-events/upcoming-events-section';
 import { getRecentSocialProofMessages } from '@/lib/data/social-proof-data';
 import SocialProofWidget from '@/components/shared/social-proof-widget';
+import { getDecodedSession } from '@/lib/auth/server';
 
 export default async function HomePage() {
   const sections = await getHomepageData();
+  const session = await getDecodedSession();
+  const isAuthenticated = !!session;
   
   // Realiza el query a la base de datos anonimizado con caché de 1h
   const proofMessages = await getRecentSocialProofMessages();
 
   return (
     <main>
-      <HeroSection section={sections['hero'] as Extract<HomepageSection, { id: 'hero' }>} />
+      <HeroSection 
+        section={sections['hero'] as Extract<HomepageSection, { id: 'hero' }>} 
+        isAuthenticated={isAuthenticated}
+      />
       <AlliesSection section={sections['allies'] as Extract<HomepageSection, { id: 'allies' }>} />
       <BikeSearchSection section={sections['hero'] as Extract<HomepageSection, { id: 'hero' }>} />
       <FeaturesSection section={sections['features'] as Extract<HomepageSection, { id: 'features' }>} />

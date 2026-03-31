@@ -51,7 +51,7 @@ export function BikeSearchForm() {
 }
 
 // --- Hero Section ---
-export function HeroSection({ section }: { section?: Extract<HomepageSection, { id: 'hero' }> }) {
+export function HeroSection({ section, isAuthenticated = false }: { section?: Extract<HomepageSection, { id: 'hero' }>, isAuthenticated?: boolean }) {
   if (!section) {
     return (
         <section className="relative w-full min-h-[60vh] flex items-center pt-5 pb-10">
@@ -92,7 +92,7 @@ export function HeroSection({ section }: { section?: Extract<HomepageSection, { 
             </p>
             
             <div className="mt-8 w-full max-w-2xl mx-auto">
-               <ValuationWidget />
+               <ValuationWidget isAuthenticated={isAuthenticated} />
             </div>
           </div>
         </div>
