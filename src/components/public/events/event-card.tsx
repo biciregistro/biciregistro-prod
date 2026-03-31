@@ -18,7 +18,6 @@ interface EventCardProps {
 export function EventCard({ event }: EventCardProps) {
   const eventDate = parseISO(event.date);
   
-  // Lógica de "Últimos Lugares"
   const capacity = event.maxParticipants || 0;
   const registered = event.currentParticipants || 0;
   const occupancyRate = capacity > 0 ? registered / capacity : 0;
@@ -27,11 +26,11 @@ export function EventCard({ event }: EventCardProps) {
 
   return (
     <Card className={cn(
-        "flex flex-col h-full overflow-hidden transition-all duration-300 border-border/50 bg-background group rounded-2xl",
-        isHighDemand && !isSoldOut ? "ring-1 ring-orange-200 shadow-orange-100" : "hover:shadow-xl hover:-translate-y-1"
+        "flex flex-col h-full overflow-hidden transition-all duration-500 bg-slate-900 border-white/5 hover:border-white/10 group rounded-2xl shadow-2xl",
+        isHighDemand && !isSoldOut ? "ring-1 ring-orange-500/50 shadow-orange-900/20" : "hover:-translate-y-2 hover:shadow-primary/10"
     )}>
-      {/* Imagen de Encabezado con Aspect Ratio Mobile-Friendly */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-muted">
+      {/* Imagen de Encabezado con relación de aspecto fija y altura consistente */}
+      <div className="relative aspect-video w-full overflow-hidden bg-slate-800 shrink-0">
         {event.imageUrl ? (
           <Image
             src={event.imageUrl}
@@ -41,91 +40,91 @@ export function EventCard({ event }: EventCardProps) {
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         ) : (
-          <div className="flex items-center justify-center h-full w-full bg-slate-100 text-slate-400">
-            <ShieldCheck className="w-12 h-12 opacity-20" />
+          <div className="flex items-center justify-center h-full w-full bg-slate-800 text-slate-600">
+            <ShieldCheck className="w-12 h-12 opacity-10" />
           </div>
         )}
         
-        {/* Capa de Gradiente para legibilidad de Badges */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60" />
+        {/* Capa de Gradiente Teatral */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80" />
 
         {/* Badges Flotantes Premium */}
         <div className="absolute top-3 right-3 flex flex-col gap-2 items-end z-10">
-            <Badge className="bg-white/95 backdrop-blur-md text-primary font-bold border-none shadow-md py-1 px-3">
+            <Badge className="bg-primary/90 backdrop-blur-md text-white font-black uppercase tracking-widest text-[9px] border-none shadow-xl py-1.5 px-3">
                 {event.modality}
             </Badge>
             {isSoldOut ? (
-                 <Badge variant="destructive" className="shadow-lg font-black uppercase tracking-tighter">
-                    Cupo Agotado
+                 <Badge variant="destructive" className="shadow-lg font-black uppercase tracking-tighter text-[10px]">
+                    Agotado
                 </Badge>
             ) : isHighDemand ? (
-                <Badge className="bg-orange-500 text-white shadow-lg animate-pulse flex gap-1 items-center font-bold">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    ¡Últimos lugares!
+                <Badge className="bg-orange-500 text-white shadow-lg animate-pulse flex gap-1 items-center font-bold text-[9px] uppercase tracking-wider">
+                    <AlertCircle className="w-3 h-3" />
+                    Últimos lugares
                 </Badge>
             ) : null}
         </div>
 
-        {/* Sello de Rodada Segura (Consistencia Marca) */}
+        {/* Sello de Rodada Segura */}
         <div className="absolute bottom-3 left-3 z-10">
-             <div className="bg-primary/90 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md flex items-center gap-1 shadow-lg">
-                <ShieldCheck className="w-3 h-3" /> Rodada Segura
+             <div className="bg-slate-900/80 backdrop-blur-sm text-primary text-[10px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg border border-primary/20 flex items-center gap-1.5 shadow-2xl">
+                <ShieldCheck className="w-3.5 h-3.5" /> Rodada Segura
              </div>
         </div>
       </div>
 
-      <CardHeader className="pb-2 pt-5 px-5">
-        <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary bg-primary/5 px-2 py-0.5 rounded-full border border-primary/10">
+      <CardHeader className="pb-2 pt-6 px-6 shrink-0">
+        <div className="flex items-center gap-2 mb-3">
+            <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20">
                 {event.eventType}
             </span>
             {event.costType === 'Gratuito' && (
-                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">Gratis</span>
+                 <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-400/10 px-2.5 py-1 rounded-md border border-emerald-400/20">Gratis</span>
             )}
         </div>
-        <h3 className="font-extrabold text-xl md:text-2xl line-clamp-2 leading-[1.1] text-slate-900 group-hover:text-primary transition-colors duration-300">
+        <h3 className="font-extrabold text-xl md:text-2xl line-clamp-2 h-[2.2em] leading-[1.1] text-white group-hover:text-primary transition-colors duration-300">
           {event.name}
         </h3>
       </CardHeader>
 
-      <CardContent className="px-5 py-3 flex-grow space-y-4">
-        <div className="space-y-2.5">
-            {/* Ubicación con Icono Activo */}
-            <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
-                <div className="bg-primary/10 p-1.5 rounded-lg">
+      <CardContent className="px-6 py-3 flex-grow space-y-4">
+        <div className="space-y-3">
+            {/* Ubicación */}
+            <div className="flex items-center gap-3 text-sm font-bold text-slate-400 group-hover:text-slate-200 transition-colors">
+                <div className="bg-white/5 p-2 rounded-xl group-hover:bg-primary/10 transition-colors">
                     <MapPin className="w-4 h-4 text-primary" />
                 </div>
-                <span className="line-clamp-1">{event.state}, {event.country}</span>
+                <span className="line-clamp-1 tracking-tight">{event.state}, {event.country}</span>
             </div>
 
-            {/* Fecha con Icono Activo */}
-            <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
-                <div className="bg-primary/10 p-1.5 rounded-lg">
+            {/* Fecha */}
+            <div className="flex items-center gap-3 text-sm font-bold text-slate-400 group-hover:text-slate-200 transition-colors">
+                <div className="bg-white/5 p-2 rounded-xl group-hover:bg-primary/10 transition-colors">
                     <Calendar className="w-4 h-4 text-primary" />
                 </div>
-                <span className="capitalize">
+                <span className="capitalize tracking-tight line-clamp-1">
                     {format(eventDate, "EEEE d 'de' MMMM", { locale: es })}
                 </span>
             </div>
 
-            {/* Asistencia Real (Social Proof) */}
+            {/* Asistencia */}
             {registered > 0 && (
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-400 pt-1">
-                    <Users className="w-3.5 h-3.5 text-primary/50" />
-                    <span>{registered} ciclistas confirmados</span>
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 pt-1">
+                    <Users className="w-4 h-4 text-primary/40" />
+                    <span>{registered} Confirmados</span>
                 </div>
             )}
         </div>
       </CardContent>
 
-      <CardFooter className="p-5 pt-2 mt-auto">
+      <CardFooter className="p-6 pt-2 mt-auto shrink-0">
         <Button asChild className={cn(
-            "w-full group/btn font-black uppercase tracking-widest text-xs h-12 shadow-md transition-all active:scale-95",
-            isSoldOut ? "bg-slate-200 text-slate-500" : "bg-primary hover:bg-primary/90 text-white"
+            "w-full group/btn font-black uppercase tracking-[0.2em] text-[10px] h-14 shadow-2xl transition-all active:scale-95",
+            isSoldOut ? "bg-slate-800 text-slate-500" : "bg-primary hover:bg-primary/90 text-white"
         )} size="lg" disabled={isSoldOut}>
           <Link href={`/events/${event.id}`} className="flex items-center justify-center">
             {isSoldOut ? 'Sin Lugares' : 'Ver detalles'}
-            {!isSoldOut && <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover/btn:translate-x-1" />}
+            {!isSoldOut && <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover/btn:translate-x-1" />}
           </Link>
         </Button>
       </CardFooter>

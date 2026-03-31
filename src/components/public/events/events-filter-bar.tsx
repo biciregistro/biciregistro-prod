@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { countries } from '@/lib/countries';
+import { cn } from '@/lib/utils';
 
 // Constantes para filtros
 const EVENT_TYPES = ['Rodada', 'Competencia', 'Taller', 'Conferencia'];
@@ -68,11 +69,10 @@ export function EventsFilterBar() {
       }
     });
 
-    // Reset pagination if exists
     params.delete('page');
 
     startTransition(() => {
-      router.push(`/events?${params.toString()}`);
+      router.push(`/events?${params.toString()}`, { scroll: false });
     });
   };
 
@@ -111,56 +111,59 @@ export function EventsFilterBar() {
   };
 
   return (
-    <div className="w-full space-y-4 mb-8">
-      {/* Barra Principal */}
-      <div className="flex flex-col md:flex-row gap-3">
-        <form onSubmit={handleSearch} className="relative flex-grow">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+    <div className="w-full space-y-4">
+      {/* Barra Principal - Estilo Dark Premium */}
+      <div className="flex flex-col md:flex-row gap-4">
+        <form onSubmit={handleSearch} className="relative flex-grow group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5 group-focus-within:text-primary transition-colors" />
           <Input 
-            placeholder="Buscar por nombre, lugar..." 
-            className="pl-9"
+            placeholder="¿Qué aventura buscas hoy?..." 
+            className="pl-12 h-14 bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus-visible:ring-primary focus-visible:border-primary rounded-xl text-lg transition-all"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </form>
 
-        <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+        <div className="flex gap-3 overflow-x-auto pb-2 md:pb-0 no-scrollbar items-center">
           {/* Botón Filtro Rápido Fin de Semana */}
           <Button 
             variant="outline" 
-            size="sm"
+            size="lg"
             onClick={applyWeekendFilter}
-            className="whitespace-nowrap bg-white"
+            className={cn(
+                "h-14 whitespace-nowrap rounded-xl font-bold transition-all px-6",
+                startDate && endDate ? "bg-primary text-white border-primary" : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white"
+            )}
           >
-            <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+            <CalendarIcon className="mr-2 h-5 w-5" />
             Este fin de semana
           </Button>
 
           {/* Botón de Filtros Avanzados */}
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="outline" size="sm" className="whitespace-nowrap bg-white relative">
-                <Filter className="mr-2 h-4 w-4" />
+              <Button size="lg" variant="outline" className="h-14 px-6 rounded-xl bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white relative font-bold transition-all">
+                <Filter className="mr-2 h-5 w-5" />
                 Filtros
                 {activeFiltersCount > 0 && (
-                  <Badge variant="secondary" className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px]">
+                  <Badge variant="secondary" className="ml-2 h-5 w-5 p-0 flex items-center justify-center rounded-full bg-primary text-white text-[10px] border-none">
                     {activeFiltersCount}
                   </Badge>
                 )}
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-full sm:w-[400px] overflow-y-auto">
+            <SheetContent side="right" className="w-full sm:w-[400px] bg-slate-950 border-white/10 text-white overflow-y-auto">
               <SheetHeader>
-                <SheetTitle>Filtrar Eventos</SheetTitle>
-                <SheetDescription>
-                  Encuentra el evento perfecto ajustando tus preferencias.
+                <SheetTitle className="text-white text-2xl font-black italic uppercase italic tracking-tight">Filtrar Eventos</SheetTitle>
+                <SheetDescription className="text-slate-400">
+                  Refina tu búsqueda para encontrar la rodada perfecta.
                 </SheetDescription>
               </SheetHeader>
 
-              <div className="grid gap-6 py-6">
+              <div className="grid gap-6 py-8">
                 {/* Tipo de Evento */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Tipo de Evento</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-slate-500 ml-1">Tipo de Evento</label>
                   <Select 
                     value={eventType} 
                     onValueChange={(val) => {
@@ -168,11 +171,11 @@ export function EventsFilterBar() {
                         updateFilters({ eventType: val });
                     }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-white/5 border-white/10 h-12">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
+                    <SelectContent className="bg-slate-900 border-white/10 text-white">
+                      <SelectItem value="all">Todos los tipos</SelectItem>
                       {EVENT_TYPES.map((t: string) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -180,7 +183,7 @@ export function EventsFilterBar() {
 
                 {/* Modalidad */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Modalidad</label>
+                  <label className="text-xs font-black uppercase tracking-widest text-slate-500 ml-1">Modalidad</label>
                   <Select 
                     value={modality}
                     onValueChange={(val) => {
@@ -188,35 +191,35 @@ export function EventsFilterBar() {
                         updateFilters({ modality: val });
                     }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-white/5 border-white/10 h-12">
                       <SelectValue placeholder="Todas" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas</SelectItem>
+                    <SelectContent className="bg-slate-900 border-white/10 text-white">
+                      <SelectItem value="all">Todas las modalidades</SelectItem>
                       {MODALITIES.map((m: string) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
 
                 {/* Ubicación */}
-                <div className="space-y-4 border-t pt-4">
+                <div className="space-y-4 border-t border-white/5 pt-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-2">
+                    <label className="text-xs font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-2">
                         <MapPin className="w-4 h-4" /> País
                     </label>
                     <Select 
                       value={country} 
                       onValueChange={(val) => {
                           setCountry(val);
-                          setState('all'); // Reset state on country change
+                          setState('all'); 
                           updateFilters({ country: val, state: 'all' });
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white/5 border-white/10 h-12">
                         <SelectValue placeholder="Todos" />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
+                      <SelectContent className="bg-slate-900 border-white/10 text-white">
+                        <SelectItem value="all">Todos los países</SelectItem>
                         {countries.map((c) => <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
@@ -224,7 +227,7 @@ export function EventsFilterBar() {
 
                   {country !== 'all' && (
                     <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                        <label className="text-sm font-medium">Estado / Provincia</label>
+                        <label className="text-xs font-black uppercase tracking-widest text-slate-500 ml-1">Estado / Provincia</label>
                         <Select 
                           value={state}
                           onValueChange={(val) => {
@@ -232,11 +235,11 @@ export function EventsFilterBar() {
                               updateFilters({ state: val });
                           }}
                         >
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-white/5 border-white/10 h-12">
                             <SelectValue placeholder="Todos" />
                         </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todos</SelectItem>
+                        <SelectContent className="bg-slate-900 border-white/10 text-white">
+                            <SelectItem value="all">Todos los estados</SelectItem>
                             {states.map((s: string) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                         </SelectContent>
                         </Select>
@@ -245,15 +248,16 @@ export function EventsFilterBar() {
                 </div>
 
                 {/* Fechas */}
-                <div className="space-y-4 border-t pt-4">
-                   <label className="text-sm font-medium flex items-center gap-2">
+                <div className="space-y-4 border-t border-white/5 pt-6">
+                   <label className="text-xs font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-2">
                         <CalendarIcon className="w-4 h-4" /> Rango de Fechas
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground">Desde</span>
+                            <span className="text-[10px] text-slate-500 uppercase font-bold ml-1">Desde</span>
                             <Input 
                                 type="date" 
+                                className="bg-white/5 border-white/10 h-12 invert-[0.8]"
                                 value={startDate}
                                 onChange={(e) => {
                                     setStartDate(e.target.value);
@@ -262,9 +266,10 @@ export function EventsFilterBar() {
                             />
                         </div>
                         <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground">Hasta</span>
+                            <span className="text-[10px] text-slate-500 uppercase font-bold ml-1">Hasta</span>
                             <Input 
                                 type="date" 
+                                className="bg-white/5 border-white/10 h-12 invert-[0.8]"
                                 value={endDate}
                                 onChange={(e) => {
                                     setEndDate(e.target.value);
@@ -276,34 +281,22 @@ export function EventsFilterBar() {
                 </div>
               </div>
 
-              <SheetFooter className="flex-col gap-2 sm:flex-col">
+              <SheetFooter className="flex-col gap-3 sm:flex-col pt-6 border-t border-white/5">
                 <SheetClose asChild>
-                    <Button className="w-full">Ver resultados</Button>
+                    <Button size="lg" className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-14 rounded-xl">Aplicar filtros</Button>
                 </SheetClose>
-                <Button variant="ghost" onClick={handleClearFilters} className="w-full text-muted-foreground">
-                    Limpiar todos los filtros
+                <Button variant="ghost" onClick={handleClearFilters} className="w-full text-slate-500 hover:text-white transition-colors font-bold uppercase tracking-widest text-[10px]">
+                    Limpiar todo
                 </Button>
               </SheetFooter>
             </SheetContent>
           </Sheet>
-          
-          {/* Chips de filtros activos */}
-          {activeFiltersCount > 0 && (
-             <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleClearFilters}
-                className="text-xs text-muted-foreground hover:text-destructive hidden md:flex"
-             >
-                <X className="mr-1 h-3 w-3" /> Limpiar
-             </Button>
-          )}
         </div>
       </div>
       
       {isPending && (
-          <div className="h-1 w-full bg-primary/20 overflow-hidden rounded-full mt-2">
-              <div className="h-full bg-primary animate-progress w-full origin-left-right"></div>
+          <div className="h-1 w-full bg-white/5 overflow-hidden rounded-full mt-2">
+              <div className="h-full bg-primary animate-pulse w-full"></div>
           </div>
       )}
     </div>

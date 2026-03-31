@@ -22,8 +22,11 @@ export function SponsorsCarousel({ title, sponsors, className }: SponsorsCarouse
     typeof s === 'string' ? { url: s } : s
   );
 
+  // We duplicate the array to create a seamless loop effect
+  const displaySponsors = [...normalizedSponsors, ...normalizedSponsors];
+
   return (
-    <div className={cn("w-full py-8", className)}>
+    <div className={cn("w-full py-8 overflow-hidden", className)}>
       {title && (
          <div className="flex items-center gap-4 mb-8">
             <div className="h-px flex-1 bg-border" />
@@ -34,22 +37,24 @@ export function SponsorsCarousel({ title, sponsors, className }: SponsorsCarouse
         </div>
       )}
       
-      <div className="flex flex-wrap justify-center gap-8 md:gap-12 items-center">
-        {normalizedSponsors.map((sponsor, idx) => (
-          <div 
-            key={idx} 
-            className="relative w-32 h-20 md:w-40 md:h-24 transition-all duration-300 filter grayscale hover:grayscale-0 opacity-70 hover:opacity-100 hover:scale-105"
-            title={sponsor.name}
-          >
-            <Image
-              src={sponsor.url}
-              alt={sponsor.name || `Aliado ${idx + 1}`}
-              fill
-              className="object-contain"
-              sizes="(max-width: 768px) 128px, 160px"
-            />
-          </div>
-        ))}
+      <div className="relative flex overflow-hidden">
+        <div className="flex gap-8 md:gap-12 items-center animate-scroll hover:[animation-play-state:paused] whitespace-nowrap min-w-full">
+          {displaySponsors.map((sponsor, idx) => (
+            <div 
+              key={idx} 
+              className="relative flex-shrink-0 w-32 h-20 md:w-40 md:h-24 transition-all duration-300 filter grayscale hover:grayscale-0 opacity-70 hover:opacity-100 hover:scale-105"
+              title={sponsor.name}
+            >
+              <Image
+                src={sponsor.url}
+                alt={sponsor.name || `Aliado ${idx + 1}`}
+                fill
+                className="object-contain"
+                sizes="(max-width: 768px) 128px, 160px"
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
