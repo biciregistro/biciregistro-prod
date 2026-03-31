@@ -64,6 +64,7 @@ interface TheftReportFormProps {
 export function TheftReportForm({ bike, onSuccess, defaultOpen = false }: TheftReportFormProps) {
     const [showForm, setShowForm] = useState(defaultOpen);
     const [showMap, setShowMap] = useState(false);
+    const [hasSelectedLocation, setHasSelectedLocation] = useState(false);
     const [state, formAction] = useActionState(reportTheft, null);
     const { toast } = useToast();
     
@@ -170,6 +171,9 @@ export function TheftReportForm({ bike, onSuccess, defaultOpen = false }: TheftR
         form.setValue('location', fullAddress); // Dirección legible
         form.setValue('lat', lat);
         form.setValue('lng', lng);
+        
+        // Indicar que ya se seleccionó una ubicación para mostrar los campos
+        setHasSelectedLocation(true);
     };
 
     const handleUseCurrentDateTime = () => {
@@ -264,75 +268,86 @@ export function TheftReportForm({ bike, onSuccess, defaultOpen = false }: TheftR
                         <h4 className="font-bold text-sm uppercase tracking-tight text-primary">Ubicación del Incidente</h4>
                         <Button 
                             type="button" 
-                            variant="default" 
-                            className="w-full justify-center flex items-center gap-2"
+                            variant={hasSelectedLocation ? "outline" : "default"}
+                            className="w-full justify-center flex items-center gap-2 h-12"
                             onClick={() => setShowMap(true)}
                         >
-                            <MapPin className="w-4 h-4" /> Seleccionar ubicación del robo
+                            <MapPin className="w-4 h-4" /> 
+                            {hasSelectedLocation ? "Cambiar ubicación en el mapa" : "Seleccionar ubicación del robo"}
                         </Button>
+                        {!hasSelectedLocation && (
+                            <p className="text-[11px] text-muted-foreground text-center italic">
+                                * Es obligatorio seleccionar la ubicación en el mapa para activar la alerta.
+                            </p>
+                        )}
                     </div>
 
-                    <FormField
-                        control={form.control}
-                        name="country"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>País</FormLabel>
-                                <Select onValueChange={handleCountryChange} value={field.value} name={field.name}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="País" /></SelectTrigger></FormControl>
-                                    <SelectContent>{countries.map(c => <SelectItem key={c.code} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <FormField
-                            control={form.control}
-                            name="state"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Estado</FormLabel>
-                                    <Select onValueChange={handleStateChange} value={field.value} disabled={!selectedCountry} name={field.name}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Estado" /></SelectTrigger></FormControl>
-                                        <SelectContent>{states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <FormField
-                            control={form.control}
-                            name="city"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Municipio</FormLabel>
-                                    {cities.length > 0 ? (
-                                        <Select onValueChange={field.onChange} value={field.value} disabled={!form.watch('state')} name={field.name}>
-                                            <FormControl><SelectTrigger><SelectValue placeholder="Municipio" /></SelectTrigger></FormControl>
-                                            <SelectContent>{cities.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                    {hasSelectedLocation && (
+                        <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-top-2 duration-500">
+                            <FormField
+                                control={form.control}
+                                name="country"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>País</FormLabel>
+                                        <Select onValueChange={handleCountryChange} value={field.value} name={field.name}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="País" /></SelectTrigger></FormControl>
+                                            <SelectContent>{countries.map(c => <SelectItem key={c.code} value={c.name}>{c.name}</SelectItem>)}</SelectContent>
                                         </Select>
-                                    ) : (
-                                        <FormControl><Input placeholder="Escribe el municipio" {...field} value={field.value || ''} /></FormControl>
-                                    )}
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </div>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
 
-                    <FormField
-                        control={form.control}
-                        name="location"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Dirección / Referencia</FormLabel>
-                                <FormControl><Input placeholder="Calle, número, cruces..." {...field} /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="state"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Estado</FormLabel>
+                                            <Select onValueChange={handleStateChange} value={field.value} disabled={!selectedCountry} name={field.name}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Estado" /></SelectTrigger></FormControl>
+                                                <SelectContent>{states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="city"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Municipio</FormLabel>
+                                            {cities.length > 0 ? (
+                                                <Select onValueChange={field.onChange} value={field.value} disabled={!form.watch('state')} name={field.name}>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Municipio" /></SelectTrigger></FormControl>
+                                                    <SelectContent>{cities.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                                                </Select>
+                                            ) : (
+                                                <FormControl><Input placeholder="Escribe el municipio" {...field} value={field.value || ''} /></FormControl>
+                                            )}
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+
+                            <FormField
+                                control={form.control}
+                                name="location"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Dirección / Referencia</FormLabel>
+                                        <FormControl><Input placeholder="Calle, número, cruces..." {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                    )}
+                    
                     <input type="hidden" name="zipCode" value={form.watch('zipCode')} />
                     <input type="hidden" name="lat" value={form.watch('lat') || ''} />
                     <input type="hidden" name="lng" value={form.watch('lng') || ''} />
