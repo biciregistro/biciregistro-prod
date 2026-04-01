@@ -94,13 +94,13 @@ function WidgetReportFlowContent() {
         }
     };
 
-    // --- Helpers para Compartir (Basados en BikeTheftShareMenu) ---
+    // --- Helpers para Compartir (Basados en BikeTheftShareMenu con fixes para Mobile) ---
 
     const getShareContent = () => {
         if (!registeredBike || !registeredBike.theftReport) return { text: '', url: '', ogUrl: '' };
 
         const report = registeredBike.theftReport;
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://biciregistro.mx');
         const bikeUrl = `${baseUrl}/bikes/${registeredBike.serialNumber}?v=${new Date().getTime().toString().slice(0, 8)}`;
         
         const formattedReward = report.reward && report.reward !== '0'
@@ -121,9 +121,83 @@ function WidgetReportFlowContent() {
         if (report.reward) params.append('reward', report.reward.toString());
         if (report.location) params.append('location', report.location);
         
+        // Retornamos URL relativa asegurada para el fetch interno
         const ogUrl = `/api/og/bike?${params.toString()}`;
 
         return { text: shareText, url: bikeUrl, ogUrl };
+    };
+
+    const copyToClipboardWithFallback = async (text: string): Promise<boolean> => {
+        if (navigator.clipboard && window.isSecureContext) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch (err) {
+                console.warn('Clipboard API error:', err);
+                return false;
+            }
+        } else {
+            // Fallback (deprecated pero funciona en browsers viejos)
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                textArea.remove();
+                return true;
+            } catch (error) {
+                console.error('Fallback clipboard failed', error);
+                textArea.remove();
+                return false;
+            }
+        }
+    };
+
+    const downloadImageSecurely = async (ogUrl: string, filename: string): Promise<boolean> => {
+        try {
+            // 1. Asegurar ruta absoluta usando origin para no fallar en móvil PWA/WebViews
+            const absoluteUrl = ogUrl.startsWith('http') ? ogUrl : `${window.location.origin}${ogUrl}`;
+            
+            const response = await fetch(absoluteUrl);
+            
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+
+            // 2. Validar estricto Content-Type (Debe ser imagen, no HTML de error)
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.startsWith("image/")) {
+                console.error("Content type is not an image:", contentType);
+                throw new Error('El servidor no retornó una imagen válida.');
+            }
+
+            const blob = await response.blob();
+            
+            // 3. Crear Blob y descargar
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            
+            // Limpieza
+            setTimeout(() => {
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(blobUrl);
+            }, 100);
+
+            return true;
+        } catch (error) {
+            console.error("Error en downloadImageSecurely:", error);
+            return false;
+        }
     };
 
     const handleDownloadImage = async () => {
@@ -135,105 +209,139 @@ function WidgetReportFlowContent() {
             description: "Espera un momento por favor.",
         });
 
-        try {
-            const response = await fetch(ogUrl);
-            if (!response.ok) throw new Error('Error de red al obtener imagen');
-
-            const blob = await response.blob();
-            const blobUrl = window.URL.createObjectURL(blob);
-            
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = `ALERTA-ROBO-${registeredBike?.serialNumber || 'BICI'}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
+        const success = await downloadImageSecurely(ogUrl, `ALERTA-ROBO-${registeredBike?.serialNumber || 'BICI'}.png`);
+        
+        if (success) {
             toast({
                 title: "¡Imagen descargada!",
-                description: "Revisa tu carpeta de descargas.",
+                description: "Revisa tu galería o carpeta de descargas.",
             });
-        } catch (error) {
-            console.error("Error descargando imagen:", error);
+        } else {
             toast({
                 variant: "destructive",
                 title: "Error",
-                description: "No pudimos descargar la imagen automáticamente.",
+                description: "Hubo un problema al generar la imagen. Intenta tomar captura de pantalla de tu Garaje.",
             });
         }
     };
 
-    const handleFacebookShare = () => {
+    const handleFacebookShare = async () => {
         const { text, url } = getShareContent();
-        navigator.clipboard.writeText(text);
-        toast({
-            title: "Texto copiado al portapapeles",
-            description: "Pégalo en tu publicación de Facebook.",
-            duration: 5000,
-        });
+        
+        const copied = await copyToClipboardWithFallback(text);
+        if (copied) {
+            toast({
+                title: "Texto copiado al portapapeles",
+                description: "Pégalo como descripción en tu publicación de Facebook.",
+                duration: 5000,
+            });
+        }
+
+        // Facebook Sharing: u = link a la web que tiene los OGs en el Head.
+        // Quitamos width/height para que en móvil abra pestaña nativa.
         setTimeout(() => {
-            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+            const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+            // Detectamos si es móvil
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            window.open(fbUrl, '_blank', isMobile ? '' : 'width=600,height=400');
         }, 800);
     };
 
-    const handleWhatsAppShare = () => {
-        const { text } = getShareContent();
-        navigator.clipboard.writeText(text);
-        toast({
-            title: "Texto copiado al portapapeles",
-            description: "Pégalo en tu chat de WhatsApp.",
-            duration: 5000,
-        });
+    const handleWhatsAppShare = async () => {
+        const { text, url } = getShareContent();
+        
+        // WhatsApp prefiere texto y link
+        const fullMessage = `${text}`;
+
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+        // Intento 1: Web Share API nativa (Ideal para iOS/Android modernos)
+        if (navigator.share && isMobile) {
+            try {
+                await navigator.share({
+                    title: '¡Ayúdame a encontrar mi bicicleta robada!',
+                    text: fullMessage,
+                    url: url
+                });
+                return; // Si funciona el share nativo, detenemos.
+            } catch (err: any) {
+                if (err.name !== 'AbortError') {
+                    console.log("Web Share fallback:", err);
+                } else {
+                    return; // Usuario canceló.
+                }
+            }
+        }
+
+        // Intento 2: Copiado y Protocolo Directo
+        const copied = await copyToClipboardWithFallback(fullMessage);
+        if (copied) {
+            toast({
+                title: "Texto copiado al portapapeles",
+                description: "Abre el chat de WhatsApp y pega el mensaje.",
+                duration: 5000,
+            });
+        }
+
         setTimeout(() => {
-            const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-            window.open(url, '_blank');
+            let waUrl = `https://wa.me/?text=${encodeURIComponent(fullMessage)}`;
+            // En iOS/Android el protocolo nativo es más seguro para abrir la App.
+            if (isMobile) {
+                waUrl = `whatsapp://send?text=${encodeURIComponent(fullMessage)}`;
+            }
+            window.open(waUrl, '_blank');
         }, 800);
     };
 
     const handleInstagramShare = async () => {
         const { text, ogUrl } = getShareContent();
-        navigator.clipboard.writeText(text);
+        
+        const copied = await copyToClipboardWithFallback(text);
         
         toast({
-            title: "Texto copiado. Descargando imagen...",
-            description: "Pega el texto en la descripción de Instagram.",
+            title: "Preparando Instagram...",
+            description: "Texto copiado. Descargando imagen...",
             duration: 5000,
         });
 
-        try {
-            const response = await fetch(ogUrl);
-            if (!response.ok) throw new Error('Error de red al obtener imagen');
-
-            const blob = await response.blob();
-            const blobUrl = window.URL.createObjectURL(blob);
-            
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = `ALERTA-ROBO-${registeredBike?.serialNumber || 'BICI'}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            setTimeout(() => {
-               const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
-               const isAndroid = /android/i.test(userAgent);
-               const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
-
-               if (isAndroid) {
-                   window.location.href = "intent://instagram.com/#Intent;package=com.instagram.android;scheme=https;end";
-               } else if (isIOS) {
-                   window.location.href = "instagram://app";
-                   setTimeout(() => {
-                      if (document.hasFocus()) window.open("https://www.instagram.com/", '_blank');
-                   }, 2000);
-               } else {
-                   window.open("https://www.instagram.com/", '_blank');
-               }
-            }, 1500);
-
-        } catch (error) {
-            window.open("https://www.instagram.com/", '_blank');
+        const success = await downloadImageSecurely(ogUrl, `ALERTA-ROBO-${registeredBike?.serialNumber || 'BICI'}.png`);
+        
+        if (!success) {
+            toast({
+                variant: "destructive",
+                title: "Aviso",
+                description: "La imagen no se descargó, pero puedes subir una foto tuya a Instagram.",
+            });
         }
+
+        // Lógica de Intents para Instagram
+        setTimeout(() => {
+            const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+            const isAndroid = /android/i.test(userAgent);
+            const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+
+            if (isAndroid) {
+                // Forzar app Android
+                window.location.href = "intent://instagram.com/#Intent;package=com.instagram.android;scheme=https;end";
+            } else if (isIOS) {
+                // Forzar app iOS
+                window.location.href = "instagram://app";
+                // Fallback a web
+                setTimeout(() => {
+                    if (document.hasFocus()) window.open("https://www.instagram.com/", '_blank');
+                }, 2000);
+            } else {
+                window.open("https://www.instagram.com/", '_blank');
+            }
+            
+            if (success) {
+                toast({
+                    title: "¡Todo listo!",
+                    description: "Sube la imagen descargada a Instagram y pega el texto.",
+                    duration: 5000,
+                });
+            }
+        }, 1500);
     };
 
 
@@ -326,7 +434,7 @@ function WidgetReportFlowContent() {
         );
     }
 
-    // Paso 4: Éxito con Acciones de Difusión
+    // Paso 4: Éxito con Acciones de Difusión Móviles
     if (step === 'success') {
         const isNewUser = user?.metadata?.creationTime && (Math.abs(Date.now() - new Date(user.metadata.creationTime).getTime()) < 300000);
 
