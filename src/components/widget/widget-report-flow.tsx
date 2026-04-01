@@ -8,6 +8,7 @@ import { ProfileForm } from '@/components/user-components';
 import { SimpleBikeForm } from '@/components/widget/simple-bike-form';
 import { TheftReportForm } from '@/components/bike-components/theft-report-form';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, CheckCircle2, Bike, AlertTriangle, LogOut, ArrowRight, Sparkles, Download, Facebook, MessageCircle, Instagram } from 'lucide-react';
 import { Bike as BikeType } from '@/lib/types';
 import { Logo } from '@/components/icons/logo';
@@ -23,6 +24,16 @@ function WidgetReportFlowContent() {
     const [loading, setLoading] = useState(true);
     const [registeredBike, setRegisteredBike] = useState<BikeType | null>(null);
 
+    // Nuevos estados para el selector de bicicletas
+    const [userBikes, setUserBikes] = useState<BikeType[]>([]);
+    const [isLoadingBikes, setIsLoadingBikes] = useState(false);
+    const [selectedExistingBikeId, setSelectedExistingBikeId] = useState<string>('');
+    
+    // Estado para obtener el reporte fresco y perfil real al final
+    const [freshBikeData, setFreshBikeData] = useState<BikeType | null>(null);
+    const [profileData, setProfileData] = useState<{name: string, lastName?: string} | null>(null);
+    const [isPreparingShare, setIsPreparingShare] = useState(false);
+
     // Sincronizar paso inicial desde URL si existe
     useEffect(() => {
         if (initialStep) {
@@ -34,314 +45,218 @@ function WidgetReportFlowContent() {
         const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
             setUser(firebaseUser);
             setLoading(false);
-            
-            // Si el usuario se loguea y estábamos en auth, avanzar
-            if (firebaseUser) {
-                if (step === 'auth') {
-                     setStep('register-bike');
-                }
-            } else {
-                // Si no hay usuario y no estamos en auth, volver a auth
-                if (step !== 'auth') {
-                    setStep('auth');
-                }
-            }
+            if (firebaseUser && step === 'auth') setStep('register-bike');
+            if (!firebaseUser && step !== 'auth') setStep('auth');
         });
         return () => unsubscribe();
     }, [step]);
 
-    const handleBikeRegistered = async () => {
+    // Fetch de bicicletas del usuario al entrar al paso de registro
+    useEffect(() => {
+        if (step === 'register-bike' && user) {
+            const fetchBikes = async () => {
+                setIsLoadingBikes(true);
+                try {
+                    const res = await fetch('/api/user-bikes');
+                    if (res.ok) setUserBikes(await res.json());
+                } catch (error) {
+                    console.error("Error fetching user bikes:", error);
+                } finally {
+                    setIsLoadingBikes(false);
+                }
+            };
+            fetchBikes();
+        }
+    }, [step, user]);
+
+    // Fetch del reporte fresco y perfil real al llegar a éxito
+    useEffect(() => {
+        if (step === 'success' && user && registeredBike) {
+            const fetchFreshData = async () => {
+                setIsPreparingShare(true);
+                try {
+                    const resBikes = await fetch('/api/user-bikes');
+                    if (resBikes.ok) {
+                        const bikes: BikeType[] = await resBikes.json();
+                        const updatedBike = bikes.find(b => b.id === registeredBike.id);
+                        if (updatedBike && updatedBike.theftReport) {
+                            setFreshBikeData(updatedBike);
+                        }
+                    }
+                    const resProfile = await fetch('/api/auth/session');
+                    if (resProfile.ok) {
+                        const session = await resProfile.json();
+                        if (session?.user) {
+                            setProfileData({
+                                name: session.user.name || 'el propietario',
+                                lastName: session.user.lastName || ''
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error fetching fresh data for share:", error);
+                } finally {
+                    setIsPreparingShare(false);
+                }
+            };
+            fetchFreshData();
+        }
+    }, [step, user, registeredBike]);
+
+
+    const availableBikes = userBikes.filter(b => b.status !== 'stolen');
+
+    const handleExistingBikeSelect = () => {
+        if (!selectedExistingBikeId) return;
+        const bike = availableBikes.find(b => b.id === selectedExistingBikeId);
+        if (bike) {
+            setRegisteredBike(bike);
+            setStep('report-theft');
+        }
+    };
+
+    const handleNewBikeRegistered = async () => {
         try {
-            // Obtener la bici más reciente del usuario
             const res = await fetch('/api/user-bikes');
             if (!res.ok) throw new Error("Error fetching bikes");
-            
             const bikes = await res.json();
             if (bikes && bikes.length > 0) {
-                // Asumimos que la primera es la más reciente por el sort del backend
                 setRegisteredBike(bikes[0]);
                 setStep('report-theft');
             }
         } catch (error) {
-            console.error("Error recuperando la bici registrada:", error);
+            console.error("Error recuperando la bici:", error);
         }
     };
 
     const handleSuccessRedirect = () => {
-        // Detectamos si es usuario nuevo: registrado hace menos de 5 minutos
         let isNewUser = false;
         if (user?.metadata?.creationTime) {
             const creation = new Date(user.metadata.creationTime).getTime();
-            const now = Date.now();
-            if (Math.abs(now - creation) < 300000) { // 5 minutos de margen
-                isNewUser = true;
-            }
+            if (Math.abs(Date.now() - creation) < 300000) isNewUser = true;
         }
-
         const targetUrl = isNewUser ? '/dashboard/profile' : '/dashboard';
-
         if (typeof window !== 'undefined') {
             if (window.opener) {
-                try {
-                    window.opener.location.href = targetUrl;
-                    window.close();
-                } catch (e) {
-                    router.push(targetUrl);
-                }
-            } else {
-                router.push(targetUrl);
-            }
+                try { window.opener.location.href = targetUrl; window.close(); } 
+                catch (e) { router.push(targetUrl); }
+            } else { router.push(targetUrl); }
         }
     };
 
-    // --- Helpers para Compartir (Basados en BikeTheftShareMenu con fixes para Mobile) ---
+    // --- Helpers de Compartir Refactorizados (Fieles a BikeTheftShareMenu) ---
+    const getShareData = () => {
+        const bikeToShare = freshBikeData || registeredBike;
+        if (!bikeToShare || !bikeToShare.theftReport) return null;
 
-    const getShareContent = () => {
-        if (!registeredBike || !registeredBike.theftReport) return { text: '', url: '', ogUrl: '' };
-
-        const report = registeredBike.theftReport;
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://biciregistro.mx');
-        const bikeUrl = `${baseUrl}/bikes/${registeredBike.serialNumber}?v=${new Date().getTime().toString().slice(0, 8)}`;
+        const report = bikeToShare.theftReport;
+        const baseUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx');
+        const bikeUrl = `${baseUrl}/bikes/${bikeToShare.serialNumber}?v=${new Date().getTime().toString().slice(0, 8)}`;
         
         const formattedReward = report.reward && report.reward !== '0'
-            ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(report.reward))
-            : null;
+            ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(report.reward)) : null;
 
         const socialProfile = report.contactProfile || '';
-        const userName = user?.displayName || 'el dueño';
+        const ownerName = profileData ? `${profileData.name} ${profileData.lastName || ''}`.trim() : 'el propietario';
 
-        const shareText = `🚨 Alerta Bicicleta Robada en ${report.location} 🚨\n\nAtención su apoyo para localizar la siguiente bicicleta que se robaron en ${report.location}, ${report.city || ''}, ${report.country || ''}\n\n🚲 Marca: ${registeredBike.make}, Modelo: ${registeredBike.model}, Color: ${registeredBike.color}, Numero de serie: ${registeredBike.serialNumber}\n\n📄 Detalles del robo: ${report.details}\n\n🥷 Detalles del ladrón: ${report.thiefDetails || 'No especificados'}\n\n${formattedReward ? `💰 Se ofrece recompensa de: ${formattedReward}\n\n` : ''}Cualquier información que tengan les agradecería ponerse en contacto con: ${userName} por mensaje directo en el perfil de facebook o instagram ${socialProfile}\n\nLink de la bicicleta: ${bikeUrl}\n\n#Biciregistro #Ciclismo #Deporte #Amigos #MTB #Ruta`;
+        const shareText = `🚨 Alerta Bicicleta Robada en ${report.location} 🚨\n\nAtención su apoyo para localizar la siguiente bicicleta que se robaron en ${report.location}, ${report.city || ''}, ${report.country || ''}\n\n🚲 Marca: ${bikeToShare.make}, Modelo: ${bikeToShare.model}, Color: ${bikeToShare.color}, Numero de serie: ${bikeToShare.serialNumber}\n\n📄 Detalles del robo: ${report.details}\n\n🥷 Detalles del ladrón: ${report.thiefDetails || 'No especificados'}\n\n${formattedReward ? `💰 Se ofrece recompensa de: ${formattedReward}\n\n` : ''}Cualquier información que tengan les agradecería ponerse en contacto con: ${ownerName} por mensaje directo en el perfil de facebook o instagram ${socialProfile}\n\nLink de la bicicleta: ${bikeUrl}\n\n#Biciregistro #Ciclismo #Deporte #Amigos #MTB #Ruta #Trek #Giant #TotalBike #Sacalabici`;
 
         const params = new URLSearchParams({
-            brand: registeredBike.make,
-            model: registeredBike.model || '',
+            brand: bikeToShare.make,
+            model: bikeToShare.model || '',
             status: 'stolen',
-            image: registeredBike.photos[0] || '',
+            image: bikeToShare.photos[0] || '',
         });
         if (report.reward) params.append('reward', report.reward.toString());
         if (report.location) params.append('location', report.location);
         
-        // Retornamos URL relativa asegurada para el fetch interno
-        const ogUrl = `/api/og/bike?${params.toString()}`;
-
-        return { text: shareText, url: bikeUrl, ogUrl };
-    };
-
-    const copyToClipboardWithFallback = async (text: string): Promise<boolean> => {
-        if (navigator.clipboard && window.isSecureContext) {
-            try {
-                await navigator.clipboard.writeText(text);
-                return true;
-            } catch (err) {
-                console.warn('Clipboard API error:', err);
-                return false;
-            }
-        } else {
-            // Fallback (deprecated pero funciona en browsers viejos)
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.position = "fixed";
-            textArea.style.left = "-999999px";
-            textArea.style.top = "-999999px";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                textArea.remove();
-                return true;
-            } catch (error) {
-                console.error('Fallback clipboard failed', error);
-                textArea.remove();
-                return false;
-            }
-        }
-    };
-
-    const downloadImageSecurely = async (ogUrl: string, filename: string): Promise<boolean> => {
-        try {
-            // 1. Asegurar ruta absoluta usando origin para no fallar en móvil PWA/WebViews
-            const absoluteUrl = ogUrl.startsWith('http') ? ogUrl : `${window.location.origin}${ogUrl}`;
-            
-            const response = await fetch(absoluteUrl);
-            
-            if (!response.ok) {
-                throw new Error(`Error HTTP: ${response.status}`);
-            }
-
-            // 2. Validar estricto Content-Type (Debe ser imagen, no HTML de error)
-            const contentType = response.headers.get("content-type");
-            if (!contentType || !contentType.startsWith("image/")) {
-                console.error("Content type is not an image:", contentType);
-                throw new Error('El servidor no retornó una imagen válida.');
-            }
-
-            const blob = await response.blob();
-            
-            // 3. Crear Blob y descargar
-            const blobUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = filename;
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            link.click();
-            
-            // Limpieza
-            setTimeout(() => {
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(blobUrl);
-            }, 100);
-
-            return true;
-        } catch (error) {
-            console.error("Error en downloadImageSecurely:", error);
-            return false;
-        }
+        const ogUrlRelative = `/api/og/bike?${params.toString()}`;
+        return { shareText, bikeUrl, ogUrlRelative, serial: bikeToShare.serialNumber };
     };
 
     const handleDownloadImage = async () => {
-        const { ogUrl } = getShareContent();
-        if (!ogUrl) return;
+        const data = getShareData();
+        if (!data) return;
 
-        toast({
-            title: "Generando imagen...",
-            description: "Espera un momento por favor.",
-        });
-
-        const success = await downloadImageSecurely(ogUrl, `ALERTA-ROBO-${registeredBike?.serialNumber || 'BICI'}.png`);
-        
-        if (success) {
-            toast({
-                title: "¡Imagen descargada!",
-                description: "Revisa tu galería o carpeta de descargas.",
-            });
-        } else {
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Hubo un problema al generar la imagen. Intenta tomar captura de pantalla de tu Garaje.",
-            });
+        toast({ title: "Generando imagen...", description: "Espera un momento por favor." });
+        try {
+            const response = await fetch(data.ogUrlRelative);
+            if (!response.ok) throw new Error('Error al descargar OG');
+            
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = `ALERTA-ROBO-${data.serial}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
+            toast({ title: "¡Imagen descargada!", description: "Revisa tu carpeta de descargas o galería." });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "No se pudo descargar la imagen." });
         }
     };
 
-    const handleFacebookShare = async () => {
-        const { text, url } = getShareContent();
-        
-        const copied = await copyToClipboardWithFallback(text);
-        if (copied) {
-            toast({
-                title: "Texto copiado al portapapeles",
-                description: "Pégalo como descripción en tu publicación de Facebook.",
-                duration: 5000,
-            });
-        }
-
-        // Facebook Sharing: u = link a la web que tiene los OGs en el Head.
-        // Quitamos width/height para que en móvil abra pestaña nativa.
+    const handleFacebookShare = () => {
+        const data = getShareData();
+        if (!data) return;
+        navigator.clipboard.writeText(data.shareText);
+        toast({ title: "Texto copiado al portapapeles", description: "Pega este mensaje en tu publicación de Facebook." });
         setTimeout(() => {
-            const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
-            // Detectamos si es móvil
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            window.open(fbUrl, '_blank', isMobile ? '' : 'width=600,height=400');
-        }, 800);
+            const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(data.bikeUrl)}`;
+            window.open(fbUrl, '_blank', 'width=600,height=400');
+        }, 500);
     };
 
-    const handleWhatsAppShare = async () => {
-        const { text, url } = getShareContent();
-        
-        // WhatsApp prefiere texto y link
-        const fullMessage = `${text}`;
-
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-        // Intento 1: Web Share API nativa (Ideal para iOS/Android modernos)
-        if (navigator.share && isMobile) {
-            try {
-                await navigator.share({
-                    title: '¡Ayúdame a encontrar mi bicicleta robada!',
-                    text: fullMessage,
-                    url: url
-                });
-                return; // Si funciona el share nativo, detenemos.
-            } catch (err: any) {
-                if (err.name !== 'AbortError') {
-                    console.log("Web Share fallback:", err);
-                } else {
-                    return; // Usuario canceló.
-                }
-            }
-        }
-
-        // Intento 2: Copiado y Protocolo Directo
-        const copied = await copyToClipboardWithFallback(fullMessage);
-        if (copied) {
-            toast({
-                title: "Texto copiado al portapapeles",
-                description: "Abre el chat de WhatsApp y pega el mensaje.",
-                duration: 5000,
-            });
-        }
-
+    const handleWhatsAppShare = () => {
+        const data = getShareData();
+        if (!data) return;
+        navigator.clipboard.writeText(data.shareText);
+        toast({ title: "Texto copiado al portapapeles", description: "Abre tu chat de WhatsApp y pega el mensaje." });
         setTimeout(() => {
-            let waUrl = `https://wa.me/?text=${encodeURIComponent(fullMessage)}`;
-            // En iOS/Android el protocolo nativo es más seguro para abrir la App.
-            if (isMobile) {
-                waUrl = `whatsapp://send?text=${encodeURIComponent(fullMessage)}`;
-            }
-            window.open(waUrl, '_blank');
-        }, 800);
+            const url = `https://wa.me/?text=${encodeURIComponent(data.shareText)}`;
+            window.open(url, '_blank');
+        }, 500);
     };
 
     const handleInstagramShare = async () => {
-        const { text, ogUrl } = getShareContent();
-        
-        const copied = await copyToClipboardWithFallback(text);
-        
-        toast({
-            title: "Preparando Instagram...",
-            description: "Texto copiado. Descargando imagen...",
-            duration: 5000,
-        });
+        const data = getShareData();
+        if (!data) return;
+        navigator.clipboard.writeText(data.shareText);
+        toast({ title: "Preparando Instagram...", description: "Texto copiado. Descargando imagen de alerta..." });
 
-        const success = await downloadImageSecurely(ogUrl, `ALERTA-ROBO-${registeredBike?.serialNumber || 'BICI'}.png`);
-        
-        if (!success) {
-            toast({
-                variant: "destructive",
-                title: "Aviso",
-                description: "La imagen no se descargó, pero puedes subir una foto tuya a Instagram.",
-            });
+        try {
+            const response = await fetch(data.ogUrlRelative);
+            if (!response.ok) throw new Error('Error al descargar OG');
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = `ALERTA-ROBO-${data.serial}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setTimeout(() => {
+                const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+                const isAndroid = /android/i.test(userAgent);
+                const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+
+                if (isAndroid) {
+                    window.location.href = "intent://instagram.com/#Intent;package=com.instagram.android;scheme=https;end";
+                } else if (isIOS) {
+                    window.location.href = "instagram://app";
+                    setTimeout(() => { if (document.hasFocus()) window.open("https://www.instagram.com/", '_blank'); }, 2000);
+                } else {
+                    window.open("https://www.instagram.com/", '_blank');
+                }
+                toast({ title: "¡Todo listo!", description: "Sube la foto y pega el texto en Instagram." });
+            }, 1500);
+        } catch (e) {
+            toast({ variant: "destructive", title: "Error", description: "No pudimos descargar la imagen automáticamente. Abre Instagram y escribe manualmente." });
+            window.open("https://www.instagram.com/", '_blank');
         }
-
-        // Lógica de Intents para Instagram
-        setTimeout(() => {
-            const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
-            const isAndroid = /android/i.test(userAgent);
-            const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
-
-            if (isAndroid) {
-                // Forzar app Android
-                window.location.href = "intent://instagram.com/#Intent;package=com.instagram.android;scheme=https;end";
-            } else if (isIOS) {
-                // Forzar app iOS
-                window.location.href = "instagram://app";
-                // Fallback a web
-                setTimeout(() => {
-                    if (document.hasFocus()) window.open("https://www.instagram.com/", '_blank');
-                }, 2000);
-            } else {
-                window.open("https://www.instagram.com/", '_blank');
-            }
-            
-            if (success) {
-                toast({
-                    title: "¡Todo listo!",
-                    description: "Sube la imagen descargada a Instagram y pega el texto.",
-                    duration: 5000,
-                });
-            }
-        }, 1500);
     };
 
 
@@ -365,7 +280,6 @@ function WidgetReportFlowContent() {
                     <h1 className="text-2xl font-bold text-primary tracking-tight">Reporte de Robo Express</h1>
                     <p className="text-sm text-gray-500 mt-1">Crea una cuenta o inicia sesión para activar la alerta.</p>
                 </div>
-                {/* Usamos ProfileForm con el callbackUrl correcto */}
                 <ProfileForm callbackUrl={`${window.location.pathname}?step=register-bike`} />
             </div>
         );
@@ -389,26 +303,65 @@ function WidgetReportFlowContent() {
                     </button>
                 </div>
 
-                <div className="mb-6 text-center">
-                    <h1 className="text-xl font-bold flex items-center justify-center gap-2 text-gray-800">
-                        <Bike className="text-primary w-6 h-6" /> Registrar Bicicleta
-                    </h1>
-                    <p className="text-sm text-gray-500 mt-1">Ingresa los datos de la bicicleta robada.</p>
-                </div>
-                
-                <SimpleBikeForm onSuccess={handleBikeRegistered} />
-                
-                <div className="mt-8 pt-4 border-t text-center">
-                     <p className="text-[11px] text-gray-400 uppercase tracking-wider font-semibold mb-2">¿Ya estaba registrada?</p>
-                     <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="text-xs h-9"
-                        onClick={handleBikeRegistered}
-                    >
-                        Usar mi última bicicleta registrada
-                    </Button>
-                </div>
+                {isLoadingBikes ? (
+                    <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary/50" />
+                        <p className="text-sm text-gray-500 font-medium">Buscando tus bicicletas...</p>
+                    </div>
+                ) : (
+                    <>
+                        {availableBikes.length > 0 && (
+                            <div className="mb-8 bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-sm">
+                                <h2 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+                                    <Bike className="w-5 h-5 text-primary" /> Selecciona tu bicicleta
+                                </h2>
+                                <p className="text-sm text-slate-600 mb-4">
+                                    Elige una de las bicicletas que ya tienes registradas para reportarla.
+                                </p>
+                                <div className="space-y-3">
+                                    <Select onValueChange={setSelectedExistingBikeId} value={selectedExistingBikeId}>
+                                        <SelectTrigger className="bg-white border-blue-200">
+                                            <SelectValue placeholder="Tus bicicletas seguras..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availableBikes.map(bike => (
+                                                <SelectItem key={bike.id} value={bike.id}>
+                                                    <span className="font-semibold">{bike.make} {bike.model}</span> 
+                                                    <span className="text-muted-foreground ml-2 text-xs">({bike.color})</span>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Button 
+                                        className="w-full bg-primary hover:bg-primary/90 text-white shadow-sm"
+                                        disabled={!selectedExistingBikeId}
+                                        onClick={handleExistingBikeSelect}
+                                    >
+                                        Reportar esta bicicleta <ArrowRight className="w-4 h-4 ml-2" />
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {availableBikes.length > 0 && (
+                            <div className="relative flex py-6 items-center">
+                                <div className="flex-grow border-t border-gray-200"></div>
+                                <span className="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase tracking-widest font-semibold">o registra una nueva</span>
+                                <div className="flex-grow border-t border-gray-200"></div>
+                            </div>
+                        )}
+
+                        {availableBikes.length === 0 && (
+                            <div className="mb-6 text-center">
+                                <h1 className="text-xl font-bold flex items-center justify-center gap-2 text-gray-800">
+                                    <Bike className="text-primary w-6 h-6" /> Registrar Bicicleta
+                                </h1>
+                                <p className="text-sm text-gray-500 mt-1">Ingresa los datos de la bicicleta robada.</p>
+                            </div>
+                        )}
+                        <SimpleBikeForm onSuccess={handleNewBikeRegistered} />
+                    </>
+                )}
             </div>
         );
     }
@@ -434,7 +387,7 @@ function WidgetReportFlowContent() {
         );
     }
 
-    // Paso 4: Éxito con Acciones de Difusión Móviles
+    // Paso 4: Éxito con Acciones de Difusión Reales
     if (step === 'success') {
         const isNewUser = user?.metadata?.creationTime && (Math.abs(Date.now() - new Date(user.metadata.creationTime).getTime()) < 300000);
 
@@ -454,9 +407,17 @@ function WidgetReportFlowContent() {
                     </p>
                 </div>
 
-                <div className="w-full space-y-3">
+                <div className="w-full space-y-3 relative">
+                    {isPreparingShare && (
+                        <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-xl">
+                            <Loader2 className="w-8 h-8 text-primary animate-spin mb-2" />
+                            <span className="text-sm font-bold text-gray-700">Preparando alerta...</span>
+                        </div>
+                    )}
+
                     <Button 
                         onClick={handleDownloadImage}
+                        disabled={isPreparingShare || !freshBikeData}
                         className="w-full h-14 text-base font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20"
                     >
                         <Download className="w-5 h-5 mr-2" />
@@ -466,6 +427,7 @@ function WidgetReportFlowContent() {
                     <div className="grid grid-cols-1 gap-3">
                         <Button 
                             onClick={handleWhatsAppShare}
+                            disabled={isPreparingShare || !freshBikeData}
                             className="w-full h-12 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold shadow-md"
                         >
                             <MessageCircle className="w-5 h-5 mr-2" />
@@ -474,6 +436,7 @@ function WidgetReportFlowContent() {
                         
                         <Button 
                             onClick={handleFacebookShare}
+                            disabled={isPreparingShare || !freshBikeData}
                             className="w-full h-12 bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold shadow-md"
                         >
                             <Facebook className="w-5 h-5 mr-2" />
@@ -482,6 +445,7 @@ function WidgetReportFlowContent() {
 
                         <Button 
                             onClick={handleInstagramShare}
+                            disabled={isPreparingShare || !freshBikeData}
                             className="w-full h-12 bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F56040] hover:opacity-90 text-white font-bold shadow-md border-0"
                         >
                             <Instagram className="w-5 h-5 mr-2" />
