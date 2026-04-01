@@ -8,9 +8,10 @@ import { ProfileForm } from '@/components/user-components';
 import { SimpleBikeForm } from '@/components/widget/simple-bike-form';
 import { TheftReportForm } from '@/components/bike-components/theft-report-form';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle2, Bike, AlertTriangle, LogOut, ArrowRight, Sparkles } from 'lucide-react';
+import { Loader2, CheckCircle2, Bike, AlertTriangle, LogOut, ArrowRight, Sparkles, Download, Facebook, MessageCircle, Instagram } from 'lucide-react';
 import { Bike as BikeType } from '@/lib/types';
 import { Logo } from '@/components/icons/logo';
+import { toast } from '@/hooks/use-toast';
 
 function WidgetReportFlowContent() {
     const router = useRouter();
@@ -49,16 +50,6 @@ function WidgetReportFlowContent() {
         return () => unsubscribe();
     }, [step]);
 
-    // --- Lógica de Redirección Automática ---
-    useEffect(() => {
-        if (step === 'success' && user) {
-            const timer = setTimeout(() => {
-                handleSuccessRedirect();
-            }, 5000); // 5 segundos para que lean el mensaje de éxito
-            return () => clearTimeout(timer);
-        }
-    }, [step, user]);
-
     const handleBikeRegistered = async () => {
         try {
             // Obtener la bici más reciente del usuario
@@ -95,7 +86,6 @@ function WidgetReportFlowContent() {
                     window.opener.location.href = targetUrl;
                     window.close();
                 } catch (e) {
-                    // Si el opener está bloqueado o cerrado, redirigir aquí mismo
                     router.push(targetUrl);
                 }
             } else {
@@ -103,6 +93,149 @@ function WidgetReportFlowContent() {
             }
         }
     };
+
+    // --- Helpers para Compartir (Basados en BikeTheftShareMenu) ---
+
+    const getShareContent = () => {
+        if (!registeredBike || !registeredBike.theftReport) return { text: '', url: '', ogUrl: '' };
+
+        const report = registeredBike.theftReport;
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
+        const bikeUrl = `${baseUrl}/bikes/${registeredBike.serialNumber}?v=${new Date().getTime().toString().slice(0, 8)}`;
+        
+        const formattedReward = report.reward && report.reward !== '0'
+            ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(report.reward))
+            : null;
+
+        const socialProfile = report.contactProfile || '';
+        const userName = user?.displayName || 'el dueño';
+
+        const shareText = `🚨 Alerta Bicicleta Robada en ${report.location} 🚨\n\nAtención su apoyo para localizar la siguiente bicicleta que se robaron en ${report.location}, ${report.city || ''}, ${report.country || ''}\n\n🚲 Marca: ${registeredBike.make}, Modelo: ${registeredBike.model}, Color: ${registeredBike.color}, Numero de serie: ${registeredBike.serialNumber}\n\n📄 Detalles del robo: ${report.details}\n\n🥷 Detalles del ladrón: ${report.thiefDetails || 'No especificados'}\n\n${formattedReward ? `💰 Se ofrece recompensa de: ${formattedReward}\n\n` : ''}Cualquier información que tengan les agradecería ponerse en contacto con: ${userName} por mensaje directo en el perfil de facebook o instagram ${socialProfile}\n\nLink de la bicicleta: ${bikeUrl}\n\n#Biciregistro #Ciclismo #Deporte #Amigos #MTB #Ruta`;
+
+        const params = new URLSearchParams({
+            brand: registeredBike.make,
+            model: registeredBike.model || '',
+            status: 'stolen',
+            image: registeredBike.photos[0] || '',
+        });
+        if (report.reward) params.append('reward', report.reward.toString());
+        if (report.location) params.append('location', report.location);
+        
+        const ogUrl = `/api/og/bike?${params.toString()}`;
+
+        return { text: shareText, url: bikeUrl, ogUrl };
+    };
+
+    const handleDownloadImage = async () => {
+        const { ogUrl } = getShareContent();
+        if (!ogUrl) return;
+
+        toast({
+            title: "Generando imagen...",
+            description: "Espera un momento por favor.",
+        });
+
+        try {
+            const response = await fetch(ogUrl);
+            if (!response.ok) throw new Error('Error de red al obtener imagen');
+
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = `ALERTA-ROBO-${registeredBike?.serialNumber || 'BICI'}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            toast({
+                title: "¡Imagen descargada!",
+                description: "Revisa tu carpeta de descargas.",
+            });
+        } catch (error) {
+            console.error("Error descargando imagen:", error);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "No pudimos descargar la imagen automáticamente.",
+            });
+        }
+    };
+
+    const handleFacebookShare = () => {
+        const { text, url } = getShareContent();
+        navigator.clipboard.writeText(text);
+        toast({
+            title: "Texto copiado al portapapeles",
+            description: "Pégalo en tu publicación de Facebook.",
+            duration: 5000,
+        });
+        setTimeout(() => {
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+        }, 800);
+    };
+
+    const handleWhatsAppShare = () => {
+        const { text } = getShareContent();
+        navigator.clipboard.writeText(text);
+        toast({
+            title: "Texto copiado al portapapeles",
+            description: "Pégalo en tu chat de WhatsApp.",
+            duration: 5000,
+        });
+        setTimeout(() => {
+            const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
+        }, 800);
+    };
+
+    const handleInstagramShare = async () => {
+        const { text, ogUrl } = getShareContent();
+        navigator.clipboard.writeText(text);
+        
+        toast({
+            title: "Texto copiado. Descargando imagen...",
+            description: "Pega el texto en la descripción de Instagram.",
+            duration: 5000,
+        });
+
+        try {
+            const response = await fetch(ogUrl);
+            if (!response.ok) throw new Error('Error de red al obtener imagen');
+
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = `ALERTA-ROBO-${registeredBike?.serialNumber || 'BICI'}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setTimeout(() => {
+               const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+               const isAndroid = /android/i.test(userAgent);
+               const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+
+               if (isAndroid) {
+                   window.location.href = "intent://instagram.com/#Intent;package=com.instagram.android;scheme=https;end";
+               } else if (isIOS) {
+                   window.location.href = "instagram://app";
+                   setTimeout(() => {
+                      if (document.hasFocus()) window.open("https://www.instagram.com/", '_blank');
+                   }, 2000);
+               } else {
+                   window.open("https://www.instagram.com/", '_blank');
+               }
+            }, 1500);
+
+        } catch (error) {
+            window.open("https://www.instagram.com/", '_blank');
+        }
+    };
+
 
     if (loading) {
         return (
@@ -193,63 +326,76 @@ function WidgetReportFlowContent() {
         );
     }
 
-    // Paso 4: Éxito con Redirección Automática (UX Mejorada)
+    // Paso 4: Éxito con Acciones de Difusión
     if (step === 'success') {
         const isNewUser = user?.metadata?.creationTime && (Math.abs(Date.now() - new Date(user.metadata.creationTime).getTime()) < 300000);
 
         return (
-            <div className="flex flex-col items-center justify-center min-h-[70vh] p-8 text-center space-y-8 animate-in zoom-in-95 duration-700 max-w-md mx-auto">
+            <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 md:p-8 text-center space-y-8 animate-in zoom-in-95 duration-700 max-w-md mx-auto">
                 <div className="relative">
-                    <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center shadow-inner">
-                        <CheckCircle2 className="w-14 h-14 text-green-600" />
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center shadow-inner">
+                        <CheckCircle2 className="w-10 h-10 text-green-600" />
                     </div>
-                    <Sparkles className="absolute -top-1 -right-1 w-8 h-8 text-yellow-500 animate-pulse" />
+                    <Sparkles className="absolute -top-1 -right-1 w-6 h-6 text-yellow-500 animate-pulse" />
                 </div>
 
-                <div className="space-y-3">
-                    <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">¡Alerta Activada!</h1>
-                    <p className="text-gray-600 text-lg leading-relaxed">
-                        Tu reporte ha sido enviado. La comunidad de BiciRegistro ya está atenta.
+                <div className="space-y-2">
+                    <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">¡Alerta Activada!</h1>
+                    <p className="text-gray-600 text-sm md:text-base leading-relaxed max-w-xs mx-auto">
+                        Tu reporte ha sido guardado. Los primeros minutos son cruciales, <strong className="text-gray-900">comparte la alerta en tus redes sociales ahora.</strong>
                     </p>
                 </div>
 
-                <div className="w-full bg-blue-50/80 border border-blue-100 rounded-2xl p-6 space-y-4 shadow-sm backdrop-blur-sm">
-                    <div className="flex items-center justify-center gap-3 text-blue-800 font-bold">
-                        <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                        <span>{isNewUser ? 'Redirigiendo a tu perfil...' : 'Redirigiendo al garaje...'}</span>
-                    </div>
-                    <p className="text-sm text-blue-700/80 leading-relaxed font-medium">
-                        {isNewUser 
-                            ? "Por favor, completa tu información de contacto. Es vital para que podamos avisarte si alguien localiza tu bicicleta."
-                            : "Estamos preparando tu acceso seguro. Por favor, no cierres esta ventana."
-                        }
-                    </p>
-                    {/* Barra de progreso con estilo inline para asegurar animación sin depender de CSS externo */}
-                    <div className="w-full bg-blue-200/50 h-2 rounded-full overflow-hidden">
-                        <div 
-                            className="bg-blue-600 h-full transition-all ease-linear"
-                            style={{
-                                width: '100%',
-                                animation: 'progress-loading 5s linear'
-                            }}
-                        />
-                    </div>
-                    <style jsx>{`
-                        @keyframes progress-loading {
-                            0% { width: 0%; }
-                            100% { width: 100%; }
-                        }
-                    `}</style>
-                </div>
-
-                <div className="flex flex-col gap-3 w-full">
+                <div className="w-full space-y-3">
                     <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className="text-gray-400 hover:text-primary text-xs flex items-center justify-center gap-2 group"
+                        onClick={handleDownloadImage}
+                        className="w-full h-14 text-base font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-lg shadow-slate-900/20"
+                    >
+                        <Download className="w-5 h-5 mr-2" />
+                        Descargar Imagen de Alerta
+                    </Button>
+
+                    <div className="grid grid-cols-1 gap-3">
+                        <Button 
+                            onClick={handleWhatsAppShare}
+                            className="w-full h-12 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold shadow-md"
+                        >
+                            <MessageCircle className="w-5 h-5 mr-2" />
+                            Compartir en WhatsApp
+                        </Button>
+                        
+                        <Button 
+                            onClick={handleFacebookShare}
+                            className="w-full h-12 bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold shadow-md"
+                        >
+                            <Facebook className="w-5 h-5 mr-2" />
+                            Compartir en Facebook
+                        </Button>
+
+                        <Button 
+                            onClick={handleInstagramShare}
+                            className="w-full h-12 bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#F56040] hover:opacity-90 text-white font-bold shadow-md border-0"
+                        >
+                            <Instagram className="w-5 h-5 mr-2" />
+                            Compartir en Instagram
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="pt-4 border-t border-gray-100 w-full">
+                    <p className="text-xs text-gray-500 mb-4 px-4">
+                        {isNewUser 
+                            ? "Es vital que completes tu información de contacto para que podamos avisarte si alguien la localiza."
+                            : "¿Ya terminaste de compartir?"
+                        }
+                    </p>
+                    <Button 
+                        variant="outline" 
+                        size="lg"
+                        className="w-full h-12 text-gray-600 hover:text-gray-900 border-gray-300 font-bold bg-white"
                         onClick={handleSuccessRedirect}
                     >
-                        Si no eres redirigido, haz clic aquí <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                        {isNewUser ? "Completar mi perfil" : "Ir a mi Garaje"} <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                 </div>
             </div>
