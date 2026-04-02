@@ -5,6 +5,7 @@ import { InstallPrompt } from "@/components/shared/install-prompt";
 import { GoogleAnalytics } from "@/components/shared/google-analytics";
 import { ReferralTracker } from '@/components/shared/referral-tracker';
 import './globals.css';
+import Script from 'next/script';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx'),
@@ -20,6 +21,22 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
+        {/* Google Tag Manager */}
+        <Script
+          id="gtm-script"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+              new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+              j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+              'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+              })(window,document,'script','dataLayer','GTM-5KS2D6ZV');
+            `,
+          }}
+        />
+        {/* End Google Tag Manager */}
+
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -32,6 +49,17 @@ export default function RootLayout({
         {/* Next.js inyectará automáticamente el link al manifest generado por src/app/manifest.ts */}
       </head>
       <body className="antialiased min-h-screen flex flex-col">
+        {/* Google Tag Manager (noscript) */}
+        <noscript>
+          <iframe
+            src="https://www.googletagmanager.com/ns.html?id=GTM-5KS2D6ZV"
+            height="0"
+            width="0"
+            style={{ display: 'none', visibility: 'hidden' }}
+          />
+        </noscript>
+        {/* End Google Tag Manager (noscript) */}
+        
         <ReferralTracker />
         {children}
         <InstallPrompt />
