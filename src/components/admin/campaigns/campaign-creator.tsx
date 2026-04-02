@@ -236,6 +236,7 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                                     <SelectItem value="dashboard_main">Dashboard Principal (Arriba)</SelectItem>
                                     <SelectItem value="dashboard_sidebar">Barra Lateral</SelectItem>
                                     <SelectItem value="event_list">Lista de Recompensas / Eventos</SelectItem>
+                                    <SelectItem value="welcome_banner">Banner de Bienvenida (Nuevos Usuarios)</SelectItem>
                                 </SelectContent>
                             </Select>
                             {(formData.type === 'reward' || formData.type === 'giveaway') && (

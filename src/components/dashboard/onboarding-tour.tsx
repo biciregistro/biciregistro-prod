@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import { User, Bike } from '@/lib/types';
 import { completeOnboardingAction } from '@/lib/actions/onboarding-actions';
 import { useGamificationToast } from '@/hooks/use-gamification-toast'; // GAMIFICACIÓN
+import { WelcomeCampaignModal } from './welcome-campaign-modal'; // NUEVO COMPONENTE
 
 interface OnboardingTourProps {
     user: User;
@@ -16,6 +17,8 @@ interface OnboardingTourProps {
 export function OnboardingTour({ user, tourType = 'dashboard', bike }: OnboardingTourProps) {
     const tourDriver = useRef<ReturnType<typeof driver> | null>(null);
     const tourStarted = useRef(false);
+    const [showWelcomeCampaign, setShowWelcomeCampaign] = useState(false);
+    const [welcomeCampaignResolved, setWelcomeCampaignResolved] = useState(false);
     const { showRewardToast } = useGamificationToast(); // Hook
 
     // Extract primitive values for dependencies
@@ -26,8 +29,26 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
     const userName = user.name;
     const bikeName = bike ? `${bike.make} ${bike.model}` : '';
 
+    // Paso 1: Decidir si mostramos la campaña de bienvenida
     useEffect(() => {
         if (!isTargetAudience) return;
+
+        const alreadySeen = tourType === 'dashboard' ? hasSeenDashboard : hasSeenBike;
+        if (alreadySeen) return;
+
+        // Solo mostramos la campaña si es el dashboard y es la primera vez
+        if (tourType === 'dashboard' && !hasSeenDashboard && !welcomeCampaignResolved) {
+            setShowWelcomeCampaign(true);
+        } else {
+            // Si es un componente interno o ya se resolvió, pasamos al tour
+            setWelcomeCampaignResolved(true);
+        }
+    }, [hasSeenDashboard, hasSeenBike, isTargetAudience, tourType, welcomeCampaignResolved]);
+
+    // Paso 2: Iniciar el Tour una vez que la campaña de bienvenida se resuelve (o si no aplica)
+    useEffect(() => {
+        if (!isTargetAudience) return;
+        if (!welcomeCampaignResolved) return; // Esperar al modal de campaña
 
         const alreadySeen = tourType === 'dashboard' ? hasSeenDashboard : hasSeenBike;
         if (alreadySeen) return;
@@ -128,10 +149,6 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
                     popover: { title: 'Protocolo de Robo 🚨', description: 'Activa la alerta a la comunidad y genera una ficha de búsqueda instantánea. La velocidad de reporte es vital para la recuperación.', side: 'top', align: 'start' }
                 },
                 {
-                    element: '#tour-bike-report',
-                    popover: { title: 'Protocolo de Robo 🚨', description: 'Activa la alerta a la comunidad y genera una ficha de búsqueda instantánea. La velocidad de reporte es vital para la recuperación.', side: 'top', align: 'start' }
-                },
-                {
                     element: '#tour-bike-transfer',
                     popover: { title: 'Transferencia de Dominio 🔄', description: '¿Vendes tu bici? Realiza un traspaso digital seguro. Garantiza al comprador que adquiere un bien lícito y mantiene el historial del activo.', side: 'top', align: 'start' }
                 }
@@ -162,6 +179,7 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
 
         tourDriver.current = driverObj;
 
+        // Start tour slightly delayed to ensure DOM is ready and modal is gone
         const timer = setTimeout(() => {
             driverObj.drive();
         }, 1500);
@@ -173,17 +191,29 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
                 tourDriver.current.destroy();
             }
         };
-    }, [hasSeenDashboard, hasSeenBike, isTargetAudience, userName, bikeName, tourType, showRewardToast]);
+    }, [hasSeenDashboard, hasSeenBike, isTargetAudience, userName, bikeName, tourType, showRewardToast, welcomeCampaignResolved]);
 
     return (
-        <style jsx global>{`
-            .bikon-tour-popover .driver-popover-footer { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 12px !important; margin-top: 15px !important; }
-            .bikon-tour-popover .driver-popover-progress-text { width: 100% !important; text-align: right !important; font-size: 12px !important; color: #64748b !important; order: 1 !important; }
-            .bikon-tour-popover .driver-popover-navigation-btns { display: flex !important; justify-content: flex-end !important; width: 100% !important; gap: 8px !important; order: 2 !important; }
-            .bikon-tour-popover .driver-popover-btn { border-radius: 6px !important; padding: 8px 16px !important; font-size: 14px !important; cursor: pointer !important; transition: all 0.2s !important; }
-            .bikon-tour-popover .driver-popover-next-btn, .bikon-tour-popover .driver-popover-done-btn { background-color: #0f172a !important; color: white !important; border: none !important; text-shadow: none !important; }
-            .bikon-tour-popover .driver-popover-title { font-size: 18px !important; font-weight: 700 !important; margin-bottom: 8px !important; }
-            .bikon-tour-popover .driver-popover-description { font-size: 14px !important; line-height: 1.5 !important; color: #334155 !important; }
-        `}</style>
+        <>
+            <style jsx global>{`
+                .bikon-tour-popover .driver-popover-footer { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 12px !important; margin-top: 15px !important; }
+                .bikon-tour-popover .driver-popover-progress-text { width: 100% !important; text-align: right !important; font-size: 12px !important; color: #64748b !important; order: 1 !important; }
+                .bikon-tour-popover .driver-popover-navigation-btns { display: flex !important; justify-content: flex-end !important; width: 100% !important; gap: 8px !important; order: 2 !important; }
+                .bikon-tour-popover .driver-popover-btn { border-radius: 6px !important; padding: 8px 16px !important; font-size: 14px !important; cursor: pointer !important; transition: all 0.2s !important; }
+                .bikon-tour-popover .driver-popover-next-btn, .bikon-tour-popover .driver-popover-done-btn { background-color: #0f172a !important; color: white !important; border: none !important; text-shadow: none !important; }
+                .bikon-tour-popover .driver-popover-title { font-size: 18px !important; font-weight: 700 !important; margin-bottom: 8px !important; }
+                .bikon-tour-popover .driver-popover-description { font-size: 14px !important; line-height: 1.5 !important; color: #334155 !important; }
+            `}</style>
+            
+            {/* Si es elegible para la campaña de bienvenida, renderizar el modal */}
+            {showWelcomeCampaign && (
+                <WelcomeCampaignModal 
+                    onCloseOrComplete={() => {
+                        setShowWelcomeCampaign(false);
+                        setWelcomeCampaignResolved(true);
+                    }} 
+                />
+            )}
+        </>
     );
 }

@@ -511,7 +511,7 @@ export type LandingEventsContent = {
 
 export type CampaignType = 'download' | 'link' | 'coupon' | 'reward' | 'giveaway';
 export type CampaignStatus = 'draft' | 'active' | 'paused' | 'ended';
-export type CampaignPlacement = 'dashboard_main' | 'dashboard_sidebar' | 'event_list';
+export type CampaignPlacement = 'dashboard_main' | 'dashboard_sidebar' | 'event_list' | 'welcome_banner';
 
 export type Campaign = {
     id: string;

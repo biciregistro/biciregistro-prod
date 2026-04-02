@@ -15,7 +15,7 @@ import { awardPoints } from '@/lib/actions/gamification-actions'; // Importar ga
 /**
  * Fetches active campaigns for a given placement.
  */
-export async function getActiveCampaigns(placement: 'dashboard_main' | 'dashboard_sidebar' | 'event_list' = 'dashboard_main'): Promise<(Campaign & { advertiserName?: string })[]> {
+export async function getActiveCampaigns(placement: 'dashboard_main' | 'dashboard_sidebar' | 'event_list' | 'welcome_banner' = 'dashboard_main'): Promise<(Campaign & { advertiserName?: string })[]> {
   try {
     const now = new Date();
     
@@ -23,7 +23,7 @@ export async function getActiveCampaigns(placement: 'dashboard_main' | 'dashboar
       .where('status', '==', 'active')
       .where('placement', '==', placement);
 
-    if (placement === 'dashboard_main' || placement === 'dashboard_sidebar') {
+    if (placement === 'dashboard_main' || placement === 'dashboard_sidebar' || placement === 'welcome_banner') {
         query = query.where('type', 'in', ['download', 'link']);
     }
 
@@ -89,7 +89,7 @@ export async function recordCampaignConversion(
         .get();
 
     if (!existingConversion.empty) {
-        return { success: true, message: 'Ya has descargado este contenido previamente.' };
+        return { success: true, message: 'Ya has interactuado con esta campaña previamente.' };
     }
 
     const conversionData: Omit<CampaignConversion, 'id'> = {
