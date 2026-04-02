@@ -12,11 +12,15 @@ import { awardPoints } from '@/lib/actions/gamification-actions';
 import { z } from 'zod';
 
 const ValuationOutputSchema = z.object({
-    searchQueryUsed: z.string().describe("La consulta de búsqueda exacta que usarías en Google para encontrar el precio (ej. 'Precio bicicleta usada Giant Talon 3 2022 México')."),
-    msrpEstimation: z.number().int().describe("Estimación del precio de lista original (nueva) en MXN, basándote en la marca, el modelo exacto y su gama."),
-    reasoning: z.string().describe("Breve razonamiento: Describe cómo interpretaste el sub-modelo o los apellidos de la bicicleta (ej. Alloy, Carbon, 3, S-Works), y justifica la depreciación aplicada para llegar al valor de reventa en México."),
-    minPrice: z.number().int().describe("Valor mínimo de reventa estimado en MXN (estado de conservación: Bueno, componentes originales con desgaste normal)."),
-    maxPrice: z.number().int().describe("Valor máximo de reventa estimado en MXN (estado de conservación: Casi Nuevo o Excelente, sin detalles).")
+    actualManufacturer: z.string().describe("PASO 1: IGNORA LA MARCA DEL USUARIO. Usa tu conocimiento ciclista: ¿Qué empresa (fabricante real en la vida real) creó el modelo ingresado? (Ej. Si el modelo es 'Fuel EX', el fabricante real es SÓLO 'Trek')."),
+    isBrandMatch: z.boolean().describe("PASO 2: ¿La marca seleccionada por el usuario es la misma que 'actualManufacturer'? (True/False)"),
+    status: z.enum(['valid', 'mismatch', 'fake']).describe("PASO 3: Si isBrandMatch es FALSE, OBLIGATORIAMENTE debes elegir 'mismatch'. Si el modelo es un objeto que no es bici, elige 'fake'. Solo si isBrandMatch es TRUE, elige 'valid'."),
+    message: z.string().describe("PASO 4: Mensaje para el usuario. Si es 'mismatch', usa 'actualManufacturer' para corregirlo: 'Oye, ese modelo es de [actualManufacturer], no de [Marca Usuario].'. Si es 'valid', pon 'Ok'."),
+    searchQueryUsed: z.string().describe("Consulta de búsqueda sugerida. Si no es válida, pon 'N/A'."),
+    msrpEstimation: z.number().int().describe("Estimación del precio de lista original (nueva) en MXN. Cero si no es válida."),
+    reasoning: z.string().describe("Breve razonamiento. Si es válida, explica la depreciación. Si es inválida, explica el error."),
+    minPrice: z.number().int().describe("Valor mínimo de reventa estimado en MXN. Cero si no es válida."),
+    maxPrice: z.number().int().describe("Valor máximo de reventa estimado en MXN. Cero si no es válida.")
 });
 
 export async function valuateBikeAction(brand: string, model: string, year: string) {
@@ -25,53 +29,68 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
         const bikeYear = parseInt(year, 10) || currentYear;
         const ageInYears = Math.max(0, currentYear - bikeYear);
 
-        // Prompt de nivel "Tasador Experto" enfocado en especificidad de sub-modelos
         const prompt = `
-        Eres un Tasador Experto de Bicicletas de Segunda Mano en el mercado de México. 
-        Tu objetivo es calcular el rango de valor comercial justo (reventa) de esta bicicleta específica:
+        Eres un AUDITOR DE DATOS ESTRICTO y Tasador de Bicicletas para la plataforma "BiciRegistro" en México. 
+        Tu primer y más importante deber es verificar que los datos ingresados por el usuario no sean un error, un engaño, o una combinación falsa. ASUME SIEMPRE que el usuario se ha equivocado de marca y DEBES refutarlo si es así.
         
-        - Marca: ${brand}
-        - Modelo Exacto: ${model}
+        Datos ingresados por el usuario:
+        - Marca seleccionada: ${brand}
+        - Modelo ingresado: ${model}
         - Año Modelo: ${year} (Antigüedad: ${ageInYears} años)
 
-        INSTRUCCIONES CRÍTICAS DE PRECISIÓN (LEE CON ATENCIÓN):
-        1. ANALIZA EL SUB-MODELO: Las bicicletas tienen "apellidos" que cambian drásticamente el precio. Una "Specialized Stumpjumper Alloy" no cuesta lo mismo que una "S-Works", y una "Giant Talon 3" es mucho más económica que una "Talon 1". 
-           - Presta extrema atención a las palabras en el campo "Modelo Exacto" (números de versión, materiales como Carbon/Advanced, o grupos como AXS/Deore).
-        2. CONTEXTO DE MERCADO: Piensa en el precio de esta bicicleta específica buscando en plataformas como MercadoLibre México o grupos de Facebook de ciclismo.
-        3. CÁLCULO DE DEPRECIACIÓN:
-           - Estima primero el Precio Original de Lista (MSRP) cuando era nueva, convertido a Pesos Mexicanos (MXN).
-           - Aplica la depreciación del mercado: Usualmente -25% el primer año, y -10% por cada año adicional. Ajusta esto si sabes que el modelo es muy buscado (retiene valor) o poco deseado (deprecia más rápido).
-           - El piso máximo de depreciación es del 75%.
-        4. RANGO FINAL: Calcula un rango de reventa realista en MXN. El 'minPrice' es para un estado usado pero funcional, y el 'maxPrice' es para un estado impecable (semonuevo).
-        
-        REGLAS:
-        - Todo debe estar en MXN (Pesos Mexicanos). 
-        - No uses decimales, redondea a miles o cientos cerrados (ej. 15500, no 15482).
+        TABLA DE VERDADES ABSOLUTAS (PROHIBIDO CONTRADECIR):
+        - Los modelos "Talon" (ej. Talon 1, Talon 2, Talon 3, Talon 4) son fabricados EXCLUSIVAMENTE por "Giant". NUNCA por Trek, Specialized o Merida.
+        - Los modelos "Marlin" (ej. Marlin 4, Marlin 5, Marlin 6, Marlin 7, Marlin 8) son fabricados EXCLUSIVAMENTE por "Trek". NUNCA por Giant o Specialized.
+        - Los modelos "Rockhopper", "Stumpjumper", "Epic", "Chisel" son fabricados EXCLUSIVAMENTE por "Specialized".
+        - Los modelos "XTC", "Trance", "Anthem", "Fathom" son fabricados EXCLUSIVAMENTE por "Giant".
+        - Los modelos "Fuel EX", "Supercaliber", "Procaliber", "Roscoe", "Slash" son fabricados EXCLUSIVAMENTE por "Trek".
+
+        PROCESO OBLIGATORIO:
+        1. Aísla el Modelo: "${model}".
+        2. Revisa la TABLA DE VERDADES ABSOLUTAS y tu propio conocimiento interno. ¿Quién fabrica realmente la "${model}" en la vida real? Llénalo en 'actualManufacturer'.
+        3. Compara: ¿La marca real es igual a la marca del usuario ("${brand}")? Llénalo en 'isBrandMatch'. (Si el usuario puso Trek y el modelo es Talon 3, la marca real es Giant, por ende isBrandMatch DEBE SER FALSE).
+        4. Si no coinciden, aborta la valuación. Tu 'status' debe ser 'mismatch'.
+
+        VALUACIÓN (SÓLO SI ES 'valid'):
+        - Estima el MSRP original en MXN.
+        - Aplica depreciación (-25% año 1, -10% subsecuentes, tope 75%).
+        - Calcula rango en MXN (minPrice y maxPrice) sin decimales.
         `;
 
         const response = await ai.generate({
             prompt: prompt,
             output: { schema: ValuationOutputSchema },
             config: {
-                temperature: 0.15, // Ligeramente mayor a 0 para permitirle "pensar" en las variaciones del modelo, pero manteniéndose matemático.
-                topK: 10,
+                temperature: 0.0, // Temperatura 0 para asegurar determinismo.
+                topK: 1,
             }
         });
 
         const valuationData = response.output;
 
-        if (!valuationData || typeof valuationData.minPrice !== 'number' || typeof valuationData.maxPrice !== 'number') {
+        if (!valuationData || !valuationData.status) {
             throw new Error("El modelo no devolvió el formato esperado.");
         }
 
-        // Sanitización final para evitar rangos ilógicos o invertidos
-        let finalMin = Math.max(1000, valuationData.minPrice);
-        let finalMax = Math.max(finalMin + 500, valuationData.maxPrice);
+        // Interceptamos los rechazos
+        if (valuationData.status === 'fake' || valuationData.status === 'mismatch' || !valuationData.isBrandMatch) {
+            console.log(`[AI VALUATION REJECTED] Marca Usuario: ${brand}, Modelo: ${model}`);
+            console.log(`[AI VALUATION REJECTED] Fabricante Real Detectado: ${valuationData.actualManufacturer}`);
+            console.log(`[AI VALUATION REJECTED] Motivo: ${valuationData.status}, Mensaje: ${valuationData.message}`);
+            return {
+                success: false,
+                isInvalidInput: true,
+                message: valuationData.message || `Ese modelo parece pertenecer a ${valuationData.actualManufacturer}, no a ${brand}. Por favor verifícalo.`
+            };
+        }
 
-        // Logs para auditoría de precisión en la terminal (ayuda a depurar si las cotizaciones están fallando)
-        console.log(`[AI VALUATION] Consulta: ${brand} ${model} ${year}`);
-        console.log(`[AI VALUATION] Búsqueda Interna Sugerida: ${valuationData.searchQueryUsed}`);
-        console.log(`[AI VALUATION] MSRP Estimado Nuevo: $${valuationData.msrpEstimation} MXN`);
+        // Sanitización final para casos válidos
+        let finalMin = Math.max(1000, valuationData.minPrice || 1000);
+        let finalMax = Math.max(finalMin + 500, valuationData.maxPrice || 1500);
+
+        console.log(`[AI VALUATION SUCCESS] ${brand} ${model} ${year}`);
+        console.log(`[AI VALUATION] Fabricante Confirmado:`, valuationData.actualManufacturer);
+        console.log(`[AI VALUATION] MSRP Estimado: $${valuationData.msrpEstimation} MXN`);
         console.log(`[AI VALUATION] Razonamiento:`, valuationData.reasoning);
         console.log(`[AI VALUATION] Rango Final: $${finalMin} - $${finalMax} MXN`);
 
@@ -83,8 +102,7 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
 
     } catch (error: any) {
         console.error("Valuation Error:", error);
-        // Fallback robusto en caso de que la API falle
-        return { success: false, error: "No pudimos calcular el valor en este momento. Intenta más tarde." };
+        return { success: false, isInvalidInput: false, message: "No pudimos conectar con Sprock IA en este momento. Revisa tu conexión a internet o intenta más tarde." };
     }
 }
 
