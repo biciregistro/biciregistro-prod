@@ -10,6 +10,7 @@ import { Loader2, Zap, ShieldCheck, Bike as BikeIcon, Search, Calendar, Tag, Spa
 import { bikeBrands } from '@/lib/bike-brands';
 import { valuateBikeAction } from '@/lib/actions/ai-valuation-actions';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: currentYear - 1980 + 1 }, (_, i) => currentYear - i);
@@ -20,6 +21,7 @@ interface ValuationWidgetProps {
 
 export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProps) {
     const router = useRouter();
+    const { toast } = useToast();
     const [step, setStep] = useState<'form' | 'loading' | 'result'>('form');
     const [brand, setBrand] = useState('');
     const [model, setModel] = useState('');
@@ -37,7 +39,7 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
         if (step === 'loading') {
             const sequence = [
                 { text: 'Iniciando conexión con Sprock IA...', progress: 15, icon: <Zap className="w-5 h-5 text-yellow-500" /> },
-                { text: 'Analizando referencias de la marca...', progress: 35, icon: <Tag className="w-5 h-5 text-primary" /> },
+                { text: 'Analizando congruencia de marca y modelo...', progress: 35, icon: <ShieldCheck className="w-5 h-5 text-primary" /> },
                 { text: 'Comparando precios de reventa en México...', progress: 60, icon: <TrendingUp className="w-5 h-5 text-primary" /> },
                 { text: 'Ajustando depreciación por el año...', progress: 85, icon: <Calendar className="w-5 h-5 text-orange-500" /> },
                 { text: '¡Valuación patrimonial lista!', progress: 100, icon: <Sparkles className="w-5 h-5 text-purple-500" /> }
@@ -48,7 +50,7 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
                 if (index < sequence.length) {
                     setLoadingState(sequence[index]);
                 }
-            }, 1000); // Reducido el tiempo de cada paso a 1 segundo para acelerar el proceso
+            }, 1000); 
         }
         return () => clearInterval(interval);
     }, [step]);
@@ -63,17 +65,31 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
         const resultPromise = valuateBikeAction(brand, model, year);
         
         // Esperamos a que termine la API, pero garantizamos un tiempo mínimo de espera para la animación
-        const minimumAnimationTime = new Promise(resolve => setTimeout(resolve, 4500)); // Espera mínima para que terminen de pasar los textos
+        const minimumAnimationTime = new Promise(resolve => setTimeout(resolve, 4500));
 
         const [result] = await Promise.all([resultPromise, minimumAnimationTime]);
 
         if (result.success && result.minPrice && result.maxPrice) {
             setPriceRange({ min: result.minPrice, max: result.maxPrice });
+            setStep('result');
+        } else if (result.isInvalidInput) {
+            // El usuario ingresó una bici falsa o modelo equivocado (Ej. Trek PlayStation)
+            toast({
+                variant: "destructive",
+                title: "⚠️ Intervención de Sprock IA",
+                description: result.message || "El modelo no parece corresponder a la marca. Por favor verifica.",
+                duration: 7000, // Darle tiempo al usuario para leer el sarcasmo o la corrección
+            });
+            setStep('form'); // Regresar inmediatamente al formulario
         } else {
-            setPriceRange({ min: 8500, max: 12500 });
+             // Falla de red genérica o timeout del LLM
+             toast({
+                variant: "destructive",
+                title: "Error de conexión",
+                description: result.message || "Tuvimos un problema procesando la valuación. Intenta de nuevo.",
+            });
+            setStep('form'); // Regresar al formulario sin mostrar datos "hardcodeados" falsos
         }
-        
-        setStep('result');
     };
 
     const handleBlindar = () => {
@@ -85,10 +101,8 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
         const expressRegisterPath = `/dashboard/express-register?brand=${encodedBrand}&model=${encodedModel}&year=${year}&value=${averageValue}`;
         
         if (isAuthenticated) {
-            // Usuario logueado: ir directo al registro express
             router.push(expressRegisterPath);
         } else {
-            // Usuario no logueado: ir a signup y luego redirigir
             const signupUrl = `/signup?callbackUrl=${encodeURIComponent(expressRegisterPath)}`;
             router.push(signupUrl);
         }
@@ -97,7 +111,6 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
     if (step === 'loading') {
         return (
             <div className="bg-background/95 backdrop-blur-md p-10 rounded-2xl max-w-xl mx-auto border shadow-2xl flex flex-col items-center justify-center min-h-[350px] animate-in fade-in zoom-in duration-500 overflow-hidden relative">
-                {/* Efecto de Escaneo Láser */}
                 <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
                     <div className="w-full h-1 bg-primary shadow-[0_0_15px_rgba(var(--primary),1)] absolute animate-scan-y top-0"></div>
                 </div>
@@ -151,7 +164,6 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
                     </div>
                 </div>
 
-                {/* Bóveda de Seguridad */}
                 <div className="bg-slate-900 p-8 text-white text-left relative overflow-hidden">
                     <div className="absolute right-0 top-0 opacity-10 translate-x-1/4 -translate-y-1/4">
                          <ShieldCheck className="w-48 h-48" />
