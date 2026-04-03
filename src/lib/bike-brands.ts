@@ -50,6 +50,7 @@ export const bikeBrands = [
     "Rock Rider",
     "Rocky Mountain",
     "Rouge",
+    "Salsa",
     "Santa Cruz",
     "Scott",
     "SLP",
