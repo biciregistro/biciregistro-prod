@@ -73,22 +73,20 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
             setPriceRange({ min: result.minPrice, max: result.maxPrice });
             setStep('result');
         } else if (result.isInvalidInput) {
-            // El usuario ingresó una bici falsa o modelo equivocado (Ej. Trek PlayStation)
             toast({
                 variant: "destructive",
                 title: "⚠️ Intervención de Sprock IA",
                 description: result.message || "El modelo no parece corresponder a la marca. Por favor verifica.",
-                duration: 7000, // Darle tiempo al usuario para leer el sarcasmo o la corrección
+                duration: 7000,
             });
-            setStep('form'); // Regresar inmediatamente al formulario
+            setStep('form');
         } else {
-             // Falla de red genérica o timeout del LLM
              toast({
                 variant: "destructive",
                 title: "Error de conexión",
                 description: result.message || "Tuvimos un problema procesando la valuación. Intenta de nuevo.",
             });
-            setStep('form'); // Regresar al formulario sin mostrar datos "hardcodeados" falsos
+            setStep('form');
         }
     };
 
@@ -188,7 +186,7 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
                             size="lg" 
                             className="w-full text-lg h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-[0_0_20px_rgba(var(--primary),0.3)] transition-all hover:scale-[1.02]"
                         >
-                            <ShieldCheck className="w-6 h-6 mr-2" /> Blindar mi Patrimonio
+                            <ShieldCheck className="w-6 h-6 mr-2" /> Registrar mi bici
                         </Button>
                         
                         <p className="text-[10px] text-slate-500 mt-4 text-center uppercase tracking-widest font-medium">
