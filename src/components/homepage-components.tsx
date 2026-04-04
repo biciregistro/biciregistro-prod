@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, Bike, QrCode, AlertTriangle, Search, Info, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Bike, QrCode, AlertTriangle, Search, Info, ShieldAlert, CheckCircle2, UserPlus } from 'lucide-react';
 import type { HomepageSection } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -101,10 +101,29 @@ export function HeroSection({ section, isAuthenticated = false }: { section?: Ex
   );
 }
 
-// --- Bike Search Section (New) ---
-export function BikeSearchSection({ section }: { section?: Extract<HomepageSection, { id: 'hero' }> }) {
-    const buttonText = section?.buttonText || "Únete a la red gratis";
+// --- Global Signup Banner (New) ---
+export function GlobalSignupBanner({ buttonText, isAuthenticated }: { buttonText: string, isAuthenticated: boolean }) {
+    if (isAuthenticated) return null;
 
+    return (
+        <div className="w-full bg-slate-50 py-12 border-b border-border/50">
+            <div className="container px-4 flex flex-col items-center text-center">
+                <h2 className="text-2xl md:text-3xl font-extrabold text-foreground tracking-tight mb-6">
+                    Únete a la red de protección ciclista más grande de México
+                </h2>
+                <Button asChild size="lg" className="h-16 px-12 text-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl shadow-xl shadow-primary/20 transition-all hover:scale-105 active:scale-95 group">
+                    <Link href="/signup" className="flex items-center gap-3">
+                        <UserPlus className="w-6 h-6 transition-transform group-hover:rotate-12" />
+                        {buttonText}
+                    </Link>
+                </Button>
+            </div>
+        </div>
+    );
+}
+
+// --- Bike Search Section (New) ---
+export function BikeSearchSection() {
     return (
         <section className="py-16 md:py-24 bg-slate-50 border-y border-border/50 relative overflow-hidden">
             {/* Elementos decorativos de fondo sutiles */}
@@ -148,12 +167,8 @@ export function BikeSearchSection({ section }: { section?: Extract<HomepageSecti
 
                 <div className="flex flex-col items-center gap-10">
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-lg">
-                        <Button asChild size="lg" className="w-full sm:w-1/2 h-14 font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95">
-                            <Link href="/signup">{buttonText}</Link>
-                        </Button>
-                        
-                        <Button asChild size="lg" className="w-full sm:w-1/2 h-14 font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-lg shadow-red-200 transition-all hover:scale-105 active:scale-95 gap-2">
-                            <Link href="/reportar-robo">
+                        <Button asChild size="lg" className="w-full sm:w-auto h-14 font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-lg shadow-red-200 transition-all hover:scale-105 active:scale-95 gap-2">
+                            <Link href="/reportar-robo" className="flex items-center gap-2">
                                 <ShieldAlert className="w-4 h-4" />
                                 Reportar un robo
                             </Link>
