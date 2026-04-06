@@ -60,12 +60,15 @@ export const bikeBrands = [
     "Scott",
     "SLP",
     "Specialized",
+    "Speedone",
     "SUEH",
+    "Sunspeed",
     "Transition",
     "Trek",
     "Turbo",
     "Windsor",
     "Yeti Cycles",
+    "YT",
     "Zigna",
     "Otra"
 ];
