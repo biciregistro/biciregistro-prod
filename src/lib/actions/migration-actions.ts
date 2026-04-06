@@ -6,7 +6,7 @@ import { adminDb } from '@/lib/firebase/server';
 export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = true) {
     const session = await getDecodedSession();
     if (!session?.uid || session.role !== 'admin') {
-        throw new Error('Unauthorized');
+        return { success: false, message: 'No autorizado.' };
     }
 
     try {
@@ -16,7 +16,7 @@ export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = t
 
         const bikesSnapshot = await bikesRef.get();
         if (bikesSnapshot.empty) {
-            return { success: true, message: 'No bikes found to migrate.' };
+            return { success: true, message: 'No hay bicicletas para migrar.' };
         }
 
         const userCache = new Map<string, any>();
@@ -31,10 +31,7 @@ export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = t
             const userId = bikeData.userId;
             processedBikes++;
 
-            if (!userId) {
-                console.log(`[Migration] Bike ${bikeDoc.id} has no userId. Skipping.`);
-                continue;
-            }
+            if (!userId) continue;
 
             let userData = userCache.get(userId);
             if (!userData) {
@@ -43,12 +40,10 @@ export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = t
                     userData = userDoc.data();
                     userCache.set(userId, userData);
                 } else {
-                    console.log(`[Migration] User ${userId} not found for bike ${bikeDoc.id}. Skipping.`);
                     continue;
                 }
             }
 
-            // 1. UPDATE BIKE DOCUMENT WITH DENORMALIZED USER DATA
             let needsBikeUpdate = false;
             const updatePayload: any = {};
 
@@ -66,7 +61,6 @@ export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = t
                 modifiedBikes++;
             }
 
-            // 2. UPDATE USER DOCUMENT (GARAGE DATA)
             const ownedBrands = new Set(userData.ownedBrands || []);
             const ownedModalities = new Set(userData.ownedModalities || []);
             let hasStolenBikes = userData.hasStolenBikes || false;
@@ -89,7 +83,7 @@ export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = t
                 userData.ownedBrands = Array.from(ownedBrands);
                 userData.ownedModalities = Array.from(ownedModalities);
                 userData.hasStolenBikes = hasStolenBikes;
-                userCache.set(userId, userData); // Keep cache fresh
+                userCache.set(userId, userData); 
                 
                 if (!isDryRun) {
                     batch.update(usersRef.doc(userId), {
@@ -102,50 +96,54 @@ export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = t
                 userGaragesUpdated++;
             }
 
-            // Commit batch if limit reached (Firestore limits batches to 500 operations)
             if (batchCount >= 450 && !isDryRun) {
-                console.log(`[Migration] Committing batch of ${batchCount} operations...`);
                 await batch.commit();
                 batch = db.batch();
                 batchCount = 0;
             }
         }
 
-        // Commit final batch
         if (batchCount > 0 && !isDryRun) {
-            console.log(`[Migration] Committing final batch of ${batchCount} operations...`);
             await batch.commit();
         }
 
-        const modeMsg = isDryRun ? '[DRY RUN] Would process' : 'Processed';
+        const modeMsg = isDryRun ? '[PRUEBA] Se procesarían' : 'Procesadas';
         return { 
             success: true, 
-            message: `${modeMsg} ${processedBikes} bikes. Modified ${modifiedBikes} bikes and updated ${userGaragesUpdated} user garages.` 
+            message: `${modeMsg} ${processedBikes} bicis. Modificadas ${modifiedBikes} bicis y actualizados ${userGaragesUpdated} garajes.` 
         };
 
     } catch (error: any) {
         console.error("Migration Error:", error);
-        throw new Error(error.message || 'Migration failed');
+        return { success: false, message: 'Error en la migración: ' + error.message };
     }
 }
 
-// NUEVA FUNCIÓN: Extracción de Catálogo de Bicicletas Únicas
+/**
+ * Exporta el catálogo único de bicicletas.
+ * Devuelve un objeto con success y el contenido CSV o un error.
+ */
 export async function exportUniqueBikesCatalogAction() {
     const session = await getDecodedSession();
     if (!session?.uid || session.role !== 'admin') {
-        throw new Error('Unauthorized');
+        return { success: false, error: 'No autorizado' };
     }
+
+    console.log(`[Export] Iniciando exportación solicitada por admin: ${session.uid}`);
 
     try {
         const db = adminDb;
         const bikesRef = db.collection('bikes');
         
-        // Obtenemos solo los campos necesarios para reducir consumo de memoria y lecturas
+        // Usar select para traer solo lo mínimo indispensable y ahorrar ancho de banda de red en Firebase
         const snapshot = await bikesRef.select('make', 'model', 'modelYear').get();
         
         if (snapshot.empty) {
-            return null;
+            console.log('[Export] No se encontraron bicicletas en la colección.');
+            return { success: true, csv: null };
         }
+
+        console.log(`[Export] Procesando ${snapshot.size} documentos...`);
 
         const uniqueCatalog = new Map<string, { make: string, model: string, year: string, count: number }>();
 
@@ -160,7 +158,6 @@ export async function exportUniqueBikesCatalogAction() {
             const model = normalizeString(data.model);
             const year = data.modelYear ? data.modelYear.toString().trim() : 'DESCONOCIDO';
             
-            // Ignoramos registros vacíos
             if (make === 'DESCONOCIDO' || model === 'DESCONOCIDO') return;
 
             const key = `${make}|${model}|${year}`;
@@ -172,26 +169,23 @@ export async function exportUniqueBikesCatalogAction() {
             }
         });
 
-        // Convertir a Array y ordenar (Por marca, luego por popularidad descendente)
         const catalogArray = Array.from(uniqueCatalog.values()).sort((a, b) => {
             if (a.make !== b.make) return a.make.localeCompare(b.make);
             return b.count - a.count;
         });
 
-        // Construir contenido CSV
         let csvContent = 'Marca,Modelo,Anio,Usuarios,MSRP_NUEVA_MXN\n';
-        
         catalogArray.forEach(item => {
-            // Escapar comillas dobles en caso de que un modelo las contenga (ej. 29")
             const safeModel = `"${item.model.replace(/"/g, '""')}"`;
             const safeMake = `"${item.make.replace(/"/g, '""')}"`;
             csvContent += `${safeMake},${safeModel},${item.year},${item.count},\n`;
         });
 
-        return csvContent;
+        console.log(`[Export] Catálogo generado con ${catalogArray.length} modelos únicos.`);
+        return { success: true, csv: csvContent };
 
     } catch (error: any) {
-        console.error("Export Catalog Error:", error);
-        throw new Error(error.message || 'Falló la extracción del catálogo');
+        console.error("Critical Export Error:", error);
+        return { success: false, error: 'Error del servidor al generar el catálogo: ' + error.message };
     }
 }

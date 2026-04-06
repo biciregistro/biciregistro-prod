@@ -18,7 +18,7 @@ export function MigrationButton() {
       const res = await runAnalyticsDenormalizationMigration(isDryRun);
       setResult(res);
     } catch (error: any) {
-      setResult({ success: false, message: error.message });
+      setResult({ success: false, message: error.message || 'Error en la migración' });
     } finally {
       setIsLoading(false);
     }
@@ -28,26 +28,39 @@ export function MigrationButton() {
     setIsExporting(true);
     setResult(null);
     try {
-      const csvContent = await exportUniqueBikesCatalogAction();
+      // 1. Llamar a la Server Action
+      const response = await exportUniqueBikesCatalogAction();
       
-      if (!csvContent) {
-          setResult({ success: false, message: 'No hay bicicletas registradas para exportar.' });
+      // 2. Validar respuesta estructurada
+      if (!response.success) {
+          setResult({ success: false, message: response.error || 'Error al exportar catálogo.' });
           return;
       }
 
-      // Crear un Blob con el contenido CSV y forzar descarga
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      if (!response.csv) {
+          setResult({ success: false, message: 'No se encontraron bicicletas para exportar.' });
+          return;
+      }
+
+      // 3. Crear Blob y forzar descarga
+      const blob = new Blob([response.csv], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `catalogo_bicicletas_unico_${new Date().toISOString().split('T')[0]}.csv`);
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      
+      // Limpieza
+      setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+      }, 100);
 
-      setResult({ success: true, message: 'Catálogo de bicicletas exportado exitosamente.' });
+      setResult({ success: true, message: '¡Catálogo descargado con éxito!' });
     } catch (error: any) {
-      setResult({ success: false, message: error.message });
+      console.error("Export component error:", error);
+      setResult({ success: false, message: 'Ocurrió un fallo en el navegador: ' + (error.message || 'Error desconocido') });
     } finally {
       setIsExporting(false);
     }
