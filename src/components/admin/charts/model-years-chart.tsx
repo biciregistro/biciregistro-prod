@@ -61,6 +61,7 @@ export function ModelYearsChart({ data, averageYear }: ModelYearsChartProps) {
       <CardContent className="pb-4 pt-4">
         <div className="h-[280px] w-full">
           <ChartContainer 
+            id="model-years-chart" // ID estático para evitar hydration mismatch
             config={{
                 count: {
                     label: "Bicicletas Registradas",
