@@ -654,3 +654,32 @@ export const getSecurityMapData = unstable_cache(
     ['security-map-context'],
     { revalidate: 1, tags: ['analytics'] }
 );
+
+export const getQualitativeSecurityData = unstable_cache(
+    async (filters: DashboardFilters) => {
+        const db = adminDb;
+        const bikesRef = db.collection('bikes');
+        
+        // Traer solo las bicicletas robadas aplicando los filtros del contexto de incidentes
+        let query = applyBikeFilters(bikesRef.where('status', '==', 'stolen'), filters, 'incident');
+        
+        // Seleccionamos solo los campos necesarios para ahorrar lectura en Firestore
+        const snapshot = await query.select('theftReport.date', 'theftReport.details', 'theftReport.thiefDetails').get();
+        
+        if (snapshot.empty) return [];
+
+        return snapshot.docs.map(doc => {
+            const data = doc.data();
+            const report = data.theftReport || {};
+            
+            return {
+                id: doc.id,
+                date: report.date || null,
+                details: report.details || null,
+                thiefDetails: report.thiefDetails || null,
+            };
+        }).filter(item => item.details || item.thiefDetails); // Filtrar solo los que tengan texto útil
+    },
+    ['qualitative-security-data-context'],
+    { revalidate: 1, tags: ['analytics'] }
+);

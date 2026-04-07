@@ -32,6 +32,7 @@ import { BikeProfileCard } from './charts/bike-profile-card';
 import { Separator } from '@/components/ui/separator';
 import { MigrationButton } from './migration-button'; 
 import { ReportGeneratorWrapper } from './report-generator-wrapper';
+import { QualitativeAnalysisPanel } from './charts/qualitative-analysis-panel'; // NUEVO COMPONENTE
 
 // Usamos el wrapper montado en cliente para evitar problemas de SSR
 import { SecurityMapWrapper } from './charts/security-map-wrapper';
@@ -215,6 +216,11 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
           <div className="break-inside-avoid mb-6" id="chart-theft-by-modality"> 
               <TheftByModalityChart data={modalityThefts} />
           </div>
+        </div>
+        
+        {/* PANEL DE ANÁLISIS CUALITATIVO CON IA (M.O. Y PERFILES) */}
+        <div className="mt-8">
+            <QualitativeAnalysisPanel filters={filters} />
         </div>
       </div>
 
