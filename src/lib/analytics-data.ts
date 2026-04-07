@@ -482,7 +482,7 @@ export const getMarketMetrics = unstable_cache(
         // CONTEXTO: Dueño (El mercado se mide por la residencia de los propietarios y sus activos)
         query = applyBikeFilters(query, filters, 'owner'); 
 
-        const snapshot = await query.select('make', 'modality', 'appraisedValue').get();
+        const snapshot = await query.select('make', 'modality', 'appraisedValue', 'modelYear').get();
         
         if (snapshot.empty) {
             return {
@@ -490,15 +490,23 @@ export const getMarketMetrics = unstable_cache(
                 modalities: [],
                 totalValue: 0,
                 averageValue: 0,
-                rangesDistribution: {}
+                rangesDistribution: {},
+                modelYearsDistribution: [], 
+                averageModelYear: 0
             };
         }
 
         const brandCounts: Record<string, number> = {};
         const modalityCounts: Record<string, number> = {};
         const rangesDistribution: Record<string, number> = {};
+        const modelYearCounts: Record<string, number> = {}; 
+        
         let totalValue = 0;
         let validValueCount = 0;
+        let totalValidYears = 0;
+        let sumOfValidYears = 0;
+
+        const currentYear = new Date().getFullYear();
 
         snapshot.forEach(doc => {
             const data = doc.data();
@@ -522,6 +530,32 @@ export const getMarketMetrics = unstable_cache(
                     rangesDistribution[rangeKey] = (rangesDistribution[rangeKey] || 0) + 1;
                 }
             }
+
+            // --- MODEL YEAR BUCKETING LOGIC ---
+            if (data.modelYear) {
+                const year = parseInt(data.modelYear, 10);
+                
+                // Excluimos años absurdos pero mantenemos desde los 1900s y hasta 1 año en el futuro
+                if (!isNaN(year) && year >= 1900 && year <= currentYear + 1) {
+                    
+                    // Cálculo matemático exacto para el promedio real del parque
+                    totalValidYears++;
+                    sumOfValidYears += year;
+
+                    // Lógica de Agrupación (Buckets de 5 años)
+                    if (year <= 1990) {
+                        const yearKey = "≤ 1990";
+                        modelYearCounts[yearKey] = (modelYearCounts[yearKey] || 0) + 1;
+                    } else {
+                        // Calcula el límite superior del cubo de 5 años (ej. 2023 -> 2025)
+                        const bucketUpperLimit = Math.ceil(year / 5) * 5;
+                        const bucketLowerLimit = bucketUpperLimit - 4;
+                        const yearKey = `${bucketLowerLimit} - ${bucketUpperLimit}`;
+                        
+                        modelYearCounts[yearKey] = (modelYearCounts[yearKey] || 0) + 1;
+                    }
+                }
+            }
         });
 
         const topBrands = Object.entries(brandCounts)
@@ -539,13 +573,31 @@ export const getMarketMetrics = unstable_cache(
             .sort((a, b) => b.count - a.count);
 
         const averageValue = validValueCount > 0 ? totalValue / validValueCount : 0;
+        const averageModelYear = totalValidYears > 0 ? Math.round(sumOfValidYears / totalValidYears) : 0;
+
+        // Transformar y ordenar el histograma de más antiguo a más reciente
+        const modelYearsDistribution = Object.entries(modelYearCounts)
+            .map(([year, count]) => ({ year, count }))
+            .sort((a, b) => {
+                // "≤ 1990" siempre al inicio
+                if (a.year.startsWith('≤')) return -1;
+                if (b.year.startsWith('≤')) return 1;
+                
+                // Extraemos el primer año del string (ej "2016 - 2020" -> 2016) para ordenar numéricamente
+                const yearA = parseInt(a.year.split(' ')[0], 10);
+                const yearB = parseInt(b.year.split(' ')[0], 10);
+                
+                return yearA - yearB;
+            });
 
         return {
             topBrands,
             modalities,
             totalValue,
             averageValue,
-            rangesDistribution
+            rangesDistribution,
+            modelYearsDistribution, 
+            averageModelYear 
         };
     },
     ['market-metrics-context'],

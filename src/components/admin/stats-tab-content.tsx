@@ -32,7 +32,8 @@ import { BikeProfileCard } from './charts/bike-profile-card';
 import { Separator } from '@/components/ui/separator';
 import { MigrationButton } from './migration-button'; 
 import { ReportGeneratorWrapper } from './report-generator-wrapper';
-import { QualitativeAnalysisPanel } from './charts/qualitative-analysis-panel'; // NUEVO COMPONENTE
+import { QualitativeAnalysisPanel } from './charts/qualitative-analysis-panel'; 
+import { ModelYearsChart } from './charts/model-years-chart'; // NUEVO COMPONENTE
 
 // Usamos el wrapper montado en cliente para evitar problemas de SSR
 import { SecurityMapWrapper } from './charts/security-map-wrapper';
@@ -235,6 +236,15 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
           </p>
         </div>
 
+        {/* HISTOGRAMA DE AÑOS MODELO - FULL WIDTH (Fuera del grid Masonry) */}
+        <div className="w-full mb-8" id="chart-model-years">
+            <ModelYearsChart 
+                data={marketMetrics.modelYearsDistribution || []} 
+                averageYear={marketMetrics.averageModelYear || 0} 
+            />
+        </div>
+
+        {/* Layout Masonry para el resto de métricas */}
         <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6">
             {/* Market Value */}
             <div className="break-inside-avoid mb-6">
