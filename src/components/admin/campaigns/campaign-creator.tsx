@@ -282,8 +282,8 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                                         storagePath="campaign-assets" 
                                         onUploadSuccess={(url) => handleChange('assetUrl', url)}
                                         buttonText="Subir Archivo (PDF/Doc)"
-                                        guidelinesText="Formatos: PDF, ZIP, Imágenes. Máx 10MB."
-                                        maxSizeMB={10}
+                                        guidelinesText="Formatos: PDF, ZIP, Imágenes. Máx 20MB."
+                                        maxSizeMB={20}
                                     />
                                     {formData.assetUrl && (
                                         <div className="flex items-center gap-2 mt-2">
