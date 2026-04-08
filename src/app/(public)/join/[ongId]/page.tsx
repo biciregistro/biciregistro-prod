@@ -97,10 +97,9 @@ export default async function JoinPage({ params }: JoinPageProps) {
                     </AlertDescription>
                 </Alert>
                 
-                {/* Embedded Profile Form */}
+                {/* Embedded Profile Form with redirect to dedicated ONG onboarding route */}
                 <div className="rounded-xl overflow-hidden border bg-card shadow-sm">
-                    {/* Pass callbackUrl to redirect to profile dashboard after signup, instead of staying on this page */}
-                    <ProfileForm communityId={ongId} callbackUrl="/dashboard/profile" />
+                    <ProfileForm communityId={ongId} callbackUrl="/dashboard/ong-onboarding" />
                 </div>
             </div>
         );
