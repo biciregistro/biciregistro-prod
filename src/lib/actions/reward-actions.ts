@@ -16,7 +16,7 @@ export async function getActiveRewards(userCountry?: string, userState?: string)
     try {
         const now = new Date();
         const campaignsSnapshot = await db.collection('campaigns')
-            .where('type', 'in', ['reward', 'giveaway'])
+            .where('type', 'in', ['reward', 'giveaway', 'coupon'])
             .where('status', '==', 'active')
             .get();
 
@@ -168,6 +168,7 @@ export async function purchaseReward(campaignId: string, consentData: { accepted
                     title: campaignData.title,
                     description: campaignData.description,
                     bannerImageUrl: campaignData.bannerImageUrl,
+                    rewardImageUrl: campaignData.rewardImageUrl,
                     conditions: campaignData.conditions,
                     endDate: campaignData.endDate,
                     advertiserName: advertiserName,
@@ -237,7 +238,8 @@ export async function purchaseReward(campaignId: string, consentData: { accepted
                     description: campaignData.description || '',
                     conditions: campaignData.conditions || '',
                     endDate: campaignData.endDate,
-                    imageUrl: campaignData.bannerImageUrl
+                    imageUrl: campaignData.rewardImageUrl || campaignData.bannerImageUrl,
+                    isCoupon: campaignData.type === 'coupon'
                 }),
                 
                 advertiserData?.email ? sendRewardPurchaseOngEmail(advertiserData.email, {

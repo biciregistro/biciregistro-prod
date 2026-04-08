@@ -535,7 +535,8 @@ export type Campaign = {
     endDate: string; // ISO Date
     
     // Assets & Creative
-    bannerImageUrl: string; // Main banner
+    bannerImageUrl: string; // Main banner (Dashboard 1200x300, etc)
+    rewardImageUrl?: string; // Optional: Image specifically for the reward/coupon card
     mobileBannerImageUrl?: string; // Optional mobile optimized
     
     // Action Logic
@@ -635,6 +636,7 @@ export type UserReward = {
         title: string;
         description?: string;
         bannerImageUrl: string;
+        rewardImageUrl?: string;
         conditions?: string;
         endDate: string;
         advertiserName: string;

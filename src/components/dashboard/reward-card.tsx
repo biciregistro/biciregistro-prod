@@ -47,6 +47,9 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
     const diff = price - userPoints;
     const maxLimit = campaign.maxPerUser !== undefined ? campaign.maxPerUser : 1;
 
+    // Use rewardImageUrl if present, otherwise fallback to bannerImageUrl
+    const displayImageUrl = campaign.rewardImageUrl || campaign.bannerImageUrl;
+
     // Filter purchases specifically for this campaign
     const purchasedCoupons = userPurchases.filter(ur => ur.campaignId === campaign.id);
     const totalPurchasedForCampaign = purchasedCoupons.length;
@@ -194,7 +197,7 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                 {/* Image Section - Square/Thumbnail on Mobile, 16/9 Banner on Desktop */}
                 <div className="relative w-28 sm:w-full h-auto sm:aspect-[16/9] flex-shrink-0 bg-muted border-r sm:border-r-0 sm:border-b border-border/50">
                     <Image 
-                        src={campaign.bannerImageUrl} 
+                        src={displayImageUrl} 
                         alt={campaign.title} 
                         fill
                         className="object-cover"
@@ -279,7 +282,7 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                     </DialogHeader>
                     
                     <div className="relative w-full h-48 rounded-md overflow-hidden mb-4 bg-muted">
-                        <Image src={campaign.bannerImageUrl} alt={campaign.title} fill className="object-cover" />
+                        <Image src={displayImageUrl} alt={campaign.title} fill className="object-cover" />
                     </div>
 
                     <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">

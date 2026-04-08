@@ -7,10 +7,11 @@ export interface CyclistRewardTemplateProps {
   endDate: string;
   imageUrl: string;
   appUrl: string;
+  isCoupon?: boolean;
 }
 
 export function getCyclistRewardTemplate(props: CyclistRewardTemplateProps) {
-  const { userName, campaignTitle, advertiserName, description, conditions, endDate, imageUrl, appUrl } = props;
+  const { userName, campaignTitle, advertiserName, description, conditions, endDate, imageUrl, appUrl, isCoupon = false } = props;
   
   const formattedDate = new Date(endDate).toLocaleDateString('es-MX', {
       year: 'numeric',
@@ -18,7 +19,7 @@ export function getCyclistRewardTemplate(props: CyclistRewardTemplateProps) {
       day: 'numeric'
   });
 
-  const subject = `${userName} aquí está tu cupón para canjear tu ${campaignTitle}`;
+  const subject = `${userName} aquí está tu cupón para ${isCoupon ? 'obtener tu beneficio de' : 'canjear tu'} ${campaignTitle}`;
 
   // Simple clean HTML formatting for bullet points if any
   const formatConditions = (conds: string) => {
@@ -29,6 +30,14 @@ export function getCyclistRewardTemplate(props: CyclistRewardTemplateProps) {
       // If plain text with newlines or hyphens
       return `<ul>${conds.split('\n').filter(c => c.trim().length > 0).map(c => `<li>${c.replace(/^-\s*/, '')}</li>`).join('')}</ul>`;
   };
+
+  const adquisitionText = isCoupon 
+      ? 'adquirido a través de nuestra plataforma de beneficios'
+      : 'adquirido con tus Kilómetros de BiciRegistro';
+
+  const footerReason = isCoupon
+      ? 'Has recibido este correo porque adquiriste un beneficio en nuestra plataforma.'
+      : 'Has recibido este correo porque canjeaste una recompensa en nuestra plataforma.';
 
   const html = `
   <!DOCTYPE html>
@@ -66,7 +75,7 @@ export function getCyclistRewardTemplate(props: CyclistRewardTemplateProps) {
           
           <div class="content">
               <div class="title">¡Felicidades ${userName}!</div>
-              <p>Aquí tienes los detalles de tu cupón adquirido con tus Kilómetros de BiciRegistro.</p>
+              <p>Aquí tienes los detalles de tu cupón ${adquisitionText}.</p>
               
               <div class="details-box">
                   <div class="detail-item"><span class="detail-label">Válido por:</span> ${campaignTitle}</div>
@@ -92,7 +101,7 @@ export function getCyclistRewardTemplate(props: CyclistRewardTemplateProps) {
           
           <div class="footer">
               <p>© ${new Date().getFullYear()} BiciRegistro. Todos los derechos reservados.</p>
-              <p>Has recibido este correo porque canjeaste una recompensa en nuestra plataforma.</p>
+              <p>${footerReason}</p>
           </div>
       </div>
   </body>
@@ -102,7 +111,7 @@ export function getCyclistRewardTemplate(props: CyclistRewardTemplateProps) {
   const text = `
 ¡Felicidades ${userName}!
 
-Aquí tienes los detalles de tu cupón adquirido con tus Kilómetros de BiciRegistro:
+Aquí tienes los detalles de tu cupón ${adquisitionText}:
 
 - Válido por: ${campaignTitle}
 - Válido con: ${advertiserName}

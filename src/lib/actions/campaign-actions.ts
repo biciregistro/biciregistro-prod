@@ -30,7 +30,7 @@ export async function getActiveCampaigns(
       .where('placement', '==', placement);
 
     if (placement === 'dashboard_main' || placement === 'dashboard_sidebar' || placement === 'welcome_banner') {
-        query = query.where('type', 'in', ['download', 'link']);
+        query = query.where('type', 'in', ['download', 'link', 'coupon']);
     }
 
     const campaignsSnapshot = await query.get();

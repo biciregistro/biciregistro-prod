@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Campaign } from '@/lib/types';
 import { getActiveCampaigns, recordCampaignConversion } from '@/lib/actions/campaign-actions';
+import { purchaseReward } from '@/lib/actions/reward-actions';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -16,8 +17,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Download, ExternalLink } from 'lucide-react';
-import { useGamificationToast } from '@/hooks/use-gamification-toast'; // GAMIFICACIÓN
+import { Loader2, Download, ExternalLink, Ticket } from 'lucide-react';
+import { useGamificationToast } from '@/hooks/use-gamification-toast';
 
 interface CampaignWithAdvertiser extends Campaign {
     advertiserName?: string;
@@ -35,7 +36,7 @@ export function PromotionalBanner({ userCountry, userState }: PromotionalBannerP
   const [isProcessing, setIsProcessing] = useState(false);
   const [consent, setConsent] = useState(false);
   const { toast } = useToast();
-  const { showRewardToast } = useGamificationToast(); // Hook
+  const { showRewardToast } = useGamificationToast();
 
   useEffect(() => {
     async function loadCampaign() {
@@ -66,10 +67,14 @@ export function PromotionalBanner({ userCountry, userState }: PromotionalBannerP
     try {
       const consentText = `Acepto compartir mis datos con ${campaign.advertiserName || 'el aliado'}. He leído y estoy de acuerdo con los terminos y condiciones de uso y la politica de privacidad.`;
       
-      const result = await recordCampaignConversion(campaign.id, {
-          accepted: true,
-          text: consentText
-      }) as any; // Cast for gamification check
+      let result;
+
+      // Handle 'coupon' type specifically
+      if (campaign.type === 'coupon') {
+          result = await purchaseReward(campaign.id, { accepted: true, text: consentText });
+      } else {
+          result = await recordCampaignConversion(campaign.id, { accepted: true, text: consentText }) as any;
+      }
 
       if (result?.error) {
         toast({
@@ -80,16 +85,24 @@ export function PromotionalBanner({ userCountry, userState }: PromotionalBannerP
         return;
       }
 
-      // GAMIFICACIÓN DINÁMICA
-      if (result.pointsAwarded && result.pointsAwarded > 0) {
-          showRewardToast(result.pointsAwarded, `¡Beneficio desbloqueado! Gracias por participar en la campaña de ${campaign.advertiserName}.`);
+      // Handle success messaging
+      if (campaign.type === 'coupon') {
+          toast({ 
+              title: "¡Cupón adquirido!", 
+              description: "El cupón se ha guardado en 'Mis Beneficios'. Revisa tu correo." 
+          });
       } else {
-          toast({ title: "¡Éxito!", description: "Tu solicitud ha sido procesada." });
-      }
+          // Gamification for normal leads/clicks
+          if (result.pointsAwarded && result.pointsAwarded > 0) {
+              showRewardToast(result.pointsAwarded, `¡Beneficio desbloqueado! Gracias por participar en la campaña de ${campaign.advertiserName}.`);
+          } else {
+              toast({ title: "¡Éxito!", description: "Tu solicitud ha sido procesada." });
+          }
 
-      // Perform the action (Download or Redirect)
-      if (campaign.assetUrl) {
-          window.open(campaign.assetUrl, '_blank');
+          // Perform external redirect/download
+          if (campaign.assetUrl) {
+              window.open(campaign.assetUrl, '_blank');
+          }
       }
 
       setIsModalOpen(false);
@@ -125,10 +138,12 @@ export function PromotionalBanner({ userCountry, userState }: PromotionalBannerP
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-                {campaign.type === 'download' ? 'Descargar Contenido' : 'Ir al sitio del aliado'}
+                {campaign.type === 'download' ? 'Descargar Contenido' : 
+                 campaign.type === 'coupon' ? 'Obtener Cupón' : 
+                 'Ir al sitio del aliado'}
             </DialogTitle>
             <DialogDescription>
-              Estás a un clic de acceder a <strong>{campaign.title}</strong>.
+              Estás a un clic de {campaign.type === 'coupon' ? 'adquirir' : 'acceder a'} <strong>{campaign.title}</strong>.
             </DialogDescription>
           </DialogHeader>
           
@@ -158,15 +173,11 @@ export function PromotionalBanner({ userCountry, userState }: PromotionalBannerP
             <Button onClick={handleConfirm} disabled={isProcessing || !consent} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white">
               {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {campaign.type === 'download' ? (
-                  <>
-                    <Download className="mr-2 h-4 w-4" />
-                    Descargar
-                  </>
+                  <><Download className="mr-2 h-4 w-4" /> Descargar</>
+              ) : campaign.type === 'coupon' ? (
+                  <><Ticket className="mr-2 h-4 w-4" /> Obtener Cupón</>
               ) : (
-                  <>
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    Ir al sitio
-                  </>
+                  <><ExternalLink className="mr-2 h-4 w-4" /> Ir al sitio</>
               )}
             </Button>
           </DialogFooter>

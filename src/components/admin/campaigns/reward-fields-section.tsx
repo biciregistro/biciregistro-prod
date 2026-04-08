@@ -9,26 +9,35 @@ interface RewardFieldsProps {
 
 export function RewardFieldsSection({ formData, handleChange }: RewardFieldsProps) {
     const isGiveaway = formData.type === 'giveaway';
+    const isCoupon = formData.type === 'coupon';
+
+    const getTitle = () => {
+        if (isGiveaway) return 'Sorteo / Rifa';
+        if (isCoupon) return 'Cupón Promocional';
+        return 'Recompensa';
+    };
 
     return (
         <div className="space-y-4 p-4 border rounded-md bg-amber-50/50">
             <h3 className="text-sm font-semibold text-amber-900 border-b pb-2">
-                Configuración de {isGiveaway ? 'Sorteo / Rifa' : 'Recompensa'}
+                Configuración de {getTitle()}
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="priceKm">Precio en KM *</Label>
-                    <Input 
-                        id="priceKm" 
-                        type="number"
-                        min="1"
-                        placeholder="Ej. 150"
-                        value={formData.priceKm || ''}
-                        onChange={(e) => handleChange('priceKm', parseInt(e.target.value) || 0)}
-                    />
-                    <p className="text-xs text-muted-foreground">Costo que el ciclista pagará.</p>
-                </div>
+                {!isCoupon && (
+                    <div className="space-y-2">
+                        <Label htmlFor="priceKm">Precio en KM *</Label>
+                        <Input 
+                            id="priceKm" 
+                            type="number"
+                            min="1"
+                            placeholder="Ej. 150"
+                            value={formData.priceKm || ''}
+                            onChange={(e) => handleChange('priceKm', parseInt(e.target.value) || 0)}
+                        />
+                        <p className="text-xs text-muted-foreground">Costo que el ciclista pagará.</p>
+                    </div>
+                )}
                 
                 <div className="space-y-2">
                     <Label htmlFor="totalCoupons">{isGiveaway ? 'Boletos Totales' : 'Cupones Disponibles'}</Label>
@@ -53,7 +62,7 @@ export function RewardFieldsSection({ formData, handleChange }: RewardFieldsProp
                         value={formData.maxPerUser === undefined ? 1 : formData.maxPerUser}
                         onChange={(e) => handleChange('maxPerUser', e.target.value === '' ? 0 : parseInt(e.target.value))}
                     />
-                    <p className="text-xs text-muted-foreground">Veces que 1 ciclista puede comprar (0 = sin límite).</p>
+                    <p className="text-xs text-muted-foreground">Veces que 1 ciclista puede {isCoupon ? 'obtener' : 'comprar'} (0 = sin límite).</p>
                 </div>
             </div>
 
@@ -61,7 +70,7 @@ export function RewardFieldsSection({ formData, handleChange }: RewardFieldsProp
                 <Label htmlFor="description">Descripción Corta *</Label>
                 <Textarea 
                     id="description" 
-                    placeholder={isGiveaway ? "Ej. Participa por una bicicleta nueva de Montaña." : "Ej. Válido por un termo en tu siguiente visita a la tienda."}
+                    placeholder={isGiveaway ? "Ej. Participa por una bicicleta nueva de Montaña." : (isCoupon ? "Ej. Obtén 20% de descuento en mantenimiento general." : "Ej. Válido por un termo en tu siguiente visita a la tienda.")}
                     value={formData.description || ''}
                     onChange={(e) => handleChange('description', e.target.value)}
                     rows={2}

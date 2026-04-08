@@ -89,7 +89,7 @@ function FeaturedEvent({ event }: { event: any }) {
                     src={event.imageUrl} 
                     alt={event.name} 
                     fill 
-                    className="object-cover transition-transform duration-[3000ms] group-hover:scale-110" 
+                    className="object-cover transition-transform duration-[3s] group-hover:scale-110" 
                     priority
                 />
             ) : (
@@ -221,7 +221,7 @@ async function EventsLayoutMode({ searchParams, allies }: { searchParams: EventF
   const workshopEvents = events.filter(e => e.eventType === 'Taller' || e.eventType === 'Conferencia');
 
   return (
-    <div className="flex flex-col min-h-[100vh] animate-in fade-in duration-[1500ms]">
+    <div className="flex flex-col min-h-[100vh] animate-in fade-in duration-[1.5s]">
         <div className="flex flex-col h-[100vh]">
             <FeaturedEvent event={featured} />
             <SponsorsCarousel 

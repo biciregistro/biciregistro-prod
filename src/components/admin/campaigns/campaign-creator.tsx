@@ -54,10 +54,11 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
         placement: (initialData?.placement || 'dashboard_main') as CampaignPlacement,
         status: (initialData?.status || 'draft') as CampaignStatus,
         bannerImageUrl: initialData?.bannerImageUrl || '',
+        rewardImageUrl: initialData?.rewardImageUrl || '', // Added
         assetUrl: initialData?.assetUrl || '', 
         startDate: formatForInput(initialData?.startDate),
         endDate: formatForInput(initialData?.endDate),
-        // Reward / Giveaway Fields
+        // Reward / Giveaway / Coupon Fields
         priceKm: initialData?.priceKm || 0,
         totalCoupons: initialData?.totalCoupons || 0,
         maxPerUser: initialData?.maxPerUser !== undefined ? initialData.maxPerUser : 1,
@@ -96,6 +97,13 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                 setLoading(false);
                 return;
             }
+            
+            // Require reward image only if type is coupon
+            if (formData.type === 'coupon' && !formData.rewardImageUrl) {
+                toast({ title: "Error", description: "Debes subir la imagen para la tarjeta del cupón.", variant: "destructive" });
+                setLoading(false);
+                return;
+            }
 
             if (formData.type === 'download' && !formData.assetUrl) {
                  toast({ title: "Error", description: "Debes subir el archivo descargable.", variant: "destructive" });
@@ -103,8 +111,8 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                  return;
             }
 
-            if (formData.type === 'reward' || formData.type === 'giveaway') {
-                if (!formData.priceKm || formData.priceKm <= 0) {
+            if (formData.type === 'reward' || formData.type === 'giveaway' || formData.type === 'coupon') {
+                if (formData.type !== 'coupon' && (!formData.priceKm || formData.priceKm <= 0)) {
                     toast({ title: "Error", description: "Este tipo de campaña requiere un precio en KM mayor a 0.", variant: "destructive" });
                     setLoading(false);
                     return;
@@ -132,15 +140,27 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
 
             // Clean payload before sending
             const payload = { ...formData };
-            if (payload.type !== 'reward' && payload.type !== 'giveaway') {
+            if (payload.type !== 'reward' && payload.type !== 'giveaway' && payload.type !== 'coupon') {
                 delete (payload as any).priceKm;
                 delete (payload as any).totalCoupons;
                 delete (payload as any).maxPerUser;
                 delete (payload as any).description;
                 delete (payload as any).conditions;
-            } else if (payload.type === 'giveaway') {
-                // Giveaways don't need physical redemption conditions
-                delete (payload as any).conditions;
+                delete (payload as any).rewardImageUrl;
+            } else {
+                if (payload.type === 'giveaway') {
+                    // Giveaways don't need physical redemption conditions
+                    delete (payload as any).conditions;
+                    delete (payload as any).rewardImageUrl;
+                }
+                if (payload.type === 'reward') {
+                    // Recompensas normales no usan banner + tarjeta (solo tarjeta/banner principal)
+                    delete (payload as any).rewardImageUrl;
+                }
+                if (payload.type === 'coupon') {
+                    // Cupones adquiridos via banner siempre cuestan 0 KM
+                    payload.priceKm = 0;
+                }
             }
 
             if (payload.targetScope === 'global') {
@@ -174,6 +194,7 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                         placement: 'dashboard_main',
                         status: 'draft',
                         bannerImageUrl: '',
+                        rewardImageUrl: '',
                         assetUrl: '',
                         startDate: '',
                         endDate: '',
@@ -254,8 +275,9 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                                 <SelectContent>
                                     <SelectItem value="download">Descarga de Archivo / Lead</SelectItem>
                                     <SelectItem value="link">Enlace Externo</SelectItem>
-                                    <SelectItem value="reward">Recompensa Física (Canje Único)</SelectItem>
-                                    <SelectItem value="giveaway">Sorteo / Rifa (Múltiples Boletos)</SelectItem>
+                                    <SelectItem value="coupon">Cupón (Adquisición vía Banner)</SelectItem>
+                                    <SelectItem value="reward">Recompensa Física (Paga con KM)</SelectItem>
+                                    <SelectItem value="giveaway">Sorteo / Rifa (Paga con KM)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -275,7 +297,10 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                                 </SelectContent>
                             </Select>
                             {(formData.type === 'reward' || formData.type === 'giveaway') && (
-                                <p className="text-xs text-muted-foreground mt-1">Este tipo de campaña va a la pestaña "Mis Recompensas".</p>
+                                <p className="text-xs text-muted-foreground mt-1">Las recompensas van a la pestaña "Mis Recompensas".</p>
+                            )}
+                            {formData.type === 'coupon' && (
+                                <p className="text-xs text-muted-foreground mt-1">Los cupones se muestran en banners y se guardan en "Mis Beneficios".</p>
                             )}
                         </div>
                     </div>
@@ -343,32 +368,66 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                         )}
                     </div>
 
-                    {/* Reward Specific Fields */}
-                    {(formData.type === 'reward' || formData.type === 'giveaway') && (
+                    {/* Reward/Coupon Specific Fields */}
+                    {(formData.type === 'reward' || formData.type === 'giveaway' || formData.type === 'coupon') && (
                         <RewardFieldsSection formData={formData} handleChange={handleChange} />
                     )}
 
-                    {/* Banner Upload */}
-                    <div className="space-y-2 p-4 border rounded-md bg-muted/20">
-                        <Label className="mb-2 block">
-                            {(formData.type === 'reward' || formData.type === 'giveaway') ? "Imagen de la Recompensa *" : "Banner de la Campaña *"}
-                        </Label>
-                        <ImageUpload 
-                            storagePath="campaign-assets" 
-                            onUploadSuccess={(url) => handleChange('bannerImageUrl', url)}
-                            buttonText="Subir Imagen"
-                            guidelinesText={(formData.type === 'reward' || formData.type === 'giveaway') ? "Recomendado: 800x600px (4:3) para tarjeta. Máx 2MB." : "Recomendado: 1200x300px. Máx 5MB."}
-                        />
-                        {formData.bannerImageUrl && (
-                            <div className="mt-2 flex items-center gap-2">
-                                <img src={formData.bannerImageUrl} alt="Preview" className="h-12 w-auto object-cover rounded shadow-sm border" />
-                                <Input value={formData.bannerImageUrl} readOnly className="text-xs bg-muted flex-1" />
+                    {/* Image Uploads */}
+                    <div className="space-y-4 border-b pb-6">
+                        <Label className="text-base font-semibold">Archivos Gráficos</Label>
+
+                        {/* Siempre pedir Banner Principal */}
+                        <div className="space-y-2 p-4 border rounded-md bg-muted/20">
+                            <Label className="mb-2 block">
+                                {formData.type === 'coupon' 
+                                    ? "Banner Promocional (Horizontal) *" 
+                                    : (formData.type === 'reward' || formData.type === 'giveaway') 
+                                    ? "Imagen de la Recompensa *" 
+                                    : "Banner de la Campaña *"}
+                            </Label>
+                            <ImageUpload 
+                                storagePath="campaign-assets" 
+                                onUploadSuccess={(url) => handleChange('bannerImageUrl', url)}
+                                buttonText="Subir Imagen"
+                                guidelinesText={(formData.type === 'reward' || formData.type === 'giveaway') ? "Recomendado: 800x600px (4:3) para tarjeta. Máx 2MB." : "Recomendado: 1200x300px. Máx 5MB."}
+                            />
+                            {formData.bannerImageUrl && (
+                                <div className="mt-2 flex items-center gap-2">
+                                    <img src={formData.bannerImageUrl} alt="Preview" className="h-12 w-auto object-cover rounded shadow-sm border" />
+                                    <Input value={formData.bannerImageUrl} readOnly className="text-xs bg-muted flex-1" />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Pedir imagen secundaria SÓLO para Cupones */}
+                        {formData.type === 'coupon' && (
+                            <div className="space-y-2 p-4 border rounded-md bg-amber-50/50 animate-in fade-in">
+                                <Label className="mb-2 block">
+                                    Imagen para la Tarjeta del Cupón *
+                                </Label>
+                                <p className="text-xs text-muted-foreground mb-3">
+                                    Esta imagen se mostrará en "Mis Beneficios" después de que el usuario haga clic en el banner.
+                                </p>
+                                <ImageUpload 
+                                    storagePath="campaign-assets" 
+                                    onUploadSuccess={(url) => handleChange('rewardImageUrl', url)}
+                                    buttonText="Subir Tarjeta"
+                                    guidelinesText="Recomendado: 800x600px (4:3). Máx 2MB."
+                                    maxSizeMB={2}
+                                />
+                                {formData.rewardImageUrl && (
+                                    <div className="mt-2 flex items-center gap-2">
+                                        <img src={formData.rewardImageUrl} alt="Preview" className="h-12 w-auto object-cover rounded shadow-sm border" />
+                                        <Input value={formData.rewardImageUrl} readOnly className="text-xs bg-muted flex-1" />
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
 
-                    {/* Asset / Link Input (Only for non-rewards) */}
-                    {(formData.type !== 'reward' && formData.type !== 'giveaway') && (
+                    {/* Asset / Link Input (Only for non-rewards and non-coupons) */}
+                    {(formData.type !== 'reward' && formData.type !== 'giveaway' && formData.type !== 'coupon') && (
                         <div className="space-y-2 p-4 border rounded-md bg-muted/20">
                             <Label className="mb-2 block">
                                 {formData.type === 'download' ? "Archivo para Descargar *" : "Enlace de Destino *"}
