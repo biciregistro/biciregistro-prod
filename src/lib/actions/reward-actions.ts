@@ -10,8 +10,9 @@ import { headers } from 'next/headers';
 
 /**
  * Returns a list of active rewards with a snapshot of the advertiser name.
+ * If userCountry and userState are provided, it filters the results accordingly.
  */
-export async function getActiveRewards(): Promise<(Campaign & { advertiserName?: string })[]> {
+export async function getActiveRewards(userCountry?: string, userState?: string): Promise<(Campaign & { advertiserName?: string })[]> {
     try {
         const now = new Date();
         const campaignsSnapshot = await db.collection('campaigns')
@@ -30,11 +31,16 @@ export async function getActiveRewards(): Promise<(Campaign & { advertiserName?:
             
             if (start <= now && end >= now) {
                  // Check if it has inventory limitation
-                 if (data.totalCoupons === undefined || data.totalCoupons === 0) {
-                     campaigns.push({ ...data, id: doc.id });
-                 } else if (data.uniqueConversionCount < data.totalCoupons) {
-                     // Only push if inventory is not depleted
-                     campaigns.push({ ...data, id: doc.id });
+                 if (data.totalCoupons === undefined || data.totalCoupons === 0 || data.uniqueConversionCount < data.totalCoupons) {
+                     // Check geographical scope
+                     const scope = data.targetScope || 'global';
+                     if (scope === 'global') {
+                         campaigns.push({ ...data, id: doc.id });
+                     } else if (scope === 'state' && userCountry && userState) {
+                         if (data.targetCountry === userCountry && data.targetState === userState) {
+                             campaigns.push({ ...data, id: doc.id });
+                         }
+                     }
                  }
             }
         });

@@ -14,8 +14,14 @@ import { awardPoints } from '@/lib/actions/gamification-actions'; // Importar ga
 
 /**
  * Fetches active campaigns for a given placement.
+ * If userState and userCountry are provided, it filters out campaigns segmented
+ * for other states. If not provided, it returns only global campaigns.
  */
-export async function getActiveCampaigns(placement: 'dashboard_main' | 'dashboard_sidebar' | 'event_list' | 'welcome_banner' = 'dashboard_main'): Promise<(Campaign & { advertiserName?: string })[]> {
+export async function getActiveCampaigns(
+    placement: 'dashboard_main' | 'dashboard_sidebar' | 'event_list' | 'welcome_banner' = 'dashboard_main',
+    userCountry?: string,
+    userState?: string
+): Promise<(Campaign & { advertiserName?: string })[]> {
   try {
     const now = new Date();
     
@@ -35,7 +41,16 @@ export async function getActiveCampaigns(placement: 'dashboard_main' | 'dashboar
       const start = new Date(data.startDate);
       const end = new Date(data.endDate);
       if (start <= now && end >= now) {
-        campaigns.push({ ...data, id: doc.id });
+          // Backward compatibility: If targetScope is undefined, assume it's global
+          const scope = data.targetScope || 'global';
+          
+          if (scope === 'global') {
+              campaigns.push({ ...data, id: doc.id });
+          } else if (scope === 'state' && userCountry && userState) {
+              if (data.targetCountry === userCountry && data.targetState === userState) {
+                  campaigns.push({ ...data, id: doc.id });
+              }
+          }
       }
     });
 
@@ -155,6 +170,14 @@ export async function createCampaign(data: Omit<Campaign, 'id' | 'createdAt' | '
             finalPlacement = 'event_list';
         }
 
+        const scope = data.targetScope || 'global';
+
+        // Check for placement overlap logic IF the campaign is going to be active
+        if (data.status === 'active') {
+            const overlapError = await checkCampaignOverlap(finalPlacement, scope, data.targetCountry, data.targetState);
+            if (overlapError) return { error: overlapError };
+        }
+
         const newCampaign: Omit<Campaign, 'id'> = {
             ...data,
             placement: finalPlacement,
@@ -176,6 +199,49 @@ export async function createCampaign(data: Omit<Campaign, 'id' | 'createdAt' | '
 }
 
 /**
+ * Helper to check for overlapping active campaigns in the same placement.
+ * Returns an error string if there's an overlap, null otherwise.
+ */
+async function checkCampaignOverlap(
+    placement: string, 
+    scope: 'global' | 'state', 
+    country?: string, 
+    state?: string, 
+    excludeCampaignId?: string
+): Promise<string | null> {
+    const activeCampaignsSnap = await db.collection('campaigns')
+        .where('status', '==', 'active')
+        .where('placement', '==', placement)
+        .get();
+
+    let hasGlobal = false;
+    const activeStates = new Set<string>();
+
+    activeCampaignsSnap.forEach(doc => {
+        if (excludeCampaignId && doc.id === excludeCampaignId) return;
+        
+        const data = doc.data() as Campaign;
+        const s = data.targetScope || 'global';
+        if (s === 'global') hasGlobal = true;
+        if (s === 'state' && data.targetCountry && data.targetState) {
+            activeStates.add(`${data.targetCountry}-${data.targetState}`);
+        }
+    });
+
+    if (scope === 'global') {
+        if (hasGlobal) return 'Ya existe una campaña global activa en esta ubicación. Pausala o espera a que termine.';
+        if (activeStates.size > 0) return 'No puedes crear una campaña global en esta ubicación porque hay campañas por estado activas.';
+    } else {
+        if (hasGlobal) return 'No puedes crear una campaña por estado porque ya existe una campaña global activa en esta ubicación.';
+        if (activeStates.has(`${country}-${state}`)) {
+            return `Ya existe una campaña activa para el estado ${state} en esta ubicación.`;
+        }
+    }
+
+    return null;
+}
+
+/**
  * Updates an existing campaign.
  */
 export async function updateCampaign(campaignId: string, data: Partial<Campaign>): Promise<ActionFormState> {
@@ -188,17 +254,35 @@ export async function updateCampaign(campaignId: string, data: Partial<Campaign>
              return { error: 'No autorizado' };
         }
 
+        // Check current data
+        const currentSnap = await db.collection('campaigns').doc(campaignId).get();
+        if (!currentSnap.exists) return { error: 'Campaña no encontrada' };
+        const currentData = currentSnap.data() as Campaign;
+
+        // FORCE PLACEMENT FOR REWARDS/GIVEAWAYS TO PREVENT RENDER BUGS
+        let finalPlacement = data.placement || currentData.placement;
+        if (data.type === 'reward' || data.type === 'giveaway' || currentData.type === 'reward' || currentData.type === 'giveaway') {
+            finalPlacement = 'event_list';
+        }
+
+        const newStatus = data.status || currentData.status;
+        const newScope = data.targetScope || currentData.targetScope || 'global';
+        const newCountry = data.targetCountry !== undefined ? data.targetCountry : currentData.targetCountry;
+        const newState = data.targetState !== undefined ? data.targetState : currentData.targetState;
+
+        // If it's being set to active, or updated while active, check overlaps
+        if (newStatus === 'active') {
+             const overlapError = await checkCampaignOverlap(finalPlacement, newScope, newCountry, newState, campaignId);
+             if (overlapError) return { error: overlapError };
+        }
+
         // Remove protected fields from update payload
         const updatePayload = { ...data, updatedAt: new Date().toISOString() };
         delete (updatePayload as any).id;
         delete (updatePayload as any).createdAt;
         delete (updatePayload as any).clickCount;
         delete (updatePayload as any).uniqueConversionCount;
-
-        // FORCE PLACEMENT FOR REWARDS/GIVEAWAYS TO PREVENT RENDER BUGS
-        if (updatePayload.type === 'reward' || updatePayload.type === 'giveaway') {
-            updatePayload.placement = 'event_list';
-        }
+        updatePayload.placement = finalPlacement;
 
         await db.collection('campaigns').doc(campaignId).update(updatePayload);
 
@@ -288,6 +372,21 @@ export async function updateCampaignStatus(campaignId: string, newStatus: 'draft
         const userDoc = await db.collection('users').doc(session.uid).get();
         if (userDoc.data()?.role !== 'admin') {
              return { error: 'No autorizado' };
+        }
+
+        if (newStatus === 'active') {
+             const currentSnap = await db.collection('campaigns').doc(campaignId).get();
+             if (currentSnap.exists) {
+                 const currentData = currentSnap.data() as Campaign;
+                 const overlapError = await checkCampaignOverlap(
+                     currentData.placement, 
+                     currentData.targetScope || 'global', 
+                     currentData.targetCountry, 
+                     currentData.targetState, 
+                     campaignId
+                 );
+                 if (overlapError) return { error: overlapError };
+             }
         }
 
         await db.collection('campaigns').doc(campaignId).update({

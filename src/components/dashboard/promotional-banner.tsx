@@ -23,7 +23,12 @@ interface CampaignWithAdvertiser extends Campaign {
     advertiserName?: string;
 }
 
-export function PromotionalBanner() {
+interface PromotionalBannerProps {
+    userCountry?: string;
+    userState?: string;
+}
+
+export function PromotionalBanner({ userCountry, userState }: PromotionalBannerProps) {
   const [campaign, setCampaign] = useState<CampaignWithAdvertiser | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,7 +40,7 @@ export function PromotionalBanner() {
   useEffect(() => {
     async function loadCampaign() {
       try {
-        const campaigns = await getActiveCampaigns('dashboard_main');
+        const campaigns = await getActiveCampaigns('dashboard_main', userCountry, userState);
         if (campaigns.length > 0) {
           setCampaign(campaigns[0] as CampaignWithAdvertiser);
         }
@@ -46,7 +51,7 @@ export function PromotionalBanner() {
       }
     }
     loadCampaign();
-  }, []);
+  }, [userCountry, userState]);
 
   const handleCtaClick = () => {
     setConsent(false);

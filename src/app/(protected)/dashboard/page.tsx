@@ -28,10 +28,11 @@ export default async function DashboardPage() {
     const profileIsComplete = isProfileComplete(user);
     
     // Concurrently fetch all necessary data to optimize loading times
+    // We pass user.country and user.state if they exist to fetch only relevant rewards
     const [bikes, allRegistrations, activeRewards, userPurchases] = await Promise.all([
         profileIsComplete ? getBikes(user.id) : Promise.resolve([]),
         profileIsComplete ? getUserEventRegistrations(user.id) : Promise.resolve([]),
-        getActiveRewards(),
+        getActiveRewards(user.country, user.state),
         getUserRewards()
     ]);
 

@@ -4,7 +4,7 @@ import { Campaign } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Edit, BarChart, Megaphone, Plus, User, Download, Link as LinkIcon, Gift, Ticket } from 'lucide-react';
+import { Edit, BarChart, Megaphone, Plus, User, Download, Link as LinkIcon, Gift, Ticket, Globe, MapPin, Layout } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -29,6 +29,16 @@ export function CampaignList({ campaigns, advertisers, onCreateNew, onManage }: 
                 return { label: 'Enlace', icon: LinkIcon, badgeClass: 'bg-slate-100 text-slate-800 border-slate-200' };
             default:
                 return { label: type, icon: Megaphone, badgeClass: 'bg-slate-100 text-slate-800 border-slate-200' };
+        }
+    };
+
+    const getPlacementLabel = (placement: string) => {
+        switch (placement) {
+            case 'dashboard_main': return 'Dashboard (Arriba)';
+            case 'dashboard_sidebar': return 'Barra Lateral';
+            case 'event_list': return 'Lista Recompensas';
+            case 'welcome_banner': return 'Banner Bienvenida';
+            default: return placement;
         }
     };
 
@@ -69,6 +79,7 @@ export function CampaignList({ campaigns, advertisers, onCreateNew, onManage }: 
                         const advertiserName = advertisers.find(a => a.id === campaign.advertiserId)?.name || 'ONG Desconocida';
                         const TypeIcon = getTypeConfig(campaign.type).icon;
                         const typeConfig = getTypeConfig(campaign.type);
+                        const scope = campaign.targetScope || 'global';
                         
                         return (
                             <Card key={campaign.id} className="group hover:shadow-md transition-shadow flex flex-col">
@@ -92,11 +103,24 @@ export function CampaignList({ campaigns, advertisers, onCreateNew, onManage }: 
                                         {campaign.internalName}
                                     </CardDescription>
                                     
-                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-2">
-                                        <User className="h-3 w-3 shrink-0" />
-                                        <span className="truncate" title={advertiserName}>
-                                            {advertiserName}
-                                        </span>
+                                    <div className="flex flex-col gap-1.5 text-xs text-muted-foreground pt-2">
+                                        <div className="flex items-center gap-1.5">
+                                            <User className="h-3 w-3 shrink-0" />
+                                            <span className="truncate" title={advertiserName}>
+                                                {advertiserName}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <Layout className="h-3 w-3 shrink-0" />
+                                            <span className="font-medium text-foreground">{getPlacementLabel(campaign.placement)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            {scope === 'global' ? (
+                                                <><Globe className="h-3 w-3 shrink-0" /> <span>Global</span></>
+                                            ) : (
+                                                <><MapPin className="h-3 w-3 shrink-0 text-emerald-500" /> <span className="font-medium text-emerald-600">{campaign.targetState}</span></>
+                                            )}
+                                        </div>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="mt-auto">

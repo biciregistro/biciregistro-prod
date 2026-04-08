@@ -512,6 +512,7 @@ export type LandingEventsContent = {
 export type CampaignType = 'download' | 'link' | 'coupon' | 'reward' | 'giveaway';
 export type CampaignStatus = 'draft' | 'active' | 'paused' | 'ended';
 export type CampaignPlacement = 'dashboard_main' | 'dashboard_sidebar' | 'event_list' | 'welcome_banner';
+export type CampaignTargetScope = 'global' | 'state';
 
 export type Campaign = {
     id: string;
@@ -524,6 +525,11 @@ export type Campaign = {
     status: CampaignStatus;
     placement: CampaignPlacement;
     
+    // Segmentation
+    targetScope?: CampaignTargetScope;
+    targetCountry?: string;
+    targetState?: string;
+
     // Scheduling
     startDate: string; // ISO Date
     endDate: string; // ISO Date

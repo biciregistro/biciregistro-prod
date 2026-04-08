@@ -198,7 +198,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
             <TabsContent value="garage" className="space-y-4">
                 {/* Desktop: Show promotional banner at top. */}
                 <div className="hidden md:block mb-6">
-                    <PromotionalBanner />
+                    <PromotionalBanner userCountry={user.country} userState={user.state} />
                 </div>
 
                 {!isProfileComplete ? (
@@ -238,7 +238,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                         
                         {/* Mobile Banner: Insert here if no bikes (Requirement: Below CTA) */}
                         <div className="md:hidden mt-8 w-full">
-                            <PromotionalBanner />
+                            <PromotionalBanner userCountry={user.country} userState={user.state} />
                         </div>
                     </div>
                 ) : (
@@ -250,7 +250,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                                 {/* Mobile Banner: Insert after first bike (Requirement) */}
                                 {index === 0 && (
                                     <div className="md:hidden mt-4">
-                                        <PromotionalBanner />
+                                        <PromotionalBanner userCountry={user.country} userState={user.state} />
                                     </div>
                                 )}
                             </div>

@@ -1,17 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { createCampaign, updateCampaign } from '@/lib/actions/campaign-actions';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
-import { CampaignType, CampaignPlacement, CampaignStatus, Campaign } from '@/lib/types';
+import { Loader2, Globe, MapPin } from 'lucide-react';
+import { CampaignType, CampaignPlacement, CampaignStatus, Campaign, CampaignTargetScope } from '@/lib/types';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { RewardFieldsSection } from './reward-fields-section';
+import { countries } from '@/lib/countries';
+import { getCitiesByState } from '@/lib/cities';
 
 interface AdvertiserOption {
     id: string;
@@ -59,8 +62,24 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
         totalCoupons: initialData?.totalCoupons || 0,
         maxPerUser: initialData?.maxPerUser !== undefined ? initialData.maxPerUser : 1,
         description: initialData?.description || '',
-        conditions: initialData?.conditions || ''
+        conditions: initialData?.conditions || '',
+        // Segmentation
+        targetScope: (initialData?.targetScope || 'global') as CampaignTargetScope,
+        targetCountry: initialData?.targetCountry || 'México',
+        targetState: initialData?.targetState || ''
     });
+
+    const [availableStates, setAvailableStates] = useState<string[]>([]);
+
+    useEffect(() => {
+        const countryData = countries.find(c => c.name === formData.targetCountry);
+        setAvailableStates(countryData ? countryData.states : []);
+        
+        // Reset state if country changes and we're not just loading initial data
+        if (!initialData || formData.targetCountry !== initialData.targetCountry) {
+             setFormData(prev => ({ ...prev, targetState: '' }));
+        }
+    }, [formData.targetCountry, initialData]);
 
     const handleChange = (field: string, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -97,6 +116,14 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                 }
             }
 
+            if (formData.targetScope === 'state') {
+                if (!formData.targetCountry || !formData.targetState) {
+                    toast({ title: "Error", description: "Selecciona el país y estado para la segmentación.", variant: "destructive" });
+                    setLoading(false);
+                    return;
+                }
+            }
+
             if (new Date(formData.startDate) >= new Date(formData.endDate)) {
                  toast({ title: "Error", description: "La fecha de fin debe ser posterior a la de inicio", variant: "destructive" });
                  setLoading(false);
@@ -114,6 +141,11 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
             } else if (payload.type === 'giveaway') {
                 // Giveaways don't need physical redemption conditions
                 delete (payload as any).conditions;
+            }
+
+            if (payload.targetScope === 'global') {
+                delete (payload as any).targetCountry;
+                delete (payload as any).targetState;
             }
 
             // Proper Date conversion
@@ -149,7 +181,10 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                         totalCoupons: 0,
                         maxPerUser: 1,
                         description: '',
-                        conditions: ''
+                        conditions: '',
+                        targetScope: 'global',
+                        targetCountry: 'México',
+                        targetState: ''
                     });
                 }
                 if (onSuccess) onSuccess();
@@ -243,6 +278,69 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                                 <p className="text-xs text-muted-foreground mt-1">Este tipo de campaña va a la pestaña "Mis Recompensas".</p>
                             )}
                         </div>
+                    </div>
+
+                    {/* Segmentación Geográfica */}
+                    <div className="space-y-4 border-b pb-6">
+                        <Label className="text-base font-semibold">Segmentación Geográfica</Label>
+                        <p className="text-sm text-muted-foreground">
+                            Define quién puede ver esta campaña. Las campañas globales bloquean la ubicación elegida para otros estados.
+                        </p>
+                        
+                        <RadioGroup 
+                            value={formData.targetScope} 
+                            onValueChange={(val) => handleChange('targetScope', val)}
+                            className="flex flex-col gap-3"
+                        >
+                            <div className="flex items-center space-x-2 border p-3 rounded-md bg-muted/20">
+                                <RadioGroupItem value="global" id="scope-global" />
+                                <Label htmlFor="scope-global" className="flex items-center gap-2 cursor-pointer w-full font-medium">
+                                    <Globe className="w-4 h-4 text-blue-500" />
+                                    Global (Todos los usuarios)
+                                </Label>
+                            </div>
+                            <div className="flex items-center space-x-2 border p-3 rounded-md bg-muted/20">
+                                <RadioGroupItem value="state" id="scope-state" />
+                                <Label htmlFor="scope-state" className="flex items-center gap-2 cursor-pointer w-full font-medium">
+                                    <MapPin className="w-4 h-4 text-emerald-500" />
+                                    Por Estado (Local)
+                                </Label>
+                            </div>
+                        </RadioGroup>
+
+                        {formData.targetScope === 'state' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 animate-in fade-in slide-in-from-top-2">
+                                <div className="space-y-2">
+                                    <Label>País *</Label>
+                                    <Select 
+                                        onValueChange={(val) => handleChange('targetCountry', val)} 
+                                        value={formData.targetCountry}
+                                    >
+                                        <SelectTrigger><SelectValue placeholder="Selecciona el país" /></SelectTrigger>
+                                        <SelectContent>
+                                            {countries.map(c => (
+                                                <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Estado *</Label>
+                                    <Select 
+                                        onValueChange={(val) => handleChange('targetState', val)} 
+                                        value={formData.targetState}
+                                        disabled={!formData.targetCountry || availableStates.length === 0}
+                                    >
+                                        <SelectTrigger><SelectValue placeholder="Selecciona el estado" /></SelectTrigger>
+                                        <SelectContent>
+                                            {availableStates.map(state => (
+                                                <SelectItem key={state} value={state}>{state}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Reward Specific Fields */}
