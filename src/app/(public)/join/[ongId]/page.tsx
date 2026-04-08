@@ -6,6 +6,7 @@ import { ProfileInfo } from '@/components/ong-public-profile/profile-info';
 import { ProfileEvents } from '@/components/ong-public-profile/profile-events';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Building } from 'lucide-react';
+import { MobileVipClient } from './mobile-vip-client';
 import type { User } from '@/lib/types';
 import type { Metadata } from 'next';
 
@@ -79,14 +80,11 @@ export default async function JoinPage({ params }: JoinPageProps) {
     ]);
 
     if (!ong) {
-        // Redirect to the standard signup page if the ONG ID is invalid
         redirect('/signup?error=invalid_community');
     }
 
-    // Helper component for the registration section - only shown if NOT logged in
-    const RegistrationSection = ({ user, ongId, ongName }: { user: User | null, ongId: string, ongName: string }) => {
-        if (user) return null;
-        
+    // --- CLASSIC REGISTRATION SECTION FOR DESKTOP (UNAUTHENTICATED) ---
+    const ClassicRegistrationSection = ({ ongId, ongName }: { ongId: string, ongName: string }) => {
         return (
             <div className="space-y-4">
                 <Alert className="bg-primary/5 border-primary/20">
@@ -97,7 +95,6 @@ export default async function JoinPage({ params }: JoinPageProps) {
                     </AlertDescription>
                 </Alert>
                 
-                {/* Embedded Profile Form with redirect to dedicated ONG onboarding route */}
                 <div className="rounded-xl overflow-hidden border bg-card shadow-sm">
                     <ProfileForm communityId={ongId} callbackUrl="/dashboard/ong-onboarding" />
                 </div>
@@ -106,31 +103,49 @@ export default async function JoinPage({ params }: JoinPageProps) {
     };
 
     return (
-        <div className="min-h-screen bg-background pb-20">
-            {/* Hero Section */}
-            <ProfileHero ong={ong} communityCount={communityCount} />
+        <div className="min-h-screen bg-background">
+            
+            {/* Si NO hay usuario autenticado, cargamos el diseño VIP para Móvil */}
+            {!user && (
+                <MobileVipClient ong={ong} communityCount={communityCount} />
+            )}
 
-            <div className="container px-4 mx-auto">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    
-                    {/* Left Column: Form and Events */}
-                    <div className="lg:col-span-2 space-y-10">
-                        {/* 1. Registration Form (only if not logged in) */}
-                        {!user && <RegistrationSection user={user} ongId={ongId} ongName={ong.organizationName} />}
+            {/* CONTENEDOR CLÁSICO: 
+                - Si no hay usuario: Oculto en móvil (porque ya está el VIP), Visible en Desktop.
+                - Si hay usuario: Visible en ambos (móvil y desktop).
+            */}
+            <div className={`pb-20 ${!user ? 'hidden md:block' : 'block'}`}>
+                
+                {/* Desktop Hero siempre se muestra si la clase padre lo permite */}
+                <ProfileHero ong={ong} communityCount={communityCount} />
+
+                <div className="container px-4 mx-auto mt-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         
-                        {/* 2. Info Card for MOBILE - Shown only on small screens */}
-                        <div className="lg:hidden">
-                            <ProfileInfo ong={ong} />
+                        {/* Left Column: Form and Events */}
+                        <div className="lg:col-span-2 space-y-10">
+                            
+                            {/* Formulario clásico de Desktop (Solo si no hay usuario) */}
+                            {!user && (
+                                <ClassicRegistrationSection ongId={ongId} ongName={ong.organizationName} />
+                            )}
+                            
+                            {/* Info Card for MOBILE - Visible solo si el usuario ya está autenticado */}
+                            {user && (
+                                <div className="lg:hidden">
+                                    <ProfileInfo ong={ong} />
+                                </div>
+                            )}
+
+                            {/* Events Grid */}
+                            <ProfileEvents events={events} />
                         </div>
 
-                        {/* 3. Events Grid */}
-                        <ProfileEvents events={events} />
-                    </div>
-
-                    {/* Right Column: Info for DESKTOP */}
-                    <div className="hidden lg:block lg:col-span-1">
-                        <div className="sticky top-24">
-                            <ProfileInfo ong={ong} />
+                        {/* Right Column: Info for DESKTOP */}
+                        <div className="hidden lg:block lg:col-span-1">
+                            <div className="sticky top-24">
+                                <ProfileInfo ong={ong} />
+                            </div>
                         </div>
                     </div>
                 </div>

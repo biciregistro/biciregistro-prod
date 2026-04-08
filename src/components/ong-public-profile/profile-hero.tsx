@@ -11,7 +11,7 @@ interface ProfileHeroProps {
 export function ProfileHero({ ong, communityCount }: ProfileHeroProps) {
   return (
     <div className="relative mb-8">
-      {/* Cover Image Container - Increased height */}
+      {/* Cover Image Container - Original Height */}
       <div className="h-[350px] md:h-[500px] w-full relative overflow-hidden bg-muted">
         {ong.coverUrl ? (
           <Image

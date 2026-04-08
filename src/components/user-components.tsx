@@ -57,9 +57,6 @@ const toISODate = (val: string | undefined | null): string => {
 };
 
 // Modificamos el Schema base SOLO para el frontend. 
-// Hacemos que todos los campos sean super flexibles temporalmente para que react-hook-form 
-// no bloquee el submit por errores en campos que están "ocultos" en otra pestaña.
-// La validación estricta y segura SIEMPRE sucede en el Server Action (updateProfile) con el payload completo.
 const looseFormSchema = z.object({
     id: z.string().optional(),
     name: z.string().optional().or(z.literal('')),
@@ -78,7 +75,7 @@ const looseFormSchema = z.object({
     allergies: z.string().optional().or(z.literal('')),
     notificationsSafety: z.boolean().optional(),
     notificationsMarketing: z.boolean().optional(),
-    password: z.string().optional(), // FIX: Agregado para el registro
+    password: z.string().optional(),
     currentPassword: z.string().optional(),
     newPassword: z.string().optional(),
     confirmPassword: z.string().optional(),
@@ -144,7 +141,14 @@ export function PasswordStrengthIndicator({ password = "" }: { password?: string
     );
 }
 
-function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }: { user?: User, communityId?: string, callbackUrl?: string }) {
+interface ProfileFormProps {
+    user?: User;
+    communityId?: string;
+    callbackUrl?: string;
+    hideSocial?: boolean; 
+}
+
+function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, hideSocial = false }: ProfileFormProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const callbackUrl = propCallbackUrl || searchParams.get('callbackUrl');
@@ -167,7 +171,6 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
     const [showPassword, setShowPassword] = useState(false);
     const [termsAccepted, setTermsAccepted] = useState(false);
 
-    // Navigation Tab state for Mobile Feel
     const [activeTab, setActiveTab] = useState("general");
 
     useEffect(() => {
@@ -209,7 +212,6 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
         mode: 'onSubmit',
     });
 
-    // FIX: Separamos el watch para evitar problemas de tipos con ternarias dinámicas
     const signupPassword = form.watch("password");
     const editNewPassword = form.watch("newPassword");
     const passwordValue = isEditing ? editNewPassword : signupPassword;
@@ -261,7 +263,6 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                         });
                         if (!response.ok) throw new Error('Falló sesión.');
                         
-                        // PRIORIDAD DE REDIRECCIÓN: Si hay callbackUrl, esa es la ley.
                         if (callbackUrl) {
                             window.location.href = callbackUrl;
                             return;
@@ -381,7 +382,6 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
         if (formRef.current) {
             const formData = new FormData(formRef.current);
             
-            // Re-hidratar campos que pudieran estar ocultos por el tab forceMount
             Object.entries(values).forEach(([key, val]) => {
                 if (val !== undefined && val !== null) {
                     if (typeof val === 'boolean') {
@@ -474,39 +474,43 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                         </Alert>
                     )}
 
-                    {/* Tarjeta 1: Happy Path (Google) */}
-                    <Card className="border-2 border-primary/10 shadow-md">
-                        <CardHeader className="text-center pb-4">
-                            <div className="flex justify-center mb-6">
-                                <Link href="/" className="flex justify-center"><Logo /></Link>
-                            </div>
-                            <CardTitle className="text-2xl font-bold">Únete a BiciRegistro</CardTitle>
-                            <CardDescription className="text-base">La forma más rápida y segura de crear tu cuenta</CardDescription>
-                        </CardHeader>
-                        <CardContent className="px-6 pb-6">
-                             <div className="w-full">
-                                <SocialAuthButtons callbackUrl={callbackUrl} mode="signup" />
-                            </div>
-                        </CardContent>
-                    </Card>
+                    {!hideSocial && (
+                        <>
+                            <Card className="border-2 border-primary/10 shadow-md">
+                                <CardHeader className="text-center pb-4">
+                                    <div className="flex justify-center mb-6">
+                                        <Link href="/" className="flex justify-center"><Logo /></Link>
+                                    </div>
+                                    <CardTitle className="text-2xl font-bold">Únete a BiciRegistro</CardTitle>
+                                    <CardDescription className="text-base">La forma más rápida y segura de crear tu cuenta</CardDescription>
+                                </CardHeader>
+                                <CardContent className="px-6 pb-6">
+                                    <div className="w-full">
+                                        <SocialAuthButtons callbackUrl={callbackUrl} mode="signup" />
+                                    </div>
+                                </CardContent>
+                            </Card>
 
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t border-muted-foreground/20" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-background px-4 text-muted-foreground font-medium">
-                                O registrate con correo electrónico
-                            </span>
-                        </div>
-                    </div>
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                    <span className="w-full border-t border-muted-foreground/20" />
+                                </div>
+                                <div className="relative flex justify-center text-xs uppercase">
+                                    <span className="bg-background px-4 text-muted-foreground font-medium">
+                                        O registrate con correo electrónico
+                                    </span>
+                                </div>
+                            </div>
+                        </>
+                    )}
 
-                    {/* Tarjeta 2: Plan B (Formulario Manual) */}
-                    <Card className="shadow-sm">
-                        <CardHeader>
-                            <CardTitle className="text-xl">Datos de Registro</CardTitle>
-                            <CardDescription>Llena los siguientes campos para crear tu cuenta.</CardDescription>
-                        </CardHeader>
+                    <Card className={cn("shadow-sm", hideSocial && "border-0 shadow-none bg-transparent")}>
+                        {!hideSocial && (
+                            <CardHeader>
+                                <CardTitle className="text-xl">Datos de Registro</CardTitle>
+                                <CardDescription>Llena los siguientes campos para crear tu cuenta.</CardDescription>
+                            </CardHeader>
+                        )}
                         <CardContent className="space-y-4 px-4 sm:px-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField control={form.control} name="name" render={({ field }) => (
@@ -561,12 +565,14 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                                 </div>
                             </div>
                         </CardContent>
-                        <CardFooter className="flex-col gap-4 bg-muted/20 border-t pt-6">
+                        <CardFooter className={cn("flex-col gap-4 bg-muted/20 border-t pt-6", hideSocial && "bg-transparent border-t-0")}>
                             <div className="flex flex-col gap-4 w-full">
                                 <SubmitButton isSigningIn={isSigningIn} isSubmitting={isSubmitting || isPending} loadingAuth={loadingAuth} termsAccepted={termsAccepted} />
-                                <div className="text-sm text-center text-muted-foreground mt-2">
-                                    ¿Ya tienes una cuenta? <Link href={callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login"} className="underline hover:text-primary font-semibold">Inicia Sesión</Link>
-                                </div>
+                                {!hideSocial && (
+                                    <div className="text-sm text-center text-muted-foreground mt-2">
+                                        ¿Ya tienes una cuenta? <Link href={callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login"} className="underline hover:text-primary font-semibold">Inicia Sesión</Link>
+                                    </div>
+                                )}
                             </div>
                         </CardFooter>
                     </Card>
@@ -575,7 +581,6 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
         );
     }
 
-    // --- TABBED LAYOUT FOR EDITING (MOBILE APP STYLE) ---
     return (
         <Form {...form}>
             <form 
@@ -749,7 +754,6 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
                             <CardContent className="space-y-4 px-4 sm:px-6">
                                 <FormField control={form.control} name="notificationsSafety" render={({ field }) => (
                                     <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-background">
-                                        {/* FIX: Envolvemos onChange en un timeout para evitar error flushSync con Radix + Slot */}
                                         <FormControl>
                                             <Checkbox 
                                                 checked={field.value as boolean} 
@@ -849,10 +853,15 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl }:
     );
 }
 
-export function ProfileForm({ user, communityId, callbackUrl }: { user?: User, communityId?: string, callbackUrl?: string }) {
+export function ProfileForm({ user, communityId, callbackUrl, hideSocial = false }: ProfileFormProps) {
     return (
         <Suspense fallback={<div>Cargando formulario...</div>}>
-            <ProfileFormContent user={user} communityId={communityId} callbackUrl={callbackUrl} />
+            <ProfileFormContent 
+                user={user} 
+                communityId={communityId} 
+                callbackUrl={callbackUrl} 
+                hideSocial={hideSocial}
+            />
         </Suspense>
     );
 }
