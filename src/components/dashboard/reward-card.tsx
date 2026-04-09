@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Campaign, UserReward } from '@/lib/types';
-import { Calendar, Store, Info, CheckCircle2, Ticket } from 'lucide-react';
+import { Calendar, Store, Info, CheckCircle2, Ticket, Package } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -46,6 +46,11 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
     const isAffordable = userPoints >= price;
     const diff = price - userPoints;
     const maxLimit = campaign.maxPerUser !== undefined ? campaign.maxPerUser : 1;
+
+    // Inventory Logic
+    const isLimited = campaign.totalCoupons !== undefined && campaign.totalCoupons > 0;
+    const remainingCount = isLimited ? Math.max(0, (campaign.totalCoupons || 0) - (campaign.uniqueConversionCount || 0)) : null;
+    const isLowStock = remainingCount !== null && remainingCount <= 5;
 
     // Use rewardImageUrl if present, otherwise fallback to bannerImageUrl
     const displayImageUrl = campaign.rewardImageUrl || campaign.bannerImageUrl;
@@ -221,6 +226,14 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                                 <CheckCircle2 className="w-3 h-3 text-slate-300" /> <span className="hidden sm:inline">Canjeado</span>
                             </div>
                         )}
+                        {remainingCount !== null && remainingCount > 0 && (
+                             <div className={cn(
+                                "px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold shadow flex items-center gap-1",
+                                isLowStock ? "bg-amber-600 text-white animate-pulse" : "bg-white/90 text-slate-800 border border-slate-200"
+                             )}>
+                                <Package className="w-3 h-3" /> <span>Quedan {remainingCount}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
                 
@@ -286,6 +299,17 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                     </div>
 
                     <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
+                        {remainingCount !== null && remainingCount > 0 && (
+                            <div className={cn(
+                                "flex items-center gap-2 text-sm font-bold p-2 rounded-md",
+                                isLowStock ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-slate-50 text-slate-700 border border-slate-200"
+                            )}>
+                                <Package className={cn("w-4 h-4", isLowStock && "animate-bounce")} />
+                                <span>Unidades disponibles: {remainingCount}</span>
+                                {isLowStock && <span className="text-[10px] uppercase ml-auto">¡Últimas unidades!</span>}
+                            </div>
+                        )}
+
                         <div>
                             <h4 className="font-semibold text-sm mb-1">Descripción</h4>
                             {formatTextWithBullets(campaign.description)}

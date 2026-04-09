@@ -172,8 +172,8 @@ export async function createCampaign(data: Omit<Campaign, 'id' | 'createdAt' | '
 
         const scope = data.targetScope || 'global';
 
-        // Check for placement overlap logic IF the campaign is going to be active
-        if (data.status === 'active') {
+        // Check for placement overlap logic IF the campaign is going to be active AND it's not a reward/giveaway
+        if (data.status === 'active' && data.type !== 'reward' && data.type !== 'giveaway') {
             const overlapError = await checkCampaignOverlap(finalPlacement, scope, data.targetCountry, data.targetState);
             if (overlapError) return { error: overlapError };
         }
@@ -201,6 +201,7 @@ export async function createCampaign(data: Omit<Campaign, 'id' | 'createdAt' | '
 /**
  * Helper to check for overlapping active campaigns in the same placement.
  * Returns an error string if there's an overlap, null otherwise.
+ * Skips campaigns of type 'reward' or 'giveaway'.
  */
 async function checkCampaignOverlap(
     placement: string, 
@@ -221,6 +222,11 @@ async function checkCampaignOverlap(
         if (excludeCampaignId && doc.id === excludeCampaignId) return;
         
         const data = doc.data() as Campaign;
+        
+        // Skip validation logic for rewards and giveaways entirely.
+        // They can coexist in any quantity and scope.
+        if (data.type === 'reward' || data.type === 'giveaway') return;
+
         const s = data.targetScope || 'global';
         if (s === 'global') hasGlobal = true;
         if (s === 'state' && data.targetCountry && data.targetState) {
@@ -270,8 +276,11 @@ export async function updateCampaign(campaignId: string, data: Partial<Campaign>
         const newCountry = data.targetCountry !== undefined ? data.targetCountry : currentData.targetCountry;
         const newState = data.targetState !== undefined ? data.targetState : currentData.targetState;
 
-        // If it's being set to active, or updated while active, check overlaps
-        if (newStatus === 'active') {
+        // Determine if the current or resulting type is a reward/giveaway
+        const isRewardOrGiveaway = (data.type || currentData.type) === 'reward' || (data.type || currentData.type) === 'giveaway';
+
+        // If it's being set to active, or updated while active, check overlaps (UNLESS it's a reward/giveaway)
+        if (newStatus === 'active' && !isRewardOrGiveaway) {
              const overlapError = await checkCampaignOverlap(finalPlacement, newScope, newCountry, newState, campaignId);
              if (overlapError) return { error: overlapError };
         }
@@ -378,14 +387,18 @@ export async function updateCampaignStatus(campaignId: string, newStatus: 'draft
              const currentSnap = await db.collection('campaigns').doc(campaignId).get();
              if (currentSnap.exists) {
                  const currentData = currentSnap.data() as Campaign;
-                 const overlapError = await checkCampaignOverlap(
-                     currentData.placement, 
-                     currentData.targetScope || 'global', 
-                     currentData.targetCountry, 
-                     currentData.targetState, 
-                     campaignId
-                 );
-                 if (overlapError) return { error: overlapError };
+                 const isRewardOrGiveaway = currentData.type === 'reward' || currentData.type === 'giveaway';
+                 
+                 if (!isRewardOrGiveaway) {
+                     const overlapError = await checkCampaignOverlap(
+                         currentData.placement, 
+                         currentData.targetScope || 'global', 
+                         currentData.targetCountry, 
+                         currentData.targetState, 
+                         campaignId
+                     );
+                     if (overlapError) return { error: overlapError };
+                 }
              }
         }
 
