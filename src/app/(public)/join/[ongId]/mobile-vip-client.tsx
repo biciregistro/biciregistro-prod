@@ -106,14 +106,13 @@ export function MobileVipClient({ ong, communityCount }: MobileVipClientProps) {
                     {/* BLOQUE GOOGLE: Solo se muestra si NO se ha activado el formulario de email */}
                     {!showEmailForm ? (
                         <div className="animate-in fade-in duration-300">
-                            <h2 className="font-bold text-gray-900 text-xl mb-6 leading-tight">
-                                Activa tu Pasaporte Digital con <br/>
-                                <span className="text-blue-600">{ong.organizationName}</span>
+                            <h2 className="font-bold text-gray-900 text-xl mb-4 leading-tight">
+                                Reclama tus 1,000 KM ahora
                             </h2>
                             
-                            <div className="flex items-center justify-center text-xs font-semibold text-gray-400 mb-6">
-                                <Lock className="w-3 h-3 mr-1.5" /> Toma solo 10 segundos.
-                            </div>
+                            <p className="text-xs text-muted-foreground mb-6 leading-relaxed px-4">
+                                Tu cuenta con <strong>{ong.organizationName}</strong> está lista. Entra para obtener tus 1,000 KM y registrar tu bici.
+                            </p>
 
                             {/* Botón de Google Principal */}
                             <div className="w-full mb-6">
