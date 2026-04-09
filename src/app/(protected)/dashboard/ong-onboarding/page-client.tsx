@@ -10,10 +10,15 @@ export function OngOnboardingClient() {
   const router = useRouter();
   const { showRewardToast } = useGamificationToast();
 
-  const handleSuccess = (bikeData: any) => {
+  const handleSuccess = (bikeData: any, pointsAwarded?: number) => {
     // Al registrar con éxito la bicicleta:
-    // 1. Otorga puntos visuales mediante el toast (El backend ya otorgó los puntos en DB)
-    showRewardToast(50, "¡Bicicleta registrada! Has ganado kilómetros.");
+    // 1. Otorga puntos visuales mediante el toast usando los puntos reales del backend
+    if (pointsAwarded && pointsAwarded > 0) {
+      showRewardToast(pointsAwarded, "¡Bicicleta registrada! Has ganado kilómetros.");
+    } else {
+      // Fallback visual por si algo falló (aunque el backend ya se encargó de asignarlos si correspondía)
+      showRewardToast(50, "¡Bicicleta registrada! Has ganado kilómetros.");
+    }
     
     // 2. Redirige al perfil para completar datos médicos/personales
     router.push('/dashboard/profile?onboarding=true');

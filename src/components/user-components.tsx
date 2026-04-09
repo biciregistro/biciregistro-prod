@@ -264,7 +264,12 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
                         if (!response.ok) throw new Error('Falló sesión.');
                         
                         if (callbackUrl) {
-                            window.location.href = callbackUrl;
+                            let targetUrl = callbackUrl;
+                            if (state.pointsAwarded) {
+                                const separator = targetUrl.includes('?') ? '&' : '?';
+                                targetUrl += `${separator}welcome=${state.pointsAwarded}`;
+                            }
+                            window.location.href = targetUrl;
                             return;
                         }
 
@@ -273,7 +278,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
                         let targetUrl = '/dashboard/profile';
                         if (state.pointsAwarded) {
                             const separator = targetUrl.includes('?') ? '&' : '?';
-                            targetUrl += `${separator}welcome=100`;
+                            targetUrl += `${separator}welcome=${state.pointsAwarded}`;
                         }
                         router.push(targetUrl);
 

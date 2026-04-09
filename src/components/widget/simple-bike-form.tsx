@@ -33,7 +33,7 @@ const simpleBikeSchema = z.object({
 type SimpleBikeValues = z.infer<typeof simpleBikeSchema>;
 
 interface SimpleBikeFormProps {
-  onSuccess: (bikeData: any) => void;
+  onSuccess: (bikeData: any, pointsAwarded?: number) => void;
 }
 
 // Función auxiliar de compresión
@@ -174,8 +174,10 @@ export function SimpleBikeForm({ onSuccess }: SimpleBikeFormProps) {
       const result = await registerBikeWizardAction(payload);
 
       if (result.success) {
-        toast({ title: "Bicicleta Registrada", description: "Ahora reportemos los detalles del robo." });
-        onSuccess(payload); 
+        toast({ title: "Bicicleta Registrada", description: "El registro ha sido exitoso." });
+        // Pasamos tanto el payload original (por si el padre lo necesita) 
+        // como los puntos ganados desde el backend para mostrar en el Toast
+        onSuccess(payload, result.pointsAwarded); 
       } else {
         toast({ variant: "destructive", title: "Error", description: result.message });
       }
