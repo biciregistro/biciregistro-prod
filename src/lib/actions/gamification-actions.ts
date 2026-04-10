@@ -142,6 +142,25 @@ export async function recordUniqueAction(userId: string, actionId: GamificationR
 }
 
 /**
+ * Action specifically for sharing events, callable from client
+ */
+export async function recordEventShareAction(eventId: string) {
+    try {
+        const session = await getDecodedSession();
+        const userId = session?.uid;
+        
+        if (!userId) {
+             return { success: false, error: 'Not authenticated' };
+        }
+
+        return await awardPoints(userId, 'event_share', { eventId });
+    } catch (error) {
+        console.error('Error recording event share:', error);
+        return { success: false, error: 'Internal Error' };
+    }
+}
+
+/**
  * Admin: Update global gamification rules
  */
 export async function updateGamificationRules(rules: Record<string, number>) {

@@ -16,6 +16,7 @@ import { EventRegistration } from '@/lib/types';
 import { PricingTierCard } from '@/components/pricing-tier-card';
 import { SponsorsCarousel } from '@/components/shared/sponsors-carousel';
 import { MobileRegistrationButton } from '@/components/public/mobile-registration-button';
+import { EventShareButton } from '@/components/public/events/event-share-button';
 
 type EventPageProps = {
   params: Promise<{
@@ -36,9 +37,11 @@ export async function generateMetadata({ params }: EventPageProps): Promise<Meta
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
     
-    // Ensure image URL is absolute for OG tags
-    let imageUrl = event.imageUrl || '/rodada-segura.png'; 
+    // Ensure image URL is absolute and correctly formatted for OG tags
+    // Facebook and WhatsApp require absolute URLs starting with http/https
+    let imageUrl = event.imageUrl || `${baseUrl}/rodada-segura.png`; 
     if (imageUrl.startsWith('/')) {
+        // Fallback for internal placeholder images to ensure they are absolute
         imageUrl = `${baseUrl}${imageUrl}`;
     }
 
@@ -200,25 +203,47 @@ export default async function EventPage({ params }: EventPageProps) {
                     <CardContent className="p-6 md:p-8 space-y-6">
                         {/* Badges & Title */}
                         <div className="space-y-4">
-                            <div className="flex gap-2 flex-wrap">
-                                <Badge className={cn("capitalize border text-sm py-1 px-3", eventTypeColors[event.eventType] || "bg-secondary")}>
-                                    {event.eventType}
-                                </Badge>
-                                {event.modality && (
-                                    <Badge variant="outline" className={cn("text-sm py-1 px-3", modalityColors['default'])}>
-                                        {event.modality}
-                                    </Badge>
-                                )}
-                                {event.level && (
-                                    <Badge variant="outline" className={cn("text-sm py-1 px-3", levelColors[event.level] || modalityColors['default'])}>
-                                        {event.level}
-                                    </Badge>
-                                )}
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                                <div className="space-y-4">
+                                    <div className="flex gap-2 flex-wrap">
+                                        <Badge className={cn("capitalize border text-sm py-1 px-3", eventTypeColors[event.eventType] || "bg-secondary")}>
+                                            {event.eventType}
+                                        </Badge>
+                                        {event.modality && (
+                                            <Badge variant="outline" className={cn("text-sm py-1 px-3", modalityColors['default'])}>
+                                                {event.modality}
+                                            </Badge>
+                                        )}
+                                        {event.level && (
+                                            <Badge variant="outline" className={cn("text-sm py-1 px-3", levelColors[event.level] || modalityColors['default'])}>
+                                                {event.level}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    
+                                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-tight">
+                                        {event.name}
+                                    </h1>
+                                </div>
+
+                                {/* Desktop Share Button */}
+                                <div className="hidden sm:block shrink-0 mt-1">
+                                    <EventShareButton 
+                                        event={{
+                                            id: event.id,
+                                            name: event.name,
+                                            eventType: event.eventType,
+                                            modality: event.modality,
+                                            level: event.level,
+                                            date: event.date,
+                                            state: event.state,
+                                            distance: event.distance
+                                        }}
+                                        organizerName={organizationName}
+                                        isLoggedIn={!!user}
+                                    />
+                                </div>
                             </div>
-                            
-                            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-tight">
-                                {event.name}
-                            </h1>
                             
                             {/* Bib Number Display for User */}
                             {isRegistered && event.bibNumberConfig?.enabled && (
@@ -310,6 +335,24 @@ export default async function EventPage({ params }: EventPageProps) {
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                            
+                            {/* Mobile Share Button */}
+                            <div className="sm:hidden pt-4 pb-2 border-t mt-4 border-dashed">
+                                <EventShareButton 
+                                    event={{
+                                        id: event.id,
+                                        name: event.name,
+                                        eventType: event.eventType,
+                                        modality: event.modality,
+                                        level: event.level,
+                                        date: event.date,
+                                        state: event.state,
+                                        distance: event.distance
+                                    }}
+                                    organizerName={organizationName}
+                                    isLoggedIn={!!user}
+                                />
                             </div>
                         </div>
 

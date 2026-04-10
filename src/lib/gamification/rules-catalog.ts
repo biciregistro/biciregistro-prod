@@ -15,5 +15,6 @@ export const RULE_ICONS: Record<GamificationRuleId, any> = {
     download_sticker_pdf: Download,
     download_emergency_qr: Download,
     profile_completion: FileText,
-    campaign_participation: Award
+    campaign_participation: Award,
+    event_share: Share2
 };

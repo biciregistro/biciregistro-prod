@@ -1,4 +1,3 @@
-
 import { BadgeType, GamificationProfile, UserBadge, UserStats } from "./gamification-types";
 
 // Nuevos Tipos para soportar reglas dinámicas
@@ -16,7 +15,8 @@ export type GamificationRuleId =
     | 'download_sticker_pdf'
     | 'download_emergency_qr'
     | 'profile_completion'
-    | 'campaign_participation';
+    | 'campaign_participation'
+    | 'event_share';
 
 export type GamificationRule = {
     id: GamificationRuleId;
@@ -110,12 +110,16 @@ export const GAMIFICATION_RULES: Record<GamificationRuleId, GamificationRule> = 
         label: 'Participar en Campaña',
         description: 'Puntos por descargar contenido o registrarse en campañas de aliados',
         defaultPoints: 50
+    },
+    event_share: {
+        id: 'event_share',
+        label: 'Compartir eventos',
+        description: 'Gana Km cada vez que compartas eventos con tus amigos',
+        defaultPoints: 10
     }
 };
 
 // Niveles basados en KILÓMETROS (Puntos)
-// Anteriormente: 5, 10, 25, 50 referidos.
-// Equivalencia (x100): 500, 1000, 2500, 5000 KM.
 export const KM_TIERS = {
     NOVICE: { min: 0, label: 'Iniciado' },
     BRONZE: { min: 500, label: 'Bronce', badgeId: 'referral_bronze' as BadgeType },
