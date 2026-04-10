@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 
-import { getAuthenticatedUser, getBikes, getUserEventRegistrations } from '@/lib/data';
-import type { User } from '@/lib/types';
+import { getAuthenticatedUser, getBikes, getUserEventRegistrations, getOngProfile, getEventsByOngId } from '@/lib/data';
+import { getPublicEvents } from '@/lib/actions/public-event-actions';
+import type { User, Event, OngUser } from '@/lib/types';
 
 import { DashboardTabs } from '@/components/dashboard/dashboard-tabs';
 import { OnboardingTour } from '@/components/dashboard/onboarding-tour';
@@ -29,15 +30,21 @@ export default async function DashboardPage() {
     
     // Concurrently fetch all necessary data to optimize loading times
     // We pass user.country and user.state if they exist to fetch only relevant rewards
-    const [bikes, allRegistrations, activeRewards, userPurchases] = await Promise.all([
+    const [bikes, allRegistrations, activeRewards, userPurchases, localEventsRes, ongProfileRes, ongEventsRes] = await Promise.all([
         profileIsComplete ? getBikes(user.id) : Promise.resolve([]),
         profileIsComplete ? getUserEventRegistrations(user.id) : Promise.resolve([]),
         getActiveRewards(user.country, user.state),
-        getUserRewards()
+        getUserRewards(),
+        profileIsComplete ? getPublicEvents({ country: user.country, state: user.state }) : Promise.resolve({ events: [] }),
+        user.communityId ? getOngProfile(user.communityId) : Promise.resolve(null),
+        user.communityId ? getEventsByOngId(user.communityId) : Promise.resolve([])
     ]);
 
     // Filter out cancelled registrations so they don't clutter the dashboard
     const registrations = allRegistrations.filter(reg => reg.status !== 'cancelled');
+    const localEvents = localEventsRes.events || [];
+    const ongProfile = ongProfileRes as Partial<OngUser> | null;
+    const ongEvents = (ongEventsRes as Event[]).filter(e => e.status === 'published');
 
     return (
         <div className="container max-w-5xl mx-auto md:py-8 px-4">
@@ -53,6 +60,9 @@ export default async function DashboardPage() {
                     isProfileComplete={profileIsComplete}
                     activeRewards={activeRewards}
                     userPurchases={userPurchases}
+                    localEvents={localEvents}
+                    ongProfile={ongProfile}
+                    ongEvents={ongEvents}
                 />
             </div>
             

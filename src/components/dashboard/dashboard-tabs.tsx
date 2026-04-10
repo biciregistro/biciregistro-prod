@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, MapPin, ArrowRight, Compass, Gift, HelpCircle, FileText, PlusCircle, Share2, Coins, ChevronRight, Info, AlertTriangle, UserCircle } from 'lucide-react';
-import type { Bike, UserEventRegistration, User, Campaign, UserReward } from '@/lib/types';
+import type { Bike, UserEventRegistration, User, Campaign, UserReward, Event, OngUser } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { RewardCard } from './reward-card';
 import { PromotionalBanner } from './promotional-banner';
@@ -17,6 +17,7 @@ import { ReferralStatsCard } from './referral-stats-card';
 import { getReferralData, ReferralData } from '@/lib/actions/referral-actions';
 import { useToast } from '@/hooks/use-toast';
 import { GamificationRulesSheet } from './gamification-rules-sheet';
+import { EventCard } from '@/components/public/events/event-card'; // Reuse the public event card
 
 interface DashboardTabsProps {
     bikes: Bike[];
@@ -25,6 +26,9 @@ interface DashboardTabsProps {
     isProfileComplete: boolean;
     activeRewards?: (Campaign & { advertiserName?: string })[];
     userPurchases?: UserReward[];
+    localEvents?: Event[];
+    ongProfile?: Partial<OngUser> | null;
+    ongEvents?: Event[];
 }
 
 /**
@@ -56,7 +60,7 @@ function MobileRewardLane({ title, items, userPoints, userPurchases, emptyMessag
                     </div>
                 ) : (
                     items.map((item) => (
-                        <div key={item.id} className="w-[85vw] max-w-[320px] shrink-0 snap-start">
+                        <div key={item.id} className="w-[85vw] max-w-[320px] shrink-0 snap-start h-full">
                             <RewardCard 
                                 campaign={item} 
                                 userPoints={userPoints}
@@ -72,7 +76,29 @@ function MobileRewardLane({ title, items, userPoints, userPurchases, emptyMessag
     );
 }
 
-function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, activeRewards = [], userPurchases = [] }: DashboardTabsProps) {
+/**
+ * Helper component for mobile horizontal event lanes
+ */
+function MobileEventLane({ title, children }: { 
+    title: string, 
+    children: React.ReactNode
+}) {
+    return (
+        <div className="space-y-3">
+            <div className="flex justify-between items-center px-1">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{title}</h3>
+            </div>
+            
+            <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 -mx-4 px-4 scrollbar-hide">
+                {children}
+                {/* Spacer to allow breathing room at the end of scroll */}
+                <div className="w-4 shrink-0" aria-hidden="true" />
+            </div>
+        </div>
+    );
+}
+
+function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, activeRewards = [], userPurchases = [], localEvents = [], ongProfile, ongEvents = [] }: DashboardTabsProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
@@ -177,6 +203,23 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
         };
     }, [activeRewards, userPurchases]);
 
+    // Data filtering for Event Lanes
+    const registeredEventIds = new Set(registrations.map(r => r.eventId));
+    
+    // Ong Events excluding registered ones AND finished ones (Active Only)
+    const filteredOngEvents = ongEvents.filter(e => {
+        const eventDate = new Date(e.date);
+        const isFinished = eventDate < now;
+        return !registeredEventIds.has(e.id) && !isFinished;
+    });
+    
+    // Local Events excluding registered ones and ong events
+    const filteredLocalEvents = localEvents.filter(e => 
+        !registeredEventIds.has(e.id) && !ongEvents.some(oe => oe.id === e.id)
+    );
+
+    const hasAnyEventData = registrations.length > 0 || filteredOngEvents.length > 0 || filteredLocalEvents.length > 0;
+
     return (
         <Tabs id="tour-garage" value={activeTab} onValueChange={onTabChange} className="w-full relative">
             <TabsList className="hidden md:grid w-full grid-cols-3 mb-8">
@@ -277,60 +320,285 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                     <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-amber-200 rounded-xl bg-amber-50/50">
                         <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-6"><Calendar className="h-8 w-8 text-amber-600" /></div>
                         <h3 className="text-xl font-bold tracking-tight mb-2 text-amber-800">Perfil Incompleto</h3>
-                        <p className="text-amber-700/80 max-w-sm mb-6">Para registrarte en eventos, primero debes completar tu perfil.</p>
+                        <p className="text-amber-700/80 max-w-sm mb-6">Para registrarte o explorar eventos cercanos, primero debes completar tu estado y país en tu perfil.</p>
                         <Button asChild className="bg-amber-600 hover:bg-amber-700 text-white"><Link href="/dashboard/profile">Completar Perfil Ahora</Link></Button>
                     </div>
-                ) : registrations.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-muted/30">
-                        <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6"><Calendar className="h-10 w-10 text-primary" /></div>
-                        <h3 className="text-2xl font-bold tracking-tight mb-2">No tienes eventos próximos</h3>
-                        <p className="text-muted-foreground max-w-sm mb-8">Aún no te has registrado en ningún evento.</p>
-                        <Button asChild size="lg" className="w-full sm:w-auto font-semibold"><Link href="/events">Ver Eventos Disponibles</Link></Button>
+                ) : !hasAnyEventData ? (
+                    <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed rounded-2xl bg-muted/30 max-w-2xl mx-auto">
+                        <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                            <Calendar className="h-10 w-10 text-primary" />
+                        </div>
+                        <h3 className="text-2xl font-bold tracking-tight mb-2">Por el momento no hay eventos cerca de ti</h3>
+                        <p className="text-muted-foreground max-w-md mb-8">
+                            No encontramos eventos próximos en tu localidad y no estás inscrito en ninguno. ¡Visita la cartelera completa para descubrir más!
+                        </p>
+                        <Button asChild size="lg" className="w-full sm:w-auto font-semibold shadow-lg hover:scale-105 transition-all">
+                            <Link href="/events"><Compass className="mr-2 h-5 w-5" /> Explorar Eventos</Link>
+                        </Button>
                     </div>
                 ) : (
-                    <div className="grid gap-4 md:grid-cols-2">
-                         {sortedRegistrations.map((reg) => {
-                            const eventDate = new Date(reg.event.date);
-                            const isFinished = eventDate < now;
-                            let badgeText = reg.status === 'confirmed' ? 'Confirmado' : reg.status;
-                            let badgeClassName = "text-xs shrink-0";
-                            let badgeVariant: "default" | "secondary" | "destructive" | "outline" = "secondary";
-                            if (isFinished) { badgeText = "Finalizado"; badgeClassName = cn(badgeClassName, "bg-slate-500 text-white border-transparent"); } 
-                            else if (reg.status === 'confirmed') {
-                                if (reg.event.costType === 'Con Costo' && reg.paymentStatus === 'paid') { badgeText = "Pagado"; badgeClassName = cn(badgeClassName, "bg-green-600 text-white border-transparent"); } 
-                                else if (reg.event.costType === 'Con Costo') { badgeText = "Pago Pendiente"; badgeClassName = cn(badgeClassName, "bg-yellow-100 text-yellow-800 border-yellow-200"); } 
-                                else { badgeText = "Confirmado"; badgeClassName = cn(badgeClassName, "bg-green-100 text-green-800 border-green-200"); }
-                            } else { badgeVariant = "destructive"; }
-                            return (
-                                <Card key={reg.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                                    <CardContent className="p-0">
-                                        <div className="flex flex-row h-full">
-                                            <div className="w-24 sm:w-32 bg-muted flex-shrink-0 relative">
-                                                {reg.event.imageUrl ? <img src={reg.event.imageUrl} alt={reg.event.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground"><Calendar className="h-8 w-8" /></div>}
-                                            </div>
-                                            <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
-                                                <div>
-                                                    <div className="flex justify-between items-start gap-2 mb-1">
-                                                        <h3 className="font-bold text-sm sm:text-lg line-clamp-2 leading-tight">{reg.event.name}</h3>
-                                                        <Badge variant={badgeVariant} className={cn(badgeClassName, "hidden sm:inline-flex")}>{badgeText}</Badge>
+                    <>
+                        {/* DESKTOP VIEW: Unified Grid */}
+                        <div className="hidden md:block">
+                            {sortedRegistrations.length > 0 && (
+                                <div className="mb-8">
+                                    <h3 className="text-lg font-bold text-muted-foreground mb-4 uppercase tracking-wider">Eventos Inscritos</h3>
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        {sortedRegistrations.map((reg) => {
+                                            const eventDate = new Date(reg.event.date);
+                                            const isFinished = eventDate < now;
+                                            let badgeText = reg.status === 'confirmed' ? 'Confirmado' : reg.status;
+                                            let badgeClassName = "text-xs shrink-0";
+                                            let badgeVariant: "default" | "secondary" | "destructive" | "outline" = "secondary";
+                                            if (isFinished) { badgeText = "Finalizado"; badgeClassName = cn(badgeClassName, "bg-slate-500 text-white border-transparent"); } 
+                                            else if (reg.status === 'confirmed') {
+                                                if (reg.event.costType === 'Con Costo' && reg.paymentStatus === 'paid') { badgeText = "Pagado"; badgeClassName = cn(badgeClassName, "bg-green-600 text-white border-transparent"); } 
+                                                else if (reg.event.costType === 'Con Costo') { badgeText = "Pago Pendiente"; badgeClassName = cn(badgeClassName, "bg-yellow-100 text-yellow-800 border-yellow-200"); } 
+                                                else { badgeText = "Confirmado"; badgeClassName = cn(badgeClassName, "bg-green-100 text-green-800 border-green-200"); }
+                                            } else { badgeVariant = "destructive"; }
+                                            return (
+                                                <Card key={reg.id} className="overflow-hidden hover:shadow-md transition-shadow h-full">
+                                                    <CardContent className="p-0 h-full">
+                                                        <div className="flex flex-row h-full">
+                                                            <div className="w-24 sm:w-32 bg-muted flex-shrink-0 relative">
+                                                                {reg.event.imageUrl ? <img src={reg.event.imageUrl} alt={reg.event.name} className="absolute inset-0 w-full h-full object-cover" /> : <div className="absolute inset-0 flex items-center justify-center text-muted-foreground"><Calendar className="h-8 w-8" /></div>}
+                                                            </div>
+                                                            <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
+                                                                <div>
+                                                                    <div className="flex justify-between items-start gap-2 mb-1">
+                                                                        <h3 className="font-bold text-sm sm:text-lg line-clamp-2 leading-tight">{reg.event.name}</h3>
+                                                                        <Badge variant={badgeVariant} className={cn(badgeClassName, "hidden sm:inline-flex")}>{badgeText}</Badge>
+                                                                    </div>
+                                                                    <Badge variant={badgeVariant} className={cn(badgeClassName, "sm:hidden mb-2 self-start")}>{badgeText}</Badge>
+                                                                    <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
+                                                                        <div className="flex items-center gap-1"><Calendar className="h-3 w-3 flex-shrink-0" /><span className="truncate">{eventDate.toLocaleDateString()}</span></div>
+                                                                        <div className="flex items-center gap-1"><MapPin className="h-3 w-3 flex-shrink-0" /><span className="truncate">{reg.event.state}, {reg.event.country}</span></div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="mt-3 flex justify-between items-center">
+                                                                    <div className="flex items-center text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full"><FileText className="w-3 h-3 mr-1" /><span className="hidden sm:inline">Liberación Firmada</span><span className="sm:hidden">Firmado</span></div>
+                                                                    <Button variant="ghost" size="sm" asChild className="text-primary p-0 h-auto"><Link href={`/dashboard/events/${reg.eventId}`} className="flex items-center gap-1">Detalles <ArrowRight className="h-3 w-3" /></Link></Button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {filteredOngEvents.length > 0 && (
+                                <div className="mb-8">
+                                    <h3 className="text-lg font-bold text-muted-foreground mb-4 uppercase tracking-wider">Eventos de {ongProfile?.organizationName || 'tu ONG'}</h3>
+                                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                        {filteredOngEvents.map((event) => (
+                                            <EventCard key={event.id} event={event} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {filteredLocalEvents.length > 0 && (
+                                <div className="mb-8">
+                                    <h3 className="text-lg font-bold text-muted-foreground mb-4 uppercase tracking-wider">Más eventos en {user.state}</h3>
+                                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                        {filteredLocalEvents.map((event) => (
+                                            <EventCard key={event.id} event={event} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* MOBILE VIEW: Horizontal and Vertical Lanes */}
+                        <div className="md:hidden flex flex-col space-y-8 pb-20">
+                            {sortedRegistrations.length > 0 && (
+                                <MobileEventLane title="Mis Eventos Inscritos">
+                                    {sortedRegistrations.map((reg) => {
+                                        const eventDate = new Date(reg.event.date);
+                                        const isFinished = eventDate < now;
+                                        let badgeText = reg.status === 'confirmed' ? 'Confirmado' : reg.status;
+                                        let badgeClassName = "text-[10px] shrink-0 font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm";
+                                        
+                                        if (isFinished) { 
+                                            badgeText = "Finalizado"; 
+                                            badgeClassName = cn(badgeClassName, "bg-slate-700 text-slate-100"); 
+                                        } 
+                                        else if (reg.status === 'confirmed') {
+                                            if (reg.event.costType === 'Con Costo' && reg.paymentStatus === 'paid') { 
+                                                badgeText = "Pagado"; 
+                                                badgeClassName = cn(badgeClassName, "bg-green-500 text-white"); 
+                                            } 
+                                            else if (reg.event.costType === 'Con Costo') { 
+                                                badgeText = "Pendiente"; 
+                                                badgeClassName = cn(badgeClassName, "bg-amber-500 text-white"); 
+                                            } 
+                                            else { 
+                                                badgeText = "Confirmado"; 
+                                                badgeClassName = cn(badgeClassName, "bg-blue-500 text-white"); 
+                                            }
+                                        } else { 
+                                            badgeText = "Cancelado";
+                                            badgeClassName = cn(badgeClassName, "bg-red-500 text-white");
+                                        }
+
+                                        return (
+                                            <div key={reg.id} className="w-[85vw] max-w-[320px] shrink-0 snap-start h-[148px]">
+                                                <Card className="overflow-hidden h-full flex flex-row border-white/10 shadow-lg relative group active:scale-[0.98] transition-transform bg-slate-950">
+                                                    {/* Cover Image Area (Left Side) */}
+                                                    <div className="relative w-32 flex-shrink-0 bg-slate-900 overflow-hidden h-full">
+                                                        {reg.event.imageUrl ? (
+                                                            <img src={reg.event.imageUrl} alt={reg.event.name} className="absolute inset-0 w-full h-full object-cover opacity-80" />
+                                                        ) : (
+                                                            <div className="absolute inset-0 flex items-center justify-center text-slate-700">
+                                                                <Calendar className="h-8 w-8" />
+                                                            </div>
+                                                        )}
+                                                        {/* Gradient Overlay for blending */}
+                                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-900/40 to-slate-950" />
+                                                        
+                                                        {/* Status Badge - Top Left */}
+                                                        <div className="absolute top-2 left-2 z-10 scale-[0.85] origin-top-left">
+                                                            <span className={badgeClassName}>{badgeText}</span>
+                                                        </div>
                                                     </div>
-                                                    <Badge variant={badgeVariant} className={cn(badgeClassName, "sm:hidden mb-2 self-start")}>{badgeText}</Badge>
-                                                    <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
-                                                        <div className="flex items-center gap-1"><Calendar className="h-3 w-3 flex-shrink-0" /><span className="truncate">{eventDate.toLocaleDateString()}</span></div>
-                                                        <div className="flex items-center gap-1"><MapPin className="h-3 w-3 flex-shrink-0" /><span className="truncate">{reg.event.state}, {reg.event.country}</span></div>
-                                                    </div>
-                                                </div>
-                                                <div className="mt-3 flex justify-between items-center">
-                                                    <div className="flex items-center text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full"><FileText className="w-3 h-3 mr-1" /><span className="hidden sm:inline">Liberación Firmada</span><span className="sm:hidden">Firmado</span></div>
-                                                    <Button variant="ghost" size="sm" asChild className="text-primary p-0 h-auto"><Link href={`/dashboard/events/${reg.eventId}`} className="flex items-center gap-1">Detalles <ArrowRight className="h-3 w-3" /></Link></Button>
-                                                </div>
+                                                    
+                                                    {/* Content Area (Right Side) */}
+                                                    <CardContent className="p-3.5 flex-grow flex flex-col min-w-0 justify-between">
+                                                        <div className="mb-2">
+                                                            <h3 className="font-black text-white text-sm line-clamp-2 leading-tight mb-1.5 tracking-tight min-h-[2.5em]">
+                                                                {reg.event.name}
+                                                            </h3>
+                                                            
+                                                            <div className="space-y-1.5">
+                                                                <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+                                                                    <div className="bg-white/5 p-1 rounded-md"><Calendar className="h-3 w-3 text-primary" /></div>
+                                                                    <span>{eventDate.toLocaleDateString('es-MX', { weekday: 'short', month: 'short', day: 'numeric'})}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+                                                                    <div className="bg-white/5 p-1 rounded-md"><MapPin className="h-3 w-3 text-primary" /></div>
+                                                                    <span className="truncate">{reg.event.state}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-white border-0 font-bold tracking-widest text-[10px] uppercase h-8 mt-auto px-0 flex-shrink-0">
+                                                            <Link href={`/dashboard/events/${reg.eventId}`} className="flex items-center justify-center gap-1">
+                                                                Ver Boleto <ArrowRight className="h-3 w-3" />
+                                                            </Link>
+                                                        </Button>
+                                                    </CardContent>
+                                                </Card>
                                             </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            );
-                        })}
-                    </div>
+                                        );
+                                    })}
+                                </MobileEventLane>
+                            )}
+
+                            {filteredOngEvents.length > 0 && (
+                                <MobileEventLane title={`Eventos de ${ongProfile?.organizationName || 'tu ONG'}`}>
+                                    {filteredOngEvents.map((event) => {
+                                        const eventDate = new Date(event.date);
+                                        return (
+                                            <div key={event.id} className="w-[85vw] max-w-[320px] shrink-0 snap-start h-[148px]">
+                                                <Card className="overflow-hidden h-full flex flex-row border-white/10 shadow-lg relative group active:scale-[0.98] transition-transform bg-slate-950">
+                                                    <div className="relative w-32 flex-shrink-0 bg-slate-900 overflow-hidden h-full">
+                                                        {event.imageUrl ? (
+                                                            <img src={event.imageUrl} alt={event.name} className="absolute inset-0 w-full h-full object-cover opacity-80" />
+                                                        ) : (
+                                                            <div className="absolute inset-0 flex items-center justify-center text-slate-700">
+                                                                <Calendar className="h-8 w-8" />
+                                                            </div>
+                                                        )}
+                                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-900/40 to-slate-950" />
+                                                    </div>
+                                                    
+                                                    <CardContent className="p-3.5 flex-grow flex flex-col min-w-0 justify-between">
+                                                        <div className="mb-2">
+                                                            <h3 className="font-black text-white text-sm line-clamp-2 leading-tight mb-1.5 tracking-tight min-h-[2.5em]">
+                                                                {event.name}
+                                                            </h3>
+                                                            
+                                                            <div className="space-y-1.5">
+                                                                <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+                                                                    <div className="bg-white/5 p-1 rounded-md"><Calendar className="h-3 w-3 text-primary" /></div>
+                                                                    <span>{eventDate.toLocaleDateString('es-MX', { weekday: 'short', month: 'short', day: 'numeric'})}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+                                                                    <div className="bg-white/5 p-1 rounded-md"><MapPin className="h-3 w-3 text-primary" /></div>
+                                                                    <span className="truncate">{event.state}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-white border-0 font-bold tracking-widest text-[10px] uppercase h-8 mt-auto px-0 flex-shrink-0">
+                                                            <Link href={`/events/${event.id}`} className="flex items-center justify-center gap-1">
+                                                                Ver Detalles <ArrowRight className="h-3 w-3" />
+                                                            </Link>
+                                                        </Button>
+                                                    </CardContent>
+                                                </Card>
+                                            </div>
+                                        );
+                                    })}
+                                </MobileEventLane>
+                            )}
+
+                            {filteredLocalEvents.length > 0 && (
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center px-1">
+                                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Más eventos en {user.state}</h3>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {filteredLocalEvents.map((event) => {
+                                            const eventDate = new Date(event.date);
+                                            return (
+                                                <Card key={event.id} className="overflow-hidden flex flex-row border-white/10 shadow-lg relative group active:scale-[0.98] transition-transform bg-slate-950 h-[148px]">
+                                                    <div className="relative w-32 flex-shrink-0 bg-slate-900 overflow-hidden h-full">
+                                                        {event.imageUrl ? (
+                                                            <img src={event.imageUrl} alt={event.name} className="absolute inset-0 w-full h-full object-cover opacity-80" />
+                                                        ) : (
+                                                            <div className="absolute inset-0 flex items-center justify-center text-slate-700">
+                                                                <Calendar className="h-8 w-8" />
+                                                            </div>
+                                                        )}
+                                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-900/40 to-slate-950" />
+                                                    </div>
+                                                    
+                                                    <CardContent className="p-3.5 flex-grow flex flex-col min-w-0 justify-between">
+                                                        <div className="mb-2">
+                                                            <h3 className="font-black text-white text-sm line-clamp-2 leading-tight mb-1.5 tracking-tight min-h-[2.5em]">
+                                                                {event.name}
+                                                            </h3>
+                                                            
+                                                            <div className="space-y-1.5">
+                                                                <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+                                                                    <div className="bg-white/5 p-1 rounded-md"><Calendar className="h-3 w-3 text-primary" /></div>
+                                                                    <span>{eventDate.toLocaleDateString('es-MX', { weekday: 'short', month: 'short', day: 'numeric'})}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+                                                                    <div className="bg-white/5 p-1 rounded-md"><MapPin className="h-3 w-3 text-primary" /></div>
+                                                                    <span className="truncate">{event.state}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-white border-0 font-bold tracking-widest text-[10px] uppercase h-8 mt-auto px-0 flex-shrink-0">
+                                                            <Link href={`/events/${event.id}`} className="flex items-center justify-center gap-1">
+                                                                Ver Detalles <ArrowRight className="h-3 w-3" />
+                                                            </Link>
+                                                        </Button>
+                                                    </CardContent>
+                                                </Card>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </>
                 )}
             </TabsContent>
 
