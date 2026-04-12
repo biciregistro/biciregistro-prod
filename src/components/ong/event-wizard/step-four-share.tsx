@@ -14,9 +14,10 @@ type EventFormValues = z.infer<typeof eventFormSchema>;
 interface StepProps {
     eventId: string;
     eventData: EventFormValues;
+    organizerName: string;
 }
 
-export function StepFourShare({ eventId, eventData }: StepProps) {
+export function StepFourShare({ eventId, eventData, organizerName }: StepProps) {
     const { toast } = useToast();
     const router = useRouter();
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -33,7 +34,7 @@ export function StepFourShare({ eventId, eventData }: StepProps) {
             minute: '2-digit'
         }) : '';
 
-        return `¡Te invitamos a nuestra proxima rodada, no te la puedes perder!
+        return `¡Te invitamos a la proxima rodada de ${organizerName}, no te la puedes perder!
 
 🗓️ Evento: ${eventData.name}
 🕒 Fecha y Hora: ${dateStr}

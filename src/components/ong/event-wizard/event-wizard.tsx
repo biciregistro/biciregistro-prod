@@ -226,6 +226,7 @@ export function EventWizard({ initialData, financialSettings, hasFinancialData, 
                                 <StepFourShare 
                                     eventId={savedEventId!} 
                                     eventData={form.getValues()} 
+                                    organizerName={ongProfile?.organizationName || 'nuestra organización'}
                                 />
                             )}
 
