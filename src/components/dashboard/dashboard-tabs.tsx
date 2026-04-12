@@ -60,7 +60,7 @@ function MobileRewardLane({ title, items, userPoints, userPurchases, emptyMessag
                     </div>
                 ) : (
                     items.map((item) => (
-                        <div key={item.id} className="w-[85vw] max-w-[320px] shrink-0 snap-start h-full">
+                        <div key={item.id} className="w-[85vw] max-w-[320px] shrink-0 snap-start">
                             <RewardCard 
                                 campaign={item} 
                                 userPoints={userPoints}
@@ -637,7 +637,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                     )}
                 </div>
 
-                {/* MOBILE VIEW: Horizontal Lanes */}
+                {/* MOBILE VIEW: Horizontal Lanes & Vertical Regular Rewards */}
                 <div className="md:hidden flex flex-col space-y-8">
                     {combinedList.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-muted/30">
@@ -662,12 +662,25 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                                 userPurchases={userPurchases}
                             />
 
-                            <MobileRewardLane 
-                                title="Recompensas" 
-                                items={regularRewards} 
-                                userPoints={pointsBalance} 
-                                userPurchases={userPurchases}
-                            />
+                            {/* VERTICAL SECTION: Regular Rewards */}
+                            {regularRewards.length > 0 && (
+                                <div className="space-y-4">
+                                    <div className="px-1">
+                                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Recompensas Disponibles</h3>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {regularRewards.map((campaign) => (
+                                            <div key={campaign.id} className="h-full">
+                                                <RewardCard 
+                                                    campaign={campaign} 
+                                                    userPoints={pointsBalance} 
+                                                    userPurchases={userPurchases} 
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </>
                     )}
                     

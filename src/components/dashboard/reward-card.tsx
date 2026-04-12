@@ -240,7 +240,7 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                 {/* Content Section */}
                 <CardContent className="p-3 sm:p-4 flex flex-col flex-grow min-w-0">
                     <div className="flex flex-col mb-2">
-                        <h3 className="font-bold text-sm sm:text-lg line-clamp-2 leading-tight mb-1">{campaign.title}</h3>
+                        <h3 className="font-bold text-sm sm:text-lg line-clamp-2 leading-tight mb-1 min-h-[2.5em]">{campaign.title}</h3>
                         <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
                             <Store className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                             <span className="line-clamp-1">{campaign.advertiserName}</span>
