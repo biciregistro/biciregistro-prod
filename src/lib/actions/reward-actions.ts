@@ -12,7 +12,7 @@ import { headers } from 'next/headers';
  * Returns a list of active rewards with a snapshot of the advertiser name.
  * If userCountry and userState are provided, it filters the results accordingly.
  */
-export async function getActiveRewards(userCountry?: string, userState?: string): Promise<(Campaign & { advertiserName?: string })[]> {
+export async function getActiveRewards(userCountry?: string, userState?: string): Promise<(Campaign & { advertiserName?: string, advertiserWhatsapp?: string })[]> {
     try {
         const now = new Date();
         const campaignsSnapshot = await db.collection('campaigns')
@@ -45,20 +45,22 @@ export async function getActiveRewards(userCountry?: string, userState?: string)
             }
         });
 
-        // Enrich with ONG Name
+        // Enrich with ONG Data (Name and Whatsapp)
         const enrichedCampaigns = await Promise.all(campaigns.map(async (c) => {
             let advertiserName = 'Aliado';
+            let advertiserWhatsapp = '';
             try {
                 const userDoc = await db.collection('users').doc(c.advertiserId).get();
                 if (userDoc.exists) {
                     const userData = userDoc.data() as OngUser | User;
                     advertiserName = ('organizationName' in userData ? userData.organizationName : userData.name) || 'Aliado';
+                    advertiserWhatsapp = ('contactWhatsapp' in userData ? userData.contactWhatsapp : userData.whatsapp) || '';
                 }
             } catch (e) {
-                 console.error('Error fetching advertiser name', e);
+                 console.error('Error fetching advertiser details', e);
             }
             
-            return { ...c, advertiserName };
+            return { ...c, advertiserName, advertiserWhatsapp };
         }));
 
         // Sort by Date (newest first)
@@ -143,7 +145,7 @@ export async function purchaseReward(campaignId: string, consentData: { accepted
                  }
             }
 
-            // Fetch Advertiser Name for snapshot
+            // Fetch Advertiser Details for snapshot
             let advertiserName = 'Aliado';
             const advertiserDoc = await transaction.get(db.collection('users').doc(campaignData.advertiserId));
             if (advertiserDoc.exists) {

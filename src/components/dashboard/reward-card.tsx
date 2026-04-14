@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Campaign, UserReward } from '@/lib/types';
-import { Calendar, Store, Info, CheckCircle2, Ticket, Package } from 'lucide-react';
+import { Calendar, Store, Info, CheckCircle2, Ticket, Package, MessageCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -21,9 +21,10 @@ import { triggerConfetti } from '@/lib/confetti';
 import { Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 interface RewardCardProps {
-    campaign: Campaign & { advertiserName?: string };
+    campaign: Campaign & { advertiserName?: string, advertiserWhatsapp?: string };
     userPoints: number;
     userPurchases: UserReward[];
 }
@@ -65,7 +66,6 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
     const activeCouponId = hasActiveCoupon ? unredeemedCoupons[0].id : null;
 
     // Evaluate Max Limits
-    // maxReached is true IF the campaign has a limit (maxLimit > 0) AND the user bought that exact amount or more.
     const maxReached = maxLimit > 0 && totalPurchasedForCampaign >= maxLimit;
 
     // A reward is "fully redeemed" (Exhausted) if they reached the max limit AND have nothing left to redeem.
@@ -135,27 +135,31 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
     const formatTextWithBullets = (text: string | undefined, className: string = "text-sm text-muted-foreground") => {
         if (!text) return null;
 
-        // Check if the text has at least one line starting with a hyphen
-        const lines = text.split('\n').map(l => l.trim());
-        const hasBullets = lines.some(line => line.startsWith('-'));
-
-        if (!hasBullets) {
-            return <p className={className}>{text}</p>;
-        }
-
         // If it has HTML already (fallback)
         if (text.includes('<ul>') || text.includes('<li>')) {
-            return <div dangerouslySetInnerHTML={{ __html: text }} className={cn(className, "mt-2 list-inside list-disc")} />;
+            return <div dangerouslySetInnerHTML={{ __html: text }} className={cn(className, "mt-2 list-inside list-disc whitespace-pre-line")} />;
         }
 
         return (
-            <ul className={cn("list-disc list-inside space-y-1 mt-2", className)}>
-                {lines.filter(l => l.length > 0).map((line, i) => (
-                    <li key={i} className="leading-relaxed">
-                        {line.startsWith('-') ? line.substring(1).trim() : line}
-                    </li>
-                ))}
-            </ul>
+            <div className={cn(className, "whitespace-pre-line space-y-1")}>
+                {text.split('\n').map((line, i) => {
+                    const trimmedLine = line.trim();
+                    // Detect bullets: -, •, *
+                    const isBullet = trimmedLine.startsWith('-') || trimmedLine.startsWith('•') || trimmedLine.startsWith('*');
+                    
+                    if (isBullet) {
+                        return (
+                            <div key={i} className="flex items-start gap-2 pl-1 mt-0.5">
+                                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-muted-foreground shrink-0 opacity-60" />
+                                <span className="flex-1 leading-relaxed">{trimmedLine.substring(1).trim()}</span>
+                            </div>
+                        );
+                    }
+                    
+                    // Regular line (or empty for spacing)
+                    return <div key={i} className="min-h-[0.5em]">{line}</div>;
+                })}
+            </div>
         );
     };
 
@@ -193,6 +197,12 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
             </Button>
         );
     };
+
+    // WhatsApp logic for Contact Provider
+    const whatsappMessage = `Hola! Adquiri un cupón por un ${campaign.title} en Biciregistro pero tengo una duda ¿Me pueden ayudar?`;
+    const whatsappUrl = campaign.advertiserWhatsapp 
+        ? `https://wa.me/${campaign.advertiserWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(whatsappMessage)}`
+        : null;
 
     return (
         <>
@@ -328,7 +338,19 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                         </div>
                     </div>
 
-                    <DialogFooter className="mt-6 flex gap-2">
+                    <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2">
+                        {whatsappUrl && (
+                             <Button 
+                                variant="secondary" 
+                                className="bg-green-600 hover:bg-green-700 text-white flex-1"
+                                asChild
+                             >
+                                <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                                    <MessageCircle className="w-4 h-4 mr-2" />
+                                    Contactar al proveedor
+                                </Link>
+                            </Button>
+                        )}
                         <Button variant="outline" onClick={() => setDetailsOpen(false)} className="flex-1">Cerrar</Button>
                         {(!hasActiveCoupon && !isFullyRedeemed && !maxReached) && (
                             <Button 
@@ -336,7 +358,7 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                                 disabled={!isAffordable}
                                 className={`flex-1 ${isGiveaway ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
                             >
-                                {isAffordable ? (isGiveaway ? `Comprar Boleto (Precio: ${price} KM)` : `Comprar por Precio: ${price} KM`) : 'KM Insuficientes'}
+                                {isAffordable ? (isGiveaway ? `Comprar Boleto` : `Comprar`) : 'KM Insuficientes'}
                             </Button>
                         )}
                     </DialogFooter>
