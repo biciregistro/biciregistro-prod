@@ -6,6 +6,8 @@ import { Share2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { recordEventShareAction } from '@/lib/actions/gamification-actions';
 import { triggerConfetti } from '@/lib/confetti';
+import { parseISO, format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface EventShareButtonProps {
     event: {
@@ -33,9 +35,11 @@ export function EventShareButton({ event, organizerName, isLoggedIn }: EventShar
             const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://biciregistro.mx';
             const eventUrl = `${baseUrl}/events/${event.id}`;
             
-            const eventDate = new Date(event.date);
-            const dateStr = eventDate.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
-            const timeStr = eventDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+            // Fix Time Offset: Use parseISO to handle the ISO string from DB correctly
+            // and format it explicitly to avoid native Date object timezone shifts.
+            const eventDate = parseISO(event.date);
+            const dateStr = format(eventDate, "EEEE d 'de' MMMM", { locale: es });
+            const timeStr = format(eventDate, "HH:mm");
             
             const text = `¡Mira el evento que encontré! 🚴‍♂️🔥\n\nLo organiza ${organizerName}. Es una ${event.eventType} de ${event.modality || 'ciclismo'} para nivel ${event.level || 'libre'}, el próximo ${dateStr} a las ${timeStr} en ${event.state} y apenas son ${event.distance || 0} km.\n\nEste es el link para inscribirnos: ${eventUrl}\n\n¿Qué dices, vamos? 🙌`;
 
@@ -49,13 +53,11 @@ export function EventShareButton({ event, organizerName, isLoggedIn }: EventShar
                     });
                     shareSuccess = true;
                 } catch (error: any) {
-                    // Si el usuario canceló el share, no queremos mostrar error ni dar puntos.
                     if (error.name !== 'AbortError') {
                          console.error("Error with Web Share API", error);
                     }
                 }
             } else {
-                // Fallback para Desktop o navegadores sin soporte
                 try {
                     await navigator.clipboard.writeText(text);
                     toast({
@@ -74,9 +76,7 @@ export function EventShareButton({ event, organizerName, isLoggedIn }: EventShar
                 }
             }
 
-            // Lógica de Gamificación si el share fue exitoso y el usuario está logueado
             if (shareSuccess && isLoggedIn) {
-                // Retraso artificial para que se sienta fluido tras volver de la app nativa
                 setTimeout(async () => {
                     const result = await recordEventShareAction(event.id);
                     if (result && result.success && result.points) {
@@ -87,7 +87,7 @@ export function EventShareButton({ event, organizerName, isLoggedIn }: EventShar
                             variant: "default",
                         });
                     }
-                }, 1500); // 1.5 segundos de retraso
+                }, 1500);
             }
 
         } finally {
