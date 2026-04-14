@@ -19,6 +19,9 @@ import { useToast } from '@/hooks/use-toast';
 import { GamificationRulesSheet } from './gamification-rules-sheet';
 import { EventCard } from '@/components/public/events/event-card'; // Reuse the public event card
 
+// Import OnboardingTour
+import { OnboardingTour } from '@/components/dashboard/onboarding-tour';
+
 interface DashboardTabsProps {
     bikes: Bike[];
     registrations: UserEventRegistration[];
@@ -60,7 +63,7 @@ function MobileRewardLane({ title, items, userPoints, userPurchases, emptyMessag
                     </div>
                 ) : (
                     items.map((item) => (
-                        <div key={item.id} className="w-[85vw] max-w-[320px] shrink-0 snap-start">
+                        <div key={item.id} className="w-[85vw] max-w-[320px] shrink-0 snap-start h-full">
                             <RewardCard 
                                 campaign={item} 
                                 userPoints={userPoints}
@@ -221,6 +224,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
     const hasAnyEventData = registrations.length > 0 || filteredOngEvents.length > 0 || filteredLocalEvents.length > 0;
 
     return (
+        <>
         <Tabs id="tour-garage" value={activeTab} onValueChange={onTabChange} className="w-full relative">
             <TabsList className="hidden md:grid w-full grid-cols-3 mb-8">
                 <TabsTrigger value="garage">Mi Garaje ({bikes.length})</TabsTrigger>
@@ -700,7 +704,13 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                     </div>
                 )}
             </TabsContent>
+            
+            {/* INYECTAMOS EL ONBOARDING AQUI CONDICIONALMENTE */}
+            {activeTab === 'garage' && (
+                <OnboardingTour user={user} tourType="dashboard" />
+            )}
         </Tabs>
+        </>
     );
 }
 

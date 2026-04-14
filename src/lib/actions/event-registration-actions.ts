@@ -10,7 +10,8 @@ import { CURRENT_PRIVACY_POLICY_VERSION, MARKETING_CONSENT_TEXT } from '@/lib/le
 import { sendRegistrationEmail, sendOrganizerNewParticipantEmail } from '@/lib/email/resend-service';
 import type { MarketingConsent, EventCategory } from '@/lib/types';
 import crypto from 'crypto';
-import { awardPoints } from './gamification-actions';
+import { awardPoints, recordUniqueAction } from './gamification-actions';
+import { updateUserData } from '@/lib/data';
 
 /**
  * Registra a un usuario en un evento.
@@ -117,6 +118,28 @@ export async function registerForEventAction(
         // GAMIFICACIÓN: Puntos por asistir (inscribirse) a evento
         const pointsAwarded = await awardPoints(session.uid, 'event_attendance', { eventId, registrationId: result.registrationId });
 
+        // --- GAMIFICACIÓN DINÁMICA: Completar perfil ---
+        // Después de la inscripción, verificamos si el perfil del usuario ya está completo
+        // para otorgar los KM de 'profile_completion' si no se han otorgado antes.
+        try {
+            const updatedUser = await getUser(session.uid);
+            if (updatedUser && 
+                updatedUser.emergencyContactName && 
+                updatedUser.emergencyContactPhone && 
+                updatedUser.bloodType && 
+                updatedUser.state && 
+                updatedUser.city && 
+                updatedUser.country && 
+                updatedUser.birthDate
+            ) {
+                // recordUniqueAction internamente verifica si ya se otorgaron los puntos para este actionId
+                await recordUniqueAction(session.uid, 'profile_completion');
+            }
+        } catch (gamificationError) {
+            console.error("[Non-Critical] Failed to trigger profile_completion during event registration", gamificationError);
+        }
+        // -----------------------------------------------
+
         revalidatePath(`/events/${eventId}`);
         revalidatePath(`/dashboard/events/${eventId}`);
         revalidatePath(`/dashboard/ong/events/${eventId}`);
@@ -206,5 +229,44 @@ export async function updateEventCategoryAction(
     } catch (error) {
         console.error("Error updating event category:", error);
         return { success: false, error: "Ocurrió un error al actualizar la categoría." };
+    }
+}
+
+/**
+ * Action to update basic demographic data required for registration.
+ * Allows silent updates during the event registration flow.
+ */
+export async function updateBaseProfileInRegistrationAction(
+    birthDate: string,
+    gender: 'masculino' | 'femenino' | 'otro',
+    country: string,
+    state: string,
+    city: string,
+    phone: string
+): Promise<{ success: boolean; error?: string }> {
+    const session = await getDecodedSession();
+    if (!session?.uid) return { success: false, error: "Debes iniciar sesión para guardar tus datos." };
+
+    try {
+        // Formatear fecha si viene en formato DD/MM/YYYY
+        let isoDate = birthDate;
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(birthDate)) {
+            const [d, m, y] = birthDate.split('/');
+            isoDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+
+        await updateUserData(session.uid, {
+            birthDate: isoDate,
+            gender,
+            country,
+            state,
+            city,
+            whatsapp: phone // We save phone as whatsapp to be consistent with main profile logic
+        });
+        
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating base profile during registration:", error);
+        return { success: false, error: "No se pudieron guardar tus datos de perfil." };
     }
 }

@@ -5,7 +5,6 @@ import { getPublicEvents } from '@/lib/actions/public-event-actions';
 import type { User, Event, OngUser } from '@/lib/types';
 
 import { DashboardTabs } from '@/components/dashboard/dashboard-tabs';
-import { OnboardingTour } from '@/components/dashboard/onboarding-tour';
 import { ActionPanel } from '@/components/dashboard/action-panel';
 
 import { getActiveRewards, getUserRewards } from '@/lib/actions/reward-actions';
@@ -65,8 +64,6 @@ export default async function DashboardPage() {
                     ongEvents={ongEvents}
                 />
             </div>
-            
-            <OnboardingTour user={user} />
         </div>
     );
 }

@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { registerForEventAction } from '@/lib/actions/event-registration-actions';
+import { registerForEventAction, updateBaseProfileInRegistrationAction } from '@/lib/actions/event-registration-actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -13,9 +13,13 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Tag, Loader2, ShieldCheck, ArrowRight, Shirt, HelpCircle } from 'lucide-react';
+import { Tag, Loader2, ShieldCheck, ArrowRight, Shirt, HelpCircle, User as UserIcon } from 'lucide-react';
 import type { Event, User, EventRegistration } from '@/lib/types';
 import dynamic from 'next/dynamic';
+
+// Import helpers for location selects
+import { countries, type Country } from '@/lib/countries';
+import { getCities } from '@/lib/cities';
 
 const WaiverModal = dynamic(() => import('@/components/waiver-modal').then(mod => mod.WaiverModal), {
     ssr: false,
@@ -58,6 +62,19 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
     const [insuranceInfo, setInsuranceInfo] = useState('');
     const [allergies, setAllergies] = useState('');
 
+    // Profile State (For on-the-fly onboarding)
+    const [needsProfileUpdate, setNeedsProfileUpdate] = useState(false);
+    const [profilePhone, setProfilePhone] = useState('');
+    const [profileBirthDate, setProfileBirthDate] = useState('');
+    const [profileGender, setProfileGender] = useState<'masculino' | 'femenino' | 'otro' | undefined>(undefined);
+    
+    const [selectedCountry, setSelectedCountry] = useState<Country | undefined>(countries.find(c => c.name === 'México'));
+    const [profileCountryName, setProfileCountryName] = useState('México');
+    const [states, setStates] = useState<string[]>(selectedCountry?.states || []);
+    const [profileStateName, setProfileStateName] = useState('');
+    const [cities, setCities] = useState<string[]>([]);
+    const [profileCityName, setProfileCityName] = useState('');
+
     useEffect(() => {
         if (user) {
             if (user.bloodType) setBloodType(user.bloodType);
@@ -66,8 +83,76 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
             // Pre-fill emergency contact info if available in profile
             if (user.emergencyContactName) setEmergencyName(user.emergencyContactName);
             if (user.emergencyContactPhone) setEmergencyPhone(user.emergencyContactPhone);
+
+            // Check if profile is complete
+            const userPhone = user.phone || user.whatsapp;
+            const isComplete = !!(userPhone && user.gender && user.birthDate && user.city && user.state && user.country);
+            
+            if (!isComplete) {
+                setNeedsProfileUpdate(true);
+                // Pre-fill whatever exists
+                if (userPhone) setProfilePhone(userPhone);
+                if (user.gender) setProfileGender(user.gender);
+                
+                // Format birthdate for display DD/MM/YYYY
+                if (user.birthDate) {
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(user.birthDate)) {
+                        const [y, m, d] = user.birthDate.split('-');
+                        setProfileBirthDate(`${d}/${m}/${y}`);
+                    } else {
+                        setProfileBirthDate(user.birthDate);
+                    }
+                }
+                
+                if (user.country) handleCountryChange(user.country);
+                if (user.state) {
+                     setProfileStateName(user.state);
+                     if (user.country) {
+                         const availableCities = getCities(user.country, user.state);
+                         setCities(availableCities);
+                     }
+                }
+                if (user.city) setProfileCityName(user.city);
+            } else {
+                setNeedsProfileUpdate(false);
+            }
         }
     }, [user]);
+
+    const handleCountryChange = (countryName: string) => {
+        const country = countries.find(c => c.name === countryName);
+        setSelectedCountry(country);
+        setStates(country?.states || []);
+        setCities([]);
+        setProfileCountryName(countryName);
+        setProfileStateName(''); 
+        setProfileCityName('');
+    };
+
+    const handleStateChange = (stateName: string) => {
+        setProfileStateName(stateName);
+        setProfileCityName('');
+        if (profileCountryName) {
+            const availableCities = getCities(profileCountryName, stateName);
+            setCities(availableCities);
+        } else {
+            setCities([]);
+        }
+    };
+
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 8) value = value.substring(0, 8);
+        let formattedValue = '';
+        if (value.length > 4) {
+             formattedValue = `${value.substring(0, 2)}/${value.substring(2, 4)}/${value.substring(4)}`;
+        } else if (value.length > 2) {
+             formattedValue = `${value.substring(0, 2)}/${value.substring(2)}`;
+        } else {
+             formattedValue = value;
+        }
+        setProfileBirthDate(formattedValue);
+    };
 
     // Reset jersey size if model changes
     useEffect(() => {
@@ -137,8 +222,29 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
             }
         }
 
-        // Ya no validamos preguntas aquí, se hace en el modal.
         setIsConfirmModalOpen(true);
+    };
+
+    const validateProfileFields = () => {
+        if (needsProfileUpdate) {
+            if (!profilePhone || profilePhone.length < 10) {
+                toast({ variant: "destructive", title: "Datos incompletos", description: "Debes ingresar un número de teléfono válido." });
+                return false;
+            }
+            if (!profileBirthDate || profileBirthDate.length < 10) {
+                toast({ variant: "destructive", title: "Datos incompletos", description: "Debes ingresar tu fecha de nacimiento (DD/MM/AAAA)." });
+                return false;
+            }
+            if (!profileGender) {
+                toast({ variant: "destructive", title: "Datos incompletos", description: "Por favor selecciona tu género." });
+                return false;
+            }
+            if (!profileCountryName || !profileStateName || !profileCityName) {
+                toast({ variant: "destructive", title: "Ubicación incompleta", description: "Por favor selecciona tu país, estado y municipio." });
+                return false;
+            }
+        }
+        return true;
     };
 
     const validateEmergencyContact = () => {
@@ -176,17 +282,37 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
         return true;
     };
 
-    const handleProceedToWaiverOrRegister = () => {
-        // Validación combinada
-        if (!validateCustomQuestions()) return;
+    const handleProceedToWaiverOrRegister = async () => {
+        if (!validateProfileFields()) return;
         if (!validateEmergencyContact()) return;
+        if (!validateCustomQuestions()) return;
 
-        if (event.requiresWaiver) {
-            setIsConfirmModalOpen(false);
-            setIsWaiverModalOpen(true);
-        } else {
-            handleFinalRegistration();
-        }
+        startTransition(async () => {
+            // Si el perfil está incompleto, guardamos primero esos datos básicos
+            if (needsProfileUpdate) {
+                const profileUpdateResult = await updateBaseProfileInRegistrationAction(
+                    profileBirthDate,
+                    profileGender!,
+                    profileCountryName,
+                    profileStateName,
+                    profileCityName,
+                    profilePhone
+                );
+                
+                if (!profileUpdateResult.success) {
+                    toast({ variant: "destructive", title: "Error", description: profileUpdateResult.error || "No se pudieron guardar tus datos de corredor." });
+                    return; // Stop execution if profile update fails
+                }
+            }
+
+            // Si todo salió bien, continuar flujo normal
+            if (event.requiresWaiver) {
+                setIsConfirmModalOpen(false);
+                setIsWaiverModalOpen(true);
+            } else {
+                handleFinalRegistration();
+            }
+        });
     };
 
     const handleFinalRegistration = async (waiverData?: { signature: string, signedText: string }) => {
@@ -348,8 +474,6 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                                 )}
                             </div>
                         )}
-                        
-                        {/* Preguntas adicionales removidas de aquí */}
                     </div>
                 )}
 
@@ -389,6 +513,7 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
         </Card>
 
         <Dialog open={isConfirmModalOpen} onOpenChange={setIsConfirmModalOpen}>
+            {/* REMOVED INLINE Z-INDEX: The root cause of the "ghost" select bug is fixed globally in `src/components/ui/select.tsx`  */}
             <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Confirmar Inscripción</DialogTitle>
@@ -427,7 +552,114 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                         </div>
                     )}
 
-                    {/* MOVED: Custom Questions Section */}
+                    {/* NUEVO: Missing Profile Data Injected Here */}
+                    {needsProfileUpdate && (
+                        <div className="space-y-4 pt-4 border-t border-dashed border-primary/30">
+                            <h4 className="font-bold text-sm text-primary flex items-center gap-2">
+                                <UserIcon className="h-4 w-4" /> Datos de Corredor (Obligatorio)
+                            </h4>
+                            <p className="text-xs text-muted-foreground mb-2">Para proteger tu identidad y validar tu asistencia, el organizador requiere estos datos básicos.</p>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2 col-span-1">
+                                    <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Fecha de Nacimiento</Label>
+                                    <Input type="text" inputMode="numeric" placeholder="DD/MM/AAAA" value={profileBirthDate} onChange={handleDateChange} className="h-9" />
+                                </div>
+                                <div className="space-y-2 col-span-1">
+                                    <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Género</Label>
+                                    {/* Cambiado de <Select> a <RadioGroup> para igualar ProfileForm y resolver el bug #2 */}
+                                    <RadioGroup 
+                                        onValueChange={(val: any) => setProfileGender(val)} 
+                                        value={profileGender} 
+                                        className="flex flex-row space-x-2 pt-1"
+                                    >
+                                        <div className="flex items-center space-x-1">
+                                            <RadioGroupItem value="masculino" id="g-m" />
+                                            <Label htmlFor="g-m" className="font-normal text-sm">M</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-1">
+                                            <RadioGroupItem value="femenino" id="g-f" />
+                                            <Label htmlFor="g-f" className="font-normal text-sm">F</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-1">
+                                            <RadioGroupItem value="otro" id="g-o" />
+                                            <Label htmlFor="g-o" className="font-normal text-sm">Otro</Label>
+                                        </div>
+                                    </RadioGroup>
+                                </div>
+                                <div className="space-y-2 col-span-1">
+                                    <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">País</Label>
+                                    <Select onValueChange={handleCountryChange} value={profileCountryName}>
+                                        <SelectTrigger className="h-9"><SelectValue placeholder="Selecciona país" /></SelectTrigger>
+                                        <SelectContent>
+                                            {countries.map(c => <SelectItem key={c.code} value={c.name}>{c.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2 col-span-1">
+                                    <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Estado</Label>
+                                    <Select onValueChange={handleStateChange} value={profileStateName} disabled={!selectedCountry}>
+                                        <SelectTrigger className="h-9"><SelectValue placeholder="Estado" /></SelectTrigger>
+                                        <SelectContent>
+                                            {states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2 col-span-1 sm:col-span-2">
+                                    <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Municipio</Label>
+                                    {cities.length > 0 ? (
+                                        <Select onValueChange={setProfileCityName} value={profileCityName} disabled={!profileStateName}>
+                                            <SelectTrigger className="h-9"><SelectValue placeholder="Municipio" /></SelectTrigger>
+                                            <SelectContent>
+                                                {cities.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    ) : (
+                                        <Input value={profileCityName} onChange={(e) => setProfileCityName(e.target.value)} placeholder="Tu municipio" className="h-9" />
+                                    )}
+                                </div>
+                                <div className="space-y-2 col-span-1 sm:col-span-2">
+                                    <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Teléfono / WhatsApp</Label>
+                                    <Input type="tel" placeholder="10 dígitos" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} className="h-9" />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {event.requiresEmergencyContact && (
+                        <div className="space-y-4 pt-4 border-t mt-2">
+                            <h4 className="font-semibold text-sm text-destructive">Información de Emergencia (Obligatorio)</h4>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2 col-span-2">
+                                    <Label htmlFor="e-name" className="after:content-['*'] after:ml-0.5 after:text-red-500">Nombre de Contacto</Label>
+                                    <Input id="e-name" value={emergencyName} onChange={(e) => setEmergencyName(e.target.value)} placeholder="Nombre de familiar o amigo" className="h-9" />
+                                </div>
+                                <div className="space-y-2 col-span-2 sm:col-span-1">
+                                    <Label htmlFor="e-phone" className="after:content-['*'] after:ml-0.5 after:text-red-500">Teléfono</Label>
+                                    <Input id="e-phone" type="tel" value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} placeholder="10 dígitos" className="h-9" />
+                                </div>
+                                <div className="space-y-2 col-span-2 sm:col-span-1">
+                                    <Label className="after:content-['*'] after:ml-0.5 after:text-red-500">Tipo de Sangre</Label>
+                                    <Select value={bloodType} onValueChange={setBloodType}>
+                                        <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                                        <SelectContent>
+                                            {BLOOD_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2 col-span-2">
+                                    <Label htmlFor="e-insurance" className="after:content-['*'] after:ml-0.5 after:text-red-500">Seguro Médico / Póliza</Label>
+                                    <Input id="e-insurance" value={insuranceInfo} onChange={(e) => setInsuranceInfo(e.target.value)} placeholder="Ej. IMSS, GNP - Poliza 12345, o 'Sin seguro'" className="h-9" />
+                                </div>
+                                <div className="space-y-2 col-span-2">
+                                    <Label htmlFor="e-allergies">Alergias (Opcional)</Label>
+                                    <Input id="e-allergies" value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder="Ej. Penicilina, látex, o 'Ninguna'" className="h-9" />
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground italic bg-muted/30 p-2 rounded">* Tus datos médicos solo serán visibles para el organizador durante el evento y hasta 24 horas después.</p>
+                        </div>
+                    )}
+
                     {customQuestions.length > 0 && (
                         <div className="space-y-4 pt-4 border-t">
                             <h4 className="font-semibold text-sm flex items-center gap-2">
@@ -478,40 +710,6 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                                     )}
                                 </div>
                             ))}
-                        </div>
-                    )}
-
-                    {event.requiresEmergencyContact && (
-                        <div className="space-y-4 pt-3 border-t mt-2">
-                            <h4 className="font-semibold text-sm text-destructive">Información de Emergencia (Obligatorio)</h4>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2 col-span-2">
-                                    <Label htmlFor="e-name">Nombre de Contacto</Label>
-                                    <Input id="e-name" value={emergencyName} onChange={(e) => setEmergencyName(e.target.value)} placeholder="Nombre de familiar o amigo" className="h-9" />
-                                </div>
-                                <div className="space-y-2 col-span-2 sm:col-span-1">
-                                    <Label htmlFor="e-phone">Teléfono</Label>
-                                    <Input id="e-phone" type="tel" value={emergencyPhone} onChange={(e) => setEmergencyPhone(e.target.value)} placeholder="10 dígitos" className="h-9" />
-                                </div>
-                                <div className="space-y-2 col-span-2 sm:col-span-1">
-                                    <Label>Tipo de Sangre</Label>
-                                    <Select value={bloodType} onValueChange={setBloodType}>
-                                        <SelectTrigger className="h-9"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                                        <SelectContent>
-                                            {BLOOD_TYPES.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2 col-span-2">
-                                    <Label htmlFor="e-insurance">Seguro Médico / Póliza</Label>
-                                    <Input id="e-insurance" value={insuranceInfo} onChange={(e) => setInsuranceInfo(e.target.value)} placeholder="Ej. IMSS, GNP - Poliza 12345, o 'Sin seguro'" className="h-9" />
-                                </div>
-                                <div className="space-y-2 col-span-2">
-                                    <Label htmlFor="e-allergies">Alergias</Label>
-                                    <Input id="e-allergies" value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder="Ej. Penicilina, látex, o 'Ninguna'" className="h-9" />
-                                </div>
-                            </div>
-                            <p className="text-[10px] text-muted-foreground italic bg-muted/30 p-2 rounded">* Tus datos médicos solo serán visibles para el organizador durante el evento y hasta 24 horas después.</p>
                         </div>
                     )}
                     
