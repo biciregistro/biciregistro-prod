@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getDecodedSession } from '@/lib/auth';
 import { getEventRegistration, updateRegistrationManualPayment, updateRegistrationStatusInternal, getPayoutsByEvent } from '@/lib/financial-data';
-import { getEvent, updateEvent, getAuthenticatedUser } from '@/lib/data';
+import { getEvent, updateEvent, getAuthenticatedUser, getBikes } from '@/lib/data';
 import { PaymentStatus } from '@/lib/types';
 import { createPreference } from '@/lib/mercadopago';
 import { adminStorage, adminDb } from '@/lib/firebase/server';
@@ -124,7 +124,34 @@ export async function createPaymentPreferenceAction(eventId: string, registratio
     }
 
     try {
-        // 1. Obtener detalles del registro
+        // 1. Obtener detalles del usuario para validación de seguridad (Blur Wall)
+        const user = await getAuthenticatedUser();
+        if (!user) {
+            return { success: false, error: "Usuario no encontrado." };
+        }
+
+        // VALIDACIÓN ESTRICTA: El usuario debe tener perfil completo
+        const userPhone = user.phone || user.whatsapp;
+        const isProfileComplete = !!(userPhone && user.city && user.state && user.country);
+        if (!isProfileComplete) {
+            return { success: false, error: "Acceso Denegado: Debes completar tu perfil (datos de corredor) antes de poder realizar el pago." };
+        }
+
+        // 2. Obtener detalles del evento
+        const event = await getEvent(eventId);
+        if (!event) {
+            return { success: false, error: "Evento no encontrado." };
+        }
+
+        // VALIDACIÓN ESTRICTA: Si el evento requiere bici, el usuario debe tener al menos una
+        if (event.requiresBike !== false) {
+            const userBikes = await getBikes(user.id);
+            if (userBikes.length === 0) {
+                return { success: false, error: "Acceso Denegado: Debes registrar la bicicleta con la que participarás antes de poder realizar el pago." };
+            }
+        }
+
+        // 3. Obtener detalles del registro
         const registration = await getEventRegistration(registrationId);
         if (!registration) {
             return { success: false, error: "Registro no encontrado." };
@@ -140,13 +167,7 @@ export async function createPaymentPreferenceAction(eventId: string, registratio
             return { success: false, error: "Este registro ya ha sido pagado." };
         }
 
-        // 2. Obtener detalles del evento
-        const event = await getEvent(eventId);
-        if (!event) {
-            return { success: false, error: "Evento no encontrado." };
-        }
-
-        // 3. Determinar el precio y el nombre del item
+        // 4. Determinar el precio y el nombre del item
         let price = registration.price;
         let title = `Inscripción: ${event.name}`;
 
@@ -163,9 +184,6 @@ export async function createPaymentPreferenceAction(eventId: string, registratio
             return { success: false, error: "No se pudo determinar el precio a pagar." };
         }
 
-        // 4. Obtener datos del usuario para el pagador
-        const user = await getAuthenticatedUser(); // Usa la cookie de sesión actual
-        
         // Construir URLs de retorno dinámicas
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx'; 
         // CORRECCIÓN: Apuntar al Dashboard

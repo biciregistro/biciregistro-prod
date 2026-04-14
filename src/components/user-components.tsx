@@ -146,9 +146,10 @@ interface ProfileFormProps {
     communityId?: string;
     callbackUrl?: string;
     hideSocial?: boolean; 
+    onSuccess?: () => void;
 }
 
-function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, hideSocial = false }: ProfileFormProps) {
+function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, hideSocial = false, onSuccess }: ProfileFormProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const callbackUrl = propCallbackUrl || searchParams.get('callbackUrl');
@@ -244,7 +245,11 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
                 router.push('/login');
                 return;
             } else if (isEditing) {
-                router.refresh();
+                if (onSuccess) {
+                    onSuccess();
+                } else {
+                    router.refresh();
+                }
             } else if (state.customToken) {
                 setIsSigningIn(true);
                 const handleSignInAndSession = async () => {
@@ -331,7 +336,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
         } else if (state.error) {
             toast({ variant: 'destructive', title: "Error", description: state.error });
         }
-    }, [state, toast, form, isEditing, router, callbackUrl, showRewardToast, activeTab]);
+    }, [state, toast, form, isEditing, router, callbackUrl, showRewardToast, activeTab, onSuccess]);
 
     const handleCountryChange = (countryName: string) => {
         const country = countries.find(c => c.name === countryName);
@@ -858,7 +863,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
     );
 }
 
-export function ProfileForm({ user, communityId, callbackUrl, hideSocial = false }: ProfileFormProps) {
+export function ProfileForm({ user, communityId, callbackUrl, hideSocial = false, onSuccess }: ProfileFormProps) {
     return (
         <Suspense fallback={<div>Cargando formulario...</div>}>
             <ProfileFormContent 
@@ -866,6 +871,7 @@ export function ProfileForm({ user, communityId, callbackUrl, hideSocial = false
                 communityId={communityId} 
                 callbackUrl={callbackUrl} 
                 hideSocial={hideSocial}
+                onSuccess={onSuccess}
             />
         </Suspense>
     );

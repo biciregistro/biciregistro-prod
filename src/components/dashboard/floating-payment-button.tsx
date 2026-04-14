@@ -1,20 +1,44 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useTransition, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CreditCard, Loader2 } from 'lucide-react';
 import { createPaymentPreferenceAction } from '@/lib/actions/financial-actions';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface FloatingPaymentButtonProps {
     eventId: string;
     registrationId: string;
     price: number;
+    targetId?: string; // Optional element ID to hide when visible
 }
 
-export function FloatingPaymentButton({ eventId, registrationId, price }: FloatingPaymentButtonProps) {
+export function FloatingPaymentButton({ eventId, registrationId, price, targetId }: FloatingPaymentButtonProps) {
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
+    const [show, setShow] = useState(true);
+
+    useEffect(() => {
+        if (!targetId) return;
+
+        const handleScroll = () => {
+            const target = document.getElementById(targetId);
+            if (!target) return;
+
+            const rect = target.getBoundingClientRect();
+            // Lógica: Ocultar el botón cuando el elemento objetivo (sección de pago en el ticket) 
+            // entra en la zona visible de la pantalla.
+            const isTargetInView = rect.top < window.innerHeight - 50;
+            
+            setShow(!isTargetInView);
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        handleScroll(); // Initial check
+
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [targetId]);
 
     const handlePay = () => {
         startTransition(async () => {
@@ -32,7 +56,10 @@ export function FloatingPaymentButton({ eventId, registrationId, price }: Floati
     };
 
     return (
-        <div className="fixed bottom-6 left-4 right-4 z-50 md:hidden animate-in slide-in-from-bottom-10 duration-500">
+        <div className={cn(
+            "fixed bottom-20 left-4 right-4 z-[45] md:hidden transition-all duration-500 transform",
+            show ? "translate-y-0 opacity-100" : "translate-y-24 opacity-0 pointer-events-none"
+        )}>
             <Button 
                 onClick={handlePay}
                 disabled={isPending}
