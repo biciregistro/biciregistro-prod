@@ -15,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Download, FileDown } from 'lucide-react';
 import type { EventAttendee, CustomQuestion } from '@/lib/types';
-import { format } from 'date-fns';
+import { format, differenceInYears } from 'date-fns';
 
 interface AttendeeExportModalProps {
   attendees: EventAttendee[];
@@ -32,7 +32,11 @@ const STATIC_FIELDS = [
   { id: 'bibNumber', label: 'Número (Bib)' },
   { id: 'categoryName', label: 'Categoría' },
   { id: 'tierName', label: 'Nivel/Tier' },
-  { id: 'gender', label: 'Género' }, 
+  { id: 'gender', label: 'Género' },
+  { id: 'age', label: 'Edad' }, // NUEVO
+  { id: 'country', label: 'País' }, // NUEVO
+  { id: 'state', label: 'Estado' }, // NUEVO
+  { id: 'city', label: 'Ciudad' }, // NUEVO
   { id: 'jerseyModel', label: 'Modelo Jersey' },
   { id: 'jerseySize', label: 'Talla Jersey' },
   { id: 'status', label: 'Estatus Registro' },
@@ -54,12 +58,8 @@ export function AttendeeExportModal({ attendees, eventName, customQuestions = []
   const [selectedFields, setSelectedFields] = useState<string[]>(availableFields.map(f => f.id));
   const [isOpen, setIsOpen] = useState(false);
 
-  // Sync selected fields when customQuestions change (unlikely during modal lifetime but good practice)
+  // Sync selected fields when customQuestions change
   useEffect(() => {
-     // If custom questions load later, we ensure they are selected by default if state was empty/initial
-     // However, to respect user deselection, we might just leave it. 
-     // Since this is client-side and customQuestions come from props, usually they are ready.
-     // We will re-initialize if the available fields length changes significantly compared to state
      if (selectedFields.length < availableFields.length && selectedFields.length === STATIC_FIELDS.length) {
           setSelectedFields(availableFields.map(f => f.id));
      }
@@ -113,6 +113,17 @@ export function AttendeeExportModal({ attendees, eventName, customQuestions = []
 
           // Manejo especial de campos
           switch (key) {
+            case 'age':
+                if (attendee.birthDate) {
+                    try {
+                        value = differenceInYears(new Date(), new Date(attendee.birthDate));
+                    } catch (e) {
+                        value = 'N/D';
+                    }
+                } else {
+                    value = 'N/D';
+                }
+                break;
             case 'bikeInfo':
               value = attendee.bike ? `${attendee.bike.make} ${attendee.bike.model}` : '';
               break;

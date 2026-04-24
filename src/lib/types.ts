@@ -335,6 +335,11 @@ export type EventAttendee = {
     allergies?: string | null; 
     waiverSigned?: boolean;
     customAnswers?: Record<string, string | string[]>; // Respuestas personalizadas
+    gender?: string | null;
+    birthDate?: string | null;
+    country?: string | null;
+    state?: string | null;
+    city?: string | null;
 };
 
 export type UserEventRegistration = EventRegistration & {

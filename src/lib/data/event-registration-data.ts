@@ -279,7 +279,14 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 insuranceInfo: areEmergencyDetailsHidden ? '***' : (regData.insuranceInfo || null),
                 allergies: areEmergencyDetailsHidden ? '***' : (regData.allergies || null),
                 waiverSigned: !!regData.waiverSignature,
-                customAnswers: regData.customAnswers || {} // Include custom answers
+                customAnswers: regData.customAnswers || {}, // Include custom answers
+                
+                // --- NEW FIELDS FROM USER PROFILE ---
+                gender: user?.gender || null,
+                birthDate: user?.birthDate || null,
+                country: user?.country || null,
+                state: user?.state || null,
+                city: user?.city || null,
             } as EventAttendee;
         });
 
