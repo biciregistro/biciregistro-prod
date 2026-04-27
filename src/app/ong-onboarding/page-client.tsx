@@ -182,35 +182,36 @@ export function OngWizardClient({ initialStep, initialData, userName, userId }: 
     // ----------------------------------------------------------------------
     return (
         <div className="w-full">
-            {/* PROGRESS BAR */}
-            <div className="mb-8 flex items-center justify-between">
+            {/* PROGRESS BAR - OPTIMIZED FOR MOBILE */}
+            <div className="mb-10 flex items-center justify-between px-2">
                 {[1, 2, 3].map((step) => (
                     <div key={step} className="flex flex-col items-center gap-2 relative z-10">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border-2 transition-colors ${
-                            currentStep === step ? 'bg-primary text-white border-primary' : 
+                        <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-sm md:text-base font-bold border-2 transition-colors ${
+                            currentStep === step ? 'bg-primary text-white border-primary shadow-md' : 
                             currentStep > step ? 'bg-primary/20 text-primary border-primary' : 
                             'bg-muted text-muted-foreground border-muted-foreground/30'
                         }`}>
-                            {currentStep > step ? <CheckCircle2 className="w-5 h-5" /> : step}
+                            {currentStep > step ? <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5" /> : step}
                         </div>
-                        <span className={`text-xs font-semibold ${currentStep === step ? 'text-foreground' : 'text-muted-foreground'}`}>
+                        <span className={`text-[10px] md:text-xs font-bold uppercase tracking-tight ${currentStep === step ? 'text-primary' : 'text-muted-foreground'}`}>
                             {step === 1 ? 'Identidad' : step === 2 ? 'Marca' : 'Finanzas'}
                         </span>
                     </div>
                 ))}
-                <div className="absolute top-5 left-10 right-10 h-[2px] bg-muted-foreground/20 -z-0 hidden sm:block">
+                {/* Visual Line connector */}
+                <div className="absolute top-4 left-10 right-10 h-[1px] md:h-[2px] bg-muted-foreground/20 -z-0 hidden xs:block">
                      <div className="h-full bg-primary transition-all duration-500" style={{ width: `${(currentStep - 1) * 50}%` }} />
                 </div>
             </div>
 
             {/* STEP 1 */}
             {currentStep === 1 && (
-                <Card className="animate-in fade-in slide-in-from-right-4">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Building2 className="w-5 h-5 text-primary" /> Identidad de tu Organización</CardTitle>
-                        <CardDescription>Esta información será pública y ayudará a los ciclistas a ubicarte.</CardDescription>
+                <Card className="animate-in fade-in slide-in-from-right-4 border-0 md:border shadow-none md:shadow-sm">
+                    <CardHeader className="px-2 md:px-6">
+                        <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><Building2 className="w-5 h-5 text-primary" /> Identidad de tu Organización</CardTitle>
+                        <CardDescription className="text-xs md:text-sm">Esta información será pública y ayudará a los ciclistas a ubicarte.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="px-2 md:px-6">
                         <Form {...form1}>
                             <form onSubmit={form1.handleSubmit(onSubmitStep1)} className="space-y-6">
                                 <FormField control={form1.control} name="organizationName" render={({ field }) => (
@@ -219,13 +220,13 @@ export function OngWizardClient({ initialStep, initialData, userName, userId }: 
                                 <FormField control={form1.control} name="contactPerson" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Nombre del Responsable / Contacto</FormLabel>
-                                        <FormDescription>Lo hemos llenado con tu nombre de registro, pero puedes cambiarlo.</FormDescription>
+                                        <FormDescription className="text-[10px]">Lo hemos llenado con tu nombre de registro, pero puedes cambiarlo.</FormDescription>
                                         <FormControl><Input {...field} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )} />
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <FormField control={form1.control} name="organizationWhatsapp" render={({ field }) => (
                                         <FormItem><FormLabel>WhatsApp de la Organización (Público)</FormLabel><FormControl><Input type="tel" {...field} /></FormControl><FormMessage /></FormItem>
                                     )} />
@@ -234,7 +235,7 @@ export function OngWizardClient({ initialStep, initialData, userName, userId }: 
                                     )} />
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                      <FormField control={form1.control} name="country" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>País Sede</FormLabel>
@@ -264,14 +265,14 @@ export function OngWizardClient({ initialStep, initialData, userName, userId }: 
                                 <FormField control={form1.control} name="googleMapsUrl" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Ubicación / Punto de Encuentro (Google Maps)</FormLabel>
-                                        <FormDescription>Pega el link de Google Maps de tu base o tienda si tienes una.</FormDescription>
+                                        <FormDescription className="text-[10px]">Pega el link de Google Maps de tu base o tienda si tienes una.</FormDescription>
                                         <FormControl><Input placeholder="https://maps.app.goo.gl/..." {...field} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )} />
 
-                                <div className="flex justify-end pt-4 border-t">
-                                    <Button type="submit" disabled={isPending}>
+                                <div className="flex justify-end pt-4 border-t mt-8">
+                                    <Button type="submit" disabled={isPending} className="w-full md:w-auto min-w-[150px] h-12 md:h-10 text-base md:text-sm">
                                         {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Siguiente"}
                                         {!isPending && <ArrowRight className="ml-2 h-4 w-4" />}
                                     </Button>
@@ -284,26 +285,28 @@ export function OngWizardClient({ initialStep, initialData, userName, userId }: 
 
             {/* STEP 2 */}
             {currentStep === 2 && (
-                 <Card className="animate-in fade-in slide-in-from-right-4">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Globe className="w-5 h-5 text-primary" /> Presencia Digital</CardTitle>
-                        <CardDescription>Configura cómo te verán los usuarios dentro de BiciRegistro.</CardDescription>
+                 <Card className="animate-in fade-in slide-in-from-right-4 border-0 md:border shadow-none md:shadow-sm">
+                    <CardHeader className="px-2 md:px-6">
+                        <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><Globe className="w-5 h-5 text-primary" /> Presencia Digital</CardTitle>
+                        <CardDescription className="text-xs md:text-sm">Configura cómo te verán los usuarios dentro de BiciRegistro.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="px-2 md:px-6">
                         <Form {...form2}>
-                            <form onSubmit={form2.handleSubmit(onSubmitStep2)} className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <FormLabel>Logotipo Oficial</FormLabel>
+                            <form onSubmit={form2.handleSubmit(onSubmitStep2)} className="space-y-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="space-y-3">
+                                        <FormLabel className="text-base font-semibold">Logotipo Oficial</FormLabel>
+                                        <p className="text-[10px] text-muted-foreground -mt-2">Puedes usar tu foto de perfil de Facebook</p>
                                         <ImageUpload 
                                             onUploadSuccess={handleLogoUpload} 
                                             storagePath="ong-logos" 
                                             initialImageUrl={form2.getValues('logoUrl')}
-                                            guidelinesText="Usa el mismo de Facebook. Min 200x200px"
+                                            guidelinesText="Recomendado: Cuadrado, min 200x200px"
                                         />
                                     </div>
-                                    <div className="space-y-2">
-                                        <FormLabel>Imagen de Portada (Opcional)</FormLabel>
+                                    <div className="space-y-3">
+                                        <FormLabel className="text-base font-semibold">Imagen de Portada</FormLabel>
+                                         <p className="text-[10px] text-muted-foreground -mt-2">Puedes agregar tu foto de portada de Facebook</p>
                                         <ImageUpload 
                                             onUploadSuccess={handleCoverUpload} 
                                             storagePath="ong-covers" 
@@ -315,15 +318,15 @@ export function OngWizardClient({ initialStep, initialData, userName, userId }: 
 
                                 <FormField control={form2.control} name="description" render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Acerca de Nosotros</FormLabel>
+                                        <FormLabel className="text-base font-semibold">Acerca de Nosotros</FormLabel>
                                         <FormControl>
-                                            <Textarea placeholder="Cuéntale a la comunidad quiénes son y qué tipo de eventos organizan..." className="min-h-[100px]" {...field} />
+                                            <Textarea placeholder="Cuéntale a la comunidad quiénes son y qué tipo de eventos organizan..." className="min-h-[120px] resize-none" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )} />
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                      <FormField control={form2.control} name="facebookUrl" render={({ field }) => (
                                         <FormItem><FormLabel>Página de Facebook</FormLabel><FormControl><Input placeholder="https://facebook.com/..." {...field} /></FormControl><FormMessage /></FormItem>
                                     )} />
@@ -335,11 +338,11 @@ export function OngWizardClient({ initialStep, initialData, userName, userId }: 
                                     )} />
                                 </div>
 
-                                <div className="flex justify-between pt-4 border-t">
-                                    <Button type="button" variant="ghost" onClick={() => setCurrentStep(1)} disabled={isPending}>
+                                <div className="flex flex-col-reverse md:flex-row justify-between gap-4 pt-4 border-t mt-8">
+                                    <Button type="button" variant="ghost" onClick={() => setCurrentStep(1)} disabled={isPending} className="h-12 md:h-10">
                                         <ArrowLeft className="mr-2 h-4 w-4" /> Atrás
                                     </Button>
-                                    <Button type="submit" disabled={isPending}>
+                                    <Button type="submit" disabled={isPending} className="h-12 md:h-10 min-w-[150px] text-base md:text-sm font-bold">
                                         {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Siguiente"}
                                         {!isPending && <ArrowRight className="ml-2 h-4 w-4" />}
                                     </Button>
@@ -352,32 +355,32 @@ export function OngWizardClient({ initialStep, initialData, userName, userId }: 
 
             {/* STEP 3 */}
             {currentStep === 3 && (
-                <Card className="animate-in fade-in slide-in-from-right-4">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Landmark className="w-5 h-5 text-primary" /> Modelo Operativo</CardTitle>
-                        <CardDescription>Para facturación y transferencia de fondos (Split de Pagos).</CardDescription>
+                <Card className="animate-in fade-in slide-in-from-right-4 border-0 md:border shadow-none md:shadow-sm">
+                    <CardHeader className="px-2 md:px-6">
+                        <CardTitle className="flex items-center gap-2 text-xl md:text-2xl"><Landmark className="w-5 h-5 text-primary" /> Modelo Operativo</CardTitle>
+                        <CardDescription className="text-xs md:text-sm">Para facturación y transferencia de fondos (Split de Pagos).</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="px-2 md:px-6">
                          <Form {...form3}>
-                            <form onSubmit={form3.handleSubmit(onSubmitStep3)} className="space-y-6">
+                            <form onSubmit={form3.handleSubmit(onSubmitStep3)} className="space-y-8">
                                 
                                 <FormField control={form3.control} name="hasCost" render={({ field }) => (
                                     <FormItem className="space-y-3 p-4 border rounded-lg bg-muted/20">
-                                        <FormLabel className="text-base font-semibold">¿Realizarás eventos con cobro de inscripción?</FormLabel>
-                                        <FormDescription>Podrás crear eventos gratuitos en cualquier momento.</FormDescription>
+                                        <FormLabel className="text-base font-bold">¿Realizarás eventos con cobro de inscripción?</FormLabel>
+                                        <FormDescription className="text-xs">Podrás crear eventos gratuitos en cualquier momento.</FormDescription>
                                         <FormControl>
                                             <RadioGroup 
                                                 onValueChange={(val) => field.onChange(val === 'true')} 
                                                 value={field.value ? 'true' : 'false'} 
-                                                className="flex flex-col space-y-2"
+                                                className="flex flex-col space-y-3 mt-4"
                                             >
-                                                <FormItem className="flex items-center space-x-3 space-y-0 p-3 border rounded-md cursor-pointer hover:bg-background transition-colors">
+                                                <FormItem className="flex items-center space-x-3 space-y-0 p-4 border rounded-md cursor-pointer bg-background hover:border-primary transition-all">
                                                     <FormControl><RadioGroupItem value="false" /></FormControl>
-                                                    <FormLabel className="font-normal text-base cursor-pointer">Mis eventos serán 100% gratuitos.</FormLabel>
+                                                    <FormLabel className="font-medium text-sm md:text-base cursor-pointer">Mis eventos serán 100% gratuitos.</FormLabel>
                                                 </FormItem>
-                                                <FormItem className="flex items-center space-x-3 space-y-0 p-3 border rounded-md cursor-pointer hover:bg-background transition-colors">
+                                                <FormItem className="flex items-center space-x-3 space-y-0 p-4 border rounded-md cursor-pointer bg-background hover:border-primary transition-all">
                                                     <FormControl><RadioGroupItem value="true" /></FormControl>
-                                                    <FormLabel className="font-normal text-base cursor-pointer">Sí, cobraré cuota de inscripción a los ciclistas.</FormLabel>
+                                                    <FormLabel className="font-medium text-sm md:text-base cursor-pointer">Sí, cobraré cuota de inscripción a los ciclistas.</FormLabel>
                                                 </FormItem>
                                             </RadioGroup>
                                         </FormControl>
@@ -386,8 +389,8 @@ export function OngWizardClient({ initialStep, initialData, userName, userId }: 
                                 )} />
 
                                 {hasCost && (
-                                    <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-8 animate-in fade-in slide-in-from-top-4 duration-300">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 p-4 md:p-6 rounded-lg border">
                                             <FormField control={form3.control} name="bankName" render={({ field }) => (
                                                 <FormItem><FormLabel>Banco Destino</FormLabel><FormControl><Input placeholder="Ej. BBVA, Santander" {...field} /></FormControl><FormMessage /></FormItem>
                                             )} />
@@ -395,16 +398,16 @@ export function OngWizardClient({ initialStep, initialData, userName, userId }: 
                                                 <FormItem><FormLabel>Titular de la Cuenta</FormLabel><FormControl><Input placeholder="Nombre oficial en el banco" {...field} /></FormControl><FormMessage /></FormItem>
                                             )} />
                                             <FormField control={form3.control} name="clabe" render={({ field }) => (
-                                                <FormItem className="md:col-span-2"><FormLabel>Cuenta CLABE (18 dígitos)</FormLabel><FormControl><Input className="font-mono tracking-widest" maxLength={18} {...field} /></FormControl><FormMessage /></FormItem>
+                                                <FormItem className="md:col-span-2"><FormLabel>Cuenta CLABE (18 dígitos)</FormLabel><FormControl><Input className="font-mono tracking-widest text-lg h-12" maxLength={18} {...field} /></FormControl><FormMessage /></FormItem>
                                             )} />
                                         </div>
 
                                         <div className="bg-blue-50/50 dark:bg-blue-950/20 p-5 rounded-lg border border-blue-200 dark:border-blue-900">
                                             <div className="mb-4">
-                                                <h4 className="font-semibold text-sm flex items-center gap-2">
+                                                <h4 className="font-bold text-sm flex items-center gap-2 text-blue-800 dark:text-blue-300">
                                                     <FileText className="h-4 w-4" /> Constancia de Situación Fiscal (PDF)
                                                 </h4>
-                                                <p className="text-xs text-muted-foreground mt-1">Como plataforma Marketplace, requerimos tu constancia vigente para facturar las comisiones de uso de plataforma que se descuentan en cada pago.</p>
+                                                <p className="text-[10px] md:text-xs text-blue-700/80 dark:text-blue-400/80 mt-1 leading-relaxed">Como plataforma Marketplace, requerimos tu constancia vigente para facturar las comisiones de uso de plataforma que se descuentan en cada pago.</p>
                                             </div>
 
                                             <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -413,7 +416,7 @@ export function OngWizardClient({ initialStep, initialData, userName, userId }: 
                                                     variant="outline" 
                                                     onClick={() => document.getElementById('wizard-pdf-upload')?.click()}
                                                     disabled={isUploadingPdf}
-                                                    className="w-full sm:w-auto"
+                                                    className="w-full sm:w-auto h-12 md:h-10"
                                                 >
                                                     {isUploadingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                                                     {pdfUrl ? 'Cambiar PDF' : 'Subir Archivo PDF'}
@@ -426,11 +429,11 @@ export function OngWizardClient({ initialStep, initialData, userName, userId }: 
                                                     onChange={handlePdfUpload}
                                                 />
                                                 {pdfUrl ? (
-                                                    <span className="text-sm text-green-600 font-medium flex items-center gap-2">
+                                                    <span className="text-xs md:text-sm text-green-600 font-bold flex items-center gap-2">
                                                         <CheckCircle2 className="w-4 h-4" /> Documento cargado exitosamente
                                                     </span>
                                                 ) : (
-                                                    <span className="text-sm text-muted-foreground italic">Campo obligatorio*</span>
+                                                    <span className="text-[10px] md:text-xs text-muted-foreground italic">Campo obligatorio*</span>
                                                 )}
                                             </div>
                                             {/* Hidden field so Zod picks it up */}
@@ -441,11 +444,11 @@ export function OngWizardClient({ initialStep, initialData, userName, userId }: 
                                     </div>
                                 )}
 
-                                <div className="flex justify-between pt-4 border-t">
-                                    <Button type="button" variant="ghost" onClick={() => setCurrentStep(2)} disabled={isPending}>
+                                <div className="flex flex-col-reverse md:flex-row justify-between gap-4 pt-4 border-t mt-8">
+                                    <Button type="button" variant="ghost" onClick={() => setCurrentStep(2)} disabled={isPending} className="h-12 md:h-10">
                                         <ArrowLeft className="mr-2 h-4 w-4" /> Atrás
                                     </Button>
-                                    <Button type="submit" disabled={isPending} className="bg-green-600 hover:bg-green-700">
+                                    <Button type="submit" disabled={isPending} className="bg-green-600 hover:bg-green-700 h-12 md:h-10 text-base md:text-sm font-bold shadow-lg">
                                         {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Finalizar y Comenzar a Operar"}
                                     </Button>
                                 </div>

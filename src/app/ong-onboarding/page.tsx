@@ -29,10 +29,11 @@ export default async function OngOnboardingPage() {
   const step = (initialData as any).onboardingStep || 1;
 
   return (
-    <div className="container py-8 max-w-3xl mx-auto">
+    // FIX: Added px-4 to prevent titles from sticking to screen edges in mobile
+    <div className="container py-8 max-w-3xl mx-auto px-4 md:px-6">
         <div className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight">Bienvenido a BiciRegistro</h1>
-            <p className="text-muted-foreground">Estás a un par de minutos de poder publicar tu primer evento. Configuremos el perfil de tu organización.</p>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Bienvenido a BiciRegistro</h1>
+            <p className="text-muted-foreground text-sm md:text-base">Estás a un par de minutos de poder publicar tu primer evento. Configuremos el perfil de tu organización.</p>
         </div>
         <OngWizardClient 
             initialStep={step} 
