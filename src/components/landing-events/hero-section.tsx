@@ -8,16 +8,19 @@ interface HeroSectionProps {
   content: LandingEventsHero;
 }
 
+const WHATSAPP_NUMBER = "5215569691709";
+const WHATSAPP_MESSAGE = "¡Hola! 👋 Me interesa gestionar mis eventos con BiciRegistro. 🚴✨ Me pueden ayudar a crear mi cuenta de organizador para empezar a publicar mis eventos. ¿Cuáles son los siguientes pasos?";
+
 export function HeroSection({ content }: HeroSectionProps) {
+  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+
   return (
     <section
       className="relative bg-cover bg-center bg-no-repeat py-24 px-4 text-center sm:py-32 md:py-48"
       style={{ backgroundImage: `url(${content.backgroundImageUrl})` }}
     >
-      {/* Increased overlay opacity for better contrast */}
       <div className="absolute inset-0 bg-black/70" />
       <div className="relative z-10 mx-auto max-w-4xl">
-        {/* Explicit text-white and drop-shadow */}
         <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl drop-shadow-xl">
           {content.title}
         </h1>
@@ -26,8 +29,8 @@ export function HeroSection({ content }: HeroSectionProps) {
         </p>
         <div className="mt-10 flex flex-col items-center justify-center gap-y-4">
           <Button size="lg" className="px-10 py-6 text-lg font-semibold shadow-lg hover:scale-105 transition-transform" asChild>
-            {/* LINK MODIFIED: Now points to the dedicated ONG Registration route */}
-            <Link href="/ong/signup">
+            {/* REVERTED TO WHATSAPP FLOW FOR IDENTITY VERIFICATION CONTROL */}
+            <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
               {content.ctaButton}
             </Link>
           </Button>
