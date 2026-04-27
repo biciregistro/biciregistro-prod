@@ -50,6 +50,7 @@ export const ongUserFormSchema = z.object({
   websiteUrl: z.string().url("El enlace a la página web no es válido.").optional().or(z.literal('')),
   instagramUrl: z.string().url("El enlace a Instagram no es válido.").optional().or(z.literal('')),
   facebookUrl: z.string().url("El enlace a Facebook no es válido.").optional().or(z.literal('')),
+  googleMapsUrl: z.string().url("El enlace de Google Maps no es válido.").optional().or(z.literal('')), // NUEVO
   country: z.string().min(1, "El país es obligatorio."),
   state: z.string().min(1, "El estado es obligatorio."),
 });
@@ -63,6 +64,7 @@ export const ongProfileSchema = z.object({
     websiteUrl: z.string().url("El enlace a la página web no es válido.").optional().or(z.literal('')),
     instagramUrl: z.string().url("El enlace a Instagram no es válido.").optional().or(z.literal('')),
     facebookUrl: z.string().url("El enlace a Facebook no es válido.").optional().or(z.literal('')),
+    googleMapsUrl: z.string().url("El enlace de Google Maps no es válido.").optional().or(z.literal('')), // NUEVO
     country: z.string().min(1, "El país es obligatorio."),
     state: z.string().min(1, "El estado es obligatorio."),
     logoUrl: z.string().url("La URL del logo no es válida").optional().or(z.literal('')),
@@ -78,7 +80,53 @@ export const financialProfileSchema = z.object({
     clabe: z.string()
         .length(18, "La CLABE debe tener exactamente 18 dígitos.")
         .regex(/^\d+$/, "La CLABE debe contener solo números."),
+    constanciaFiscalUrl: z.string().url("Debes subir tu Constancia de Situación Fiscal.").optional().or(z.literal('')), // NUEVO
 });
+
+// --- ONBOARDING WIZARD SCHEMAS ---
+
+export const wizardStep1Schema = z.object({
+    organizationName: z.string().min(3, "El nombre de la organización es obligatorio."),
+    contactPerson: z.string().min(3, "La persona de contacto es obligatoria."),
+    country: z.string().min(1, "El país es obligatorio."),
+    state: z.string().min(1, "El estado es obligatorio."),
+    organizationWhatsapp: z.string().min(10, "El WhatsApp de la organización es obligatorio."),
+    contactWhatsapp: z.string().min(10, "El WhatsApp del contacto es obligatorio."),
+    googleMapsUrl: z.string().url("El enlace de Google Maps no es válido.").optional().or(z.literal('')),
+});
+
+export const wizardStep2Schema = z.object({
+    logoUrl: z.string().url("Sube el logotipo de tu organización.").optional().or(z.literal('')),
+    coverUrl: z.string().url("Sube una imagen de portada.").optional().or(z.literal('')),
+    description: z.string().max(500, "La descripción es muy larga (máx. 500 caracteres).").optional(),
+    websiteUrl: z.string().url("URL inválida.").optional().or(z.literal('')),
+    facebookUrl: z.string().url("URL inválida.").optional().or(z.literal('')),
+    instagramUrl: z.string().url("URL inválida.").optional().or(z.literal('')),
+});
+
+export const wizardStep3Schema = z.object({
+    hasCost: z.boolean(),
+    bankName: z.string().optional(),
+    accountHolder: z.string().optional(),
+    clabe: z.string().optional(),
+    constanciaFiscalUrl: z.string().optional().or(z.literal('')),
+}).superRefine((data, ctx) => {
+    if (data.hasCost) {
+        if (!data.bankName || data.bankName.length < 2) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "El banco es requerido.", path: ['bankName'] });
+        }
+        if (!data.accountHolder || data.accountHolder.length < 3) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "El titular es requerido.", path: ['accountHolder'] });
+        }
+        if (!data.clabe || !/^\d{18}$/.test(data.clabe)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La CLABE debe tener 18 números.", path: ['clabe'] });
+        }
+        if (!data.constanciaFiscalUrl) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La Constancia Fiscal es requerida.", path: ['constanciaFiscalUrl'] });
+        }
+    }
+});
+
 
 export const BikeRegistrationSchema = z.object({
   serialNumber: z.string().min(1, "El número de serie es obligatorio.").refine(s => !s.startsWith('PENDING_'), {

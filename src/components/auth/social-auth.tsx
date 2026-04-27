@@ -11,9 +11,10 @@ import Link from 'next/link';
 interface SocialAuthButtonsProps {
     callbackUrl?: string | null;
     mode?: 'login' | 'signup';
+    roleContext?: string; // NUEVO PROP PARA PASAR AL ACTION
 }
 
-export function SocialAuthButtons({ callbackUrl, mode = 'login' }: SocialAuthButtonsProps) {
+export function SocialAuthButtons({ callbackUrl, mode = 'login', roleContext }: SocialAuthButtonsProps) {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
@@ -27,7 +28,7 @@ export function SocialAuthButtons({ callbackUrl, mode = 'login' }: SocialAuthBut
             const idToken = await result.user.getIdToken();
             
             // 2. Sincronizar el usuario con Firestore ANTES de crear la sesión
-            const syncResult = await syncSocialUser(idToken);
+            const syncResult = await syncSocialUser(idToken, roleContext); // Pasamos roleContext
             
             if (!syncResult.success) {
                 await auth.signOut();
@@ -68,10 +69,14 @@ export function SocialAuthButtons({ callbackUrl, mode = 'login' }: SocialAuthBut
             if (callbackUrl) {
                 targetUrl = callbackUrl;
             } else if (syncResult.isNewUser) {
-                targetUrl = '/dashboard/profile';
+                 // Si es un nuevo registro y el rol es ONG, lo mandamos a la nueva ruta independiente
+                targetUrl = roleContext === 'ong' || sessionData.isOng ? '/ong-onboarding' : '/dashboard/profile';
             } else if (sessionData.isAdmin) {
                 targetUrl = '/admin';
             } else if (sessionData.isOng) {
+                // Si no es nuevo, lo mandamos a /dashboard/ong.
+                // Si no ha completado el onboarding, el layout.tsx protegido lo interceptará y
+                // lo redirigirá a /ong-onboarding.
                 targetUrl = '/dashboard/ong';
             }
 

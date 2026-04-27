@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Eye, EyeOff, CheckCircle, XCircle, BellRing, Ambulance, User as UserIcon, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, XCircle, BellRing, Ambulance, User as UserIcon, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Logo } from './icons/logo';
 import { cn } from '@/lib/utils';
@@ -85,12 +85,12 @@ const looseFormSchema = z.object({
 
 type FormValues = z.infer<typeof looseFormSchema>;
 
-function SubmitButton({ isEditing, isSigningIn, isSubmitting, loadingAuth, termsAccepted }: { isEditing?: boolean, isSigningIn?: boolean, isSubmitting?: boolean, loadingAuth?: boolean, termsAccepted?: boolean }) {
+function SubmitButton({ isEditing, isSigningIn, isSubmitting, loadingAuth, termsAccepted, isOngSignup }: { isEditing?: boolean, isSigningIn?: boolean, isSubmitting?: boolean, loadingAuth?: boolean, termsAccepted?: boolean, isOngSignup?: boolean }) {
     const { pending } = useFormStatus();
     const termsValid = isEditing ? true : termsAccepted;
     const isDisabled = pending || isSigningIn || isSubmitting || loadingAuth || !termsValid;
 
-    let text = isEditing ? 'Guardar Cambios' : 'Crear cuenta';
+    let text = isEditing ? 'Guardar Cambios' : (isOngSignup ? 'Crear cuenta de Organizador' : 'Crear cuenta');
     if (loadingAuth) text = 'Verificando...';
     if (isSigningIn) text = 'Finalizando...';
 
@@ -152,12 +152,17 @@ interface ProfileFormProps {
 function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, hideSocial = false, onSuccess }: ProfileFormProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const roleContext = searchParams.get('role');
     const callbackUrl = propCallbackUrl || searchParams.get('callbackUrl');
     const formRef = useRef<HTMLFormElement>(null);
     const [isPending, startTransition] = useTransition();
     const isEditing = !!user;
     const action = isEditing ? updateProfile : signup;
+    const isOngSignup = !isEditing && roleContext === 'ong';
     
+    // UI State for ONG Signup (Hide manual form initially)
+    const [showManualForm, setShowManualForm] = useState(!isOngSignup);
+
     const [state, formAction] = useActionState<ActionFormState, FormData>(action, null);
     const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
     const [loadingAuth, setLoadingAuth] = useState(true);
@@ -277,15 +282,20 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
                             window.location.href = targetUrl;
                             return;
                         }
-
-                        toast({ title: '¡Éxito!', description: 'Has creado tu cuenta. Completa tu perfil para continuar.' });
                         
-                        let targetUrl = '/dashboard/profile';
+                        // CORRECCIÓN PARA EL RESIDUAL 404:
+                        // La redirección ahora apunta correctamente a la nueva ruta independiente /ong-onboarding
+                        let targetUrl = isOngSignup ? '/ong-onboarding' : '/dashboard/profile';
+                        
+                        if (!isOngSignup) {
+                             toast({ title: '¡Éxito!', description: 'Has creado tu cuenta. Completa tu perfil para continuar.' });
+                        }
+                        
                         if (state.pointsAwarded) {
                             const separator = targetUrl.includes('?') ? '&' : '?';
                             targetUrl += `${separator}welcome=${state.pointsAwarded}`;
                         }
-                        router.push(targetUrl);
+                        window.location.href = targetUrl; // Force full nav for proper state hydration
 
                     } catch (sessionError) {
                         setIsSigningIn(false);
@@ -327,6 +337,11 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
             if (errorTabToFocus !== activeTab) {
                 setActiveTab(errorTabToFocus);
             }
+            
+            // If ONG signup and error occurred in manual form, show it
+            if (isOngSignup && !showManualForm) {
+                 setShowManualForm(true);
+            }
 
             toast({
                 variant: 'destructive',
@@ -336,7 +351,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
         } else if (state.error) {
             toast({ variant: 'destructive', title: "Error", description: state.error });
         }
-    }, [state, toast, form, isEditing, router, callbackUrl, showRewardToast, activeTab, onSuccess]);
+    }, [state, toast, form, isEditing, router, callbackUrl, showRewardToast, activeTab, onSuccess, isOngSignup, showManualForm]);
 
     const handleCountryChange = (countryName: string) => {
         const country = countries.find(c => c.name === countryName);
@@ -405,6 +420,9 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
             if (values.birthDate) formData.set('birthDate', values.birthDate);
             if (!isEditing) formData.set('termsAccepted', 'true');
             if (communityId) formData.set('communityId', communityId);
+            
+            // Pass role context to server action
+            if (roleContext) formData.set('roleContext', roleContext);
 
             startTransition(() => {
                 if (!isEditing || !newPassword) {
@@ -459,6 +477,10 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
             if (errorTabToFocus !== activeTab) {
                 setActiveTab(errorTabToFocus);
             }
+            
+            if (isOngSignup && !showManualForm) {
+                 setShowManualForm(true);
+            }
 
             toast({
                 variant: 'destructive',
@@ -473,6 +495,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
             <Form {...form}>
                 <form ref={formRef} onSubmit={form.handleSubmit(handleFormSubmit, onInvalidSubmit)} className="space-y-6 max-w-xl mx-auto">
                     {communityId && <input type="hidden" name="communityId" value={communityId} />}
+                    {roleContext && <input type="hidden" name="roleContext" value={roleContext} />}
                     
                     {callbackUrl && callbackUrl.includes('express-register') && (
                         <Alert className="bg-primary/10 border-primary/20 mb-6 animate-in fade-in slide-in-from-top-4 duration-500">
@@ -485,107 +508,132 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
                     )}
 
                     {!hideSocial && (
-                        <>
-                            <Card className="border-2 border-primary/10 shadow-md">
-                                <CardHeader className="text-center pb-4">
-                                    <div className="flex justify-center mb-6">
-                                        <Link href="/" className="flex justify-center"><Logo /></Link>
-                                    </div>
-                                    <CardTitle className="text-2xl font-bold">Únete a BiciRegistro</CardTitle>
-                                    <CardDescription className="text-base">La forma más rápida y segura de crear tu cuenta</CardDescription>
-                                </CardHeader>
-                                <CardContent className="px-6 pb-6">
-                                    <div className="w-full">
-                                        <SocialAuthButtons callbackUrl={callbackUrl} mode="signup" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <div className="relative">
-                                <div className="absolute inset-0 flex items-center">
-                                    <span className="w-full border-t border-muted-foreground/20" />
+                        <Card className="border-2 border-primary/10 shadow-md mb-6">
+                            <CardHeader className="text-center pb-4">
+                                <div className="flex justify-center mb-6">
+                                    <Link href="/" className="flex justify-center"><Logo /></Link>
                                 </div>
-                                <div className="relative flex justify-center text-xs uppercase">
-                                    <span className="bg-background px-4 text-muted-foreground font-medium">
-                                        O registrate con correo electrónico
-                                    </span>
+                                <CardTitle className="text-2xl font-bold">{isOngSignup ? 'Registro de Organizador' : 'Únete a BiciRegistro'}</CardTitle>
+                                <CardDescription className="text-base">{isOngSignup ? 'Regístrate con tu cuenta personal. Luego configuraremos tu negocio.' : 'La forma más rápida y segura de crear tu cuenta'}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="px-6 pb-6">
+                                <div className="w-full">
+                                    {/* For ONG Signup, we inject role into callbackUrl or pass it if auth buttons supported it.
+                                        Since auth buttons sync via API and we need to pass role, we append it to URL for the social sync function
+                                        Wait, SocialAuthButtons handles it via client. We need to pass mode='signup' and role.
+                                        We will append it to the window location logic inside SocialAuthButtons.
+                                        Actually, we added roleContext to syncSocialUser. We need to pass it to SocialAuthButtons!
+                                    */}
+                                    <div className="space-y-3 w-full">
+                                        <SocialAuthButtons callbackUrl={callbackUrl} mode="signup" roleContext={roleContext || undefined} />
+                                    </div>
                                 </div>
-                            </div>
-                        </>
+                            </CardContent>
+                        </Card>
                     )}
 
-                    <Card className={cn("shadow-sm", hideSocial && "border-0 shadow-none bg-transparent")}>
-                        {!hideSocial && (
-                            <CardHeader>
-                                <CardTitle className="text-xl">Datos de Registro</CardTitle>
-                                <CardDescription>Llena los siguientes campos para crear tu cuenta.</CardDescription>
-                            </CardHeader>
-                        )}
-                        <CardContent className="space-y-4 px-4 sm:px-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField control={form.control} name="name" render={({ field }) => (
-                                    <FormItem><FormLabel>Nombre(s)</FormLabel><FormControl><Input placeholder="Tu nombre" {...field} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name="lastName" render={({ field }) => (
-                                    <FormItem><FormLabel>Apellidos</FormLabel><FormControl><Input placeholder="Tus apellidos" {...field} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                            </div>
-                            <FormField control={form.control} name="email" render={({ field }) => (
-                                <FormItem><FormLabel>Correo Electrónico</FormLabel><FormControl><Input type="email" placeholder="m@example.com" {...field} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
-                            )} />
+                    {isOngSignup && (
+                        <div className="flex justify-center mb-6">
+                             <Button 
+                                type="button" 
+                                variant="ghost" 
+                                className="text-muted-foreground hover:text-foreground text-sm"
+                                onClick={() => setShowManualForm(!showManualForm)}
+                            >
+                                ¿No tienes cuenta de Google? {showManualForm ? <ChevronUp className="ml-1 h-4 w-4"/> : <ChevronDown className="ml-1 h-4 w-4"/>}
+                            </Button>
+                        </div>
+                    )}
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                                <FormField control={form.control} name="password" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Contraseña</FormLabel>
-                                        <FormControl>
-                                            <div className="relative">
-                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={(field.value as string) || ''} />
-                                                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground" onClick={() => setShowPassword(prev => !prev)}>
-                                                    {showPassword ? <EyeOff /> : <Eye />}
-                                                </Button>
-                                            </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="confirmPassword" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Repetir Contraseña</FormLabel>
-                                        <FormControl>
-                                            <div className="relative">
-                                                <Input type={showPassword ? 'text' : 'password'} {...field} value={(field.value as string) || ''} />
-                                                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground" onClick={() => setShowPassword(prev => !prev)}>
-                                                    {showPassword ? <EyeOff /> : <Eye />}
-                                                </Button>
-                                            </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                            </div>
-                            <PasswordStrengthIndicator password={passwordValue as string} />
-                            
-                            <div className="flex items-start space-x-2 pt-6 pb-2">
-                                <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(checked) => setTermsAccepted(checked as boolean)} />
-                                <div className="grid gap-1.5 leading-none">
-                                    <label htmlFor="terms" className="text-sm font-medium leading-relaxed peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-muted-foreground">
-                                        He leído y acepto los <Link href="/terms" target="_blank" className="text-primary hover:underline font-semibold">Términos y Condiciones</Link> y el <Link href="/privacy" target="_blank" className="text-primary hover:underline font-semibold">Aviso de Privacidad</Link>
-                                    </label>
-                                </div>
-                            </div>
-                        </CardContent>
-                        <CardFooter className={cn("flex-col gap-4 bg-muted/20 border-t pt-6", hideSocial && "bg-transparent border-t-0")}>
-                            <div className="flex flex-col gap-4 w-full">
-                                <SubmitButton isSigningIn={isSigningIn} isSubmitting={isSubmitting || isPending} loadingAuth={loadingAuth} termsAccepted={termsAccepted} />
-                                {!hideSocial && (
-                                    <div className="text-sm text-center text-muted-foreground mt-2">
-                                        ¿Ya tienes una cuenta? <Link href={callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login"} className="underline hover:text-primary font-semibold">Inicia Sesión</Link>
+                    {(!isOngSignup || showManualForm) && (
+                        <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                            {!hideSocial && !isOngSignup && (
+                                <div className="relative mb-6">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <span className="w-full border-t border-muted-foreground/20" />
                                     </div>
+                                    <div className="relative flex justify-center text-xs uppercase">
+                                        <span className="bg-background px-4 text-muted-foreground font-medium">
+                                            O registrate con correo electrónico
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            <Card className={cn("shadow-sm", hideSocial && "border-0 shadow-none bg-transparent")}>
+                                {!hideSocial && (
+                                    <CardHeader>
+                                        <CardTitle className="text-xl">Datos Personales</CardTitle>
+                                        <CardDescription>{isOngSignup ? 'Estos datos son para tu usuario administrador.' : 'Llena los siguientes campos para crear tu cuenta.'}</CardDescription>
+                                    </CardHeader>
                                 )}
-                            </div>
-                        </CardFooter>
-                    </Card>
+                                <CardContent className="space-y-4 px-4 sm:px-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <FormField control={form.control} name="name" render={({ field }) => (
+                                            <FormItem><FormLabel>Nombre(s)</FormLabel><FormControl><Input placeholder="Tu nombre" {...field} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                        <FormField control={form.control} name="lastName" render={({ field }) => (
+                                            <FormItem><FormLabel>Apellidos</FormLabel><FormControl><Input placeholder="Tus apellidos" {...field} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
+                                        )} />
+                                    </div>
+                                    <FormField control={form.control} name="email" render={({ field }) => (
+                                        <FormItem><FormLabel>Correo Electrónico</FormLabel><FormControl><Input type="email" placeholder="m@example.com" {...field} value={(field.value as string) || ''} /></FormControl><FormMessage /></FormItem>
+                                    )} />
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                                        <FormField control={form.control} name="password" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Contraseña</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative">
+                                                        <Input type={showPassword ? 'text' : 'password'} {...field} value={(field.value as string) || ''} />
+                                                        <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground" onClick={() => setShowPassword(prev => !prev)}>
+                                                            {showPassword ? <EyeOff /> : <Eye />}
+                                                        </Button>
+                                                    </div>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={form.control} name="confirmPassword" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Repetir Contraseña</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative">
+                                                        <Input type={showPassword ? 'text' : 'password'} {...field} value={(field.value as string) || ''} />
+                                                        <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground" onClick={() => setShowPassword(prev => !prev)}>
+                                                            {showPassword ? <EyeOff /> : <Eye />}
+                                                        </Button>
+                                                    </div>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                    </div>
+                                    <PasswordStrengthIndicator password={passwordValue as string} />
+                                    
+                                    <div className="flex items-start space-x-2 pt-6 pb-2">
+                                        <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(checked) => setTermsAccepted(checked as boolean)} />
+                                        <div className="grid gap-1.5 leading-none">
+                                            <label htmlFor="terms" className="text-sm font-medium leading-relaxed peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-muted-foreground">
+                                                He leído y acepto los <Link href="/terms" target="_blank" className="text-primary hover:underline font-semibold">Términos y Condiciones</Link> y el <Link href="/privacy" target="_blank" className="text-primary hover:underline font-semibold">Aviso de Privacidad</Link>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                                <CardFooter className={cn("flex-col gap-4 bg-muted/20 border-t pt-6", hideSocial && "bg-transparent border-t-0")}>
+                                    <div className="flex flex-col gap-4 w-full">
+                                        <SubmitButton isSigningIn={isSigningIn} isSubmitting={isSubmitting || isPending} loadingAuth={loadingAuth} termsAccepted={termsAccepted} isOngSignup={isOngSignup} />
+                                        {!hideSocial && (
+                                            <div className="text-sm text-center text-muted-foreground mt-2">
+                                                ¿Ya tienes una cuenta? <Link href={callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login"} className="underline hover:text-primary font-semibold">Inicia Sesión</Link>
+                                            </div>
+                                        )}
+                                    </div>
+                                </CardFooter>
+                            </Card>
+                        </div>
+                    )}
                 </form>
             </Form>
         );

@@ -36,11 +36,26 @@ service firebase.storage {
     }
 
     // --- ONG Profile Rules ---
-    // Allow public read for ONG logos.
-    // Allow authenticated users to write to their own ONG folder.
+    // Regla legacy, mantenida por compatibilidad
     match /ongs/{ongId}/{allPaths=**} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == ongId;
+    }
+
+    // Nuevas reglas para logos y portadas de ONGs (Lectura pública)
+    match /ong-logos/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /ong-covers/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // --- Constancias Fiscales ---
+    // Información fiscal altamente sensible. Solo el dueño puede leer/escribir.
+    match /constancias-fiscales/{userId}/{fileName} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
     // --- Event Rules ---

@@ -6,11 +6,12 @@ import { randomUUID } from "crypto";
 
 import { getAuthenticatedUser } from "@/lib/data";
 import { createEvent, updateEvent, getEvent } from "@/lib/data";
-import { ongProfileSchema, financialProfileSchema, eventFormSchema } from "@/lib/schemas";
+import { ongProfileSchema, financialProfileSchema, eventFormSchema, wizardStep1Schema, wizardStep2Schema, wizardStep3Schema } from "@/lib/schemas";
 import { adminDb as db } from "@/lib/firebase/server";
+import { FieldValue } from 'firebase-admin/firestore';
 import { updateOngFinancialData, getFinancialSettings } from "@/lib/financial-data";
 import { calculateGrossUp, calculateFeeBreakdown, calculateAbsorbedFee } from "@/lib/utils";
-import type { ActionFormState, Event } from "@/lib/types";
+import type { ActionFormState, Event, OngUser } from "@/lib/types";
 
 
 export async function updateOngProfile(values: z.infer<typeof ongProfileSchema>) {
@@ -73,7 +74,7 @@ export async function saveOngFinancialsAction(prevState: any, formData: FormData
 
     if (!validatedFields.success) {
         return {
-            error: 'Datos inválidos. Verifica que la CLABE tenga 18 dígitos numéricos.',
+            error: 'Datos inválidos. Verifica los campos requeridos.',
             errors: validatedFields.error.flatten().fieldErrors,
         };
     }
@@ -87,6 +88,102 @@ export async function saveOngFinancialsAction(prevState: any, formData: FormData
         return { error: 'Ocurrió un error al guardar los datos bancarios.' };
     }
 }
+
+// --- WIZARD ONBOARDING ACTIONS ---
+
+export async function saveOnboardingStep(step: number, data: any) {
+    const user = await getAuthenticatedUser();
+    if (!user || user.role !== "ong") return { success: false, error: "No autorizado." };
+
+    try {
+        let schema;
+        if (step === 1) schema = wizardStep1Schema;
+        if (step === 2) schema = wizardStep2Schema;
+        if (step === 3) schema = wizardStep3Schema;
+
+        if (!schema) return { success: false, error: "Paso inválido." };
+
+        const validated = schema.safeParse(data);
+        if (!validated.success) {
+             return { success: false, error: "Datos inválidos.", details: validated.error.flatten().fieldErrors };
+        }
+
+        const cleanData = Object.fromEntries(Object.entries(validated.data).filter(([_, v]) => v !== undefined));
+        
+        // Special mapping for step 3
+        if (step === 3) {
+            const hasCost = (cleanData as any).hasCost;
+            if (hasCost) {
+                // If has cost, save financial data nested
+                const financialData = {
+                    bankName: (cleanData as any).bankName,
+                    accountHolder: (cleanData as any).accountHolder,
+                    clabe: (cleanData as any).clabe,
+                    constanciaFiscalUrl: (cleanData as any).constanciaFiscalUrl
+                };
+                await db.collection("ong-profiles").doc(user.id).set({
+                    financialData: financialData,
+                    onboardingStep: 3
+                }, { merge: true });
+            } else {
+                 // Clear financial data if they switched to free
+                 await db.collection("ong-profiles").doc(user.id).set({
+                    financialData: FieldValue.delete(),
+                    onboardingStep: 3
+                }, { merge: true });
+            }
+        } else {
+            // Step 1 and 2
+            await db.collection("ong-profiles").doc(user.id).set({
+                ...cleanData,
+                onboardingStep: step
+            }, { merge: true });
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error saving wizard step:", error);
+        return { success: false, error: "Error interno del servidor." };
+    }
+}
+
+export async function completeOngOnboarding() {
+    const user = await getAuthenticatedUser();
+    if (!user || user.role !== "ong") return { success: false, error: "No autorizado." };
+
+    try {
+        const profileDoc = await db.collection("ong-profiles").doc(user.id).get();
+        if (!profileDoc.exists) return { success: false, error: "Perfil no encontrado." };
+        
+        const profileData = profileDoc.data() as Partial<OngUser>;
+
+        // TRANSMUTACIÓN DE IDENTIDAD
+        // El nombre de la ONG se convierte en el nombre del usuario (para Header/Emails)
+        // El apellido se limpia.
+        await db.collection('users').doc(user.id).update({
+            name: profileData.organizationName || user.name,
+            lastName: '',
+            avatarUrl: profileData.logoUrl || user.avatarUrl || '',
+            onboardingCompleted: true
+        });
+
+        // Limpiar el step temporal del profile
+        await db.collection('ong-profiles').doc(user.id).update({
+            onboardingStep: FieldValue.delete()
+        });
+
+        revalidatePath('/', 'layout');
+        revalidatePath('/dashboard/ong');
+        
+        return { success: true };
+    } catch (error) {
+        console.error("Error completing onboarding:", error);
+        return { success: false, error: "Error al finalizar configuración." };
+    }
+}
+
+
+// --- EVENT MANAGEMENT ACTIONS ---
 
 export async function saveEvent(eventData: any, isDraft: boolean): Promise<ActionFormState & { eventId?: string }> {
     const user = await getAuthenticatedUser();

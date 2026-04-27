@@ -21,11 +21,18 @@ export default async function ProtectedLayout({
   if (!user) {
     redirect('/login');
   }
+  
+  // Guard Clause for ONG Onboarding Flow
+  // Si es ONG y no ha completado el onboarding, lo expulsamos del área protegida
+  // hacia el wizard independiente.
+  if (user.role === 'ong' && user.onboardingCompleted === false) {
+      redirect('/ong-onboarding');
+  }
 
   // ENRICHMENT FIX: Check if ONG user data needs to be supplemented from ong-profile
   // This handles cases where the 'users' collection record is out of sync or incomplete
   // compared to the 'ong-profiles' record.
-  if (user.role === 'ong') {
+  if (user.role === 'ong' && user.onboardingCompleted !== false) {
       try {
           const ongProfile = await getOngProfile(user.id);
           if (ongProfile) {

@@ -17,7 +17,8 @@ export function OngSettingsTabs({ ongProfile }: OngSettingsTabsProps) {
         <TabsTrigger value="financials">Datos Financieros</TabsTrigger>
       </TabsList>
       <TabsContent value="profile">
-        <OngProfileForm ongProfile={ongProfile} />
+        {/* CORRECCIÓN APLICADA: Se pasa ongProfile como initialData */}
+        <OngProfileForm initialData={ongProfile} />
       </TabsContent>
       <TabsContent value="financials">
         <OngFinancialForm ongProfile={ongProfile} />

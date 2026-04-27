@@ -9,13 +9,14 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 
-interface ImageUploadProps {
+export interface ImageUploadProps {
   onUploadSuccess: (url: string) => void;
   storagePath: string;
   disabled?: boolean;
   guidelinesText?: string;
   buttonText?: string; 
   maxSizeMB?: number; // New optional prop
+  initialImageUrl?: string; // ADDED THIS MISSING PROP
 }
 
 export function ImageUpload({ 
@@ -24,11 +25,13 @@ export function ImageUpload({
   disabled = false, 
   guidelinesText, 
   buttonText,
-  maxSizeMB = 5 // Default to 5MB
+  maxSizeMB = 5, // Default to 5MB
+  initialImageUrl // DESTRUCTURE IT
 }: ImageUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [downloadURL, setDownloadURL] = useState<string | null>(null);
+  // USE INITIAL IMAGE URL IF PROVIDED
+  const [downloadURL, setDownloadURL] = useState<string | null>(initialImageUrl || null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -49,7 +52,7 @@ export function ImageUpload({
       }
       
       setFile(selectedFile);
-      setDownloadURL(null);
+      setDownloadURL(null); // Clear previous preview on new selection
       setUploadProgress(null);
       setError(null);
     }
@@ -133,7 +136,11 @@ export function ImageUpload({
 
       {downloadURL && (
         <div className="mt-4">
-          {file?.type.startsWith("image/") ? (
+          {file?.type.startsWith("application/pdf") || downloadURL.includes(".pdf") ? (
+            <a href={downloadURL} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+              Ver archivo subido
+            </a>
+          ) : (
              <Image
                 src={downloadURL}
                 alt="Vista previa de la imagen subida"
@@ -141,10 +148,6 @@ export function ImageUpload({
                 height={200}
                 className="rounded-md object-cover"
               />
-          ) : (
-            <a href={downloadURL} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-              Ver archivo subido
-            </a>
           )}
         </div>
       )}

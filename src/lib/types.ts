@@ -125,6 +125,7 @@ export type User = {
   termsAcceptedAt?: string; // ISO string timestamp de aceptación
   termsVersion?: string; // Versión de los términos aceptados (ej. '2026-01-31')
   onboarding?: OnboardingStatus;
+  onboardingCompleted?: boolean; // Control para ONGs u otros flujos futuros
 
   // --- CAMPOS DESNORMALIZADOS DEL GARAJE (Para Filtros Cruzados Rápidos) ---
   ownedBrands?: string[];
@@ -143,6 +144,7 @@ export type OngUser = {
   websiteUrl?: string;
   instagramUrl?: string;
   facebookUrl?: string;
+  googleMapsUrl?: string; // NUEVO
   country: string;
   state: string;
   avatarUrl?: string;
@@ -154,7 +156,9 @@ export type OngUser = {
     bankName: string;
     accountHolder: string;
     clabe: string; 
+    constanciaFiscalUrl?: string; // NUEVO
   };
+  onboardingStep?: number; // NUEVO: Para guardar el progreso del Wizard
 };
 
 export type EventStatus = 'draft' | 'published';
