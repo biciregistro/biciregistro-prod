@@ -85,18 +85,17 @@ export function OngProfileForm({ initialData }: { initialData?: Partial<OngUser>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <FormLabel>Logotipo de la Organización</FormLabel>
+                                <p className="text-[10px] text-muted-foreground -mt-1 mb-2">Puedes usar tu foto de perfil de Facebook</p>
                                 <ImageUpload 
                                     onUploadSuccess={handleLogoUpload} 
                                     storagePath="ong-logos" 
                                     initialImageUrl={form.getValues('logoUrl')}
                                     guidelinesText="Recomendado: Cuadrado, min 200x200px"
                                 />
-                                <p className="text-xs text-muted-foreground mt-2">
-                                    Sugerencia: Puedes utilizar la misma imagen de perfil de tus redes sociales.
-                                </p>
                             </div>
                             <div className="space-y-2">
                                 <FormLabel>Imagen de Portada</FormLabel>
+                                <p className="text-[10px] text-muted-foreground -mt-1 mb-2">Puedes agregar tu foto de portada de Facebook</p>
                                 <ImageUpload 
                                     onUploadSuccess={handleCoverUpload} 
                                     storagePath="ong-covers" 

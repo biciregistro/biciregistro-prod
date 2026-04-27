@@ -1,6 +1,6 @@
 'use client';
 
-import { Home, Calendar, Gift, User as UserIcon } from 'lucide-react';
+import { Home, Calendar, Gift, User as UserIcon, LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -38,8 +38,8 @@ export function MobileBottomNav({ user }: MobileBottomNavProps) {
                         (currentTab === 'garage' && !isProfile && pathname === dashboardBase) && "text-primary font-medium"
                     )}
                 >
-                    <Home className="w-5 h-5" />
-                    <span className="text-[10px]">Garaje</span>
+                    {isOng ? <LayoutDashboard className="w-5 h-5" /> : <Home className="w-5 h-5" />}
+                    <span className="text-[10px]">{isOng ? 'Panel' : 'Garaje'}</span>
                 </Link>
 
                 {!isOng && (
