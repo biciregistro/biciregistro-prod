@@ -160,8 +160,8 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
     const action = isEditing ? updateProfile : signup;
     const isOngSignup = !isEditing && roleContext === 'ong';
     
-    // UI State for ONG Signup (Hide manual form initially)
-    const [showManualForm, setShowManualForm] = useState(!isOngSignup);
+    // UI State for Signup (Hide manual form initially to prioritize Google)
+    const [showManualForm, setShowManualForm] = useState(isEditing);
 
     const [state, formAction] = useActionState<ActionFormState, FormData>(action, null);
     const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -338,8 +338,8 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
                 setActiveTab(errorTabToFocus);
             }
             
-            // If ONG signup and error occurred in manual form, show it
-            if (isOngSignup && !showManualForm) {
+            // Si hay errores en el registro manual, asegurarnos de mostrar el formulario
+            if (!showManualForm) {
                  setShowManualForm(true);
             }
 
@@ -350,6 +350,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
             });
         } else if (state.error) {
             toast({ variant: 'destructive', title: "Error", description: state.error });
+            setShowManualForm(true);
         }
     }, [state, toast, form, isEditing, router, callbackUrl, showRewardToast, activeTab, onSuccess, isOngSignup, showManualForm]);
 
@@ -478,7 +479,7 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
                 setActiveTab(errorTabToFocus);
             }
             
-            if (isOngSignup && !showManualForm) {
+            if (!showManualForm) {
                  setShowManualForm(true);
             }
 
@@ -518,12 +519,6 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
                             </CardHeader>
                             <CardContent className="px-6 pb-6">
                                 <div className="w-full">
-                                    {/* For ONG Signup, we inject role into callbackUrl or pass it if auth buttons supported it.
-                                        Since auth buttons sync via API and we need to pass role, we append it to URL for the social sync function
-                                        Wait, SocialAuthButtons handles it via client. We need to pass mode='signup' and role.
-                                        We will append it to the window location logic inside SocialAuthButtons.
-                                        Actually, we added roleContext to syncSocialUser. We need to pass it to SocialAuthButtons!
-                                    */}
                                     <div className="space-y-3 w-full">
                                         <SocialAuthButtons callbackUrl={callbackUrl} mode="signup" roleContext={roleContext || undefined} />
                                     </div>
@@ -532,39 +527,25 @@ function ProfileFormContent({ user, communityId, callbackUrl: propCallbackUrl, h
                         </Card>
                     )}
 
-                    {isOngSignup && (
-                        <div className="flex justify-center mb-6">
-                             <Button 
-                                type="button" 
-                                variant="ghost" 
-                                className="text-muted-foreground hover:text-foreground text-sm"
-                                onClick={() => setShowManualForm(!showManualForm)}
-                            >
-                                ¿No tienes cuenta de Google? {showManualForm ? <ChevronUp className="ml-1 h-4 w-4"/> : <ChevronDown className="ml-1 h-4 w-4"/>}
-                            </Button>
-                        </div>
-                    )}
+                    {/* Botón para alternar formulario manual - Inspirado en el flujo de ONG */}
+                    <div className="flex justify-center mb-6">
+                        <Button 
+                            type="button" 
+                            variant="ghost" 
+                            className="text-muted-foreground hover:text-foreground text-sm"
+                            onClick={() => setShowManualForm(!showManualForm)}
+                        >
+                            ¿No tienes cuenta de Google? {showManualForm ? <ChevronUp className="ml-1 h-4 w-4"/> : <ChevronDown className="ml-1 h-4 w-4"/>}
+                        </Button>
+                    </div>
 
-                    {(!isOngSignup || showManualForm) && (
+                    {showManualForm && (
                         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-                            {!hideSocial && !isOngSignup && (
-                                <div className="relative mb-6">
-                                    <div className="absolute inset-0 flex items-center">
-                                        <span className="w-full border-t border-muted-foreground/20" />
-                                    </div>
-                                    <div className="relative flex justify-center text-xs uppercase">
-                                        <span className="bg-background px-4 text-muted-foreground font-medium">
-                                            O registrate con correo electrónico
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-
                             <Card className={cn("shadow-sm", hideSocial && "border-0 shadow-none bg-transparent")}>
                                 {!hideSocial && (
                                     <CardHeader>
-                                        <CardTitle className="text-xl">Datos Personales</CardTitle>
-                                        <CardDescription>{isOngSignup ? 'Estos datos son para tu usuario administrador.' : 'Llena los siguientes campos para crear tu cuenta.'}</CardDescription>
+                                        <CardTitle className="text-xl">{isOngSignup ? 'Datos del Responsable' : 'Datos de Registro'}</CardTitle>
+                                        <CardDescription>{isOngSignup ? 'Esta cuenta gestionará la organización.' : 'Llena los siguientes campos para crear tu cuenta.'}</CardDescription>
                                     </CardHeader>
                                 )}
                                 <CardContent className="space-y-4 px-4 sm:px-6">
