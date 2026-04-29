@@ -1,7 +1,7 @@
 'use server';
 
 import { adminDb as db } from '../firebase/server';
-import { Campaign, CampaignConversion, ActionFormState, User } from '../types';
+import { Campaign, CampaignConversion, ActionFormState, User, UserReward } from '../types';
 import { getDecodedSession } from '../auth/server';
 import { revalidatePath } from 'next/cache';
 import { FieldValue, QueryDocumentSnapshot } from 'firebase-admin/firestore';
@@ -443,7 +443,7 @@ export async function getAdvertiserCampaigns(advertiserId: string): Promise<Camp
  * Fetches conversions (leads) for a specific campaign.
  * Used for CSV export and analytics.
  */
-export async function getCampaignLeads(campaignId: string, advertiserId: string): Promise<CampaignConversion[]> {
+export async function getCampaignLeads(campaignId: string, advertiserId: string): Promise<(CampaignConversion & { userGender?: string, userBirthDate?: string, userBrands?: string[], userModalities?: string[], rewardStatus?: string, rewardRedeemedAt?: string })[]> {
      try {
         const session = await getDecodedSession();
         if (!session) throw new Error('No autorizado');
@@ -474,30 +474,37 @@ export async function getCampaignLeads(campaignId: string, advertiserId: string)
             .orderBy('convertedAt', 'desc')
             .get();
 
-        // Enriquecer los leads antiguos que no tienen país o estado
+        // Enriquecer los leads con información extra
         const leads = await Promise.all(snapshot.docs.map(async (doc) => {
             const data = doc.data() as CampaignConversion;
+            let enrichedData: any = { ...data, id: doc.id };
             
-            // Si falta estado o país, tratamos de recuperarlo del usuario original para mostrarlo
-            if (!data.userState || !data.userCountry) {
-                try {
-                    const uDoc = await db.collection('users').doc(data.userId).get();
-                    if (uDoc.exists) {
-                        const uData = uDoc.data();
-                        // Mantenemos el 'id' de doc.id pero sobrescribimos el state y country
-                        return { 
-                            ...data, 
-                            id: doc.id,
-                            userState: uData?.state || '', 
-                            userCountry: uData?.country || '' 
-                        };
-                    }
-                } catch(e) {
-                    console.error('Could not enrich missing location data', e);
+            try {
+                // Traer info del usuario
+                const uDoc = await db.collection('users').doc(data.userId).get();
+                if (uDoc.exists) {
+                    const uData = uDoc.data() as User;
+                    enrichedData.userState = uData.state || data.userState || '';
+                    enrichedData.userCountry = uData.country || data.userCountry || '';
+                    enrichedData.userGender = uData.gender || 'Desconocido';
+                    enrichedData.userBirthDate = uData.birthDate || '';
+                    enrichedData.userBrands = uData.ownedBrands || [];
+                    enrichedData.userModalities = uData.ownedModalities || [];
                 }
+
+                // Traer estado del cupón si existe un rewardId
+                if (data.metadata?.rewardId) {
+                    const rewardDoc = await db.collection('user_rewards').doc(data.metadata.rewardId).get();
+                    if (rewardDoc.exists) {
+                        const rewardData = rewardDoc.data() as UserReward;
+                        enrichedData.rewardStatus = rewardData.status;
+                        enrichedData.rewardRedeemedAt = rewardData.redeemedAt || '';
+                    }
+                }
+            } catch(e) {
+                console.error('Could not enrich missing location data', e);
             }
-            // Retornamos el objeto base con el ID
-            return { ...data, id: doc.id };
+            return enrichedData;
         }));
 
         return leads;

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Download, Loader2, ExternalLink, Calendar, Users, FileText } from 'lucide-react';
 import { getCampaignLeads } from '@/lib/actions/campaign-actions';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, differenceInYears } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 interface CampaignsListProps {
@@ -23,7 +23,7 @@ export function CampaignsList({ campaigns, advertiserId }: CampaignsListProps) {
 
     // New states for the UI Table
     const [activeCampaignId, setActiveCampaignId] = useState<string | null>(campaigns.length > 0 ? campaigns[0].id : null);
-    const [leadsData, setLeadsData] = useState<CampaignConversion[]>([]);
+    const [leadsData, setLeadsData] = useState<any[]>([]); // Usar any temporalmente para incluir campos enriquecidos
     const [loadingLeads, setLoadingLeads] = useState<boolean>(false);
 
     useEffect(() => {
@@ -44,7 +44,7 @@ export function CampaignsList({ campaigns, advertiserId }: CampaignsListProps) {
         }
     };
 
-    const handleDownloadLeads = async (campaign: Campaign, currentLeads?: CampaignConversion[]) => {
+    const handleDownloadLeads = async (campaign: Campaign, currentLeads?: any[]) => {
         setDownloadingId(campaign.id);
         try {
             const leads = currentLeads && currentLeads.length > 0 ? currentLeads : await getCampaignLeads(campaign.id, advertiserId);
@@ -57,7 +57,7 @@ export function CampaignsList({ campaigns, advertiserId }: CampaignsListProps) {
                 return;
             }
 
-            // Generate CSV with Legal Requirements
+            // Generate CSV with Legal Requirements and Enriched Data
             const headers = [
                 'ID Usuario',
                 'Nombre',
@@ -66,6 +66,12 @@ export function CampaignsList({ campaigns, advertiserId }: CampaignsListProps) {
                 'Estado',
                 'Ciudad',
                 'Timestamp (Fecha/Hora)',
+                'Edad',
+                'Género',
+                'Marcas de Bici',
+                'Modalidades',
+                'Estado Cupón',
+                'Fecha Canje',
                 'IP del Dispositivo',
                 'Fuente de Captura',
                 'Texto del Consentimiento',
@@ -76,21 +82,36 @@ export function CampaignsList({ campaigns, advertiserId }: CampaignsListProps) {
 
             const csvContent = [
                 headers.join(','),
-                ...leads.map(lead => [
-                    lead.userId,
-                    `"${lead.userName}"`, 
-                    lead.userEmail,
-                    `"${lead.userCountry || ''}"`,
-                    `"${lead.userState || ''}"`,
-                    `"${lead.userCity || ''}"`,
-                    lead.convertedAt, // ISO 8601 for legal proof
-                    lead.ipAddress || 'No Registrada',
-                    `"Campaña: ${campaign.internalName}"`,
-                    `"${lead.consent?.text.replace(/"/g, '""') || ''}"`, // Escape quotes
-                    lead.privacyPolicyVersion || 'Desconocida',
-                    lead.consent?.accepted ? 'CHECKBOX_OPT_IN' : 'FALSE',
-                    lead.metadata?.deviceType || 'Desconocido'
-                ].join(','))
+                ...leads.map(lead => {
+                    let age = 'N/A';
+                    if (lead.userBirthDate) {
+                        try {
+                            age = differenceInYears(new Date(), new Date(lead.userBirthDate)).toString();
+                        } catch (e) { }
+                    }
+
+                    return [
+                        lead.userId,
+                        `"${lead.userName}"`, 
+                        lead.userEmail,
+                        `"${lead.userCountry || ''}"`,
+                        `"${lead.userState || ''}"`,
+                        `"${lead.userCity || ''}"`,
+                        lead.convertedAt, // ISO 8601 for legal proof
+                        age,
+                        `"${lead.userGender || 'N/A'}"`,
+                        `"${(lead.userBrands || []).join(' | ')}"`,
+                        `"${(lead.userModalities || []).join(' | ')}"`,
+                        `"${lead.rewardStatus || 'N/A'}"`,
+                        `"${lead.rewardRedeemedAt ? format(new Date(lead.rewardRedeemedAt), 'yyyy-MM-dd HH:mm') : 'N/A'}"`,
+                        lead.ipAddress || 'No Registrada',
+                        `"Campaña: ${campaign.internalName}"`,
+                        `"${lead.consent?.text.replace(/"/g, '""') || ''}"`, // Escape quotes
+                        lead.privacyPolicyVersion || 'Desconocida',
+                        lead.consent?.accepted ? 'CHECKBOX_OPT_IN' : 'FALSE',
+                        lead.metadata?.deviceType || 'Desconocido'
+                    ].join(',')
+                })
             ].join('\n');
 
             // Trigger Download
@@ -241,6 +262,7 @@ export function CampaignsList({ campaigns, advertiserId }: CampaignsListProps) {
                                                 // Definir visualmente la acción en base al tipo de campaña
                                                 let actionBadge = "Participó";
                                                 let badgeVariant: "default" | "secondary" | "outline" = "secondary";
+                                                let secondaryText = null;
                                                 
                                                 if (activeCampaign.type === 'download') {
                                                     actionBadge = "Descargado";
@@ -248,9 +270,17 @@ export function CampaignsList({ campaigns, advertiserId }: CampaignsListProps) {
                                                 } else if (activeCampaign.type === 'giveaway') {
                                                     actionBadge = "Boleto Comprado";
                                                     badgeVariant = "default";
-                                                } else if (activeCampaign.type === 'reward') {
-                                                    actionBadge = "Cupón Adquirido";
-                                                    badgeVariant = "default";
+                                                } else if (activeCampaign.type === 'reward' || activeCampaign.type === 'coupon') {
+                                                    if (lead.rewardStatus === 'redeemed') {
+                                                        actionBadge = "Canjeado";
+                                                        badgeVariant = "secondary";
+                                                        if (lead.rewardRedeemedAt) {
+                                                            secondaryText = format(new Date(lead.rewardRedeemedAt), 'd MMM yy', { locale: es });
+                                                        }
+                                                    } else {
+                                                        actionBadge = "Cupón Adquirido";
+                                                        badgeVariant = "default";
+                                                    }
                                                 }
 
                                                 // Construir string de ubicación de forma segura (ignorar nulos)
@@ -273,9 +303,14 @@ export function CampaignsList({ campaigns, advertiserId }: CampaignsListProps) {
                                                             {locationString}
                                                         </TableCell>
                                                         <TableCell>
-                                                            <Badge variant={badgeVariant} className="text-[10px] whitespace-nowrap">
-                                                                {actionBadge}
-                                                            </Badge>
+                                                            <div className="flex flex-col items-start gap-1">
+                                                                <Badge variant={badgeVariant} className="text-[10px] whitespace-nowrap">
+                                                                    {actionBadge}
+                                                                </Badge>
+                                                                {secondaryText && (
+                                                                    <span className="text-[10px] text-muted-foreground ml-1">el {secondaryText}</span>
+                                                                )}
+                                                            </div>
                                                         </TableCell>
                                                     </TableRow>
                                                 );

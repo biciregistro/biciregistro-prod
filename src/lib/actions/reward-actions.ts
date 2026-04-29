@@ -12,7 +12,7 @@ import { headers } from 'next/headers';
  * Returns a list of active rewards with a snapshot of the advertiser name.
  * If userCountry and userState are provided, it filters the results accordingly.
  */
-export async function getActiveRewards(userCountry?: string, userState?: string): Promise<(Campaign & { advertiserName?: string, advertiserWhatsapp?: string })[]> {
+export async function getActiveRewards(userCountry?: string, userState?: string): Promise<(Campaign & { advertiserName?: string, advertiserWhatsapp?: string, advertiserGoogleMapsUrl?: string })[]> {
     try {
         const now = new Date();
         const campaignsSnapshot = await db.collection('campaigns')
@@ -45,22 +45,37 @@ export async function getActiveRewards(userCountry?: string, userState?: string)
             }
         });
 
-        // Enrich with ONG Data (Name and Whatsapp)
+        // Enrich with ONG Data (Name and Whatsapp from users, Map from ong-profiles)
         const enrichedCampaigns = await Promise.all(campaigns.map(async (c) => {
             let advertiserName = 'Aliado';
             let advertiserWhatsapp = '';
+            let advertiserGoogleMapsUrl = '';
             try {
-                const userDoc = await db.collection('users').doc(c.advertiserId).get();
-                if (userDoc.exists) {
-                    const userData = userDoc.data() as OngUser | User;
-                    advertiserName = ('organizationName' in userData ? userData.organizationName : userData.name) || 'Aliado';
-                    advertiserWhatsapp = ('contactWhatsapp' in userData ? userData.contactWhatsapp : userData.whatsapp) || '';
+                if (c.advertiserId) {
+                    const [userDoc, ongProfileDoc] = await Promise.all([
+                        db.collection('users').doc(c.advertiserId).get(),
+                        db.collection('ong-profiles').doc(c.advertiserId).get()
+                    ]);
+
+                    if (userDoc.exists) {
+                        const userData = userDoc.data() as User;
+                        advertiserName = userData.name || 'Aliado';
+                        advertiserWhatsapp = userData.whatsapp || '';
+                    }
+
+                    if (ongProfileDoc.exists) {
+                        const profileData = ongProfileDoc.data() as OngUser;
+                        // Sobrescribimos con los datos extendidos del perfil si existen
+                        if (profileData.organizationName) advertiserName = profileData.organizationName;
+                        if (profileData.contactWhatsapp) advertiserWhatsapp = profileData.contactWhatsapp;
+                        if (profileData.googleMapsUrl) advertiserGoogleMapsUrl = profileData.googleMapsUrl;
+                    }
                 }
             } catch (e) {
                  console.error('Error fetching advertiser details', e);
             }
             
-            return { ...c, advertiserName, advertiserWhatsapp };
+            return { ...c, advertiserName, advertiserWhatsapp, advertiserGoogleMapsUrl };
         }));
 
         // Sort by Date (newest first)
@@ -147,10 +162,21 @@ export async function purchaseReward(campaignId: string, consentData: { accepted
 
             // Fetch Advertiser Details for snapshot
             let advertiserName = 'Aliado';
-            const advertiserDoc = await transaction.get(db.collection('users').doc(campaignData.advertiserId));
+            let advertiserEmail = '';
+            
+            const [advertiserDoc, profileDoc] = await Promise.all([
+                transaction.get(db.collection('users').doc(campaignData.advertiserId)),
+                transaction.get(db.collection('ong-profiles').doc(campaignData.advertiserId))
+            ]);
+
             if (advertiserDoc.exists) {
-                const advData = advertiserDoc.data() as OngUser | User;
-                advertiserName = ('organizationName' in advData ? advData.organizationName : advData.name) || 'Aliado';
+                const advData = advertiserDoc.data() as User;
+                advertiserName = advData.name || 'Aliado';
+                advertiserEmail = advData.email;
+            }
+            if (profileDoc.exists) {
+                const profileData = profileDoc.data() as OngUser;
+                if (profileData.organizationName) advertiserName = profileData.organizationName;
             }
 
             // 3. Writes
@@ -222,14 +248,13 @@ export async function purchaseReward(campaignId: string, consentData: { accepted
                 rewardId: newRewardRef.id, 
                 campaignData: { ...campaignData, advertiserName }, 
                 userData,
-                // Ensure we return the raw advertiser doc so we can access email outside the transaction
-                advertiserData: advertiserDoc.exists ? advertiserDoc.data() as OngUser | User : null 
+                advertiserEmail
             };
         });
 
         // 4. Post-Transaction side-effects (Emails)
         if (transactionResult.success) {
-            const { campaignData, userData, advertiserData } = transactionResult;
+            const { campaignData, userData, advertiserEmail } = transactionResult;
             
             // Fire-and-forget emails
             Promise.allSettled([
@@ -244,8 +269,8 @@ export async function purchaseReward(campaignId: string, consentData: { accepted
                     isCoupon: campaignData.type === 'coupon'
                 }),
                 
-                advertiserData?.email ? sendRewardPurchaseOngEmail(advertiserData.email, {
-                    ongName: ('organizationName' in advertiserData ? advertiserData.organizationName : advertiserData.name) || 'El Aliado',
+                advertiserEmail ? sendRewardPurchaseOngEmail(advertiserEmail, {
+                    ongName: campaignData.advertiserName || 'El Aliado',
                     userName: `${userData.name} ${userData.lastName || ''}`.trim(),
                     campaignTitle: campaignData.title,
                     imageUrl: campaignData.bannerImageUrl
@@ -273,8 +298,9 @@ export async function purchaseReward(campaignId: string, consentData: { accepted
 
 /**
  * Gets all rewards owned by a user (purchased or redeemed).
+ * Enriches the legacy snapshot with live advertiser data (like Google Maps Url).
  */
-export async function getUserRewards(): Promise<UserReward[]> {
+export async function getUserRewards(): Promise<(UserReward & { advertiserGoogleMapsUrl?: string })[]> {
      try {
         const session = await getDecodedSession();
         if (!session) return [];
@@ -284,7 +310,27 @@ export async function getUserRewards(): Promise<UserReward[]> {
             .orderBy('purchasedAt', 'desc')
             .get();
 
-        return rewardsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserReward));
+        const rewards = rewardsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserReward));
+        
+        // Enrich with live Google Maps URL from advertiser profile
+        const enrichedRewards = await Promise.all(rewards.map(async (reward) => {
+            let advertiserGoogleMapsUrl = '';
+            try {
+                if (reward.advertiserId) {
+                    const ongProfileDoc = await db.collection('ong-profiles').doc(reward.advertiserId).get();
+                    if (ongProfileDoc.exists) {
+                        const profileData = ongProfileDoc.data() as OngUser;
+                        advertiserGoogleMapsUrl = profileData.googleMapsUrl || '';
+                    }
+                }
+            } catch (e) {
+                console.error('Error fetching live advertiser details for legacy reward', e);
+            }
+            return { ...reward, advertiserGoogleMapsUrl };
+        }));
+
+        return enrichedRewards;
+
      } catch (error) {
          console.error('Error fetching user rewards:', error);
          return [];

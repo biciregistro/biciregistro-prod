@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Campaign, UserReward } from '@/lib/types';
-import { Calendar, Store, Info, CheckCircle2, Ticket, Package, MessageCircle } from 'lucide-react';
+import { Calendar, Store, Info, CheckCircle2, Ticket, Package, MessageCircle, MapPin } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 interface RewardCardProps {
-    campaign: Campaign & { advertiserName?: string, advertiserWhatsapp?: string };
+    campaign: Campaign & { advertiserName?: string, advertiserWhatsapp?: string, advertiserGoogleMapsUrl?: string };
     userPoints: number;
     userPurchases: UserReward[];
 }
@@ -204,6 +204,8 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
         ? `https://wa.me/${campaign.advertiserWhatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(whatsappMessage)}`
         : null;
 
+    const mapsUrl = campaign.advertiserGoogleMapsUrl;
+
     return (
         <>
             {/* MAIN CARD - Responsive Layout (Row on Mobile, Column on Desktop) */}
@@ -338,29 +340,45 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                         </div>
                     </div>
 
-                    <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-2">
-                        {whatsappUrl && (
-                             <Button 
-                                variant="secondary" 
-                                className="bg-green-600 hover:bg-green-700 text-white flex-1"
-                                asChild
-                             >
-                                <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-                                    <MessageCircle className="w-4 h-4 mr-2" />
-                                    Contactar al proveedor
-                                </Link>
-                            </Button>
-                        )}
-                        <Button variant="outline" onClick={() => setDetailsOpen(false)} className="flex-1">Cerrar</Button>
-                        {(!hasActiveCoupon && !isFullyRedeemed && !maxReached) && (
-                            <Button 
-                                onClick={() => { setDetailsOpen(false); setConsentOpen(true); }} 
-                                disabled={!isAffordable}
-                                className={`flex-1 ${isGiveaway ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
-                            >
-                                {isAffordable ? (isGiveaway ? `Comprar Boleto` : `Comprar`) : 'KM Insuficientes'}
-                            </Button>
-                        )}
+                    <DialogFooter className="mt-6 flex flex-col gap-2">
+                        <div className="flex gap-2 w-full">
+                            {whatsappUrl && (
+                                 <Button 
+                                    variant="secondary" 
+                                    className="bg-green-600 hover:bg-green-700 text-white flex-1"
+                                    asChild
+                                 >
+                                    <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                                        <MessageCircle className="w-4 h-4 mr-2" />
+                                        Contactar
+                                    </Link>
+                                </Button>
+                            )}
+                            {mapsUrl && (
+                                <Button
+                                    variant="secondary"
+                                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700"
+                                    asChild
+                                >
+                                    <Link href={mapsUrl} target="_blank" rel="noopener noreferrer">
+                                        <MapPin className="w-4 h-4 mr-2" />
+                                        Ver Ubicación
+                                    </Link>
+                                </Button>
+                            )}
+                        </div>
+                        <div className="flex gap-2 w-full">
+                            <Button variant="outline" onClick={() => setDetailsOpen(false)} className="flex-1">Cerrar</Button>
+                            {(!hasActiveCoupon && !isFullyRedeemed && !maxReached) && (
+                                <Button 
+                                    onClick={() => { setDetailsOpen(false); setConsentOpen(true); }} 
+                                    disabled={!isAffordable}
+                                    className={`flex-1 ${isGiveaway ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
+                                >
+                                    {isAffordable ? (isGiveaway ? `Comprar Boleto` : `Comprar`) : 'KM Insuficientes'}
+                                </Button>
+                            )}
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

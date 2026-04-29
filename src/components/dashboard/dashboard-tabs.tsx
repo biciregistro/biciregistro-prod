@@ -8,7 +8,7 @@ import { BikeCard } from '@/components/bike-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, ArrowRight, Compass, Gift, HelpCircle, FileText, PlusCircle, Share2, Coins, ChevronRight, Info, AlertTriangle, UserCircle } from 'lucide-react';
+import { Calendar, MapPin, ArrowRight, Compass, Gift, HelpCircle, FileText, PlusCircle, Share2, Coins, ChevronRight, Info, AlertTriangle, UserCircle, Lock } from 'lucide-react';
 import type { Bike, UserEventRegistration, User, Campaign, UserReward, Event, OngUser } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { RewardCard } from './reward-card';
@@ -27,8 +27,8 @@ interface DashboardTabsProps {
     registrations: UserEventRegistration[];
     user: User;
     isProfileComplete: boolean;
-    activeRewards?: (Campaign & { advertiserName?: string })[];
-    userPurchases?: UserReward[];
+    activeRewards?: (Campaign & { advertiserName?: string, advertiserGoogleMapsUrl?: string, advertiserWhatsapp?: string })[];
+    userPurchases?: (UserReward & { advertiserGoogleMapsUrl?: string })[];
     localEvents?: Event[];
     ongProfile?: Partial<OngUser> | null;
     ongEvents?: Event[];
@@ -39,7 +39,7 @@ interface DashboardTabsProps {
  */
 function MobileRewardLane({ title, items, userPoints, userPurchases, emptyMessage }: { 
     title: string, 
-    items: (Campaign & { advertiserName?: string })[], 
+    items: (Campaign & { advertiserName?: string, advertiserGoogleMapsUrl?: string, advertiserWhatsapp?: string })[], 
     userPoints: number, 
     userPurchases: UserReward[],
     emptyMessage?: string 
@@ -161,13 +161,14 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
     });
 
     const pointsBalance = user.gamification?.pointsBalance || 0;
+    const isRewardsLocked = bikes.length === 0 || !isProfileComplete;
     
     // Logic to categorize rewards
     const { myPurchases, giveaways, regularRewards, combinedList } = useMemo(() => {
         const activeCampaignIds = new Set(activeRewards.map(r => r.id));
         const purchasedIds = new Set(userPurchases.map(up => up.campaignId));
         
-        const legacyPurchases: (Campaign & { advertiserName?: string })[] = [];
+        const legacyPurchases: (Campaign & { advertiserName?: string, advertiserGoogleMapsUrl?: string, advertiserWhatsapp?: string })[] = [];
         userPurchases.forEach(ur => {
             if (ur.status === 'purchased') {
                 legacyPurchases.push({
@@ -175,6 +176,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                     title: ur.campaignSnapshot.title,
                     advertiserId: ur.advertiserId,
                     advertiserName: ur.campaignSnapshot.advertiserName,
+                    advertiserGoogleMapsUrl: ur.advertiserGoogleMapsUrl,
                     bannerImageUrl: ur.campaignSnapshot.bannerImageUrl,
                     description: ur.campaignSnapshot.description,
                     conditions: ur.campaignSnapshot.conditions,
@@ -187,7 +189,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                     uniqueConversionCount: 0,
                     createdAt: ur.purchasedAt,
                     updatedAt: ur.purchasedAt
-                } as Campaign & { advertiserName?: string });
+                } as Campaign & { advertiserName?: string, advertiserGoogleMapsUrl?: string, advertiserWhatsapp?: string });
             }
         });
 
@@ -626,82 +628,108 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                     <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-48 h-48 bg-emerald-300 opacity-10 rounded-full blur-2xl"></div>
                 </div>
 
-                {isProfileComplete && <div className="mb-6"><ReferralStatsCard user={user} /></div>}
-
-                {/* DESKTOP VIEW: Unified Grid */}
-                <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {combinedList.length === 0 ? (
-                        <div className="col-span-full py-12 text-center border-2 border-dashed rounded-xl bg-muted/30">
-                             <p className="text-muted-foreground">Próximamente más beneficios.</p>
+                {isRewardsLocked ? (
+                    <div className="flex flex-col items-center justify-center py-16 px-6 text-center border-2 border-slate-200 rounded-2xl bg-slate-50 shadow-sm max-w-2xl mx-auto my-8">
+                        <div className="w-20 h-20 bg-slate-200 rounded-full flex items-center justify-center mb-6">
+                            <Lock className="h-10 w-10 text-slate-500" />
                         </div>
-                    ) : (
-                        combinedList.map((campaign) => (
-                            <RewardCard key={campaign.id} campaign={campaign} userPoints={pointsBalance} userPurchases={userPurchases} />
-                        ))
-                    )}
-                </div>
-
-                {/* MOBILE VIEW: Horizontal Lanes & Vertical Regular Rewards */}
-                <div className="md:hidden flex flex-col space-y-8">
-                    {combinedList.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-muted/30">
-                            <Gift className="h-10 w-10 text-primary mb-4" />
-                            <h3 className="text-xl font-bold mb-2">Próximamente más beneficios</h3>
-                            <p className="text-muted-foreground text-sm">Sigue acumulando KM para canjearlos en el futuro.</p>
-                        </div>
-                    ) : (
-                        <>
-                            <MobileRewardLane 
-                                title="Mis Beneficios Adquiridos" 
-                                items={myPurchases} 
-                                userPoints={pointsBalance} 
-                                userPurchases={userPurchases}
-                                emptyMessage="Aún no tienes beneficios, adquiere uno deslizando abajo."
-                            />
-                            
-                            <MobileRewardLane 
-                                title="Sorteos (Giveaways)" 
-                                items={giveaways} 
-                                userPoints={pointsBalance} 
-                                userPurchases={userPurchases}
-                            />
-
-                            {/* VERTICAL SECTION: Regular Rewards */}
-                            {regularRewards.length > 0 && (
-                                <div className="space-y-4">
-                                    <div className="px-1">
-                                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Recompensas Disponibles</h3>
-                                    </div>
-                                    <div className="grid grid-cols-1 gap-4">
-                                        {regularRewards.map((campaign) => (
-                                            <div key={campaign.id} className="h-full">
-                                                <RewardCard 
-                                                    campaign={campaign} 
-                                                    userPoints={pointsBalance} 
-                                                    userPurchases={userPurchases} 
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                        <h3 className="text-2xl font-bold text-slate-800 tracking-tight mb-3">Beneficios Bloqueados</h3>
+                        <p className="text-slate-600 font-medium max-w-md mb-8 leading-relaxed">
+                            Las recompensas son exclusivas para ciclistas activos. Para acceder al catálogo, necesitas completar tu perfil y registrar al menos una bicicleta en el garaje.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+                            {!isProfileComplete && (
+                                <Button asChild size="lg" className="w-full sm:w-auto">
+                                    <Link href="/dashboard/profile">Completar Perfil</Link>
+                                </Button>
                             )}
-                        </>
-                    )}
-                    
-                    <GamificationRulesSheet>
-                        <button className="text-muted-foreground w-full flex items-center justify-center gap-1 text-xs hover:text-primary transition-colors py-2">
-                            <Info className="h-3 w-3" />
-                            <span>¿Cómo acumulo más KM?</span>
-                        </button>
-                    </GamificationRulesSheet>
-                </div>
-
-                {isProfileComplete && (
-                    <div id="tour-main-action" className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-40">
-                        <Button onClick={handleShare} className="h-12 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-white font-bold px-6 flex items-center gap-2">
-                            <Coins className="h-5 w-5" /><span>Ganar {referralData?.referralPoints || 200} KM</span>
-                        </Button>
+                            {bikes.length === 0 && (
+                                <Button asChild size="lg" className="w-full sm:w-auto" variant={isProfileComplete ? "default" : "outline"}>
+                                    <Link href="/dashboard/register">Registrar una Bici</Link>
+                                </Button>
+                            )}
+                        </div>
                     </div>
+                ) : (
+                    <>
+                        {isProfileComplete && <div className="mb-6"><ReferralStatsCard user={user} /></div>}
+
+                        {/* DESKTOP VIEW: Unified Grid */}
+                        <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {combinedList.length === 0 ? (
+                                <div className="col-span-full py-12 text-center border-2 border-dashed rounded-xl bg-muted/30">
+                                     <p className="text-muted-foreground">Próximamente más beneficios.</p>
+                                </div>
+                            ) : (
+                                combinedList.map((campaign) => (
+                                    <RewardCard key={campaign.id} campaign={campaign} userPoints={pointsBalance} userPurchases={userPurchases} />
+                                ))
+                            )}
+                        </div>
+
+                        {/* MOBILE VIEW: Horizontal Lanes & Vertical Regular Rewards */}
+                        <div className="md:hidden flex flex-col space-y-8">
+                            {combinedList.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-muted/30">
+                                    <Gift className="h-10 w-10 text-primary mb-4" />
+                                    <h3 className="text-xl font-bold mb-2">Próximamente más beneficios</h3>
+                                    <p className="text-muted-foreground text-sm">Sigue acumulando KM para canjearlos en el futuro.</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <MobileRewardLane 
+                                        title="Mis Beneficios Adquiridos" 
+                                        items={myPurchases} 
+                                        userPoints={pointsBalance} 
+                                        userPurchases={userPurchases}
+                                        emptyMessage="Aún no tienes beneficios, adquiere uno deslizando abajo."
+                                    />
+                                    
+                                    <MobileRewardLane 
+                                        title="Sorteos (Giveaways)" 
+                                        items={giveaways} 
+                                        userPoints={pointsBalance} 
+                                        userPurchases={userPurchases}
+                                    />
+
+                                    {/* VERTICAL SECTION: Regular Rewards */}
+                                    {regularRewards.length > 0 && (
+                                        <div className="space-y-4">
+                                            <div className="px-1">
+                                                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Recompensas Disponibles</h3>
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-4">
+                                                {regularRewards.map((campaign) => (
+                                                    <div key={campaign.id} className="h-full">
+                                                        <RewardCard 
+                                                            campaign={campaign} 
+                                                            userPoints={pointsBalance} 
+                                                            userPurchases={userPurchases} 
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                            
+                            <GamificationRulesSheet>
+                                <button className="text-muted-foreground w-full flex items-center justify-center gap-1 text-xs hover:text-primary transition-colors py-2">
+                                    <Info className="h-3 w-3" />
+                                    <span>¿Cómo acumulo más KM?</span>
+                                </button>
+                            </GamificationRulesSheet>
+                        </div>
+
+                        {isProfileComplete && (
+                            <div id="tour-main-action" className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-40">
+                                <Button onClick={handleShare} className="h-12 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-white font-bold px-6 flex items-center gap-2">
+                                    <Coins className="h-5 w-5" /><span>Ganar {referralData?.referralPoints || 200} KM</span>
+                                </Button>
+                            </div>
+                        )}
+                    </>
                 )}
             </TabsContent>
             
