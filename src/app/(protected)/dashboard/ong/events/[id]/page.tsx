@@ -1,6 +1,6 @@
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getAuthenticatedUser, getEvent, getEventAttendees, getOngProfile } from '@/lib/data';
+import { getAuthenticatedUser, getEvent, getEventAttendees, getOngProfile, getHomepageData } from '@/lib/data';
 import { getEventFinancialSummary, getPayoutsByEvent } from '@/lib/financial-data';
 import { getEventAnalytics } from '@/lib/data/event-analytics';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import { AttendeeManagement } from '@/components/ong/attendee-management';
 import { EventFinancialSummary } from '@/components/ong/event-financial-summary';
 import { EventAnalyticsView } from '@/components/ong/event-analytics-view';
 import { EventShareMenu } from '@/components/dashboard/event-share-menu';
+import { EventAttendee } from '@/lib/types'; // Importar el tipo
 
 export default async function EventDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,12 +29,13 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
   if (!event) notFound();
   if (user.role === 'ong' && event.ongId !== user.id) redirect('/dashboard/ong');
 
-  const [attendees, financialSummary, payouts, analytics, ongProfile] = await Promise.all([
+  const [attendees, financialSummary, payouts, analytics, ongProfile, homepageData] = await Promise.all([
     getEventAttendees(id),
     getEventFinancialSummary(id),
     getPayoutsByEvent(id),
     getEventAnalytics(id),
-    getOngProfile(event.ongId)
+    getOngProfile(event.ongId),
+    getHomepageData() // Fetch homepage data from lib/data.ts
   ]);
 
   const eventDate = new Date(event.date);
@@ -46,7 +48,8 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
   const hasJersey = event.hasJersey === true;
   const customQuestions = event.customQuestions || [];
 
-  const totalCheckedIn = attendees.filter(a => a.checkedIn).length;
+  // Tipado correcto para 'a' en el filter
+  const totalCheckedIn = attendees.filter((a: EventAttendee) => a.checkedIn).length;
   const attendancePercentage = event.currentParticipants && event.currentParticipants > 0 
       ? Math.round((totalCheckedIn / event.currentParticipants) * 100) 
       : 0;
@@ -63,6 +66,14 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
     month: 'long',
     year: 'numeric'
   });
+
+  // Extract the hero image safely by checking the exact union type property
+  const heroSection = homepageData?.hero;
+  let heroImage = "https://images.unsplash.com/photo-1664853811022-33e391e36169?auto=format&fit=crop&q=80&w=1080";
+  
+  if (heroSection && heroSection.id === 'hero' && 'imageUrl' in heroSection && heroSection.imageUrl) {
+      heroImage = heroSection.imageUrl;
+  }
 
   return (
     <div className="container py-8 px-4 md:px-6 space-y-8">
@@ -243,6 +254,7 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
               eventDate={formattedEventDate}
               ongName={ongProfile?.organizationName}
               ongLogo={ongProfile?.logoUrl || ongProfile?.avatarUrl}
+              heroImage={heroImage} // Pasing dynamic hero image
             />
           )}
         </TabsContent>

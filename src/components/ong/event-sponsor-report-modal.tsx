@@ -20,6 +20,7 @@ interface EventSponsorReportModalProps {
   eventName: string;
   ongName?: string;
   ongLogo?: string;
+  heroImage?: string; // Nuevo prop para imagen dinámica
 }
 
 export function EventSponsorReportModal({
@@ -29,7 +30,8 @@ export function EventSponsorReportModal({
   eventAnalytics,
   eventName,
   ongName,
-  ongLogo
+  ongLogo,
+  heroImage
 }: EventSponsorReportModalProps) {
   if (!reportData) return null;
 
@@ -65,6 +67,9 @@ export function EventSponsorReportModal({
   // Gender stats calculation
   const totalGenders = eventAnalytics.general.genderDistribution.reduce((acc: number, curr: any) => acc + curr.value, 0);
 
+  // Define background image or fallback
+  const bgImageUrl = heroImage || "https://images.unsplash.com/photo-1664853811022-33e391e36169?auto=format&fit=crop&q=80&w=1080";
+
   const SlideWrapper = ({ title, icon: Icon, children, slideNumber }: any) => (
     <div className="slide-page bg-white p-12 flex flex-col print:m-0 print:border-0 print:shadow-none relative">
       <div className="flex items-center justify-between mb-8 h-12 shrink-0">
@@ -97,11 +102,6 @@ export function EventSponsorReportModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      {/* 
-        AJUSTE CRÍTICO: 
-        Se añadieron las clases print:max-w-none print:w-screen print:h-auto print:static print:transform-none print:block print:p-0 
-        al DialogContent para asegurar que el navegador permita el flujo normal de impresión sin truncar el modal.
-      */}
       <DialogContent className="max-w-[100vw] w-screen h-screen flex flex-col p-0 overflow-hidden gap-0 bg-slate-100 border-none shadow-none z-50 print:bg-white print:max-w-none print:w-screen print:h-auto print:static print:transform-none print:block print:p-0">
         <style dangerouslySetInnerHTML={{ __html: `
           @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Inter:wght@300;400;600&display=swap');
@@ -113,7 +113,6 @@ export function EventSponsorReportModal({
             @page { size: landscape; margin: 0; }
             body { background: white !important; margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact; }
             body > *:not([role="dialog"]), .print-hidden { display: none !important; }
-            /* Se removió width: 100vw !important y height: 100vh !important de este selector para igualar al Admin */
             div[role="dialog"] { position: static !important; display: block !important; padding: 0 !important; border: 0 !important; background: white !important; }
             .slide-page { width: 100vw !important; height: 100vh !important; page-break-after: always !important; break-after: page !important; display: flex !important; flex-direction: column !important; margin: 0 !important; padding: 40px 60px !important; box-shadow: none !important; border: 0 !important; overflow: hidden !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -139,26 +138,50 @@ export function EventSponsorReportModal({
         {/* Slides Container */}
         <div className="flex-1 overflow-y-auto p-12 space-y-20 bg-slate-100 print:p-0 print:space-y-0 print:overflow-visible print:bg-white">
           
-          {/* PORTADA */}
-          <div className="slide-page bg-slate-950 flex flex-col justify-center items-center text-center text-white relative overflow-hidden">
-             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/20 blur-[150px] rounded-full -translate-y-1/2 translate-x-1/2" />
-             <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-600/10 blur-[120px] rounded-full translate-y-1/2 -translate-x-1/2" />
+          {/* PORTADA CON IMAGEN DE FONDO DINÁMICA */}
+          <div 
+            className="slide-page bg-slate-950 flex flex-col justify-between items-center text-center text-white relative overflow-hidden pb-12 pt-16"
+            style={{ 
+                backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.85)), url('${bgImageUrl}')`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center'
+            }}
+          >
+             {/* Decoraciones de fondo (suavizadas para que no compitan con la imagen) */}
+             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 blur-[150px] rounded-full -translate-y-1/2 translate-x-1/2" />
              
-             <div className="mb-12 z-10 scale-125">
-                 <img src="/logo-report.png" alt="Logo" className="h-20 w-auto brightness-0 invert" />
-             </div>
+             {/* Espaciador superior invisible para ayudar al centrado */}
+             <div className="flex-1" />
              
-             <div className="max-w-4xl px-12 z-10">
-                <h4 className="text-primary font-black uppercase tracking-[0.4em] text-sm mb-6 font-montserrat">{ongName || 'BiciRegistro'}</h4>
-                <h1 className="text-6xl font-black tracking-tighter mb-8 leading-[1.1] text-white font-montserrat">{reportData.portada.titulo}</h1>
-                <div className="h-1 w-32 bg-white/20 mx-auto mb-10 rounded-full" />
-                <p className="text-xl text-slate-400 font-medium mb-16 uppercase tracking-[0.2em] font-montserrat">Sprock Intelligence</p>
+             {/* Bloque Central de Contenido */}
+             <div className="max-w-4xl px-12 z-10 flex flex-col items-center justify-center w-full">
+                {/* ONG NAME PROMINENTE */}
+                <h4 className="text-primary font-black uppercase tracking-[0.3em] text-3xl md:text-4xl mb-8 font-montserrat drop-shadow-lg">
+                    {ongName || 'Reporte de Evento'}
+                </h4>
                 
-                <div className="flex justify-center items-center gap-10 text-[10px] text-slate-500 font-bold uppercase tracking-widest border-t border-white/5 pt-10 font-montserrat">
-                    <span className="flex items-center gap-2"><Layout className="w-3 h-3" /> Event Analytics v4.0</span>
-                    <div className="w-1.5 h-1.5 bg-primary rounded-full" />
-                    <span>{reportData.portada.fecha}</span>
+                {/* TÍTULO DEL REPORTE */}
+                <h1 className="text-6xl font-black tracking-tighter mb-10 leading-[1.1] text-white font-montserrat drop-shadow-xl">
+                    {reportData.portada.titulo}
+                </h1>
+                
+                {/* SEPARADOR */}
+                <div className="h-1.5 w-32 bg-primary mx-auto mb-10 rounded-full" />
+                
+                {/* LOGO BICIREGISTRO */}
+                <div className="mb-8">
+                    <img src="/logo-report.png" alt="BiciRegistro" className="h-24 md:h-28 w-auto brightness-0 invert opacity-95 drop-shadow-lg" />
                 </div>
+             </div>
+
+             {/* Espaciador inferior para centrado dinámico */}
+             <div className="flex-1" />
+             
+             {/* FOOTER FECHA (Siempre anclado al fondo) */}
+             <div className="flex justify-center items-center gap-10 text-[10px] text-slate-100/60 font-bold uppercase tracking-widest border-t border-white/10 pt-8 mt-auto font-montserrat w-full z-10">
+                 <span className="flex items-center gap-2"><Layout className="w-3 h-3" /> Event Analytics v4.0</span>
+                 <div className="w-1.5 h-1.5 bg-primary rounded-full" />
+                 <span>{reportData.portada.fecha}</span>
              </div>
           </div>
 

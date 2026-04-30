@@ -136,9 +136,18 @@ interface EventAnalyticsViewProps {
     eventDate?: string;
     ongName?: string;
     ongLogo?: string;
+    heroImage?: string; // New prop for dynamic background
 }
 
-export function EventAnalyticsView({ data, pageViews = 0, eventName = "Evento Ciclista", eventDate = "", ongName, ongLogo }: EventAnalyticsViewProps) {
+export function EventAnalyticsView({ 
+    data, 
+    pageViews = 0, 
+    eventName = "Evento Ciclista", 
+    eventDate = "", 
+    ongName, 
+    ongLogo,
+    heroImage
+}: EventAnalyticsViewProps) {
     const [isGenerating, setIsGenerating] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [reportData, setReportData] = useState<any>(null);
@@ -322,6 +331,7 @@ export function EventAnalyticsView({ data, pageViews = 0, eventName = "Evento Ci
                     eventName={eventName}
                     ongName={ongName}
                     ongLogo={ongLogo}
+                    heroImage={heroImage}
                 />
             )}
         </div>
