@@ -23,31 +23,31 @@ export function GenerationsChart({ data }: GenerationsChartProps) {
     }
 
     return (
-        <Card className="h-full">
-            <CardHeader>
-                <CardTitle className="text-sm font-medium">Distribución Generacional</CardTitle>
-                <CardDescription>Perfil por cohortes de edad</CardDescription>
+        <Card className="h-full border-none shadow-none bg-transparent">
+            <CardHeader className="p-0 mb-4">
+                <CardTitle className="text-sm font-bold text-slate-600 uppercase tracking-tight">Distribución Generacional</CardTitle>
+                <CardDescription className="text-[10px]">Perfil por cohortes de edad</CardDescription>
             </CardHeader>
-            <CardContent className="h-[250px] pt-0">
+            <CardContent className="h-[280px] p-0">
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data} margin={{ top: 5, right: 30, left: -20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <BarChart data={data} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis 
                             dataKey="name" 
                             axisLine={false} 
                             tickLine={false} 
-                            tick={{ fontSize: 10, fill: '#64748b' }}
+                            tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }}
                         />
                         <YAxis 
                             axisLine={false} 
                             tickLine={false} 
-                            tick={{ fontSize: 10, fill: '#64748b' }}
+                            tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }}
                         />
                         <Tooltip 
-                            cursor={{ fill: '#f1f5f9' }}
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                            cursor={{ fill: '#f8fafc' }}
+                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px' }}
                         />
-                        <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                        <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={32}>
                             {data.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}

@@ -1,6 +1,6 @@
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getAuthenticatedUser, getEvent, getEventAttendees } from '@/lib/data';
+import { getAuthenticatedUser, getEvent, getEventAttendees, getOngProfile } from '@/lib/data';
 import { getEventFinancialSummary, getPayoutsByEvent } from '@/lib/financial-data';
 import { getEventAnalytics } from '@/lib/data/event-analytics';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -28,11 +28,12 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
   if (!event) notFound();
   if (user.role === 'ong' && event.ongId !== user.id) redirect('/dashboard/ong');
 
-  const [attendees, financialSummary, payouts, analytics] = await Promise.all([
+  const [attendees, financialSummary, payouts, analytics, ongProfile] = await Promise.all([
     getEventAttendees(id),
     getEventFinancialSummary(id),
     getPayoutsByEvent(id),
-    getEventAnalytics(id)
+    getEventAnalytics(id),
+    getOngProfile(event.ongId)
   ]);
 
   const eventDate = new Date(event.date);
@@ -56,6 +57,12 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
   }).format(financialSummary.total.gross);
 
   const backLink = user.role === 'admin' ? '/admin?tab=events' : '/dashboard/ong?tab=events';
+
+  const formattedEventDate = new Date(event.date).toLocaleDateString('es-MX', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
 
   return (
     <div className="container py-8 px-4 md:px-6 space-y-8">
@@ -228,7 +235,16 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
         </TabsContent>
 
         <TabsContent value="stats" className="mt-6">
-          {analytics && <EventAnalyticsView data={analytics} pageViews={event.pageViews || 0} />}
+          {analytics && (
+            <EventAnalyticsView 
+              data={analytics} 
+              pageViews={event.pageViews || 0} 
+              eventName={event.name}
+              eventDate={formattedEventDate}
+              ongName={ongProfile?.organizationName}
+              ongLogo={ongProfile?.logoUrl || ongProfile?.avatarUrl}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>

@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { EventAnalyticsData } from '@/lib/data/event-analytics';
-import { Users, UserCheck, Percent, DollarSign, Bike, User, Eye, TrendingUp } from 'lucide-react';
+import { Users, UserCheck, Percent, DollarSign, Bike, User, Eye, TrendingUp, Sparkles, Loader2, FileBarChart } from 'lucide-react';
 import { GenderDistributionChart } from '@/components/admin/charts/gender-distribution-chart';
 import { TopBrandsList } from '@/components/admin/charts/top-brands-list';
 import { ModalitiesList } from '@/components/admin/charts/modalities-list';
@@ -12,6 +13,10 @@ import { GenerationInsightsCard } from '@/components/admin/charts/generation-ins
 import { BikeRangesChart } from '@/components/admin/charts/bike-ranges-chart';
 import { BikeProfileCard } from '@/components/admin/charts/bike-profile-card';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { toast } from '@/hooks/use-toast';
+import { generateEventSponsorReport } from '@/lib/actions/ai-event-report-actions';
+import { EventSponsorReportModal } from './event-sponsor-report-modal';
 
 // --- NUEVOS COMPONENTES COMBINADOS ---
 
@@ -124,7 +129,20 @@ function StatCard({ title, value, icon: Icon, description }: any) {
     );
 }
 
-export function EventAnalyticsView({ data, pageViews = 0 }: { data: EventAnalyticsData; pageViews?: number }) {
+interface EventAnalyticsViewProps {
+    data: EventAnalyticsData;
+    pageViews?: number;
+    eventName?: string;
+    eventDate?: string;
+    ongName?: string;
+    ongLogo?: string;
+}
+
+export function EventAnalyticsView({ data, pageViews = 0, eventName = "Evento Ciclista", eventDate = "", ongName, ongLogo }: EventAnalyticsViewProps) {
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [reportData, setReportData] = useState<any>(null);
+
     if (!data) return <div className="p-4">No hay datos disponibles aún.</div>;
 
     const { general, market } = data;
@@ -172,8 +190,49 @@ export function EventAnalyticsView({ data, pageViews = 0 }: { data: EventAnalyti
         ? Object.entries(market.rangesDistribution || {}).reduce((a, b) => (a[1] > b[1] ? a : b))[0]
         : 'unknown';
 
+    const handleGenerateSponsorReport = async () => {
+        setIsGenerating(true);
+        try {
+            const res = await generateEventSponsorReport(data, eventName, eventDate);
+            if (res.success && res.data) {
+                setReportData(res.data);
+                setIsModalOpen(true);
+                toast({ title: "Reporte Generado", description: "El análisis estratégico para patrocinadores está listo." });
+            } else {
+                throw new Error(res.error);
+            }
+        } catch (e: any) {
+            toast({ variant: "destructive", title: "Error", description: e.message || "No se pudo generar el reporte." });
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
+            
+            {/* Cabecera de Analíticas con Botón de Reporte IA */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-primary/5 p-6 rounded-2xl border border-primary/10">
+                <div>
+                    <h2 className="text-xl font-bold text-primary flex items-center gap-2">
+                        <FileBarChart className="w-5 h-5" />
+                        Dashboard de Inteligencia
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-1">Análisis profundo de participación y mercado del evento.</p>
+                </div>
+                <Button 
+                    onClick={handleGenerateSponsorReport} 
+                    disabled={isGenerating || general.totalRegistrations === 0}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-lg shadow-indigo-200 transition-all"
+                >
+                    {isGenerating ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Procesando con Sprock...</>
+                    ) : (
+                        <><Sparkles className="mr-2 h-4 w-4" /> Generar Reporte Patrocinadores (IA)</>
+                    )}
+                </Button>
+            </div>
+
             {/* Sección: Indicadores Generales */}
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -252,6 +311,19 @@ export function EventAnalyticsView({ data, pageViews = 0 }: { data: EventAnalyti
                     <ModalitiesList data={modalityData} />
                 </div>
             </div>
+
+            {/* Modal de Reporte */}
+            {reportData && (
+                <EventSponsorReportModal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    reportData={reportData}
+                    eventAnalytics={data}
+                    eventName={eventName}
+                    ongName={ongName}
+                    ongLogo={ongLogo}
+                />
+            )}
         </div>
     );
 }
