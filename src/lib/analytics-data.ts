@@ -50,6 +50,12 @@ function applyBikeFilters(
         const modalitiesToSearch = MODALITY_MAPPING[filters.modality] || [filters.modality];
         q = q.where('modality', 'in', modalitiesToSearch);
     }
+    if (filters.range) {
+        q = q.where('priceRange', '==', filters.range);
+    }
+    if (filters.modelYearBucket) {
+        q = q.where('modelYearBucket', '==', filters.modelYearBucket);
+    }
 
     return q;
 }
@@ -79,6 +85,12 @@ function applyUserFilters(query: FirebaseFirestore.Query, filters: DashboardFilt
         } else {
              q = q.where('ownedModalities', 'array-contains-any', modalitiesToSearch);
         }
+    }
+    if (filters.range) {
+        q = q.where('ownedPriceRanges', 'array-contains', filters.range);
+    }
+    if (filters.modelYearBucket) {
+        q = q.where('ownedModelYears', 'array-contains', filters.modelYearBucket);
     }
 
     return q;

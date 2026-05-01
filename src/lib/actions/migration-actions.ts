@@ -2,6 +2,7 @@
 
 import { getDecodedSession } from '@/lib/auth';
 import { adminDb } from '@/lib/firebase/server';
+import { BIKE_RANGES } from '@/lib/constants/bike-ranges';
 
 export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = true) {
     const session = await getDecodedSession();
@@ -53,6 +54,43 @@ export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = t
             if (bikeData.ownerState !== userData.state) { updatePayload.ownerState = userData.state || null; needsBikeUpdate = true; }
             if (bikeData.ownerCity !== userData.city) { updatePayload.ownerCity = userData.city || null; needsBikeUpdate = true; }
 
+            // Lógica para priceRange y modelYearBucket (NUEVO)
+            if (typeof bikeData.appraisedValue === 'number' && bikeData.appraisedValue > 0) {
+                const value = bikeData.appraisedValue;
+                let range = 'unknown';
+                if (value < 15000) range = 'entry';
+                else if (value < 45000) range = 'mid';
+                else if (value < 95000) range = 'mid_high';
+                else if (value < 200000) range = 'high';
+                else range = 'superbike';
+
+                if (range !== 'unknown' && bikeData.priceRange !== range) {
+                    updatePayload.priceRange = range;
+                    needsBikeUpdate = true;
+                }
+            }
+
+            if (bikeData.modelYear) {
+                const year = parseInt(bikeData.modelYear, 10);
+                const currentYear = new Date().getFullYear();
+                let yearBucket: string | null = null;
+                
+                if (!isNaN(year) && year >= 1900 && year <= currentYear + 1) {
+                    if (year <= 1990) {
+                        yearBucket = "≤ 1990";
+                    } else {
+                        const bucketUpperLimit = Math.ceil(year / 5) * 5;
+                        const bucketLowerLimit = bucketUpperLimit - 4;
+                        yearBucket = `${bucketLowerLimit} - ${bucketUpperLimit}`;
+                    }
+                }
+
+                if (yearBucket && bikeData.modelYearBucket !== yearBucket) {
+                    updatePayload.modelYearBucket = yearBucket;
+                    needsBikeUpdate = true;
+                }
+            }
+
             if (needsBikeUpdate) {
                 if (!isDryRun) {
                     batch.update(bikeDoc.ref, updatePayload);
@@ -63,6 +101,8 @@ export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = t
 
             const ownedBrands = new Set(userData.ownedBrands || []);
             const ownedModalities = new Set(userData.ownedModalities || []);
+            const ownedPriceRanges = new Set(userData.ownedPriceRanges || []); // NUEVO
+            const ownedModelYears = new Set(userData.ownedModelYears || []);   // NUEVO
             let hasStolenBikes = userData.hasStolenBikes || false;
             let needsUserUpdate = false;
 
@@ -79,9 +119,24 @@ export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = t
                 needsUserUpdate = true;
             }
 
+            // Actualizar usuario con rangos y años
+            const newRange = updatePayload.priceRange || bikeData.priceRange;
+            if (newRange && newRange !== 'unknown' && !ownedPriceRanges.has(newRange)) {
+                ownedPriceRanges.add(newRange);
+                needsUserUpdate = true;
+            }
+            
+            const newBucket = updatePayload.modelYearBucket || bikeData.modelYearBucket;
+            if (newBucket && !ownedModelYears.has(newBucket)) {
+                ownedModelYears.add(newBucket);
+                needsUserUpdate = true;
+            }
+
             if (needsUserUpdate) {
                 userData.ownedBrands = Array.from(ownedBrands);
                 userData.ownedModalities = Array.from(ownedModalities);
+                userData.ownedPriceRanges = Array.from(ownedPriceRanges); // NUEVO
+                userData.ownedModelYears = Array.from(ownedModelYears);   // NUEVO
                 userData.hasStolenBikes = hasStolenBikes;
                 userCache.set(userId, userData); 
                 
@@ -89,6 +144,8 @@ export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = t
                     batch.update(usersRef.doc(userId), {
                         ownedBrands: userData.ownedBrands,
                         ownedModalities: userData.ownedModalities,
+                        ownedPriceRanges: userData.ownedPriceRanges, // NUEVO
+                        ownedModelYears: userData.ownedModelYears,   // NUEVO
                         hasStolenBikes: userData.hasStolenBikes
                     });
                     batchCount++;

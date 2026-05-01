@@ -52,6 +52,10 @@ export type Bike = {
   adminSharedAt?: string; // ISO string de cuándo el admin compartió el robo
   bikonId?: string | null; // ID of the linked Bikon device
   
+  // --- CAMPOS DESNORMALIZADOS PROPIOS DE LA BICI ---
+  priceRange?: string; // ID de la gama de precio (ej. 'entry', 'mid')
+  modelYearBucket?: string; // Cubo de antigüedad (ej. '2016 - 2020')
+
   // --- CAMPOS DESNORMALIZADOS DEL DUEÑO (Para Filtros Cruzados Rápidos) ---
   ownerGender?: string;
   ownerBirthDate?: string;
@@ -130,6 +134,8 @@ export type User = {
   // --- CAMPOS DESNORMALIZADOS DEL GARAJE (Para Filtros Cruzados Rápidos) ---
   ownedBrands?: string[];
   ownedModalities?: string[];
+  ownedPriceRanges?: string[]; // Gamas que posee el usuario (ej. ['mid', 'high'])
+  ownedModelYears?: string[];  // Cubos de antigüedad que posee (ej. ['2016 - 2020'])
   hasStolenBikes?: boolean;
 };
 
@@ -425,6 +431,8 @@ export type DashboardFilters = {
     brand?: string;
     modality?: string;
     gender?: string;
+    range?: string; // Filtro de Gama
+    modelYearBucket?: string; // Filtro de Antigüedad
 };
 
 export type Payout = {

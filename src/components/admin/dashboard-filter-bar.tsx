@@ -15,7 +15,8 @@ import {
 import { Input } from '@/components/ui/input';
 
 import { COUNTRIES, STATES_MX, BIKE_BRANDS, MODALITIES, GENDERS } from '@/lib/filter-constants';
-import { getCities } from '@/lib/cities'; // Importar utilidad de ciudades
+import { getCities } from '@/lib/cities'; 
+import { BIKE_RANGES } from '@/lib/constants/bike-ranges';
 
 export function DashboardFilterBar() {
   const router = useRouter();
@@ -93,22 +94,31 @@ export function DashboardFilterBar() {
   const currentModality = searchParams.get('modality') || '';
   const currentGender = searchParams.get('gender') || '';
   const currentCity = searchParams.get('city') || '';
+  const currentRange = searchParams.get('range') || '';
+  const currentModelYearBucket = searchParams.get('modelYearBucket') || '';
 
-  const hasActiveFilters = currentCountry || currentState || currentBrand || currentModality || currentGender || currentCity;
+  const hasActiveFilters = currentCountry || currentState || currentBrand || currentModality || currentGender || currentCity || currentRange || currentModelYearBucket;
 
   // Determine if we should show the dropdown or the input
   const countryForCities = currentCountry || 'México'; // Default context
   const availableCities = currentState ? getCities(countryForCities, currentState) : [];
   const showCityDropdown = availableCities.length > 0;
+  
+  // Opciones de Antigüedad
+  const currentYear = new Date().getFullYear();
+  const yearBuckets = [
+    { value: '≤ 1990', label: '1990 o anterior' }
+  ];
+  for (let y = 1995; y <= currentYear + 5; y += 5) {
+      if (y - 4 <= currentYear + 1) { // Límite razonable
+         yearBuckets.push({
+             value: `${y - 4} - ${y}`,
+             label: `${y - 4} - ${y}`
+         });
+      }
+  }
 
   return (
-    /* 
-       CAMBIO STICKY: 
-       - sticky top-0: Mantiene la barra fija al inicio del scroll.
-       - z-50: Asegura que esté por encima de todos los gráficos y el mapa.
-       - bg-background/95 backdrop-blur: Estética moderna que permite ver el contenido pasando por debajo.
-       - pt-4 pb-4 px-4: Padding ajustado para compensar el borde y la sombra.
-    */
     <div className="sticky top-0 z-50 flex flex-col space-y-4 mb-6 p-4 bg-background/95 backdrop-blur-md rounded-lg border shadow-sm transition-all">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -123,7 +133,8 @@ export function DashboardFilterBar() {
         )}
       </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* 4 columnas en pantallas grandes para acomodar 8 filtros mejor */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4">
         {/* Country Filter */}
         <Select
           value={currentCountry}
@@ -226,6 +237,42 @@ export function DashboardFilterBar() {
             {MODALITIES.map((m) => (
               <SelectItem key={m.value} value={m.value}>
                 {m.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Gama (Price Range) Filter */}
+        <Select
+          value={currentRange}
+          onValueChange={(val) => handleFilterChange('range', val === 'all' ? null : val)}
+        >
+          <SelectTrigger className="bg-background">
+            <SelectValue placeholder="Gama" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las gamas</SelectItem>
+            {Object.entries(BIKE_RANGES).map(([key, info]) => (
+              <SelectItem key={key} value={key}>
+                {info.shortLabel}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Antigüedad (Model Year Bucket) Filter */}
+        <Select
+          value={currentModelYearBucket}
+          onValueChange={(val) => handleFilterChange('modelYearBucket', val === 'all' ? null : val)}
+        >
+          <SelectTrigger className="bg-background">
+            <SelectValue placeholder="Antigüedad" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los años</SelectItem>
+            {yearBuckets.map((bucket) => (
+              <SelectItem key={bucket.value} value={bucket.value}>
+                {bucket.label}
               </SelectItem>
             ))}
           </SelectContent>
