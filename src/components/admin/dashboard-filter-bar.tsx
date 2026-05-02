@@ -18,6 +18,21 @@ import { COUNTRIES, STATES_MX, BIKE_BRANDS, MODALITIES, GENDERS } from '@/lib/fi
 import { getCities } from '@/lib/cities'; 
 import { BIKE_RANGES } from '@/lib/constants/bike-ranges';
 
+// Mover el cálculo de los buckets de año fuera del componente para que se evalúe una sola vez
+// y no cause problemas de rendimiento en el ciclo de renderizado o en el bundler de SSR.
+const currentYear = new Date().getFullYear();
+const yearBuckets = [
+  { value: '≤ 1990', label: '1990 o anterior' }
+];
+for (let y = 1995; y <= currentYear + 5; y += 5) {
+    if (y - 4 <= currentYear + 1) { // Límite razonable
+       yearBuckets.push({
+           value: `${y - 4} - ${y}`,
+           label: `${y - 4} - ${y}`
+       });
+    }
+}
+
 export function DashboardFilterBar() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -104,20 +119,6 @@ export function DashboardFilterBar() {
   const availableCities = currentState ? getCities(countryForCities, currentState) : [];
   const showCityDropdown = availableCities.length > 0;
   
-  // Opciones de Antigüedad
-  const currentYear = new Date().getFullYear();
-  const yearBuckets = [
-    { value: '≤ 1990', label: '1990 o anterior' }
-  ];
-  for (let y = 1995; y <= currentYear + 5; y += 5) {
-      if (y - 4 <= currentYear + 1) { // Límite razonable
-         yearBuckets.push({
-             value: `${y - 4} - ${y}`,
-             label: `${y - 4} - ${y}`
-         });
-      }
-  }
-
   return (
     <div className="sticky top-0 z-50 flex flex-col space-y-4 mb-6 p-4 bg-background/95 backdrop-blur-md rounded-lg border shadow-sm transition-all">
       <div className="flex items-center justify-between">

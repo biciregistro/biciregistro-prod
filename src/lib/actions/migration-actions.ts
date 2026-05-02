@@ -6,12 +6,31 @@ import { BIKE_RANGES } from '@/lib/constants/bike-ranges';
 
 export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = true) {
     const session = await getDecodedSession();
-    if (!session?.uid || session.role !== 'admin') {
-        return { success: false, message: 'No autorizado.' };
+    
+    // 1. Verificación básica de sesión
+    if (!session?.uid) {
+        console.warn('[Migration] Rechazado: Usuario no autenticado.');
+        return { success: false, message: 'No autorizado: Debes iniciar sesión.' };
     }
 
+    const db = adminDb;
+
     try {
-        const db = adminDb;
+        // 2. Verificación profunda de Rol en Firestore (Solución al Bug 403)
+        const userDoc = await db.collection('users').doc(session.uid).get();
+        if (!userDoc.exists) {
+            console.warn(`[Migration] Rechazado: Usuario ${session.uid} no existe en Firestore.`);
+            return { success: false, message: 'No autorizado: Perfil no encontrado.' };
+        }
+
+        const userDataFromDb = userDoc.data();
+        if (userDataFromDb?.role !== 'admin') {
+            console.warn(`[Migration] Rechazado: Usuario ${session.uid} intentó migrar pero su rol es '${userDataFromDb?.role}'.`);
+            return { success: false, message: 'No autorizado: Solo administradores pueden ejecutar migraciones.' };
+        }
+
+        console.log(`[Migration] Acceso Autorizado para Admin: ${session.uid}. Iniciando migración (DryRun: ${isDryRun})...`);
+
         const usersRef = db.collection('users');
         const bikesRef = db.collection('bikes');
 
@@ -36,9 +55,9 @@ export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = t
 
             let userData = userCache.get(userId);
             if (!userData) {
-                const userDoc = await usersRef.doc(userId).get();
-                if (userDoc.exists) {
-                    userData = userDoc.data();
+                const fetchedUserDoc = await usersRef.doc(userId).get();
+                if (fetchedUserDoc.exists) {
+                    userData = fetchedUserDoc.data();
                     userCache.set(userId, userData);
                 } else {
                     continue;
@@ -164,6 +183,7 @@ export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = t
             await batch.commit();
         }
 
+        console.log(`[Migration] Éxito. Procesadas: ${processedBikes}, Bicis modif: ${modifiedBikes}, Garajes act: ${userGaragesUpdated}`);
         const modeMsg = isDryRun ? '[PRUEBA] Se procesarían' : 'Procesadas';
         return { 
             success: true, 
@@ -171,7 +191,7 @@ export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = t
         };
 
     } catch (error: any) {
-        console.error("Migration Error:", error);
+        console.error("[Migration] Error Fatal:", error);
         return { success: false, message: 'Error en la migración: ' + error.message };
     }
 }
@@ -182,14 +202,21 @@ export async function runAnalyticsDenormalizationMigration(isDryRun: boolean = t
  */
 export async function exportUniqueBikesCatalogAction() {
     const session = await getDecodedSession();
-    if (!session?.uid || session.role !== 'admin') {
-        return { success: false, error: 'No autorizado' };
+    
+    if (!session?.uid) {
+        return { success: false, error: 'No autorizado: Debes iniciar sesión.' };
     }
 
-    console.log(`[Export] Iniciando exportación solicitada por admin: ${session.uid}`);
+    const db = adminDb;
 
     try {
-        const db = adminDb;
+        const userDoc = await db.collection('users').doc(session.uid).get();
+        if (!userDoc.exists || userDoc.data()?.role !== 'admin') {
+            return { success: false, error: 'No autorizado: Solo administradores pueden exportar el catálogo.' };
+        }
+
+        console.log(`[Export] Iniciando exportación solicitada por admin: ${session.uid}`);
+
         const bikesRef = db.collection('bikes');
         
         // Usar select para traer solo lo mínimo indispensable y ahorrar ancho de banda de red en Firebase
