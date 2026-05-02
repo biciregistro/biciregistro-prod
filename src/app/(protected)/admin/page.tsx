@@ -32,6 +32,8 @@ export default async function AdminPage({
     brand: typeof resolvedSearchParams['brand'] === 'string' ? resolvedSearchParams['brand'] : undefined,
     modality: typeof resolvedSearchParams['modality'] === 'string' ? resolvedSearchParams['modality'] : undefined,
     gender: typeof resolvedSearchParams['gender'] === 'string' ? resolvedSearchParams['gender'] : undefined,
+    range: typeof resolvedSearchParams['range'] === 'string' ? resolvedSearchParams['range'] : undefined,
+    modelYearBucket: typeof resolvedSearchParams['modelYearBucket'] === 'string' ? resolvedSearchParams['modelYearBucket'] : undefined,
   };
 
   const query = typeof resolvedSearchParams['query'] === 'string' ? resolvedSearchParams['query'] : undefined;

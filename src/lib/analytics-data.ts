@@ -494,7 +494,8 @@ export const getMarketMetrics = unstable_cache(
         // CONTEXTO: Dueño (El mercado se mide por la residencia de los propietarios y sus activos)
         query = applyBikeFilters(query, filters, 'owner'); 
 
-        const snapshot = await query.select('make', 'modality', 'appraisedValue', 'modelYear').get();
+        // Seleccionamos también 'priceRange' que fue guardado en DB por la migración
+        const snapshot = await query.select('make', 'modality', 'appraisedValue', 'modelYear', 'priceRange').get();
         
         if (snapshot.empty) {
             return {
@@ -529,18 +530,17 @@ export const getMarketMetrics = unstable_cache(
             const modality = data.modality;
             if (modality) modalityCounts[modality] = (modalityCounts[modality] || 0) + 1;
 
+            // En lugar de recalcular al vuelo basándose en appraisedValue, 
+            // usamos directamente el valor pre-calculado que se usó para el filtro en DB.
+            const rangeKey = data.priceRange;
+            if (rangeKey && rangeKey !== 'unknown') {
+                 rangesDistribution[rangeKey] = (rangesDistribution[rangeKey] || 0) + 1;
+            }
+
             const value = data.appraisedValue;
             if (typeof value === 'number' && value > 0) {
                 totalValue += value;
                 validValueCount++;
-
-                const range = Object.entries(BIKE_RANGES).find(
-                    ([_, r]) => value >= r.min && value <= r.max
-                );
-                if (range) {
-                    const rangeKey = range[0]; 
-                    rangesDistribution[rangeKey] = (rangesDistribution[rangeKey] || 0) + 1;
-                }
             }
 
             // --- MODEL YEAR BUCKETING LOGIC ---
