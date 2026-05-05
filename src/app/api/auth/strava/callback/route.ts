@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     }
 
     if (!code || !stateUserId) {
-        return NextResponse.redirect(`${APP_URL}/dashboard?strava=error`);
+        return NextResponse.redirect(`${APP_URL}/dashboard?tab=rewards&strava=error`);
     }
 
     try {
@@ -38,7 +38,7 @@ export async function GET(request: Request) {
 
         if (!tokenResponse.ok) {
             console.error("Error al obtener token de Strava", await tokenResponse.text());
-            return NextResponse.redirect(`${APP_URL}/dashboard?strava=error`);
+            return NextResponse.redirect(`${APP_URL}/dashboard?tab=rewards&strava=error`);
         }
 
         const tokenData = await tokenResponse.json();
@@ -97,10 +97,10 @@ export async function GET(request: Request) {
         });
 
         // 6. Redirigir al dashboard con éxito
-        return NextResponse.redirect(`${APP_URL}/dashboard?strava=success`);
+        return NextResponse.redirect(`${APP_URL}/dashboard?tab=rewards&strava=success`);
 
     } catch (error) {
         console.error("Error crítico en callback de Strava:", error);
-        return NextResponse.redirect(`${APP_URL}/dashboard?strava=error`);
+        return NextResponse.redirect(`${APP_URL}/dashboard?tab=rewards&strava=error`);
     }
 }

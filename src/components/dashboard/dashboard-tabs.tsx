@@ -1,4 +1,5 @@
 'use client';
+import confetti from "canvas-confetti";
 import { StravaSyncCard } from "./strava-sync-card";
 
 import { useState, useEffect, Suspense, useMemo } from 'react';
@@ -121,6 +122,33 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
             setActiveTab(tab);
         }
     }, [searchParams]);
+
+    useEffect(() => {
+        const stravaStatus = searchParams.get("strava");
+        if (stravaStatus === "success") {
+            toast({
+                title: "¡Cuenta conectada!",
+                description: "Tu cuenta de Strava se ha vinculado correctamente. ¡Felicidades por tu bono inicial!",
+            });
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ["#FC4C02", "#10B981", "#FBBF24"]
+            });
+            
+            // Clean up the URL parameter
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete("strava");
+            window.history.replaceState({}, "", newUrl.toString());
+        } else if (stravaStatus === "error") {
+            toast({
+                title: "Error de conexión",
+                description: "Hubo un problema al conectar con Strava. Inténtalo de nuevo.",
+                variant: "destructive"
+            });
+        }
+    }, [searchParams, toast]);
 
     useEffect(() => {
         if (activeTab === 'rewards') {
