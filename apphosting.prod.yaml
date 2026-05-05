@@ -35,3 +35,7 @@ env:
     secret: google-genai-api-key
   - variable: RESEND_API_KEY
     secret: resend-api-key
+  - variable: STRAVA_CLIENT_ID
+    secret: strava-client-id
+  - variable: STRAVA_CLIENT_SECRET
+    secret: strava-client-secret

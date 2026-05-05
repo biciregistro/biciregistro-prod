@@ -27,6 +27,12 @@ env:
   - variable: FIREBASE_PRIVATE_KEY
     secret: firebase-private-key
     availability: [BUILD, RUNTIME]
+  - variable: STRAVA_CLIENT_ID
+    secret: strava-client-id
+    availability: [BUILD, RUNTIME]
+  - variable: STRAVA_CLIENT_SECRET
+    secret: strava-client-secret
+    availability: [BUILD, RUNTIME]
 
   # Client-side variables (needed for build and runtime)
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY

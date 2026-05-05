@@ -1,4 +1,5 @@
 'use client';
+import { StravaSyncCard } from "./strava-sync-card";
 
 import { useState, useEffect, Suspense, useMemo } from 'react';
 import Link from 'next/link';
@@ -627,6 +628,19 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                     <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl"></div>
                     <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-48 h-48 bg-emerald-300 opacity-10 rounded-full blur-2xl"></div>
                 </div>
+
+                {/* Strava Integration Card */}
+                {!isRewardsLocked && (
+                    <div className="mb-6">
+                        <StravaSyncCard 
+                            stravaData={user.gamification?.strava} 
+                            onSync={async () => { 
+                                const res = await import("@/lib/actions/strava-actions").then(m => m.syncStravaActivities());
+                                return res;
+                            }} 
+                        />
+                    </div>
+                )}
 
                 {isRewardsLocked ? (
                     <div className="flex flex-col items-center justify-center py-16 px-6 text-center border-2 border-slate-200 rounded-2xl bg-slate-50 shadow-sm max-w-2xl mx-auto my-8">

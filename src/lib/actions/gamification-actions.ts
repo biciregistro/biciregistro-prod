@@ -4,7 +4,7 @@ import { adminDb as db } from '../firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getDecodedSession } from '../auth/server';
 import { GamificationRuleId, GAMIFICATION_RULES, KM_TIERS } from '../gamification/constants';
-import { GamificationProfile, BadgeType } from '../gamification/gamification-types';
+import { GamificationProfile, BadgeType, GamificationSettings } from '../gamification/gamification-types';
 
 /**
  * Helper to get the current points value for an action.
@@ -185,6 +185,46 @@ export async function getGamificationRules() {
         return doc.exists ? doc.data() : {};
     } catch (error) {
         return {};
+    }
+}
+
+/**
+ * Admin: Get Strava settings from global gamification config
+ */
+export async function getStravaSettings(): Promise<GamificationSettings> {
+    const defaultSettings: GamificationSettings = {
+        pointsPerReferral: 50,
+        stravaInitialBonusPoints: 100, 
+        stravaMaxDailyKmLimit: 0,      
+        stravaConversionRate: 1.0,     
+        stravaAllowedActivityTypes: ['Ride', 'MountainBikeRide', 'GravelRide', 'E-BikeRide', 'Handcycle'],
+    };
+
+    try {
+        const doc = await db.collection('config').doc('gamification').get();
+        if (doc.exists) {
+            return { ...defaultSettings, ...doc.data() } as GamificationSettings;
+        }
+    } catch (error) {
+        console.error("Error fetching Strava settings", error);
+    }
+    
+    return defaultSettings;
+}
+
+/**
+ * Admin: Update Strava configuration
+ */
+export async function updateStravaSettings(settings: GamificationSettings) {
+    try {
+        const session = await getDecodedSession();
+        // TODO: Validate admin role here
+        
+        await db.collection('config').doc('gamification').set(settings, { merge: true });
+        return { success: true };
+    } catch (error) {
+        console.error('Error updating Strava settings:', error);
+        return { success: false };
     }
 }
 
