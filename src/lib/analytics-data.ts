@@ -73,27 +73,59 @@ function applyUserFilters(query: FirebaseFirestore.Query, filters: DashboardFilt
     if (filters.city) q = q.where('city', '==', filters.city);
     if (filters.gender) q = q.where('gender', '==', filters.gender);
 
-    // 2. Filtros de Mercado (Solo aplica si el usuario PUSO un filtro de bicicleta)
-    // Si no hay filtro de marca/modalidad, cuenta TODOS los usuarios del estado, tengan bicis o no.
-    if (filters.brand) {
+    // 2. Filtros de Mercado (Arrays)
+    // Firestore LIMITACIÓN CATASTRÓFICA: Solo permite UN (1) 'array-contains' o 'array-contains-any' por consulta.
+    // SOLUCIÓN: Aplicaremos el filtro de array que sea "más restrictivo" a nivel DB, el resto en memoria.
+    
+    let arrayFilterApplied = false;
+
+    if (filters.brand && !arrayFilterApplied) {
         q = q.where('ownedBrands', 'array-contains', filters.brand);
+        arrayFilterApplied = true;
     }
-    if (filters.modality) {
+    
+    if (filters.modality && !arrayFilterApplied) {
         const modalitiesToSearch = MODALITY_MAPPING[filters.modality] || [filters.modality];
         if (modalitiesToSearch.length === 1) {
             q = q.where('ownedModalities', 'array-contains', modalitiesToSearch[0]);
         } else {
              q = q.where('ownedModalities', 'array-contains-any', modalitiesToSearch);
         }
+        arrayFilterApplied = true;
     }
-    if (filters.range) {
+    
+    if (filters.range && !arrayFilterApplied) {
         q = q.where('ownedPriceRanges', 'array-contains', filters.range);
+        arrayFilterApplied = true;
     }
-    if (filters.modelYearBucket) {
+    
+    if (filters.modelYearBucket && !arrayFilterApplied) {
         q = q.where('ownedModelYears', 'array-contains', filters.modelYearBucket);
+        arrayFilterApplied = true;
     }
 
     return q;
+}
+
+/**
+ * Puesto que Firestore solo permite 1 array-contains, filtramos el resto en memoria.
+ * @param userData Los datos del documento del usuario devueltos por Firestore.
+ * @param filters Los filtros aplicados en el Dashboard.
+ * @returns boolean indicando si el usuario pasa TODOS los filtros.
+ */
+function passesMemoryUserFilters(userData: any, filters: DashboardFilters): boolean {
+    if (filters.brand && (!userData.ownedBrands || !userData.ownedBrands.includes(filters.brand))) return false;
+    
+    if (filters.modality) {
+        const modalitiesToSearch = MODALITY_MAPPING[filters.modality] || [filters.modality];
+        if (!userData.ownedModalities || !modalitiesToSearch.some((m: string) => userData.ownedModalities.includes(m))) return false;
+    }
+    
+    if (filters.range && (!userData.ownedPriceRanges || !userData.ownedPriceRanges.includes(filters.range))) return false;
+    
+    if (filters.modelYearBucket && (!userData.ownedModelYears || !userData.ownedModelYears.includes(filters.modelYearBucket))) return false;
+
+    return true;
 }
 
 // Helper to parse dates in various formats
@@ -266,12 +298,21 @@ export const getGeneralStats = unstable_cache(
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
-        const [usersSnapshot, bikesSnapshot, allUsersSnapshot, allBikesSnapshot] = await Promise.all([
-            totalUsersQuery.count().get(),
-            totalBikesQuery.count().get(),
+        // SOLUCIÓN COUNT EN MEMORIA PARA USUARIOS
+        // Como Firebase no permite > 1 array filter, descargamos los docs con proyección mínima y los filtramos en memoria.
+        const [usersDataSnapshot, bikesSnapshot, allUsersSnapshot, allBikesSnapshot] = await Promise.all([
+            totalUsersQuery.select('ownedBrands', 'ownedModalities', 'ownedPriceRanges', 'ownedModelYears').get(),
+            totalBikesQuery.count().get(), // Bicis no cruzan arrays (usan == y in), el count nativo funciona.
             usersRef.select('createdAt').get(), 
             bikesRef.select('createdAt').get(), 
         ]);
+
+        let filteredUsersCount = 0;
+        usersDataSnapshot.forEach(doc => {
+            if (passesMemoryUserFilters(doc.data(), filters)) {
+                filteredUsersCount++;
+            }
+        });
 
         const dailyCounts: { [key: string]: { usersCount: number, bikesCount: number } } = {};
         
@@ -300,7 +341,7 @@ export const getGeneralStats = unstable_cache(
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         return {
-            totalUsers: usersSnapshot.data().count,
+            totalUsers: filteredUsersCount,
             totalBikes: bikesSnapshot.data().count,
             activeUsers: 0, 
             dailyGrowth: dailyGrowth
@@ -371,7 +412,7 @@ export const getUserDemographics = unstable_cache(
         // CONTEXTO: Residencia del usuario (Aplica filtros si hay marca/modalidad, si no, agarra a todos los de la zona)
         let query = applyUserFilters(db.collection('users'), filters);
 
-        const snapshot = await query.select('birthDate', 'gender', 'state', 'country', 'city').get();
+        const snapshot = await query.select('birthDate', 'gender', 'state', 'country', 'city', 'ownedBrands', 'ownedModalities', 'ownedPriceRanges', 'ownedModelYears').get();
         
         if (snapshot.empty) {
             return {
@@ -396,6 +437,9 @@ export const getUserDemographics = unstable_cache(
 
         snapshot.forEach(doc => {
             const data = doc.data();
+            
+            // Filtro en memoria
+            if (!passesMemoryUserFilters(data, filters)) return;
             
             let gender = data.gender || 'No especificado';
             gender = gender.charAt(0).toUpperCase() + gender.slice(1);

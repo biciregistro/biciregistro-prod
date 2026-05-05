@@ -88,11 +88,13 @@ export async function GET(request: Request) {
             }
 
             // Actualizamos el documento con dot notation
+            // También inyectamos la variable "isStravaConnected" en la raíz para filtros de Data Analytics
             transaction.update(userRef, {
                 'gamification.strava': stravaData,
                 'gamification.pointsBalance': currentBalance + pointsToAdd,
                 'gamification.lifetimePoints': currentLifetime + pointsToAdd,
-                'gamification.badges': newBadges
+                'gamification.badges': newBadges,
+                'isStravaConnected': true
             });
         });
 

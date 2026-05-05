@@ -137,6 +137,31 @@ export type User = {
   ownedPriceRanges?: string[]; // Gamas que posee el usuario (ej. ['mid', 'high'])
   ownedModelYears?: string[];  // Cubos de antigüedad que posee (ej. ['2016 - 2020'])
   hasStolenBikes?: boolean;
+
+  // --- CAMPOS DESNORMALIZADOS DE ACTIVIDAD (Strava / Data Intelligence) ---
+  isStravaConnected?: boolean;
+  stravaTotalKm?: number; // Snapshot of synced KMs
+  stravaTopModalities?: string[]; // ej: ['Ride', 'MountainBikeRide']
+  stravaLastActiveDate?: string; // ISO string de la actividad más reciente
+};
+
+// --- DATA B2B (Mantenimiento Predictivo y Rutas) ---
+export type B2BStravaActivity = {
+  id: string; // Strava Activity ID (as string)
+  userId: string; // Relación con el ciclista
+  name: string;
+  distance: number; // en metros
+  movingTime: number; // en segundos
+  elapsedTime: number; // en segundos
+  totalElevationGain: number; // en metros
+  type: string;
+  sportType: string;
+  startDate: string; // ISO String
+  averageSpeed: number; // m/s
+  maxSpeed: number; // m/s
+  polyline?: string; // Para mapas de calor
+  gearId?: string; // ID de la bici en Strava (si existe)
+  syncedAt: string; // Fecha de importación a BiciRegistro
 };
 
 export type OngUser = {

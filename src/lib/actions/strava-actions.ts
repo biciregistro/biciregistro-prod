@@ -109,7 +109,12 @@ export async function disconnectStrava() {
 
     try {
         const userRef = adminDb.collection('users').doc(session.uid);
-        await userRef.update({ 'gamification.strava': FieldValue.delete() });
+        
+        // Remove nested object and reset denormalized root fields
+        await userRef.update({ 
+            'gamification.strava': FieldValue.delete(),
+            'isStravaConnected': false
+        });
         return { success: true, message: "Cuenta de Strava desconectada" };
     } catch (error) {
         return { success: false, message: "Error al desconectar la cuenta" };
@@ -181,8 +186,10 @@ export async function syncStravaActivities() {
             return { success: false, message: "Tu cuenta ya está al día. No encontramos rodadas nuevas." };
         }
 
-        // 4. Filtrar y Calcular Distancia Válida
+        // 4. Filtrar y Calcular Distancia Válida + Recolección de Modalities
         let newValidMeters = 0;
+        const currentModalities = userData?.stravaTopModalities || [];
+        const newModalitiesSet = new Set<string>(currentModalities);
         
         for (const activity of activities) {
             // Evaluamos si el tipo de actividad es permitido según la configuración del admin
@@ -190,6 +197,7 @@ export async function syncStravaActivities() {
             const actType = activity.sport_type || activity.type;
             if (settings.stravaAllowedActivityTypes.includes(actType)) {
                 newValidMeters += activity.distance;
+                newModalitiesSet.add(actType);
             }
         }
 
@@ -230,11 +238,18 @@ export async function syncStravaActivities() {
             }
 
             transaction.update(userRef, {
+                // Nested updates
                 'gamification.pointsBalance': currentBalance + pointsEarned,
                 'gamification.lifetimePoints': currentLifetime + pointsEarned,
                 'gamification.badges': newBadges,
                 'gamification.strava.lastSyncDate': currentSyncDateStr,
                 'gamification.strava.totalKmSynced': totalKmSynced + newKm,
+                
+                // Denormalized root level updates for Data Intelligence
+                'isStravaConnected': true,
+                'stravaTotalKm': totalKmSynced + newKm,
+                'stravaTopModalities': Array.from(newModalitiesSet),
+                'stravaLastActiveDate': currentSyncDateStr
             });
         });
 
