@@ -5,7 +5,9 @@ import { userFormSchema } from '../schemas';
 import { getAuthenticatedUser } from '../data';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 import type { ActionFormState, User } from '../types';
+import { createSession } from '../auth/server';
 
 function generateReferralCode(name: string): string {
     const prefix = name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X');
@@ -469,5 +471,65 @@ export async function syncSocialUser(idToken: string, roleContext?: string): Pro
     } catch (error) {
         console.error("Error syncing social user:", error);
         return { success: false, error: 'Error interno de sincronización.' };
+    }
+}
+
+// --- ADMIN IMPERSONATION ACTIONS ---
+
+export async function impersonateOng(ongId: string): Promise<{ success: boolean; error?: string; customToken?: string }> {
+    const user = await getAuthenticatedUser();
+    
+    // Solo un administrador puede suplantar
+    if (!user || user.role !== 'admin') {
+        return { success: false, error: 'No autorizado. Solo los administradores pueden realizar esta acción.' };
+    }
+
+    try {
+        // Verificar que la ONG existe
+        const ongDoc = await db.collection('users').doc(ongId).get();
+        if (!ongDoc.exists) {
+            return { success: false, error: 'La ONG seleccionada no existe.' };
+        }
+        
+        const ongData = ongDoc.data() as User;
+        if (ongData.role !== 'ong') {
+             return { success: false, error: 'El usuario seleccionado no es una ONG.' };
+        }
+
+        // Guardamos el UID del administrador original en una cookie para poder regresar
+        const cookieStore = await cookies();
+        
+        // Creamos un custom token para la ONG seleccionada
+        const customToken = await adminAuth.createCustomToken(ongId, { adminImpersonator: user.id });
+
+        return { success: true, customToken };
+
+    } catch (error) {
+        console.error("Error impersonating ONG:", error);
+        return { success: false, error: 'Ocurrió un error al intentar suplantar a la ONG.' };
+    }
+}
+
+export async function restoreAdminSession(originalAdminUid: string): Promise<{ success: boolean; error?: string; customToken?: string }> {
+    try {
+        // Obtenemos el usuario admin
+        const adminDoc = await db.collection('users').doc(originalAdminUid).get();
+        
+        if (!adminDoc.exists) {
+             return { success: false, error: 'Usuario administrador no encontrado.' };
+        }
+        
+        const adminData = adminDoc.data() as User;
+        if (adminData.role !== 'admin') {
+             return { success: false, error: 'La cuenta a restaurar no tiene permisos de administrador.' };
+        }
+        
+        // Creamos custom token para volver a ser admin
+        const customToken = await adminAuth.createCustomToken(originalAdminUid);
+        
+        return { success: true, customToken };
+    } catch (error) {
+        console.error("Error restoring admin session:", error);
+        return { success: false, error: 'Ocurrió un error al restaurar la sesión de administrador.' };
     }
 }

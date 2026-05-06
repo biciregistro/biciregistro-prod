@@ -3,9 +3,12 @@
 import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { getAuth, signInWithCustomToken } from 'firebase/auth';
+import { app } from '@/lib/firebase/client';
 
 import { createOngUser } from '@/lib/actions';
+import { impersonateOng } from '@/lib/actions/auth-actions';
 import type { User, OngUser } from '@/lib/types';
 import { countries, type Country } from '@/lib/countries';
 
@@ -15,7 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Search, X, Copy, Check, Eye, EyeOff } from 'lucide-react';
+import { Search, X, Copy, Check, Eye, EyeOff, UserCog, Loader2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -267,6 +270,75 @@ function CopyButton({ textToCopy }: { textToCopy: string }) {
     );
 }
 
+function ImpersonateButton({ ongId, ongName }: { ongId: string; ongName: string }) {
+    const { toast } = useToast();
+    const router = useRouter();
+    const [isImpersonating, setIsImpersonating] = useState(false);
+
+    const handleImpersonate = async () => {
+        setIsImpersonating(true);
+        try {
+            const result = await impersonateOng(ongId);
+            
+            if (result.success && result.customToken) {
+                // Autenticarnos en Firebase Client con el custom token de la ONG
+                const auth = getAuth(app);
+                await signInWithCustomToken(auth, result.customToken);
+
+                // Llamar a nuestro endpoint para generar la cookie de sesión real
+                const idToken = await auth.currentUser?.getIdToken();
+                const sessionRes = await fetch('/api/auth/session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idToken }),
+                });
+
+                if (sessionRes.ok) {
+                    // Establecer cookie para recordar el regreso al admin
+                    document.cookie = `__admin_impersonator=true; path=/; max-age=86400; SameSite=Lax`;
+                    
+                    toast({
+                        title: "Sesión suplantada",
+                        description: `Ahora estás actuando como ${ongName}`,
+                    });
+                    
+                    // Forzar recarga limpia hacia el dashboard de la ONG
+                    window.location.href = '/dashboard/ong';
+                } else {
+                    throw new Error('Error al crear cookie de sesión');
+                }
+            } else {
+                 toast({
+                    variant: 'destructive',
+                    title: "Error de suplantación",
+                    description: result.error || "No se pudo acceder a la cuenta.",
+                });
+                setIsImpersonating(false);
+            }
+        } catch (error) {
+            console.error("Impersonation error:", error);
+            toast({
+                variant: 'destructive',
+                title: "Error",
+                description: "Ocurrió un error inesperado al cambiar de sesión.",
+            });
+            setIsImpersonating(false);
+        }
+    };
+
+    return (
+        <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-2 border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+            onClick={handleImpersonate}
+            disabled={isImpersonating}
+        >
+            {isImpersonating ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCog className="h-4 w-4" />}
+            <span className="hidden md:inline">Ingresar como ONG</span>
+        </Button>
+    );
+}
 
 export function OngUsersTable({ ongs }: { ongs: OngUser[] }) {
   return (
@@ -286,6 +358,7 @@ export function OngUsersTable({ ongs }: { ongs: OngUser[] }) {
                 <TableHead>Persona de Contacto</TableHead>
                 <TableHead>Ubicación</TableHead>
                 <TableHead>Link de Invitación</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -301,11 +374,14 @@ export function OngUsersTable({ ongs }: { ongs: OngUser[] }) {
                             <CopyButton textToCopy={ong.invitationLink} />
                         </div>
                     </TableCell>
+                    <TableCell className="text-right">
+                        <ImpersonateButton ongId={ong.id} ongName={ong.organizationName} />
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     No se encontraron ONGs.
                   </TableCell>
                 </TableRow>
