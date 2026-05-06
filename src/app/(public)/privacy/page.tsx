@@ -42,7 +42,18 @@ export default function PrivacyPage() {
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-xl font-bold text-foreground">III. DATOS PERSONALES SENSIBLES (SALUD)</h2>
+                <h2 className="text-xl font-bold text-foreground">III. INTEGRACIÓN CON APLICACIONES DE TERCEROS (STRAVA)</h2>
+                <p>Para los Usuarios que voluntariamente vinculen su cuenta con Strava, se aplicarán las siguientes reglas de protección de datos en cumplimiento con el <strong>Strava API Agreement</strong>:</p>
+                <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
+                    <li><strong>Finalidad Exclusiva:</strong> Los datos importados (distancia, altimetría, tipo de deporte) se utilizan únicamente para el sistema de recompensas y gamificación del Usuario.</li>
+                    <li><strong>Prohibición de IA:</strong> Los datos de Strava <strong>NUNCA</strong> serán utilizados para entrenar modelos de Inteligencia Artificial (IA) o aprendizaje automático.</li>
+                    <li><strong>No Comercialización:</strong> LA PLATAFORMA no venderá ni compartirá datos individuales o agregados de Strava con terceros para fines de analítica o insights de clientes.</li>
+                    <li><strong>Derecho al Olvido:</strong> Al desconectar la cuenta de Strava desde el Dashboard, todos los registros de actividades de Strava serán eliminados permanentemente de nuestros servidores en un plazo máximo de 48 horas.</li>
+                </ul>
+            </section>
+
+            <section className="space-y-4">
+                <h2 className="text-xl font-bold text-foreground">IV. DATOS PERSONALES SENSIBLES (SALUD)</h2>
                 <p>Se hace de su conocimiento que, para la participación en ciertos eventos deportivos de alto rendimiento gestionados a través de la plataforma, podremos recabar datos considerados como SENSIBLES:</p>
                 <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
                     <li><strong>Estado de salud presente:</strong> Tipo de sangre, alergias, padecimientos crónicos y contactos de emergencia.</li>
@@ -53,7 +64,7 @@ export default function PrivacyPage() {
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-xl font-bold text-foreground">IV. FINALIDADES DEL TRATAMIENTO</h2>
+                <h2 className="text-xl font-bold text-foreground">V. FINALIDADES DEL TRATAMIENTO</h2>
                 <p>Sus datos serán utilizados para las siguientes finalidades:</p>
                 
                 <div className="pl-4 border-l-4 border-primary/20">
@@ -82,7 +93,7 @@ export default function PrivacyPage() {
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-xl font-bold text-foreground">V. TRANSFERENCIAS DE DATOS</h2>
+                <h2 className="text-xl font-bold text-foreground">VI. TRANSFERENCIAS DE DATOS</h2>
                 <p>Le informamos que sus datos personales podrán ser transferidos dentro y fuera del país a los siguientes destinatarios:</p>
                 
                 <div className="rounded-md border overflow-hidden overflow-x-auto">
@@ -131,7 +142,7 @@ export default function PrivacyPage() {
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-xl font-bold text-foreground">VI. MEDIOS Y PROCEDIMIENTO PARA EJERCER DERECHOS ARCO</h2>
+                <h2 className="text-xl font-bold text-foreground">VII. MEDIOS Y PROCEDIMIENTO PARA EJERCER DERECHOS ARCO</h2>
                 <p>
                     Usted tiene derecho a conocer qué datos tenemos de usted, para qué los utilizamos y las condiciones del uso que les damos (Acceso). Asimismo, es su derecho solicitar la corrección de su información personal (Rectificación); que la eliminemos de nuestros registros (Cancelación); así como oponerse al uso de sus datos para fines específicos (Oposición).
                 </p>
@@ -147,14 +158,14 @@ export default function PrivacyPage() {
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-xl font-bold text-foreground">VII. USO DE COOKIES Y RASTREADORES</h2>
+                <h2 className="text-xl font-bold text-foreground">VIII. USO DE COOKIES Y RASTREADORES</h2>
                 <p>
                     Le informamos que en nuestra página de Internet utilizamos cookies, web beacons y otras tecnologías a través de las cuales es posible monitorear su comportamiento como usuario de Internet para brindarle un mejor servicio y experiencia de usuario. Los datos que obtenemos incluyen: dirección IP, tipo de navegador, tiempo de navegación y secciones consultadas. Puede deshabilitar estas tecnologías en la configuración de su navegador.
                 </p>
             </section>
 
             <section className="space-y-4">
-                <h2 className="text-xl font-bold text-foreground">VIII. CAMBIOS AL AVISO DE PRIVACIDAD</h2>
+                <h2 className="text-xl font-bold text-foreground">IX. CAMBIOS AL AVISO DE PRIVACIDAD</h2>
                 <p>
                     El presente aviso de privacidad puede sufrir modificaciones derivadas de nuevos requerimientos legales o de nuestras propias necesidades. Nos comprometemos a mantenerlo informado sobre los cambios a través de su publicación visible en <strong>biciregistro.mx</strong>.
                 </p>

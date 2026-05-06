@@ -66,6 +66,11 @@ export default function TermsPage() {
                     <h3 className="font-bold text-lg">5. CONSENTIMIENTO PARA EL TRATAMIENTO DE DATOS SENSIBLES</h3>
                     <p>Al inscribirse a eventos deportivos, el USUARIO puede proporcionar datos de salud (tipo de sangre, alergias). El USUARIO otorga su CONSENTIMIENTO EXPRESO para que dichos datos sean tratados y transferidos al ORGANIZADOR y servicios de emergencia exclusivamente con la finalidad de salvaguardar su integridad vital en caso de accidente, conforme a lo estipulado en nuestro Aviso de Privacidad Integral.</p>
                 </div>
+
+                <div className="space-y-4">
+                    <h3 className="font-bold text-lg">6. SISTEMA DE RECOMPENSAS Y CONECTIVIDAD CON STRAVA</h3>
+                    <p>LA PLATAFORMA ofrece un sistema opcional de gamificación. Los usuarios pueden elegir vincular su cuenta de Strava para sincronizar su actividad física y obtener beneficios digitales ("Kilómetros"). Esta integración es 100% voluntaria y puede ser revocada en cualquier momento. El uso de estos datos está sujeto estrictamente a nuestro Aviso de Privacidad Integral.</p>
+                </div>
             </section>
 
             <Separator />
@@ -75,37 +80,37 @@ export default function TermsPage() {
                 <p>Al publicar un evento, el ORGANIZADOR acepta este contrato de prestación de servicios y mandato de cobro bajo las siguientes cláusulas estrictas:</p>
 
                 <div className="space-y-4">
-                    <h3 className="font-bold text-lg">6. MANDATO DE COBRO Y LICENCIA</h3>
+                    <h3 className="font-bold text-lg">7. MANDATO DE COBRO Y LICENCIA</h3>
                     <p>EL ORGANIZADOR confiere a LA PLATAFORMA un mandato irrevocable para cobrar en su nombre y representación las inscripciones a través de la pasarela de pagos del sistema. LA PLATAFORMA custodiará dichos fondos ("Fondos en Garantía") hasta su dispersión, descontando las comisiones pactadas.</p>
                 </div>
 
                 <div className="space-y-4">
-                    <h3 className="font-bold text-lg">7. OBLIGACIONES FISCALES Y RETENCIONES (RÉGIMEN DE PLATAFORMAS DIGITALES)</h3>
+                    <h3 className="font-bold text-lg">8. OBLIGACIONES FISCALES Y RETENCIONES (RÉGIMEN DE PLATAFORMAS DIGITALES)</h3>
                     <p>CLÁUSULA DE BLINDAJE FISCAL: En cumplimiento con la Ley del Impuesto Sobre la Renta (LISR, Título IV, Cap. II, Sec. III) y la Ley del IVA vigentes en 2026 para la enajenación de bienes y prestación de servicios a través de plataformas tecnológicas:</p>
-                    <p>7.1. Organizadores Personas Físicas:</p>
+                    <p>8.1. Organizadores Personas Físicas:</p>
                     <p>LA PLATAFORMA fungirá como AGENTE RETENEDOR. Del total de ingresos generados por las inscripciones, se descontarán y enterarán al SAT las tasas vigentes de ISR (Retención) e IVA (Retención del 50% o 100% según corresponda).</p>
                     <p>Si el ORGANIZADOR proporciona su RFC válido en el sistema: Se aplicarán las tasas de retención estándar publicadas en la Resolución Miscelánea Fiscal vigente.</p>
                     <p>Si el ORGANIZADOR NO proporciona RFC: Se aplicará la retención máxima de ley (20% de ISR y 100% del IVA causado).</p>
                     <p>LA PLATAFORMA emitirá mensualmente el CFDI de Retenciones e Información de Pagos correspondiente.</p>
-                    <p>7.2. Organizadores Personas Morales:</p>
+                    <p>8.2. Organizadores Personas Morales:</p>
                     <p>No se aplicarán retenciones de ISR/IVA, siempre y cuando acrediten su personalidad jurídica y entreguen Constancia de Situación Fiscal vigente. En este caso, la Persona Moral recibe el monto (menos comisión de servicio) y es enteramente responsable de declarar sus impuestos.</p>
-                    <p>7.3. Lavado de Dinero (LFPIORPI): EL ORGANIZADOR declara que los recursos obtenidos del evento tienen procedencia lícita. LA PLATAFORMA se reserva el derecho de retener fondos y reportar a la UIF cualquier operación inusual o que supere los umbrales de identificación de Actividades Vulnerables.</p>
+                    <p>8.3. Lavado de Dinero (LFPIORPI): EL ORGANIZADOR declara que los recursos obtenidos del evento tienen procedencia lícita. LA PLATAFORMA se reserva el derecho de retener fondos y reportar a la UIF cualquier operación inusual o que supere los umbrales de identificación de Actividades Vulnerables.</p>
                 </div>
 
                 <div className="space-y-4">
-                    <h3 className="font-bold text-lg">8. POLÍTICA "ANTI-ELUSIÓN" Y EVENTOS GRATUITOS</h3>
+                    <h3 className="font-bold text-lg">9. POLÍTICA "ANTI-ELUSIÓN" Y EVENTOS GRATUITOS</h3>
                     <p>LA PLATAFORMA ofrece tecnología gratuita (Tasa 0%) para eventos sin fines de lucro.</p>
                     <p>Penalización por Taquilla Oculta: Si EL ORGANIZADOR publica un evento como "Gratuito" para evadir comisiones, pero cobra por fuera (efectivo, transferencia personal) condicionando el acceso al registro en la plataforma, se hará acreedor a una Pena Convencional equivalente a $50.00 MXN por cada asistente registrado, más la cancelación inmediata del servicio. EL ORGANIZADOR autoriza el cobro de esta pena de cualquier saldo a favor que tenga en custodia LA PLATAFORMA.</p>
                 </div>
 
                 <div className="space-y-4">
-                    <h3 className="font-bold text-lg">9. COMPENSACIÓN UNIVERSAL Y CONTRACARGOS</h3>
-                    <p>9.1. Responsabilidad por Contracargos: EL ORGANIZADOR asume la responsabilidad total frente a "Contracargos" (desconocimiento de cargo bancario por parte del usuario). Si un banco debita a LA PLATAFORMA un monto por este concepto, EL ORGANIZADOR deberá reembolsarlo de inmediato.</p>
-                    <p>9.2. Compensación Automática: EL ORGANIZADOR autoriza expresa e irrevocablemente a LA PLATAFORMA a descontar (compensar) cualquier adeudo, contracargo, reembolso pendiente o pena convencional, de cualquier saldo presente o futuro que LA PLATAFORMA tenga en su poder a favor del ORGANIZADOR, incluso si provienen de eventos distintos.</p>
+                    <h3 className="font-bold text-lg">10. COMPENSACIÓN UNIVERSAL Y CONTRACARGOS</h3>
+                    <p>10.1. Responsabilidad por Contracargos: EL ORGANIZADOR asume la responsabilidad total frente a "Contracargos" (desconocimiento de cargo bancario por parte del usuario). Si un banco debita a LA PLATAFORMA un monto por este concepto, EL ORGANIZADOR deberá reembolsarlo de inmediato.</p>
+                    <p>10.2. Compensación Automática: EL ORGANIZADOR autoriza expresa e irrevocablemente a LA PLATAFORMA a descontar (compensar) cualquier adeudo, contracargo, reembolso pendiente o pena convencional, de cualquier saldo presente o futuro que LA PLATAFORMA tenga en su poder a favor del ORGANIZADOR, incluso si provienen de eventos distintos.</p>
                 </div>
 
                 <div className="space-y-4">
-                    <h3 className="font-bold text-lg">10. LIBERACIÓN DE RESPONSABILIDAD Y SACA EN PAZ (INDEMNIDAD)</h3>
+                    <h3 className="font-bold text-lg">11. LIBERACIÓN DE RESPONSABILIDAD Y SACA EN PAZ (INDEMNIDAD)</h3>
                     <p>EL ORGANIZADOR reconoce que él es el único operador del evento. Por lo tanto, se obliga a SACAR EN PAZ Y A SALVO e indemnizar a LA PLATAFORMA (Braulio Rivera Dominguez), sus empleados y aliados, de cualquier demanda, reclamación civil, penal, laboral o administrativa (incluyendo multas de PROFECO o Protección Civil) derivada de:</p>
                     <p>a) Accidentes, lesiones o muerte de participantes.</p>
                     <p>b) Cancelación o incumplimiento del evento.</p>
@@ -120,12 +125,12 @@ export default function TermsPage() {
                 <h2 className="text-xl font-bold text-foreground uppercase">TÍTULO III: DISPOSICIONES FINALES</h2>
                 
                 <div className="space-y-4">
-                    <h3 className="font-bold text-lg">11. PROPIEDAD INTELECTUAL</h3>
+                    <h3 className="font-bold text-lg">12. PROPIEDAD INTELECTUAL</h3>
                     <p>Todo el software, marcas, logotipos y bases de datos son propiedad exclusiva de BICIREGISTRO. Se prohíbe la ingeniería inversa, el "scraping" (extracción automatizada de datos) y el uso no autorizado de la marca.</p>
                 </div>
 
                 <div className="space-y-4">
-                    <h3 className="font-bold text-lg">12. JURISDICCIÓN Y LEY APLICABLE</h3>
+                    <h3 className="font-bold text-lg">13. JURISDICCIÓN Y LEY APLICABLE</h3>
                     <p>Para la interpretación y cumplimiento de este contrato, las partes se someten a las leyes federales de los Estados Unidos Mexicanos (Código de Comercio, CFF, LFPDPPP) y, en caso de controversia, a la jurisdicción exclusiva de los tribunales competentes en la ciudad de Santiago de Querétaro, Querétaro, renunciando expresamente a cualquier otro fuero que pudiera corresponderles por razón de sus domicilios presentes o futuros.</p>
                 </div>
             </section>

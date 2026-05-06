@@ -4,6 +4,7 @@ import { getDecodedSession } from '../auth/server';
 import { adminDb } from '../firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { StravaConnectionData, GamificationSettings, BadgeType } from '../gamification/gamification-types';
+import { B2BStravaActivity } from '../types';
 
 // ==========================================
 // 1. CONFIGURACIÓN Y CONSTANTES
@@ -28,9 +29,18 @@ interface StravaActivity {
     id: number;
     name: string;
     distance: number; // en metros
+    moving_time: number; // en segundos
+    elapsed_time: number; // en segundos
+    total_elevation_gain: number; // en metros
     type: string;
     sport_type: string;
     start_date: string;
+    average_speed: number;
+    max_speed: number;
+    gear_id?: string;
+    map?: {
+        summary_polyline?: string;
+    };
 }
 
 // ==========================================
@@ -108,21 +118,37 @@ export async function disconnectStrava() {
     if (!session || !session.uid) return { success: false, message: "No autenticado" };
 
     try {
+        // 1. Actualizar perfil de usuario para eliminar conexión con Strava
         const userRef = adminDb.collection('users').doc(session.uid);
-        
-        // Remove nested object and reset denormalized root fields
         await userRef.update({ 
             'gamification.strava': FieldValue.delete(),
             'isStravaConnected': false
         });
-        return { success: true, message: "Cuenta de Strava desconectada" };
+
+        // 2. CUMPLIMIENTO (COMPLIANCE): Eliminar todas las actividades crudas almacenadas para este usuario.
+        // Strava API Agreement Sección 7 y 4: Se deben eliminar los datos a la terminación del acceso.
+        const activitiesSnapshot = await adminDb.collection('strava_activities')
+            .where('userId', '==', session.uid)
+            .get();
+
+        if (!activitiesSnapshot.empty) {
+            const batch = adminDb.batch();
+            activitiesSnapshot.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
+        }
+
+        return { success: true, message: "Cuenta de Strava desconectada y datos eliminados en cumplimiento." };
     } catch (error) {
+        console.error("Error desconectando Strava:", error);
         return { success: false, message: "Error al desconectar la cuenta" };
     }
 }
 
 /**
  * Sincroniza rodadas desde Strava, calcula KM válidos y actualiza la Wallet.
+ * IMPORTANTE: Los datos en 'strava_activities' NO PUEDEN SER USADOS para entrenar modelos de Inteligencia Artificial (Strava API Agreement Section 4).
  */
 export async function syncStravaActivities() {
     const session = await getDecodedSession();
@@ -191,6 +217,10 @@ export async function syncStravaActivities() {
         const currentModalities = userData?.stravaTopModalities || [];
         const newModalitiesSet = new Set<string>(currentModalities);
         
+        // Colección para la data B2B Cruda
+        const activitiesCollection = adminDb.collection('strava_activities');
+        const batch = adminDb.batch();
+
         for (const activity of activities) {
             // Evaluamos si el tipo de actividad es permitido según la configuración del admin
             // sport_type es más específico en v3, pero type es un buen fallback
@@ -198,8 +228,34 @@ export async function syncStravaActivities() {
             if (settings.stravaAllowedActivityTypes.includes(actType)) {
                 newValidMeters += activity.distance;
                 newModalitiesSet.add(actType);
+                
+                // Mapear y guardar la data rica para Data Intelligence
+                // ADVERTENCIA DE COMPLIANCE: Esta data cruda no se puede pasar a la IA de Gemini.
+                const b2bData: B2BStravaActivity = {
+                    id: activity.id.toString(),
+                    userId: session.uid,
+                    name: activity.name,
+                    distance: activity.distance,
+                    movingTime: activity.moving_time,
+                    elapsedTime: activity.elapsed_time,
+                    totalElevationGain: activity.total_elevation_gain,
+                    type: activity.type,
+                    sportType: actType,
+                    startDate: activity.start_date,
+                    averageSpeed: activity.average_speed,
+                    maxSpeed: activity.max_speed,
+                    polyline: activity.map?.summary_polyline,
+                    gearId: activity.gear_id,
+                    syncedAt: currentSyncDateStr
+                };
+                
+                const docRef = activitiesCollection.doc(activity.id.toString());
+                batch.set(docRef, b2bData, { merge: true });
             }
         }
+
+        // Ejecutar el guardado masivo de actividades crudas (Compliance)
+        await batch.commit();
 
         const newKm = newValidMeters / 1000;
         
