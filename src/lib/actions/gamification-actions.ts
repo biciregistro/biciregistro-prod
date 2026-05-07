@@ -194,6 +194,7 @@ export async function getGamificationRules() {
 export async function getStravaSettings(): Promise<GamificationSettings> {
     const defaultSettings: GamificationSettings = {
         pointsPerReferral: 50,
+        stravaIntegrationEnabled: false, // Por defecto apagado por protección
         stravaInitialBonusPoints: 100, 
         stravaMaxDailyKmLimit: 0,      
         stravaConversionRate: 1.0,     
@@ -292,29 +293,31 @@ export async function getPublicGamificationCatalog() {
             };
         });
 
-        // 5. Inject Strava Artificial Rules
-        catalog.push({
-            id: 'strava_connect',
-            label: 'Conectar tu cuenta con Strava',
-            description: 'Gana B-coins por conectar tu cuenta con Strava por primera vez.',
-            points: stravaSettings.stravaInitialBonusPoints,
-            type: 'once',
-            completed: isStravaConnected,
-            isStravaRule: true,
-            iconType: 'link'
-        });
+        // 5. Inject Strava Artificial Rules ONLY if enabled globally (Kill Switch)
+        if (stravaSettings.stravaIntegrationEnabled !== false) {
+            catalog.push({
+                id: 'strava_connect',
+                label: 'Conectar tu cuenta con Strava',
+                description: 'Gana B-coins por conectar tu cuenta con Strava por primera vez.',
+                points: stravaSettings.stravaInitialBonusPoints,
+                type: 'once',
+                completed: isStravaConnected,
+                isStravaRule: true,
+                iconType: 'link'
+            });
 
-        catalog.push({
-            id: 'strava_ride',
-            label: 'Salir a rodar',
-            description: `Cada kilómetro que ruedes en el mundo real se convierte en ${stravaSettings.stravaConversionRate} B-coins`,
-            points: 0, // Ignored because we use customBadgeText
-            type: 'recurring',
-            completed: false,
-            isStravaRule: true,
-            iconType: 'route',
-            customBadgeText: `1 KM = ${stravaSettings.stravaConversionRate}`
-        });
+            catalog.push({
+                id: 'strava_ride',
+                label: 'Salir a rodar',
+                description: `Cada kilómetro que ruedes en el mundo real se convierte en ${stravaSettings.stravaConversionRate} B-coins`,
+                points: 0, // Ignored because we use customBadgeText
+                type: 'recurring',
+                completed: false,
+                isStravaRule: true,
+                iconType: 'route',
+                customBadgeText: `1 KM = ${stravaSettings.stravaConversionRate}`
+            });
+        }
 
         // 6. Ordenar: No completadas primero, ordenadas por puntos. Luego las completadas.
         catalog.sort((a, b) => {

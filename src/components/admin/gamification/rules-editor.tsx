@@ -11,6 +11,7 @@ import { getGamificationRules, updateGamificationRules, getStravaSettings, updat
 import { Loader2, Save, Activity, Bike } from 'lucide-react';
 import { GamificationSettings } from '@/lib/gamification/gamification-types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from '@/components/ui/switch';
 
 export function GamificationRulesEditor() {
     // Estado de reglas de acciones estáticas (B-coins)
@@ -19,6 +20,7 @@ export function GamificationRulesEditor() {
     // Estado de configuración de Strava
     const [stravaSettings, setStravaSettings] = useState<GamificationSettings>({
         pointsPerReferral: 50,
+        stravaIntegrationEnabled: false,
         stravaInitialBonusPoints: 100,
         stravaMaxDailyKmLimit: 0,
         stravaConversionRate: 1.0,
@@ -50,7 +52,7 @@ export function GamificationRulesEditor() {
         setRules(prev => ({ ...prev, [`${actionId}_points`]: numValue }));
     };
 
-    const handleStravaSettingChange = (field: keyof GamificationSettings, value: string | number | string[]) => {
+    const handleStravaSettingChange = (field: keyof GamificationSettings, value: string | number | string[] | boolean) => {
         setStravaSettings(prev => ({ ...prev, [field]: value }));
     };
 
@@ -139,6 +141,20 @@ export function GamificationRulesEditor() {
                     </CardHeader>
                     <CardContent className="space-y-6 pt-6">
                         
+                        {/* KILL SWITCH MAESTRO */}
+                        <div className="flex flex-row items-center justify-between rounded-lg border border-orange-200 bg-orange-50/50 p-4 shadow-sm">
+                            <div className="space-y-0.5">
+                                <Label className="text-base font-bold text-orange-900">Activar Integración Strava</Label>
+                                <p className="text-sm text-orange-800/80">
+                                    Muestra la tarjeta de Strava en el perfil de los ciclistas. Apágalo si estás esperando revisión oficial de marca.
+                                </p>
+                            </div>
+                            <Switch
+                                checked={!!stravaSettings.stravaIntegrationEnabled}
+                                onCheckedChange={(checked) => handleStravaSettingChange('stravaIntegrationEnabled', checked)}
+                            />
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center border-b pb-4">
                             <div className="md:col-span-3">
                                 <Label className="text-base font-semibold text-slate-900">Bono de Bienvenida Strava</Label>

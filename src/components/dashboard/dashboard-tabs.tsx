@@ -2,7 +2,7 @@
 import confetti from "canvas-confetti";
 import { StravaSyncCard } from "./strava-sync-card";
 
-import { useState, useEffect, Suspense, useMemo } from 'react';
+import { useState, useEffect, Suspense, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -109,6 +109,8 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
     const pathname = usePathname();
     const { toast } = useToast();
     const [referralData, setReferralData] = useState<ReferralData | null>(null);
+    const [isStravaEnabled, setIsStravaEnabled] = useState(false);
+    const heroSliderRef = useRef<HTMLDivElement>(null);
 
     let initTab = 'garage';
     const paramTab = searchParams.get('tab');
@@ -156,6 +158,17 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                 if (res.success && res.data) {
                     setReferralData(res.data);
                 }
+            });
+            // Fetch Strava Kill Switch setting
+            import('@/lib/actions/gamification-actions').then(m => m.getStravaSettings()).then(settings => {
+                setIsStravaEnabled(settings.stravaIntegrationEnabled !== false);
+                
+                // Force scroll reset after React paints the new state
+                setTimeout(() => {
+                    if (heroSliderRef.current) {
+                        heroSliderRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+                    }
+                }, 100);
             });
         }
     }, [activeTab]);
@@ -684,19 +697,21 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                 ) : (
                     <>
                         {/* HYBRID HERO SECTION: Horizontal Scroll on Mobile, Flex Row on Desktop */}
-                        <div className="mb-6 flex flex-row gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 md:overflow-visible md:snap-none">
-                            <div className="w-[85vw] max-w-[350px] md:w-auto md:flex-1 shrink-0 snap-center md:snap-none">
-                                <StravaSyncCard 
-                                    stravaData={user.gamification?.strava} 
-                                    onSync={async () => { 
-                                        const { syncStravaActivities } = await import("@/lib/actions/strava-actions");
-                                        return await syncStravaActivities();
-                                    }} 
-                                />
-                            </div>
+                        <div ref={heroSliderRef} className="mb-6 flex flex-row gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 md:overflow-visible md:snap-none items-stretch">
+                            {isStravaEnabled && (
+                                <div className="w-[85vw] max-w-[350px] md:max-w-none md:w-auto md:flex-1 shrink-0 snap-center md:snap-none h-auto">
+                                    <StravaSyncCard 
+                                        stravaData={user.gamification?.strava} 
+                                        onSync={async () => { 
+                                            const { syncStravaActivities } = await import("@/lib/actions/strava-actions");
+                                            return await syncStravaActivities();
+                                        }} 
+                                    />
+                                </div>
+                            )}
                             
                             {isProfileComplete && (
-                                <div className="w-[85vw] max-w-[350px] md:w-auto md:flex-1 shrink-0 snap-center md:snap-none">
+                                <div className="w-[85vw] max-w-[350px] md:max-w-none md:w-auto md:flex-1 shrink-0 snap-center md:snap-none h-auto">
                                     <ReferralStatsCard user={user} />
                                 </div>
                             )}

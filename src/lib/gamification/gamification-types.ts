@@ -42,6 +42,7 @@ export type GamificationSettings = {
     pointsPerReferral: number;
     
     // Configuración Strava
+    stravaIntegrationEnabled?: boolean; // Kill switch maestro
     stravaInitialBonusPoints: number; // Puntos por conectar la cuenta
     stravaMaxDailyKmLimit: number; // 0 significa sin límite
     stravaConversionRate: number; // Ej: 1.0 (1km = 1 punto)
