@@ -55,10 +55,10 @@ export function GamificationRulesSheet({ children }: GamificationRulesSheetProps
         <SheetHeader className="pb-6">
           <SheetTitle className="text-2xl flex items-center gap-2">
             <Star className="h-6 w-6 fill-yellow-400 text-yellow-500" />
-            ¿Cómo ganar Kilómetros?
+            ¿Cómo ganar B-coins?
           </SheetTitle>
           <SheetDescription>
-            Cada acción positiva en el ecosistema te otorga Kilómetros que te ayudan a subir de nivel y desbloquear beneficios exclusivos.
+            Cada acción positiva en el ecosistema te otorga B-coins que te ayudan a subir de nivel y desbloquear beneficios exclusivos.
           </SheetDescription>
         </SheetHeader>
         
@@ -109,7 +109,7 @@ export function GamificationRulesSheet({ children }: GamificationRulesSheetProps
                                 )}
                             </div>
                             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                                {rule.description}
+                                {rule.description.replace(/Kilómetros/g, 'B-coins').replace(/KM/g, 'B-coins')}
                             </p>
                             {!isCompleted && (
                                 <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-400">
@@ -123,7 +123,7 @@ export function GamificationRulesSheet({ children }: GamificationRulesSheetProps
                 
                 <div className="bg-muted/30 p-4 rounded-2xl mt-6">
                     <p className="text-[11px] text-center text-muted-foreground leading-snug">
-                        * Los Kilómetros son validados por nuestro sistema de seguridad. El uso indebido o fraudulento de las acciones puede resultar en la suspensión de la cuenta.
+                        * Las B-coins son validadas por nuestro sistema de seguridad. El uso indebido o fraudulento de las acciones puede resultar en la suspensión de la cuenta.
                     </p>
                 </div>
             </div>

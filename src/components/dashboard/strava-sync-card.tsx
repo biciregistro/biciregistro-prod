@@ -5,8 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getStravaAuthUrl, disconnectStrava } from '@/lib/actions/strava-actions';
 import { useToast } from '@/hooks/use-toast';
-import { Activity, RefreshCw, CheckCircle2, Link2Off } from 'lucide-react';
+import { RefreshCw, CheckCircle2, Link2Off } from 'lucide-react';
 import { StravaConnectionData } from '@/lib/gamification/gamification-types';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import {
   AlertDialog,
@@ -56,7 +57,6 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
             if (res.success) {
                 toast({ title: "Cuenta desconectada" });
                 if (props.onDisconnect) props.onDisconnect();
-                // Hacemos reload para limpiar el UI de forma rápida
                 window.location.reload();
             } else {
                 toast({ title: "Error", description: res.message, variant: "destructive" });
@@ -102,25 +102,48 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
             <Card className="overflow-hidden border-orange-500/30 bg-gradient-to-br from-orange-50 to-white shadow-sm relative group">
                 <CardContent className="p-5">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                        <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center shrink-0">
-                            {/* Simple SVG icon resembling Strava logo style */}
-                            <svg className="w-6 h-6 text-[#FC4C02]" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
-                            </svg>
+                        {/* 1. Header Logo: BiciRegistro is the primary brand */}
+                        <div className="w-12 h-12 bg-white border border-slate-100 rounded-full flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+                            <Image src="/icon.png" alt="BiciRegistro" width={32} height={32} />
                         </div>
+                        
                         <div className="flex-1 text-center sm:text-left">
                             <h3 className="font-bold text-slate-900 mb-1">Convierte tu sudor en Recompensas</h3>
-                            <p className="text-sm text-slate-600 mb-4 max-w-sm">
-                                Conecta tu cuenta de Strava para que tus rodadas reales se conviertan automáticamente en Kilómetros (KM) en tu wallet.
+                            <p className="text-sm text-slate-600 mb-5 max-w-sm leading-relaxed">
+                                Conecta tu cuenta de Strava para que tus rodadas reales se conviertan automáticamente en <strong>B-coins</strong> en tu wallet.
                             </p>
-                            <Button 
+                            
+                            {/* 2. Official "Connect with Strava" Button Asset */}
+                            <button 
                                 onClick={handleConnect} 
                                 disabled={isLoading}
-                                className="w-full sm:w-auto bg-[#FC4C02] hover:bg-[#E34402] text-white font-bold"
+                                className="transition-transform active:scale-95 disabled:opacity-50"
                             >
-                                {isLoading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Activity className="mr-2 h-4 w-4" />}
-                                Conectar con Strava
-                            </Button>
+                                {isLoading ? (
+                                    <div className="flex items-center gap-2 px-6 py-2 bg-[#FC5200] text-white rounded-md font-bold text-sm">
+                                        <RefreshCw className="h-4 w-4 animate-spin" /> Conectando...
+                                    </div>
+                                ) : (
+                                    <Image 
+                                        src="/strava/btn_strava_connect_with_orange.svg" 
+                                        alt="Connect with Strava" 
+                                        width={193} 
+                                        height={48} 
+                                        priority
+                                    />
+                                )}
+                            </button>
+
+                            {/* 3. Mandatory Attribution Badge - Sized down for better balance */}
+                            <div className="mt-6 flex justify-center sm:justify-start">
+                                <Image 
+                                    src="/strava/api_logo_pwrdBy_strava_horiz_black.svg" 
+                                    alt="Powered by Strava" 
+                                    width={70} 
+                                    height={12}
+                                    className="opacity-60"
+                                />
+                            </div>
                         </div>
                     </div>
                 </CardContent>
@@ -146,26 +169,38 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
                                 <p className="text-xs text-slate-500">
                                     Última sincronización: {lastSyncDate.toLocaleDateString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                 </p>
+                                {/* Revocation link is mandatory and veracious */}
                                 <button onClick={() => setShowDisconnectDialog(true)} disabled={isLoading} className="text-[10px] text-slate-400 hover:text-red-500 mt-1 flex items-center gap-1 transition-colors">
                                     <Link2Off className="w-3 h-3" /> Desconectar cuenta
                                 </button>
                             </div>
                         </div>
                         
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                            <div className="hidden sm:block text-right mr-2">
-                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">KM Sincronizados</p>
-                                <p className="font-mono font-bold text-slate-900">{stravaData.totalKmSynced.toFixed(0)}</p>
+                        <div className="flex flex-col items-center sm:items-end gap-3">
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <div className="hidden sm:block text-right mr-2">
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">KM Sincronizados</p>
+                                    <p className="font-mono font-bold text-slate-900">{stravaData.totalKmSynced.toFixed(0)}</p>
+                                </div>
+                                <Button 
+                                    onClick={handleSync} 
+                                    disabled={isLoading}
+                                    variant="outline"
+                                    className="w-full sm:w-auto border-orange-200 text-[#FC5200] hover:bg-orange-50 hover:text-[#FC5200] font-semibold"
+                                >
+                                    {isLoading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                                    Sincronizar Rodadas
+                                </Button>
                             </div>
-                            <Button 
-                                onClick={handleSync} 
-                                disabled={isLoading}
-                                variant="outline"
-                                className="w-full sm:w-auto border-orange-200 text-[#FC4C02] hover:bg-orange-50 hover:text-[#E34402] font-semibold"
-                            >
-                                {isLoading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                                Sincronizar Rodadas
-                            </Button>
+                            
+                            {/* Mandatory Attribution Badge: Powerd by Strava (Consistent sizing) */}
+                            <Image 
+                                src="/strava/api_logo_pwrdBy_strava_horiz_black.svg" 
+                                alt="Powered by Strava" 
+                                width={60} 
+                                height={10}
+                                className="opacity-60"
+                            />
                         </div>
                     </div>
                 </CardContent>
@@ -176,7 +211,7 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Desconectar cuenta de Strava?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Al desvincular tu cuenta, dejarás de acumular Kilómetros automáticos por tus rodadas reales. Esta acción no afecta los KM que ya tienes en tu Wallet.
+                            Al desvincular tu cuenta, dejarás de acumular B-coins automáticos por tus rodadas reales. Esta acción no afecta las B-coins que ya tienes en tu Wallet.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

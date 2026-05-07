@@ -33,7 +33,7 @@ export function getCyclistRewardTemplate(props: CyclistRewardTemplateProps) {
 
   const adquisitionText = isCoupon 
       ? 'adquirido a través de nuestra plataforma de beneficios'
-      : 'adquirido con tus Kilómetros de BiciRegistro';
+      : 'adquirido con tus B-coins de BiciRegistro';
 
   const footerReason = isCoupon
       ? 'Has recibido este correo porque adquiriste un beneficio en nuestra plataforma.'

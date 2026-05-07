@@ -128,7 +128,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
         if (stravaStatus === "success") {
             toast({
                 title: "¡Cuenta conectada!",
-                description: "Tu cuenta de Strava se ha vinculado correctamente. ¡Felicidades por tu bono inicial!",
+                description: "Tu cuenta de Strava se ha vinculado correctamente. ¡Felicidades por tus B-coins de regalo!",
             });
             confetti({
                 particleCount: 100,
@@ -167,7 +167,9 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
 
     const handleShare = async () => {
         if (!referralData) return;
-        const shareText = `¡Qué onda! Te conseguí una invitación para Biciregistro. Mi bici ya tiene su Identidad Digital y fue ¡gratis!. Si registras tu bici con este link, a los dos nos regalan 200 Kilómetros para canjear por equipo, servicios o café en tiendas ciclistas. 🚴‍♂️⚡\n\nTardas 30 segundos, protege la tuya aquí 👉: ${referralData.shareUrl}`;
+        const rewardPoints = referralData.referralPoints || 200; // Valor dinámico
+        const shareText = `¡Qué onda! Te conseguí una invitación para Biciregistro. Mi bici ya tiene su Identidad Digital y fue ¡gratis!. Si registras tu bici con este link, a los dos nos regalan ${rewardPoints} B-coins para canjear por equipo, servicios o café en tiendas ciclistas. 🚴‍♂️⚡\n\nTardas 30 segundos, protege la tuya aquí 👉: ${referralData.shareUrl}`;
+        
         const shareData = { title: 'Únete a BiciRegistro', text: shareText };
         if (navigator.share) {
             try { await navigator.share(shareData); } catch (err) { navigator.clipboard.writeText(shareText); }
@@ -642,12 +644,12 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                     <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-4">
                         <div className="flex-1">
                             <h2 className="text-2xl font-bold mb-1 flex items-center gap-2 text-white"><Gift className="w-6 h-6" /> Mis Recompensas</h2>
-                            <p className="text-emerald-50/90 text-sm max-w-xl">Canjea tus Kilómetros (KM) acumulados por beneficios exclusivos de aliados.</p>
+                            <p className="text-emerald-50/90 text-sm max-w-xl">Canjea tus B-coins acumuladas por beneficios exclusivos de aliados.</p>
                         </div>
                         <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 px-6 flex items-center gap-4 border border-white/20 shadow-inner">
                             <div className="text-right">
                                 <span className="block text-emerald-100/80 text-[10px] uppercase tracking-widest font-bold">Saldo Disponible</span>
-                                <span className="text-3xl font-black font-mono leading-none">{pointsBalance} KM</span>
+                                <span className="text-3xl font-black font-mono leading-none">{pointsBalance} B-coins</span>
                             </div>
                             <div className="h-10 w-px bg-white/20"></div>
                             <Gift className="w-8 h-8 text-emerald-200/50" />
@@ -715,7 +717,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                                 <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-muted/30">
                                     <Gift className="h-10 w-10 text-primary mb-4" />
                                     <h3 className="text-xl font-bold mb-2">Próximamente más beneficios</h3>
-                                    <p className="text-muted-foreground text-sm">Sigue acumulando KM para canjearlos en el futuro.</p>
+                                    <p className="text-muted-foreground text-sm">Sigue acumulando B-coins para canjearlos en el futuro.</p>
                                 </div>
                             ) : (
                                 <>
@@ -759,7 +761,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                             <GamificationRulesSheet>
                                 <button className="text-muted-foreground w-full flex items-center justify-center gap-1 text-xs hover:text-primary transition-colors py-2">
                                     <Info className="h-3 w-3" />
-                                    <span>¿Cómo acumulo más KM?</span>
+                                    <span>¿Cómo acumulo más B-coins?</span>
                                 </button>
                             </GamificationRulesSheet>
                         </div>
@@ -767,7 +769,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                         {isProfileComplete && (
                             <div id="tour-main-action" className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-40">
                                 <Button onClick={handleShare} className="h-12 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-white font-bold px-6 flex items-center gap-2">
-                                    <Coins className="h-5 w-5" /><span>Ganar {referralData?.referralPoints || 200} KM</span>
+                                    <Coins className="h-5 w-5" /><span>Ganar {referralData?.referralPoints || 200} B-coins</span>
                                 </Button>
                             </div>
                         )}

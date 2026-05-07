@@ -272,7 +272,7 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
 
                         <div className="flex justify-between items-center">
                             <Badge variant={(hasActiveCoupon || isFullyRedeemed || isGiveawayExhausted) ? "outline" : "secondary"} className={`text-xs sm:text-sm px-2 sm:px-3 py-0.5 sm:py-1 font-mono ${isGiveaway && !isGiveawayExhausted ? 'bg-purple-100 text-purple-900 border-transparent' : ''}`}>
-                                Precio: {price} KM
+                                Precio: {price} B-coins
                             </Badge>
                             
                             {!hasActiveCoupon && !isFullyRedeemed && !isGiveawayExhausted && !isAffordable && (
@@ -375,7 +375,7 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                                     disabled={!isAffordable}
                                     className={`flex-1 ${isGiveaway ? 'bg-purple-600 hover:bg-purple-700' : ''}`}
                                 >
-                                    {isAffordable ? (isGiveaway ? `Comprar Boleto` : `Comprar`) : 'KM Insuficientes'}
+                                    {isAffordable ? (isGiveaway ? `Comprar Boleto` : `Comprar`) : 'B-coins Insuficientes'}
                                 </Button>
                             )}
                         </div>
@@ -389,7 +389,7 @@ export function RewardCard({ campaign, userPoints, userPurchases }: RewardCardPr
                     <DialogHeader>
                         <DialogTitle>Confirmar Compra</DialogTitle>
                         <DialogDescription>
-                            Estás a punto de usar <strong>Precio: {price} KM</strong> para adquirir <strong>{isGiveaway ? '1 boleto para ' : ''}{campaign.title}</strong>.
+                            Estás a punto de usar <strong>Precio: {price} B-coins</strong> para adquirir <strong>{isGiveaway ? '1 boleto para ' : ''}{campaign.title}</strong>.
                         </DialogDescription>
                     </DialogHeader>
 

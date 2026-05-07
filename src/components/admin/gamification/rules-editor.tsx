@@ -13,7 +13,7 @@ import { GamificationSettings } from '@/lib/gamification/gamification-types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function GamificationRulesEditor() {
-    // Estado de reglas de acciones estáticas (BiciPuntos)
+    // Estado de reglas de acciones estáticas (B-coins)
     const [rules, setRules] = useState<Record<string, number>>({});
     
     // Estado de configuración de Strava
@@ -59,7 +59,7 @@ export function GamificationRulesEditor() {
         const res = await updateGamificationRules(rules);
         setSaving(false);
         if (res.success) {
-            toast({ title: 'Reglas Actualizadas', description: 'Los nuevos valores de KM están activos.' });
+            toast({ title: 'Reglas Actualizadas', description: 'Los nuevos valores de B-coins están activos.' });
         } else {
             toast({ title: 'Error', description: 'No se pudieron guardar las reglas.', variant: 'destructive' });
         }
@@ -90,8 +90,8 @@ export function GamificationRulesEditor() {
             <TabsContent value="actions">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Valores de Recompensa (KM)</CardTitle>
-                        <CardDescription>Configura cuántos kilómetros ganan los usuarios por cada acción dentro de la app.</CardDescription>
+                        <CardTitle>Valores de Recompensa (B-coins)</CardTitle>
+                        <CardDescription>Configura cuántas B-coins ganan los usuarios por cada acción dentro de la app.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {Object.values(GAMIFICATION_RULES).map((rule) => {
@@ -110,7 +110,7 @@ export function GamificationRulesEditor() {
                                             onChange={(e) => handlePointChange(rule.id, e.target.value)}
                                             className="text-right font-mono"
                                         />
-                                        <span className="text-sm font-bold text-muted-foreground">KM</span>
+                                        <span className="text-sm font-bold text-muted-foreground w-12">B-coins</span>
                                     </div>
                                 </div>
                             );
@@ -134,7 +134,7 @@ export function GamificationRulesEditor() {
                             Reglas de Conversión Strava
                         </CardTitle>
                         <CardDescription className="text-orange-800/80">
-                            Controla cómo se transforman los kilómetros reales recorridos en la calle en Kilómetros (puntos) para la Wallet.
+                            Controla cómo se transforman los kilómetros reales recorridos en la calle en B-coins para la Wallet.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6 pt-6">
@@ -142,7 +142,7 @@ export function GamificationRulesEditor() {
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center border-b pb-4">
                             <div className="md:col-span-3">
                                 <Label className="text-base font-semibold text-slate-900">Bono de Bienvenida Strava</Label>
-                                <p className="text-sm text-muted-foreground">Cantidad de puntos fijos que se otorgan al conectar la cuenta por primera vez.</p>
+                                <p className="text-sm text-muted-foreground">Cantidad de B-coins fijas que se otorgan al conectar la cuenta por primera vez.</p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Input 
@@ -151,14 +151,14 @@ export function GamificationRulesEditor() {
                                     onChange={(e) => handleStravaSettingChange('stravaInitialBonusPoints', parseInt(e.target.value) || 0)}
                                     className="text-right font-mono border-orange-200 focus-visible:ring-orange-500"
                                 />
-                                <span className="text-sm font-bold text-muted-foreground w-6">KM</span>
+                                <span className="text-sm font-bold text-muted-foreground w-12">B-coins</span>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center border-b pb-4">
                             <div className="md:col-span-3">
                                 <Label className="text-base font-semibold text-slate-900">Tasa de Conversión (Multiplicador)</Label>
-                                <p className="text-sm text-muted-foreground">Fórmula: `1 KM en Bici = X Puntos Wallet`. Usa 1 para relación 1 a 1.</p>
+                                <p className="text-sm text-muted-foreground">Fórmula: `1 KM en Bici = X B-coins Wallet`. Usa 1 para relación 1 a 1.</p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="text-sm font-bold text-muted-foreground hidden sm:block">x</span>
@@ -169,7 +169,7 @@ export function GamificationRulesEditor() {
                                     onChange={(e) => handleStravaSettingChange('stravaConversionRate', parseFloat(e.target.value) || 1)}
                                     className="text-right font-mono border-orange-200 focus-visible:ring-orange-500"
                                 />
-                                <span className="text-sm font-bold text-muted-foreground w-6">Pts</span>
+                                <span className="text-sm font-bold text-muted-foreground w-12">B-coins</span>
                             </div>
                         </div>
 
