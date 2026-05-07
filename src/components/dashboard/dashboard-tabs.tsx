@@ -659,19 +659,6 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                     <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-48 h-48 bg-emerald-300 opacity-10 rounded-full blur-2xl"></div>
                 </div>
 
-                {/* Strava Integration Card */}
-                {!isRewardsLocked && (
-                    <div className="mb-6">
-                        <StravaSyncCard 
-                            stravaData={user.gamification?.strava} 
-                            onSync={async () => { 
-                                const res = await import("@/lib/actions/strava-actions").then(m => m.syncStravaActivities());
-                                return res;
-                            }} 
-                        />
-                    </div>
-                )}
-
                 {isRewardsLocked ? (
                     <div className="flex flex-col items-center justify-center py-16 px-6 text-center border-2 border-slate-200 rounded-2xl bg-slate-50 shadow-sm max-w-2xl mx-auto my-8">
                         <div className="w-20 h-20 bg-slate-200 rounded-full flex items-center justify-center mb-6">
@@ -696,7 +683,27 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                     </div>
                 ) : (
                     <>
-                        {isProfileComplete && <div className="mb-6"><ReferralStatsCard user={user} /></div>}
+                        {/* HYBRID HERO SECTION: Horizontal Scroll on Mobile, Flex Row on Desktop */}
+                        <div className="mb-6 flex flex-row gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 md:overflow-visible md:snap-none">
+                            <div className="w-[85vw] max-w-[350px] md:w-auto md:flex-1 shrink-0 snap-center md:snap-none">
+                                <StravaSyncCard 
+                                    stravaData={user.gamification?.strava} 
+                                    onSync={async () => { 
+                                        const { syncStravaActivities } = await import("@/lib/actions/strava-actions");
+                                        return await syncStravaActivities();
+                                    }} 
+                                />
+                            </div>
+                            
+                            {isProfileComplete && (
+                                <div className="w-[85vw] max-w-[350px] md:w-auto md:flex-1 shrink-0 snap-center md:snap-none">
+                                    <ReferralStatsCard user={user} />
+                                </div>
+                            )}
+                            
+                            {/* Mobile Spacer for the end of the scroll lane */}
+                            <div className="w-4 shrink-0 md:hidden" aria-hidden="true" />
+                        </div>
 
                         {/* DESKTOP VIEW: Unified Grid */}
                         <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -757,13 +764,6 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                                     )}
                                 </>
                             )}
-                            
-                            <GamificationRulesSheet>
-                                <button className="text-muted-foreground w-full flex items-center justify-center gap-1 text-xs hover:text-primary transition-colors py-2">
-                                    <Info className="h-3 w-3" />
-                                    <span>¿Cómo acumulo más B-coins?</span>
-                                </button>
-                            </GamificationRulesSheet>
                         </div>
 
                         {isProfileComplete && (

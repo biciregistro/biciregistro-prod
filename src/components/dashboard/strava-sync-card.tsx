@@ -99,7 +99,7 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
 
     if (!isConnected) {
         return (
-            <Card className="overflow-hidden border-orange-500/30 bg-gradient-to-br from-orange-50 to-white shadow-sm relative group">
+            <Card className="overflow-hidden border-orange-500/30 bg-gradient-to-br from-orange-50 to-white shadow-sm relative group h-full flex flex-col justify-center">
                 <CardContent className="p-5">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
                         {/* 1. Header Logo: BiciRegistro is the primary brand */}
@@ -107,7 +107,7 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
                             <Image src="/icon.png" alt="BiciRegistro" width={32} height={32} />
                         </div>
                         
-                        <div className="flex-1 text-center sm:text-left">
+                        <div className="flex-1 text-center sm:text-left flex flex-col justify-center">
                             <h3 className="font-bold text-slate-900 mb-1">Convierte tu sudor en Recompensas</h3>
                             <p className="text-sm text-slate-600 mb-5 max-w-sm leading-relaxed">
                                 Conecta tu cuenta de Strava para que tus rodadas reales se conviertan automáticamente en <strong>B-coins</strong> en tu wallet.
@@ -120,7 +120,7 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
                                 className="transition-transform active:scale-95 disabled:opacity-50"
                             >
                                 {isLoading ? (
-                                    <div className="flex items-center gap-2 px-6 py-2 bg-[#FC5200] text-white rounded-md font-bold text-sm">
+                                    <div className="flex items-center justify-center gap-2 px-6 py-2 bg-[#FC5200] text-white rounded-md font-bold text-sm h-[48px] w-[193px] mx-auto sm:mx-0">
                                         <RefreshCw className="h-4 w-4 animate-spin" /> Conectando...
                                     </div>
                                 ) : (
@@ -130,6 +130,7 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
                                         width={193} 
                                         height={48} 
                                         priority
+                                        className="mx-auto sm:mx-0"
                                     />
                                 )}
                             </button>
@@ -155,9 +156,9 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
 
     return (
         <>
-            <Card className="overflow-hidden border-emerald-500/20 bg-slate-50 shadow-sm relative">
+            <Card className="overflow-hidden border-emerald-500/20 bg-slate-50 shadow-sm relative h-full flex flex-col justify-center">
                 <CardContent className="p-4 sm:p-5">
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 h-full">
                         <div className="flex items-center gap-3 w-full sm:w-auto">
                             <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center shrink-0">
                                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
@@ -176,8 +177,8 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
                             </div>
                         </div>
                         
-                        <div className="flex flex-col items-center sm:items-end gap-3">
-                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <div className="flex flex-col items-center sm:items-end justify-center gap-3 h-full">
+                            <div className="flex items-center justify-center sm:justify-end gap-2 w-full sm:w-auto">
                                 <div className="hidden sm:block text-right mr-2">
                                     <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">KM Sincronizados</p>
                                     <p className="font-mono font-bold text-slate-900">{stravaData.totalKmSynced.toFixed(0)}</p>
@@ -186,7 +187,7 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
                                     onClick={handleSync} 
                                     disabled={isLoading}
                                     variant="outline"
-                                    className="w-full sm:w-auto border-orange-200 text-[#FC5200] hover:bg-orange-50 hover:text-[#FC5200] font-semibold"
+                                    className="w-full sm:w-auto border-orange-200 text-[#FC5200] hover:bg-orange-50 hover:text-[#FC5200] font-semibold h-[48px]"
                                 >
                                     {isLoading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                                     Sincronizar Rodadas

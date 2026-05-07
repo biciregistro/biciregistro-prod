@@ -36,8 +36,9 @@ export function ReferralStatsCard({ user }: ReferralStatsCardProps) {
 
     const handleShare = async () => {
         if (!data) return;
+        const rewardPoints = data.referralPoints || 200;
 
-        const shareText = `¡Qué onda! Te conseguí una invitación para Biciregistro. Mi bici ya tiene su Identidad Digital y fue ¡gratis!. Si registras tu bici con este link, a los dos nos regalan 200 Kilómetros para canjear por equipo, servicios o café en tiendas ciclistas. 🚴‍♂️⚡\n\nTardas 30 segundos, protege la tuya aquí 👉: ${data.shareUrl}`;
+        const shareText = `¡Qué onda! Te conseguí una invitación para Biciregistro. Mi bici ya tiene su Identidad Digital y fue ¡gratis!. Si registras tu bici con este link, a los dos nos regalan ${rewardPoints} B-coins para canjear por equipo, servicios o café en tiendas ciclistas. 🚴‍♂️⚡\n\nTardas 30 segundos, protege la tuya aquí 👉: ${data.shareUrl}`;
         
         const shareData = {
             title: 'Únete a BiciRegistro',
@@ -98,7 +99,7 @@ export function ReferralStatsCard({ user }: ReferralStatsCardProps) {
             </div>
             {data.nextTierLabel ? (
                 <span className="text-[10px] text-muted-foreground leading-none">
-                    Faltan {kmNeeded} KM para {data.nextTierLabel}
+                    Faltan {kmNeeded} B-coins para {data.nextTierLabel}
                 </span>
             ) : (
                 <span className="text-green-600 font-bold text-[10px] leading-none uppercase tracking-tight">¡Nivel Máximo!</span>
@@ -107,8 +108,8 @@ export function ReferralStatsCard({ user }: ReferralStatsCardProps) {
     );
 
     return (
-        <Card id="tour-referral" className="bg-gradient-to-br from-white to-slate-50 border-slate-200 shadow-sm">
-            <CardHeader className="pb-2">
+        <Card id="tour-referral" className="bg-gradient-to-br from-white to-slate-50 border-slate-200 shadow-sm h-full flex flex-col justify-between">
+            <CardHeader className="pb-2 flex-shrink-0">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
                     <div className="flex flex-col gap-2 sm:gap-1 flex-1">
                         <div className="sm:hidden w-full">
@@ -117,14 +118,14 @@ export function ReferralStatsCard({ user }: ReferralStatsCardProps) {
 
                         <CardTitle className="flex items-center gap-2 text-lg">
                             <Trophy className="h-5 w-5 text-yellow-500 shrink-0" />
-                            ¡Acumula kilómetros y gana premios!
+                            Acumula B-coins y que tu pasión se pague sola
                         </CardTitle>
                         
                         <CardDescription className="text-xs md:text-sm leading-relaxed text-muted-foreground w-full pr-4">
-                            Acumula kilómetros invitando amigos y realizando acciones positivas en la comunidad. 
+                            Acumula B-coins rodando, invitando amigos y haciendo cosas buenas por la comunidad.
                             <GamificationRulesSheet>
                                 <button className="ml-1 text-primary font-bold hover:underline inline-flex items-center gap-0.5 group">
-                                    ¿Cómo ganar más KM? <Info className="h-3 w-3 group-hover:scale-110 transition-transform" />
+                                    ¿Cómo ganar más B-coins? <Info className="h-3 w-3 group-hover:scale-110 transition-transform" />
                                 </button>
                             </GamificationRulesSheet>
                         </CardDescription>
@@ -135,14 +136,14 @@ export function ReferralStatsCard({ user }: ReferralStatsCardProps) {
                     </div>
                 </div>
             </CardHeader>
-            <CardContent>
-                <div className="space-y-5 mt-2">
+            <CardContent className="flex-1 flex flex-col justify-end">
+                <div className="space-y-5 mt-auto">
                     {/* Progress Bar for Tiers (Lifetime KM) */}
                     <div>
                         <div className="flex justify-between text-xs mb-1.5 px-1">
                             <span className="text-muted-foreground font-medium">Progreso de Nivel</span>
                             <span className="font-bold text-muted-foreground">
-                                {lifetimeKm} / {nextTierTotal} KM Históricos
+                                {lifetimeKm} / {nextTierTotal} B-coins Históricos
                             </span>
                         </div>
                         <Progress value={progress} className="h-2 w-full" indicatorClassName="bg-yellow-500" />
@@ -156,10 +157,10 @@ export function ReferralStatsCard({ user }: ReferralStatsCardProps) {
                              </span>
                              <div className="flex items-baseline gap-1">
                                 <span className="text-3xl font-black text-emerald-600 font-mono tracking-tight">{pointsBalance}</span>
-                                <span className="text-sm font-bold text-emerald-600/70">KM</span>
+                                <span className="text-sm font-bold text-emerald-600/70">B-coins</span>
                              </div>
                              <span className="text-[10px] text-muted-foreground mt-1 text-center sm:text-left">
-                                Listos para canjear por recompensas
+                                Listas para canjear por recompensas
                              </span>
                          </div>
                          
@@ -170,7 +171,8 @@ export function ReferralStatsCard({ user }: ReferralStatsCardProps) {
                             </Button>
                             <p className="text-[10px] text-center text-muted-foreground px-2">
                                <span className="font-mono select-all hover:text-primary transition-colors cursor-pointer truncate block w-full" onClick={() => {
-                                   const textToCopy = `¡Qué onda! Te conseguí una invitación para Biciregistro. Mi bici ya tiene su Identidad Digital y fue ¡gratis!. Si registras tu bici con este link, a los dos nos regalan 200 Kilómetros para canjear por equipo, servicios o café en tiendas ciclistas. 🚴‍♂️⚡\n\nTardas 30 segundos, protege la tuya aquí 👉: ${data.shareUrl}`;
+                                   const rewardPoints = data.referralPoints || 200;
+                                   const textToCopy = `¡Qué onda! Te conseguí una invitación para Biciregistro. Mi bici ya tiene su Identidad Digital y fue ¡gratis!. Si registras tu bici con este link, a los dos nos regalan ${rewardPoints} B-coins para canjear por equipo, servicios o café en tiendas ciclistas. 🚴‍♂️⚡\n\nTardas 30 segundos, protege la tuya aquí 👉: ${data.shareUrl}`;
                                    navigator.clipboard.writeText(textToCopy);
                                    toast({ title: "Copiado", description: "Enlace copiado." });
                                }}>{data.shareUrl}</span>

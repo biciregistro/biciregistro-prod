@@ -9,13 +9,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Star, Loader2, CheckCircle2 } from "lucide-react";
+import { Star, Loader2, CheckCircle2, Coins, Map, Link as LinkIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getPublicGamificationCatalog } from "@/lib/actions/gamification-actions";
 import { RULE_ICONS } from "@/lib/gamification/rules-catalog";
 import { GamificationRuleId } from "@/lib/gamification/constants";
 import { cn } from "@/lib/utils";
+import Image from 'next/image';
 
 interface GamificationRulesSheetProps {
     children: React.ReactNode;
@@ -28,6 +29,9 @@ type RuleItem = {
     points: number;
     type: string;
     completed?: boolean;
+    isStravaRule?: boolean;
+    iconType?: 'route' | 'link';
+    customBadgeText?: string;
 };
 
 export function GamificationRulesSheet({ children }: GamificationRulesSheetProps) {
@@ -54,7 +58,7 @@ export function GamificationRulesSheet({ children }: GamificationRulesSheetProps
       <SheetContent side="bottom" className="h-[85vh] sm:h-[650px] rounded-t-3xl sm:max-w-2xl sm:mx-auto">
         <SheetHeader className="pb-6">
           <SheetTitle className="text-2xl flex items-center gap-2">
-            <Star className="h-6 w-6 fill-yellow-400 text-yellow-500" />
+            <Coins className="h-6 w-6 text-yellow-500" />
             ¿Cómo ganar B-coins?
           </SheetTitle>
           <SheetDescription>
@@ -71,7 +75,12 @@ export function GamificationRulesSheet({ children }: GamificationRulesSheetProps
           ) : (
             <div className="space-y-4 pb-20">
                 {rules.map((rule) => {
-                const Icon = RULE_ICONS[rule.id as GamificationRuleId] || Star;
+                
+                // Determinar el ícono (Star es el default, Map/Link para Strava artificiales)
+                let Icon = RULE_ICONS[rule.id as GamificationRuleId] || Star;
+                if (rule.iconType === 'route') Icon = Map;
+                if (rule.iconType === 'link') Icon = LinkIcon;
+                
                 const isCompleted = rule.completed;
                 
                 return (
@@ -104,18 +113,35 @@ export function GamificationRulesSheet({ children }: GamificationRulesSheetProps
                                     </Badge>
                                 ) : (
                                     <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200 gap-1 font-bold shrink-0">
-                                        +{rule.points} <Star className="h-3 w-3 fill-yellow-400" />
+                                        {rule.customBadgeText ? (
+                                            rule.customBadgeText
+                                        ) : (
+                                            `+${rule.points}`
+                                        )} <Coins className="h-3 w-3 text-yellow-600" />
                                     </Badge>
                                 )}
                             </div>
                             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                                 {rule.description.replace(/Kilómetros/g, 'B-coins').replace(/KM/g, 'B-coins')}
                             </p>
-                            {!isCompleted && (
-                                <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-400">
-                                    {rule.type === 'once' ? 'Una sola vez' : 'Por cada vez'}
-                                </span>
-                            )}
+                            <div className="flex items-center justify-between mt-2">
+                                {!isCompleted && (
+                                    <span className="text-[10px] uppercase tracking-wider font-semibold text-gray-400">
+                                        {rule.type === 'once' ? 'Una sola vez' : 'Por cada vez'}
+                                    </span>
+                                )}
+                                {rule.isStravaRule && (
+                                    <div className={cn("flex justify-end", isCompleted ? "w-full mt-2" : "")}>
+                                        <Image 
+                                            src="/strava/api_logo_pwrdBy_strava_horiz_black.svg" 
+                                            alt="Powered by Strava" 
+                                            width={80} 
+                                            height={16}
+                                            className="opacity-50"
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 );

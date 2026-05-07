@@ -239,8 +239,13 @@ export async function getPublicGamificationCatalog() {
         // 1. Fetch dynamic rules
         const dynamicRules = await getGamificationRules();
         
-        // 2. Fetch user's completed "once" actions if authenticated
+        // 2. Fetch Strava Rules (HU-04)
+        const stravaSettings = await getStravaSettings();
+
+        // 3. Fetch user's completed "once" actions if authenticated
         const completedActions = new Set<string>();
+        let isStravaConnected = false;
+
         if (userId) {
             const historySnapshot = await db.collection('gamification_history')
                 .where('userId', '==', userId)
@@ -249,10 +254,17 @@ export async function getPublicGamificationCatalog() {
             historySnapshot.docs.forEach(doc => {
                 completedActions.add(doc.data().actionId);
             });
+
+            // Check Strava Connection from User profile
+            const userDoc = await db.collection('users').doc(userId).get();
+            if (userDoc.exists) {
+                const data = userDoc.data();
+                isStravaConnected = !!data?.isStravaConnected;
+            }
         }
 
-        // 3. Map and merge
-        const catalog = Object.values(GAMIFICATION_RULES).map(rule => {
+        // 4. Map and merge regular rules
+        let catalog: any[] = Object.values(GAMIFICATION_RULES).map(rule => {
             const dynamicPoints = dynamicRules && typeof dynamicRules[`${rule.id}_points`] === 'number' 
                 ? dynamicRules[`${rule.id}_points`] 
                 : rule.defaultPoints;
@@ -275,13 +287,42 @@ export async function getPublicGamificationCatalog() {
                 description: rule.description,
                 points: dynamicPoints,
                 type: isOnce ? 'once' : 'recurring',
-                completed: isCompleted
+                completed: isCompleted,
+                isStravaRule: false
             };
         });
 
-        // Ordenar: No completadas primero, ordenadas por puntos. Luego las completadas.
+        // 5. Inject Strava Artificial Rules
+        catalog.push({
+            id: 'strava_connect',
+            label: 'Conectar tu cuenta con Strava',
+            description: 'Gana B-coins por conectar tu cuenta con Strava por primera vez.',
+            points: stravaSettings.stravaInitialBonusPoints,
+            type: 'once',
+            completed: isStravaConnected,
+            isStravaRule: true,
+            iconType: 'link'
+        });
+
+        catalog.push({
+            id: 'strava_ride',
+            label: 'Salir a rodar',
+            description: `Cada kilómetro que ruedes en el mundo real se convierte en ${stravaSettings.stravaConversionRate} B-coins`,
+            points: 0, // Ignored because we use customBadgeText
+            type: 'recurring',
+            completed: false,
+            isStravaRule: true,
+            iconType: 'route',
+            customBadgeText: `1 KM = ${stravaSettings.stravaConversionRate}`
+        });
+
+        // 6. Ordenar: No completadas primero, ordenadas por puntos. Luego las completadas.
         catalog.sort((a, b) => {
             if (a.completed === b.completed) {
+                // Si ambas no están completadas, Strava Ride va al tope (es la más importante)
+                if (a.id === 'strava_ride') return -1;
+                if (b.id === 'strava_ride') return 1;
+
                 return b.points - a.points; // Ambas igual estado: ordena por puntos desc
             }
             return a.completed ? 1 : -1; // No completadas van primero

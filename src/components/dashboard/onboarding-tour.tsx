@@ -72,7 +72,7 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
                     element: '#tour-mobile-header',
                     popover: {
                         title: 'Tú eres el motor 👤',
-                        description: 'Aquí tienes acceso rápido a tu perfil y puedes ver tu saldo de Kilómetros acumulados en tiempo real para canjear por premios.',
+                        description: 'Aquí tienes acceso rápido a tu perfil y puedes ver tu saldo de B-coins acumuladas en tiempo real para canjear por premios.',
                         side: 'bottom',
                         align: 'center',
                     }

@@ -90,7 +90,7 @@ export function ActionPanel({ user, isComplete }: ActionPanelProps) {
                 {/* Bottom Row: Seamless Text Line */}
                 <div className="flex items-center justify-between text-[13px] w-full pt-1 border-t border-border/50">
                     <span className="text-muted-foreground">
-                        Tienes <span className="font-bold text-foreground">{pointsBalance} KM</span> para canjear
+                        Tienes <span className="font-bold text-foreground">{pointsBalance} B-coins</span> para canjear
                     </span>
                     
                     <Link 
