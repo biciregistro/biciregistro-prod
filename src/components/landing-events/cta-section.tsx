@@ -8,12 +8,7 @@ interface CtaSectionProps {
   allies: LandingEventsAlly[];
 }
 
-const WHATSAPP_NUMBER = "5215569691709";
-const WHATSAPP_MESSAGE = "¡Hola! 👋 Me interesa gestionar mis eventos con BiciRegistro. 🚴✨ Me pueden ayudar a crear mi cuenta de organizador para empezar a publicar mis eventos. ¿Cuáles son los siguientes pasos?";
-
 export function CtaSection({ cta, allies }: CtaSectionProps) {
-  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
-
   return (
     <section className="bg-gray-50 py-20 px-4 text-center border-t">
       <div className="mx-auto max-w-3xl">
@@ -25,8 +20,7 @@ export function CtaSection({ cta, allies }: CtaSectionProps) {
         </p>
         <div className="mt-8 flex flex-col items-center gap-y-4">
           <Button size="lg" className="px-8 py-6 text-lg font-bold shadow-md hover:scale-105 transition-transform" asChild>
-             {/* REVERTED TO WHATSAPP FLOW FOR IDENTITY VERIFICATION CONTROL */}
-            <Link href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+            <Link href="/ong/signup">
               {cta.ctaButton}
             </Link>
           </Button>
