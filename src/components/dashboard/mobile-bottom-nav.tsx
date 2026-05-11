@@ -56,6 +56,7 @@ export function MobileBottomNav({ user }: MobileBottomNavProps) {
                         </Link>
 
                         <Link
+                            id="tour-mobile-rewards"
                             href={`${dashboardBase}?tab=rewards`}
                             className={cn(
                                 "flex flex-col items-center justify-center w-full h-full space-y-1 text-muted-foreground transition-colors",

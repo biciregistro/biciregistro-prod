@@ -71,9 +71,18 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
                 {
                     element: '#tour-mobile-header',
                     popover: {
-                        title: 'Tú eres el motor 👤',
-                        description: 'Aquí tienes acceso rápido a tu perfil y puedes ver tu saldo de B-coins acumuladas en tiempo real para canjear por premios.',
+                        title: 'Tu Tesoro Acumulado 💰',
+                        description: 'Aquí puedes ver tu saldo de B-coins. No son solo puntos; es capital que has ganado por proteger tu pasión y que puedes usar para obtener beneficios reales.',
                         side: 'bottom',
+                        align: 'center',
+                    }
+                },
+                {
+                    element: '#tour-mobile-rewards', // NUEVO PASO QUIRÚRGICO
+                    popover: {
+                        title: '¡Cámbialos por Premios! 🎁',
+                        description: 'En esta sección puedes canjear tus B-coins por accesorios, descuentos en talleres o meses de seguro gratis. ¡Haz que tu seguridad se pague sola!',
+                        side: 'top',
                         align: 'center',
                     }
                 },
@@ -81,7 +90,7 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
                     element: '#tour-mobile-nav',
                     popover: {
                         title: 'Todo a un toque 📱',
-                        description: 'Usa esta barra para moverte entre tu Garaje, Eventos y Premios de forma instantánea.',
+                        description: 'Usa esta barra para moverte entre tu Garaje, Eventos y el Bazar de Premios de forma instantánea.',
                         side: 'top',
                         align: 'center',
                     }
