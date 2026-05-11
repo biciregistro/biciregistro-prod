@@ -105,9 +105,13 @@ export default async function JoinPage({ params }: JoinPageProps) {
     return (
         <div className="min-h-screen bg-background">
             
-            {/* Si NO hay usuario autenticado, cargamos el diseño VIP para Móvil */}
+            {/* Si NO hay usuario autenticado, cargamos el diseño VIP para Móvil - PASAMOS EVENTOS */}
             {!user && (
-                <MobileVipClient ong={ong} communityCount={communityCount} />
+                <MobileVipClient 
+                    ong={ong} 
+                    communityCount={communityCount} 
+                    events={events} 
+                />
             )}
 
             {/* CONTENEDOR CLÁSICO: 
