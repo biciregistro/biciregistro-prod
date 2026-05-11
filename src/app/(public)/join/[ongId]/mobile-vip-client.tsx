@@ -192,8 +192,9 @@ export function MobileVipClient({ ong, communityCount, events }: MobileVipClient
                             </p>
 
                             <div className="w-full mb-6">
+                                {/* FIXED: callbackUrl changed to ciclista dashboard route */}
                                 <SocialAuthButtons 
-                                    callbackUrl={`/dashboard/ong-onboarding?communityId=${ong.id}`} 
+                                    callbackUrl="/dashboard?welcome=community" 
                                     mode="signup" 
                                 />
                             </div>
@@ -214,9 +215,10 @@ export function MobileVipClient({ ong, communityCount, events }: MobileVipClient
                                 Crea tu cuenta con Correo
                             </h2>
                             
+                            {/* FIXED: callbackUrl changed to ciclista dashboard route */}
                             <ProfileForm 
                                 communityId={ong.id} 
-                                callbackUrl={`/dashboard/ong-onboarding?communityId=${ong.id}`} 
+                                callbackUrl="/dashboard?welcome=community" 
                                 hideSocial={true}
                             />
 

@@ -96,7 +96,8 @@ export default async function JoinPage({ params }: JoinPageProps) {
                 </Alert>
                 
                 <div className="rounded-xl overflow-hidden border bg-card shadow-sm">
-                    <ProfileForm communityId={ongId} callbackUrl="/dashboard/ong-onboarding" />
+                    {/* FIXED: callbackUrl changed from non-existent 404 route to correct ciclista dashboard route */}
+                    <ProfileForm communityId={ongId} callbackUrl="/dashboard?welcome=community" />
                 </div>
             </div>
         );
