@@ -1,4 +1,3 @@
-
 import { adminDb } from '@/lib/firebase/server';
 import { Bike, User } from '@/lib/types';
 import { unstable_cache } from 'next/cache';
@@ -35,31 +34,55 @@ export const getOngAnalytics = unstable_cache(
     try {
       if (!ongId) throw new Error('ONG ID is required.');
 
-      // Step 1: Fetch all users belonging to the ONG
-      const usersSnapshot = await adminDb.collection('users').where('communityId', '==', ongId).get();
-      if (usersSnapshot.empty) return null; // No users, no data.
-      
-      const users = usersSnapshot.docs.map(doc => doc.data() as User);
-      const userIds = usersSnapshot.docs.map(doc => doc.id);
+      const userIds = new Set<string>();
 
-      // Step 2: Fetch all bikes belonging to those users in chunks of 30
-      let bikes: Bike[] = [];
-      if (userIds.length > 0) {
-          const bikePromises = [];
-          for (let i = 0; i < userIds.length; i += 30) {
-              const chunk = userIds.slice(i, i + 30);
-              const query = adminDb.collection('bikes').where('userId', 'in', chunk).get();
-              bikePromises.push(query);
-          }
-          const bikeSnapshots = await Promise.all(bikePromises);
-          bikeSnapshots.forEach(snap => {
-              snap.forEach(doc => {
-                  bikes.push(doc.data() as Bike);
-              });
-          });
+      // 1. Resolver Identidades: Directos + Eventos (El mismo motor de Comunidad)
+      // Directos
+      const directUsersSnapshot = await adminDb.collection('users')
+          .where('communityId', '==', ongId)
+          .select() 
+          .get();
+      directUsersSnapshot.forEach(doc => userIds.add(doc.id));
+
+      // Eventos
+      const eventsSnapshot = await adminDb.collection('events').where('ongId', '==', ongId).get();
+      const eventIds = eventsSnapshot.docs.map(e => e.id);
+
+      if (eventIds.length > 0) {
+           for (let i = 0; i < eventIds.length; i += 10) {
+               const chunk = eventIds.slice(i, i + 10);
+               const registrationsSnapshot = await adminDb.collection('event-registrations')
+                  .where('eventId', 'in', chunk)
+                  .select('userId')
+                  .get();
+               registrationsSnapshot.forEach(doc => {
+                   const data = doc.data();
+                   if (data.userId) userIds.add(data.userId);
+               });
+           }
       }
 
-      // --- General ---
+      const userIdsArray = Array.from(userIds);
+      
+      if (userIdsArray.length === 0) return null; // No hay comunidad
+
+      // 2. Fetch Carga Masiva: Usuarios
+      let users: User[] = [];
+      for (let i = 0; i < userIdsArray.length; i += 30) {
+          const chunk = userIdsArray.slice(i, i + 30);
+          const usersSnap = await adminDb.collection('users').where('id', 'in', chunk).get();
+          usersSnap.forEach(doc => users.push(doc.data() as User));
+      }
+
+      // 3. Fetch Carga Masiva: Bicicletas
+      let bikes: Bike[] = [];
+      for (let i = 0; i < userIdsArray.length; i += 30) {
+          const chunk = userIdsArray.slice(i, i + 30);
+          const bikesSnap = await adminDb.collection('bikes').where('userId', 'in', chunk).get();
+          bikesSnap.forEach(doc => bikes.push(doc.data() as Bike));
+      }
+
+      // --- CÁLCULOS: General ---
       const totalUsers = users.length;
       
       const ages: number[] = [];
@@ -67,10 +90,7 @@ export const getOngAnalytics = unstable_cache(
       const genderDistribution: Record<string, number> = {};
       const userLocations: Record<string, number> = {};
       const generationsDistribution: Record<string, number> = {
-          'gen_z': 0,
-          'millennials': 0,
-          'gen_x': 0,
-          'boomers': 0
+          'gen_z': 0, 'millennials': 0, 'gen_x': 0, 'boomers': 0
       };
 
       users.forEach(u => {
@@ -80,7 +100,7 @@ export const getOngAnalytics = unstable_cache(
                   const age = new Date().getFullYear() - birthYear;
                   if (age > 0) {
                       ages.push(age);
-                      const gender = u.gender || 'No especificado';
+                      const gender = u.gender ? (u.gender.charAt(0).toUpperCase() + u.gender.slice(1)) : 'No especificado';
                       if (!agesByGenderMap[gender]) agesByGenderMap[gender] = [];
                       agesByGenderMap[gender].push(age);
                       
@@ -91,11 +111,27 @@ export const getOngAnalytics = unstable_cache(
                   }
               }
           }
-          const gender = u.gender || 'No especificado';
+          const gender = u.gender ? (u.gender.charAt(0).toUpperCase() + u.gender.slice(1)) : 'No especificado';
           genderDistribution[gender] = (genderDistribution[gender] || 0) + 1;
-          const loc = u.city || u.state || 'Desconocida';
-          userLocations[loc] = (userLocations[loc] || 0) + 1;
+          
+          // --- NUEVA LÓGICA DE UBICACIONES TOP 5 (Estado, Ciudad) ---
+          if (u.state && u.city) {
+              const locKey = `${u.city}, ${u.state}`;
+              userLocations[locKey] = (userLocations[locKey] || 0) + 1;
+          } else if (u.state || u.city) {
+              const locKey = u.city || u.state || 'Desconocida';
+              userLocations[locKey] = (userLocations[locKey] || 0) + 1;
+          } else {
+              userLocations['Desconocida'] = (userLocations['Desconocida'] || 0) + 1;
+          }
       });
+
+      // Recortar a Top 5 Ubicaciones para evitar listas largas en la UI
+      const sortedLocations = Object.entries(userLocations)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 5);
+      
+      const topUserLocations = Object.fromEntries(sortedLocations);
 
       const averageAge = ages.length > 0 ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : 0;
       
@@ -104,24 +140,37 @@ export const getOngAnalytics = unstable_cache(
           average: Math.round(agesList.reduce((a, b) => a + b, 0) / agesList.length)
       }));
 
-      // --- Market ---
+      // --- CÁLCULOS: Market ---
       const totalBikes = bikes.length;
       const assetValue = bikes.reduce((acc, b) => acc + (b.appraisedValue || 0), 0);
       const averageValue = totalBikes > 0 ? assetValue / totalBikes : 0;
       
-      const topBrands = bikes.reduce((acc, b) => {
+      const brandsMap = bikes.reduce((acc, b) => {
           const brand = b.make || 'Desconocida';
           acc[brand] = (acc[brand] || 0) + 1;
           return acc;
       }, {} as Record<string, number>);
 
-      const modalities = bikes.reduce((acc, b) => {
+      // Recortar a Top 10 Marcas
+      const topBrands = Object.fromEntries(
+          Object.entries(brandsMap)
+              .sort(([, a], [, b]) => b - a)
+              .slice(0, 10)
+      );
+
+      const modalitiesMap = bikes.reduce((acc, b) => {
           const mod = b.modality || 'Desconocida';
           acc[mod] = (acc[mod] || 0) + 1;
           return acc;
       }, {} as Record<string, number>);
 
-      // --- Security ---
+      // Ordenar modalidades y calcular porcentajes
+      const modalities = Object.fromEntries(
+          Object.entries(modalitiesMap)
+              .sort(([, a], [, b]) => b - a)
+      );
+
+      // --- CÁLCULOS: Security ---
       const stolenBikes = bikes.filter(b => b.status === 'stolen');
       const recoveredBikes = bikes.filter(b => b.status === 'recovered');
       const safeBikes = totalBikes - stolenBikes.length - recoveredBikes.length;
@@ -150,7 +199,7 @@ export const getOngAnalytics = unstable_cache(
 
       return {
         general: { 
-            totalUsers, totalBikes, averageAge, genderDistribution, userLocations, 
+            totalUsers, totalBikes, averageAge, genderDistribution, userLocations: topUserLocations, 
             averageAgeByGender, generationsDistribution 
         },
         market: { assetValue, averageValue, topBrands, modalities },
@@ -168,6 +217,6 @@ export const getOngAnalytics = unstable_cache(
       return null;
     }
   },
-  ['ong-analytics-v4'], // Updated Cache key
+  ['ong-analytics-v7'], // Caché actualizado
   { revalidate: 3600 }
 );

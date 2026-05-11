@@ -585,21 +585,46 @@ export async function getOngCommunityMembers(ongId: string): Promise<any[]> {
     if (!ongId) return [];
     try {
         const db = adminDb;
-        const members: any[] = [];
+        const userIds = new Set<string>();
 
+        // 1. Obtener usuarios directos
         const directUsersSnapshot = await db.collection('users')
             .where('communityId', '==', ongId)
+            .select() 
             .get();
         
-        if (directUsersSnapshot.empty) {
-            return [];
+        directUsersSnapshot.forEach(doc => userIds.add(doc.id));
+
+        // 2. Obtener usuarios de eventos de la ONG
+        const events = await getEventsByOngId(ongId);
+        const eventIds = events.map(e => e.id);
+
+        if (eventIds.length > 0) {
+             for (let i = 0; i < eventIds.length; i += 10) {
+                 const chunk = eventIds.slice(i, i + 10);
+                 const registrationsSnapshot = await db.collection('event-registrations')
+                    .where('eventId', 'in', chunk)
+                    .select('userId')
+                    .get();
+                 registrationsSnapshot.forEach(doc => {
+                     const data = doc.data();
+                     if (data.userId) userIds.add(data.userId);
+                 });
+             }
         }
 
-        const membersData = await Promise.all(directUsersSnapshot.docs.map(async (doc) => {
-            const userData = doc.data();
+        if (userIds.size === 0) return [];
+
+        // 3. Obtener perfiles de usuario y sus bicicletas
+        const userIdsArray = Array.from(userIds);
+        const membersData = await Promise.all(userIdsArray.map(async (userId) => {
+            const userDoc = await db.collection('users').doc(userId).get();
+            if (!userDoc.exists) return null;
             
-            // Fetch bikes for this user
-            const bikesSnapshot = await db.collection('bikes').where('userId', '==', doc.id).get();
+            const userData = userDoc.data() as any;
+            
+            // Hacemos fetch de las bicis para este usuario específico
+            const bikesSnapshot = await db.collection('bikes').where('userId', '==', userId).get();
             const bikes = bikesSnapshot.docs.map(bikeDoc => {
                 const data = bikeDoc.data();
                 return {
@@ -612,24 +637,23 @@ export async function getOngCommunityMembers(ongId: string): Promise<any[]> {
             });
 
             return {
-                id: doc.id,
+                id: userDoc.id,
                 name: userData.name,
                 lastName: userData.lastName,
                 email: userData.email,
                 whatsapp: userData.whatsapp,
                 country: userData.country,
                 state: userData.state,
-                // New Emergency & Medical Data
                 emergencyContactName: userData.emergencyContactName,
                 emergencyContactPhone: userData.emergencyContactPhone,
                 bloodType: userData.bloodType,
                 allergies: userData.allergies,
-                // Bike info
                 bikes: bikes
             };
         }));
 
-        return membersData;
+        // Filtrar nulos y devolver
+        return membersData.filter(m => m !== null);
 
     } catch (error) {
         console.error("Error fetching community members:", error);
