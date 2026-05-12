@@ -6,7 +6,8 @@ export default async function SignupPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const resolvedSearchParams = await searchParams;
-  const callbackUrl = typeof resolvedSearchParams.callbackUrl === 'string' ? resolvedSearchParams.callbackUrl : undefined;
+  // Modificado: Ahora el default es ir al dashboard (Garaje) en lugar del default que enviaba a perfil
+  const callbackUrl = typeof resolvedSearchParams.callbackUrl === 'string' ? resolvedSearchParams.callbackUrl : '/dashboard';
   
   return <ProfileForm callbackUrl={callbackUrl} />;
 }

@@ -100,9 +100,9 @@ export function InstallPrompt() {
 
   return (
     <>
-      {/* Botón Flotante para Android/Chrome */}
+      {/* Botón Flotante para Android/Chrome - Añadido id para el tour */}
       {showPrompt && (
-        <div className="fixed z-50 animate-in fade-in slide-in-from-bottom-4 duration-500 bottom-24 left-4 right-4 md:bottom-8 md:left-8 md:right-auto md:w-auto">
+        <div id="tour-install-app" className="fixed z-50 animate-in fade-in slide-in-from-bottom-4 duration-500 bottom-24 left-4 right-4 md:bottom-8 md:left-8 md:right-auto md:w-auto">
             <div className="flex items-center gap-3 bg-background border p-4 rounded-lg shadow-lg max-w-sm mx-auto md:mx-0">
                 <div className="flex-1">
                     <p className="font-semibold text-sm">Instalar App</p>
@@ -122,9 +122,9 @@ export function InstallPrompt() {
         </div>
       )}
 
-      {/* Modal Educativo para iOS */}
+      {/* Modal Educativo para iOS - Añadido id para el tour */}
       <Dialog open={showIOSPrompt} onOpenChange={setShowIOSPrompt}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent id="tour-install-app" className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Instalar Biciregistro</DialogTitle>
             <DialogDescription>

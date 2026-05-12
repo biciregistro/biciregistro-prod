@@ -78,7 +78,7 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
                     }
                 },
                 {
-                    element: '#tour-mobile-rewards', // NUEVO PASO QUIRÚRGICO
+                    element: '#tour-mobile-rewards',
                     popover: {
                         title: '¡Cámbialos por Premios! 🎁',
                         description: 'En esta sección puedes canjear tus B-coins por accesorios, descuentos en talleres o meses de seguro gratis. ¡Haz que tu seguridad se pague sola!',
@@ -99,27 +99,36 @@ export function OnboardingTour({ user, tourType = 'dashboard', bike }: Onboardin
                     element: '#tour-main-action',
                     popover: {
                         title: 'Tu centro de acción ⚡',
-                        description: 'Desde aquí puedes realizar las acciones más importantes rápidamente, como registrar una nueva bicicleta o invitar a tus amigos.',
+                        description: 'Desde aquí puedes agregar tu bicicleta al escuadrón. Recuerda que ganarás cientos de B-Coins por cada bicicleta nueva que registres de forma gratuita.',
                         side: 'top',
                         align: 'center',
                     }
                 },
                 {
-                    element: '#tour-mobile-profile', // MODIFIED: Point to the profile icon in the bottom nav
+                    element: '#tour-mobile-profile', 
                     popover: {
                         title: 'Tu protección vital 🚑',
-                        description: 'En tu perfil encontrarás este botón para descargar tu QR de Emergencia. Llévalo siempre en tu casco o bici para que los paramédicos sepan a quién llamar.',
-                        side: 'top', // popover appears above the icon
-                        align: 'end', // align the popover to the right side (esquina superior izquierda de la burbuja, pero posicionado al final de la barra)
+                        description: 'En tu perfil podrás modificar tus datos, obtener tu Etiqueta QR de Emergencias y además, ganarás cientos de B-Coins por completarlo.',
+                        side: 'top', 
+                        align: 'end', 
                     }
                 },
                 {
-                    element: '#tour-garage',
+                    element: '#tour-garage-icon', // Modificado para apuntar al ícono del footer
                     popover: {
                         title: 'Tu Garage Digital 🚲',
-                        description: 'Aquí viven tus máquinas protegidas. Desde aquí controlas su estatus, reportas incidentes o gestionas su mantenimiento.',
+                        description: 'Aquí es donde llevas el control total. Gestiona el estatus legal de tus bicicletas registradas, o agrega nuevas para protegerlas y ganar más B-Coins.',
                         side: 'top',
                         align: 'start',
+                    }
+                },
+                {
+                    element: '#tour-install-app', // Nuevo paso
+                    popover: {
+                        title: 'Tu Bici en tu Pantalla Principal 📲',
+                        description: 'No nos busques en tiendas de apps. Instala Biciregistro directamente desde aquí. Es súper ligera, no consume tu memoria y te dará acceso inmediato a tu QR y botón de auxilio en cualquier emergencia.',
+                        side: 'top',
+                        align: 'center',
                     }
                 }
             ];

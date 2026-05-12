@@ -5,13 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Share2, Trophy, Gauge, Star, Info, Wallet } from 'lucide-react';
+import { Share2, Trophy, Gauge, Star, Info, Wallet, AlertTriangle } from 'lucide-react';
 import { getReferralData, ReferralData } from '@/lib/actions/referral-actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { GamificationRulesSheet } from './gamification-rules-sheet';
 import { cn } from '@/lib/utils';
 import { getAuthenticatedUser } from '@/lib/data'; // Importar para obtener el balance real
 import { User } from '@/lib/types';
+import Link from 'next/link';
 
 interface ReferralStatsCardProps {
     user?: User | null;
@@ -24,6 +25,9 @@ export function ReferralStatsCard({ user }: ReferralStatsCardProps) {
 
     // El balance disponible real en vivo
     const pointsBalance = user?.gamification?.pointsBalance || 0;
+    
+    // Verificar si el usuario tiene el perfil completo basándonos en si tiene estado/país
+    const isProfileComplete = !!(user?.country && user?.state);
 
     useEffect(() => {
         getReferralData().then((res) => {
@@ -165,18 +169,32 @@ export function ReferralStatsCard({ user }: ReferralStatsCardProps) {
                          </div>
                          
                          <div className="flex-1 w-full space-y-2">
-                            <Button onClick={handleShare} className="w-full gap-2 font-semibold bg-primary hover:bg-primary/90 text-white shadow-sm" size="sm">
-                                <Share2 className="h-4 w-4" />
-                                Invitar a mis amigos
-                            </Button>
-                            <p className="text-[10px] text-center text-muted-foreground px-2">
-                               <span className="font-mono select-all hover:text-primary transition-colors cursor-pointer truncate block w-full" onClick={() => {
-                                   const rewardPoints = data.referralPoints || 200;
-                                   const textToCopy = `¡Qué onda! Te conseguí una invitación para Biciregistro. Mi bici ya tiene su Identidad Digital y fue ¡gratis!. Si registras tu bici con este link, a los dos nos regalan ${rewardPoints} B-coins para canjear por equipo, servicios o café en tiendas ciclistas. 🚴‍♂️⚡\n\nTardas 30 segundos, protege la tuya aquí 👉: ${data.shareUrl}`;
-                                   navigator.clipboard.writeText(textToCopy);
-                                   toast({ title: "Copiado", description: "Enlace copiado." });
-                               }}>{data.shareUrl}</span>
-                            </p>
+                             {/* Condición de Perfil Completo para compartir en Desktop */}
+                            {!isProfileComplete ? (
+                                <div className="text-center">
+                                    <p className="text-[11px] text-amber-600 font-medium mb-2 flex items-center justify-center gap-1">
+                                        <AlertTriangle className="h-3 w-3" /> Perfil incompleto
+                                    </p>
+                                    <Button asChild className="w-full gap-2 font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-sm" size="sm">
+                                        <Link href="/dashboard/profile">Completar para invitar</Link>
+                                    </Button>
+                                </div>
+                            ) : (
+                                <>
+                                    <Button onClick={handleShare} className="w-full gap-2 font-semibold bg-primary hover:bg-primary/90 text-white shadow-sm" size="sm">
+                                        <Share2 className="h-4 w-4" />
+                                        Invitar a mis amigos
+                                    </Button>
+                                    <p className="text-[10px] text-center text-muted-foreground px-2">
+                                    <span className="font-mono select-all hover:text-primary transition-colors cursor-pointer truncate block w-full" onClick={() => {
+                                        const rewardPoints = data.referralPoints || 200;
+                                        const textToCopy = `¡Qué onda! Te conseguí una invitación para Biciregistro. Mi bici ya tiene su Identidad Digital y fue ¡gratis!. Si registras tu bici con este link, a los dos nos regalan ${rewardPoints} B-coins para canjear por equipo, servicios o café en tiendas ciclistas. 🚴‍♂️⚡\n\nTardas 30 segundos, protege la tuya aquí 👉: ${data.shareUrl}`;
+                                        navigator.clipboard.writeText(textToCopy);
+                                        toast({ title: "Copiado", description: "Enlace copiado." });
+                                    }}>{data.shareUrl}</span>
+                                    </p>
+                                </>
+                            )}
                          </div>
                     </div>
                 </div>

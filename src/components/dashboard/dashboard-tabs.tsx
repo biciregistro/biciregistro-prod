@@ -179,6 +179,13 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
     };
 
     const handleShare = async () => {
+        // Redirigir al perfil si está incompleto (sigue la lógica del botón grande del admin original si se deseaba bloquear la función)
+        if (!isProfileComplete) {
+            router.push('/dashboard/profile');
+            toast({ title: "Perfil Incompleto", description: "Completa tu perfil para desbloquear tu enlace de invitaciones.", variant: "destructive"});
+            return;
+        }
+
         if (!referralData) return;
         const rewardPoints = referralData.referralPoints || 200; // Valor dinámico
         const shareText = `¡Qué onda! Te conseguí una invitación para Biciregistro. Mi bici ya tiene su Identidad Digital y fue ¡gratis!. Si registras tu bici con este link, a los dos nos regalan ${rewardPoints} B-coins para canjear por equipo, servicios o café en tiendas ciclistas. 🚴‍♂️⚡\n\nTardas 30 segundos, protege la tuya aquí 👉: ${referralData.shareUrl}`;
@@ -205,7 +212,6 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
     });
 
     const pointsBalance = user.gamification?.pointsBalance || 0;
-    const isRewardsLocked = bikes.length === 0 || !isProfileComplete;
     
     // Logic to categorize rewards
     const { myPurchases, giveaways, regularRewards, combinedList } = useMemo(() => {
@@ -294,31 +300,18 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                     <PromotionalBanner userCountry={user.country} userState={user.state} />
                 </div>
 
-                {!isProfileComplete ? (
-                    <div className="flex flex-col items-center justify-center py-12 px-6 text-center border-2 border-amber-200 rounded-2xl bg-amber-50 shadow-sm max-w-2xl mx-auto my-8 animate-in fade-in zoom-in duration-500">
-                        <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-6 ring-8 ring-amber-50">
-                            <UserCircle className="h-10 w-10 text-amber-600" />
-                        </div>
-                        <h3 className="text-2xl font-black text-amber-900 tracking-tight mb-3">Perfil Incompleto</h3>
-                        <p className="text-amber-800 font-medium max-w-sm mb-8 leading-relaxed">
-                            Completa tu perfil para poder ver o registrar tus bicicletas en el Garaje Digital.
-                        </p>
-                        <Button asChild size="lg" className="w-full sm:w-auto font-bold px-10 h-14 text-lg bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-200 transition-all hover:scale-105">
-                            <Link href="/dashboard/profile">Completar Perfil Ahora</Link>
-                        </Button>
-                        <div className="mt-8 flex items-center gap-2 text-amber-700/60 font-bold text-[10px] uppercase tracking-widest">
-                            <AlertTriangle className="h-3 w-3" /> Acción Requerida
-                        </div>
-                    </div>
-                ) : bikes.length === 0 ? (
+                {bikes.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-muted/30">
                         <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-6">
                             <PlusCircle className="h-10 w-10 text-primary" />
                         </div>
                         <h3 className="text-2xl font-bold tracking-tight mb-2">No tienes bicicletas registradas</h3>
-                        <p className="text-muted-foreground max-w-sm mb-8">
-                            Crea el ADN Digital de tu bicicleta para protegerla.
+                        <p className="text-muted-foreground max-w-sm mb-4">
+                            Crea el ADN Digital de tu bicicleta para protegerla. 
                         </p>
+                        <div className="bg-amber-100 text-amber-800 text-sm font-bold px-4 py-2 rounded-full mb-8 flex items-center gap-2">
+                            <Coins className="h-4 w-4" /> ¡Gana cientos de B-Coins gratis por cada bici que registres!
+                        </div>
                         <Button asChild size="lg" className="w-full sm:w-auto font-semibold">
                             <Link href="/dashboard/register">Registrar Bici Ahora</Link>
                         </Button>
@@ -348,17 +341,14 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                                 )}
                             </div>
                         ))}
-                        <div id="tour-main-action" className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-40">
-                             {isProfileComplete ? (
-                                <Button asChild className="h-12 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-white font-bold px-6">
-                                    <Link href="/dashboard/register" className="flex items-center gap-2"><PlusCircle className="h-5 w-5" /><span>Agregar Bici</span></Link>
-                                </Button>
-                             ) : (
-                                <Button disabled className="h-12 rounded-full shadow-xl opacity-50 font-bold px-6 flex items-center gap-2"><PlusCircle className="h-5 w-5" /><span>Agregar Bici</span></Button>
-                             )}
-                        </div>
                     </div>
                 )}
+                
+                <div id="tour-main-action" className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-40">
+                    <Button asChild className="h-12 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-white font-bold px-6">
+                        <Link href="/dashboard/register" className="flex items-center gap-2"><PlusCircle className="h-5 w-5" /><span>Agregar Bici</span></Link>
+                    </Button>
+                </div>
             </TabsContent>
             
             <TabsContent value="events" className="space-y-4">
@@ -672,124 +662,98 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                     <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-48 h-48 bg-emerald-300 opacity-10 rounded-full blur-2xl"></div>
                 </div>
 
-                {isRewardsLocked ? (
-                    <div className="flex flex-col items-center justify-center py-16 px-6 text-center border-2 border-slate-200 rounded-2xl bg-slate-50 shadow-sm max-w-2xl mx-auto my-8">
-                        <div className="w-20 h-20 bg-slate-200 rounded-full flex items-center justify-center mb-6">
-                            <Lock className="h-10 w-10 text-slate-500" />
-                        </div>
-                        <h3 className="text-2xl font-bold text-slate-800 tracking-tight mb-3">Beneficios Bloqueados</h3>
-                        <p className="text-slate-600 font-medium max-w-md mb-8 leading-relaxed">
-                            Las recompensas son exclusivas para ciclistas activos. Para acceder al catálogo, necesitas completar tu perfil y registrar al menos una bicicleta en el garaje.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                            {!isProfileComplete && (
-                                <Button asChild size="lg" className="w-full sm:w-auto">
-                                    <Link href="/dashboard/profile">Completar Perfil</Link>
-                                </Button>
-                            )}
-                            {bikes.length === 0 && (
-                                <Button asChild size="lg" className="w-full sm:w-auto" variant={isProfileComplete ? "default" : "outline"}>
-                                    <Link href="/dashboard/register">Registrar una Bici</Link>
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    <>
-                        {/* HYBRID HERO SECTION: Horizontal Scroll on Mobile, Flex Row on Desktop */}
-                        <div ref={heroSliderRef} className="mb-6 flex flex-row gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 md:overflow-visible md:snap-none items-stretch">
-                            {isStravaEnabled && (
-                                <div className="w-[85vw] max-w-[350px] md:max-w-none md:w-auto md:flex-1 shrink-0 snap-center md:snap-none h-auto">
-                                    <StravaSyncCard 
-                                        stravaData={user.gamification?.strava} 
-                                        onSync={async () => { 
-                                            const { syncStravaActivities } = await import("@/lib/actions/strava-actions");
-                                            return await syncStravaActivities();
-                                        }} 
-                                    />
-                                </div>
-                            )}
-                            
-                            {isProfileComplete && (
-                                <div className="w-[85vw] max-w-[350px] md:max-w-none md:w-auto md:flex-1 shrink-0 snap-center md:snap-none h-auto">
-                                    <ReferralStatsCard user={user} />
-                                </div>
-                            )}
-                            
-                            {/* Mobile Spacer for the end of the scroll lane */}
-                            <div className="w-4 shrink-0 md:hidden" aria-hidden="true" />
-                        </div>
-
-                        {/* DESKTOP VIEW: Unified Grid */}
-                        <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {combinedList.length === 0 ? (
-                                <div className="col-span-full py-12 text-center border-2 border-dashed rounded-xl bg-muted/30">
-                                     <p className="text-muted-foreground">Próximamente más beneficios.</p>
-                                </div>
-                            ) : (
-                                combinedList.map((campaign) => (
-                                    <RewardCard key={campaign.id} campaign={campaign} userPoints={pointsBalance} userPurchases={userPurchases} />
-                                ))
-                            )}
-                        </div>
-
-                        {/* MOBILE VIEW: Horizontal Lanes & Vertical Regular Rewards */}
-                        <div className="md:hidden flex flex-col space-y-8">
-                            {combinedList.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-muted/30">
-                                    <Gift className="h-10 w-10 text-primary mb-4" />
-                                    <h3 className="text-xl font-bold mb-2">Próximamente más beneficios</h3>
-                                    <p className="text-muted-foreground text-sm">Sigue acumulando B-coins para canjearlos en el futuro.</p>
-                                </div>
-                            ) : (
-                                <>
-                                    <MobileRewardLane 
-                                        title="Mis Beneficios Adquiridos" 
-                                        items={myPurchases} 
-                                        userPoints={pointsBalance} 
-                                        userPurchases={userPurchases}
-                                        emptyMessage="Aún no tienes beneficios, adquiere uno deslizando abajo."
-                                    />
-                                    
-                                    <MobileRewardLane 
-                                        title="Sorteos (Giveaways)" 
-                                        items={giveaways} 
-                                        userPoints={pointsBalance} 
-                                        userPurchases={userPurchases}
-                                    />
-
-                                    {/* VERTICAL SECTION: Regular Rewards */}
-                                    {regularRewards.length > 0 && (
-                                        <div className="space-y-4">
-                                            <div className="px-1">
-                                                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Recompensas Disponibles</h3>
-                                            </div>
-                                            <div className="grid grid-cols-1 gap-4">
-                                                {regularRewards.map((campaign) => (
-                                                    <div key={campaign.id} className="h-full">
-                                                        <RewardCard 
-                                                            campaign={campaign} 
-                                                            userPoints={pointsBalance} 
-                                                            userPurchases={userPurchases} 
-                                                        />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-
-                        {isProfileComplete && (
-                            <div id="tour-main-action" className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-40">
-                                <Button onClick={handleShare} className="h-12 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-white font-bold px-6 flex items-center gap-2">
-                                    <Coins className="h-5 w-5" /><span>Ganar {referralData?.referralPoints || 200} B-coins</span>
-                                </Button>
+                <>
+                    {/* HYBRID HERO SECTION: Horizontal Scroll on Mobile, Flex Row on Desktop */}
+                    <div ref={heroSliderRef} className="mb-6 flex flex-row gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 -mx-4 px-4 md:mx-0 md:px-0 md:pb-0 md:overflow-visible md:snap-none items-stretch">
+                        {isStravaEnabled && (
+                            <div className="w-[85vw] max-w-[350px] md:max-w-none md:w-auto md:flex-1 shrink-0 snap-center md:snap-none h-auto">
+                                <StravaSyncCard 
+                                    stravaData={user.gamification?.strava} 
+                                    onSync={async () => { 
+                                        const { syncStravaActivities } = await import("@/lib/actions/strava-actions");
+                                        return await syncStravaActivities();
+                                    }} 
+                                />
                             </div>
                         )}
-                    </>
-                )}
+                        
+                        {/* Modified: Muestra la tarjeta siempre. La propia tarjeta maneja el estado de bloqueo si no hay perfil. */}
+                        <div className="w-[85vw] max-w-[350px] md:max-w-none md:w-auto md:flex-1 shrink-0 snap-center md:snap-none h-auto">
+                            <ReferralStatsCard user={user} />
+                        </div>
+                        
+                        {/* Mobile Spacer for the end of the scroll lane */}
+                        <div className="w-4 shrink-0 md:hidden" aria-hidden="true" />
+                    </div>
+
+                    {/* DESKTOP VIEW: Unified Grid */}
+                    <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {combinedList.length === 0 ? (
+                            <div className="col-span-full py-12 text-center border-2 border-dashed rounded-xl bg-muted/30">
+                                 <p className="text-muted-foreground">Próximamente más beneficios.</p>
+                            </div>
+                        ) : (
+                            combinedList.map((campaign) => (
+                                <RewardCard key={campaign.id} campaign={campaign} userPoints={pointsBalance} userPurchases={userPurchases} />
+                            ))
+                        )}
+                    </div>
+
+                    {/* MOBILE VIEW: Horizontal Lanes & Vertical Regular Rewards */}
+                    <div className="md:hidden flex flex-col space-y-8">
+                        {combinedList.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-muted/30">
+                                <Gift className="h-10 w-10 text-primary mb-4" />
+                                <h3 className="text-xl font-bold mb-2">Próximamente más beneficios</h3>
+                                <p className="text-muted-foreground text-sm">Sigue acumulando B-coins para canjearlos en el futuro.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <MobileRewardLane 
+                                    title="Mis Beneficios Adquiridos" 
+                                    items={myPurchases} 
+                                    userPoints={pointsBalance} 
+                                    userPurchases={userPurchases}
+                                    emptyMessage="Aún no tienes beneficios, adquiere uno deslizando abajo."
+                                />
+                                
+                                <MobileRewardLane 
+                                    title="Sorteos (Giveaways)" 
+                                    items={giveaways} 
+                                    userPoints={pointsBalance} 
+                                    userPurchases={userPurchases}
+                                />
+
+                                {/* VERTICAL SECTION: Regular Rewards */}
+                                {regularRewards.length > 0 && (
+                                    <div className="space-y-4">
+                                        <div className="px-1">
+                                            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Recompensas Disponibles</h3>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-4">
+                                            {regularRewards.map((campaign) => (
+                                                <div key={campaign.id} className="h-full">
+                                                    <RewardCard 
+                                                        campaign={campaign} 
+                                                        userPoints={pointsBalance} 
+                                                        userPurchases={userPurchases} 
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+
+                    {/* BOTÓN FLOTANTE PARA REFERIDOS - Mostrar siempre */}
+                    <div id="tour-main-action" className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-40">
+                        <Button onClick={handleShare} className="h-12 rounded-full shadow-xl bg-primary hover:bg-primary/90 text-white font-bold px-6 flex items-center gap-2">
+                            <Coins className="h-5 w-5" /><span>Ganar {referralData?.referralPoints || 200} B-coins</span>
+                        </Button>
+                    </div>
+                </>
             </TabsContent>
             
             {/* INYECTAMOS EL ONBOARDING AQUI CONDICIONALMENTE */}
