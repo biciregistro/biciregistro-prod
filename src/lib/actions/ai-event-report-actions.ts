@@ -97,7 +97,7 @@ export async function generateEventSponsorReport(eventData: any, eventName: stri
             .replace('{{TOTAL_ASSET_VALUE}}', cleanData.activos.valorTotalMXN);
 
         const response = await ai.generate({
-            model: 'googleai/gemini-3.1-flash-lite-preview',
+            model: 'googleai/gemini-3.1-flash-lite',
             prompt: prompt,
             config: {
                 temperature: 0.5,

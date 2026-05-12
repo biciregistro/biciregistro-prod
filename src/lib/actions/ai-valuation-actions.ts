@@ -12,12 +12,12 @@ import { awardPoints } from '@/lib/actions/gamification-actions';
 import { z } from 'zod';
 
 const ValuationOutputSchema = z.object({
-    actualManufacturer: z.string().describe("PASO 1: IGNORA LA MARCA DEL USUARIO. Usa tu conocimiento ciclista: ¿Qué empresa (fabricante real en la vida real) creó el modelo ingresado? (Ej. Si el modelo es 'Fuel EX', el fabricante real es SÓLO 'Trek')."),
-    isBrandMatch: z.boolean().describe("PASO 2: ¿La marca seleccionada por el usuario es la misma que 'actualManufacturer'? (True/False)"),
-    status: z.enum(['valid', 'mismatch', 'fake']).describe("PASO 3: Si isBrandMatch es FALSE, OBLIGATORIAMENTE debes elegir 'mismatch'. Si el modelo es un objeto que no es bici, elige 'fake'. Solo si isBrandMatch es TRUE, elige 'valid'."),
-    message: z.string().describe("PASO 4: Mensaje para el usuario. Si es 'mismatch', usa 'actualManufacturer' para corregirlo: 'Oye, ese modelo es de [actualManufacturer], no de [Marca Usuario].'. Si es 'valid', pon 'Ok'."),
-    searchQueryUsed: z.string().describe("Consulta de búsqueda sugerida. Si no es válida, pon 'N/A'."),
-    msrpEstimation: z.number().int().describe("Estimación del precio de lista original (nueva) en MXN. Cero si no es válida."),
+    actualManufacturer: z.string().describe("PASO 1: IGNORA LA MARCA DEL USUARIO al inicio. Usa tu conocimiento ciclista: ¿Qué empresa (fabricante real) creó el modelo ingresado? (Ej. Si el modelo es 'Fuel EX', el fabricante es 'Trek'). Si el modelo es desconocido, pero suena a bicicleta, usa la marca del usuario."),
+    isBrandMatch: z.boolean().describe("PASO 2: ¿La marca seleccionada por el usuario coincide con 'actualManufacturer'? (Si el usuario seleccionó 'Otra', asume que SIEMPRE es TRUE)."),
+    status: z.enum(['valid', 'mismatch', 'fake']).describe("PASO 3: Solo usa 'fake' si es claramente un auto, moto u objeto extraño. Si isBrandMatch es TRUE, usa 'valid'. Si isBrandMatch es FALSE, evalúa: si la marca es famosa mundialmente y hay un error evidente (ej. usuario dice Trek pero es una Specialized), usa 'mismatch'. PERO si es una marca local, genérica, departamental o desconocida para ti, asume que el usuario tiene razón y usa 'valid'."),
+    message: z.string().describe("PASO 4: Mensaje para el usuario. Si status es 'mismatch', corrige de forma amable: 'Oye, ese modelo parece ser de [actualManufacturer], no de [Marca Usuario].'. Si es 'valid', pon 'Ok'."),
+    searchQueryUsed: z.string().describe("Consulta de búsqueda sugerida para repuestos o referencias. Si no es válida, pon 'N/A'."),
+    msrpEstimation: z.number().int().describe("Estimación del precio de lista original (nueva) en MXN. Si es una marca genérica, asume un precio base económico."),
     reasoning: z.string().describe("Breve razonamiento. Si es válida, explica la depreciación. Si es inválida, explica el error."),
     minPrice: z.number().int().describe("Valor mínimo de reventa estimado en MXN. Cero si no es válida."),
     maxPrice: z.number().int().describe("Valor máximo de reventa estimado en MXN. Cero si no es válida.")
@@ -37,26 +37,32 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
             const ageInYears = Math.max(0, currentYear - bikeYear);
 
             const prompt = `
-            Eres un AUDITOR DE DATOS ESTRICTO y Tasador de Bicicletas para la plataforma "BiciRegistro" en México. 
-            Tu primer y más importante deber es verificar que los datos ingresados por el usuario no sean un error, un engaño, o una combinación falsa. ASUME SIEMPRE que el usuario se ha equivocado de marca y DEBES refutarlo si es así.
-            
+            Eres un Tasador de Bicicletas Inteligente y Comprensivo para la plataforma "BiciRegistro" en México.
+            Tu deber principal es ofrecer una cotización de mercado justa, evitando rechazos innecesarios.
+
             Datos ingresados por el usuario:
-            - Marca seleccionada: ${brand}
-            - Modelo ingresado: ${model}
+            - Marca seleccionada: "${brand}"
+            - Modelo ingresado: "${model}"
             - Año Modelo: ${year} (Antigüedad: ${ageInYears} años)
 
-            TABLA DE VERDADES ABSOLUTAS (PROHIBIDO CONTRADECIR):
-            - Los modelos "Talon" (ej. Talon 1, Talon 2, Talon 3, Talon 4) son fabricados EXCLUSIVAMENTE por "Giant". NUNCA por Trek, Specialized o Merida.
-            - Los modelos "Marlin" (ej. Marlin 4, Marlin 5, Marlin 6, Marlin 7, Marlin 8) son fabricados EXCLUSIVAMENTE por "Trek". NUNCA por Giant o Specialized.
-            - Los modelos "Rockhopper", "Stumpjumper", "Epic", "Chisel" son fabricados EXCLUSIVAMENTE por "Specialized".
-            - Los modelos "XTC", "Trance", "Anthem", "Fathom" son fabricados EXCLUSIVAMENTE por "Giant".
-            - Los modelos "Fuel EX", "Supercaliber", "Procaliber", "Roscoe", "Slash" son fabricados EXCLUSIVAMENTE por "Trek".
+            TABLA DE VERDADES ABSOLUTAS (SOLO APLICA PARA MARCAS PREMIUM GLOBALES):
+            - Los modelos "Talon" son fabricados EXCLUSIVAMENTE por "Giant".
+            - Los modelos "Marlin" son fabricados EXCLUSIVAMENTE por "Trek".
+            - Los modelos "Rockhopper", "Stumpjumper", "Epic" son de "Specialized".
+            - Los modelos "XTC", "Trance", "Anthem" son de "Giant".
+            - Los modelos "Fuel EX", "Supercaliber", "Procaliber", "Slash" son de "Trek".
+            Si el usuario ingresa un modelo de esta lista bajo una marca equivocada (ej. Marca: Alubike, Modelo: Marlin), DEBES usar 'mismatch'.
 
-            PROCESO OBLIGATORIO:
-            1. Aísla el Modelo: "${model}".
-            2. Revisa la TABLA DE VERDADES ABSOLUTAS y tu propio conocimiento interno. ¿Quién fabrica realmente la "${model}" en la vida real? Llénalo en 'actualManufacturer'.
-            3. Compara: ¿La marca real es igual a la marca del usuario ("${brand}")? Llénalo en 'isBrandMatch'. (Si el usuario puso Trek y el modelo es Talon 3, la marca real es Giant, por ende isBrandMatch DEBE SER FALSE).
-            4. Si no coinciden, aborta la valuación. Tu 'status' debe ser 'mismatch'.
+            REGLA DE EXCEPCIÓN "OTRA":
+            Si la marca seleccionada es la palabra exacta "Otra", "Otras" o similar, NO HAY CONFLICTO DE MARCA. 
+            El usuario sabe que su marca no está en el catálogo.
+            Acción Obligatoria: isBrandMatch = TRUE y status = 'valid'. El 'actualManufacturer' debe ser la marca que dedujiste a partir del modelo.
+
+            REGLA DE TOLERANCIA PARA MARCAS LOCALES O DESCONOCIDAS:
+            El mercado mexicano tiene cientas de marcas locales, departamentales o de importación directa (ej. Monk, Zigna, Veloci, Mercurio, Turbo, Gospel, Alubike, Benotto, Magistroni, etc.).
+            Si no reconoces el modelo con total certeza, CONFÍA EN EL USUARIO. 
+            No uses 'mismatch' por desconocimiento. Asume isBrandMatch = TRUE y status = 'valid'. 
+            Procede a estimar el valor basándote en que probablemente sea una bicicleta de gama de entrada/media.
 
             VALUACIÓN (SÓLO SI ES 'valid'):
             - Estima el MSRP original en MXN.
@@ -73,7 +79,7 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
             });
 
             const response = await ai.generate({
-                model: 'googleai/gemini-3.1-flash-lite-preview', // <-- EL CAMBIO CLAVE
+                model: 'googleai/gemini-3.1-flash-lite',
                 prompt: prompt,
                 output: { schema: ValuationOutputSchema },
                 config: {
@@ -89,7 +95,7 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
             }
 
             // Interceptamos los rechazos
-            if (valuationData.status === 'fake' || valuationData.status === 'mismatch' || !valuationData.isBrandMatch) {
+            if (valuationData.status === 'fake' || valuationData.status === 'mismatch' || (!valuationData.isBrandMatch && brand.toLowerCase() !== 'otra')) {
                 console.log(`[AI VALUATION REJECTED] Marca Usuario: ${brand}, Modelo: ${model}`);
                 console.log(`[AI VALUATION REJECTED] Fabricante Real Detectado: ${valuationData.actualManufacturer}`);
                 console.log(`[AI VALUATION REJECTED] Motivo: ${valuationData.status}, Mensaje: ${valuationData.message}`);

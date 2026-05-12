@@ -77,7 +77,7 @@ export async function generateExecutiveSummary(dashboardData: any, filterContext
             .replace('{{DATA}}', JSON.stringify(cleanData));
 
         const response = await ai.generate({
-            model: 'googleai/gemini-3.1-flash-lite-preview',
+            model: 'googleai/gemini-3.1-flash-lite',
             prompt: prompt,
             config: {
                 temperature: 0.4,
@@ -110,7 +110,7 @@ export async function generateMarketingSummary(dashboardData: any, filterContext
             .replace('{{DATA}}', JSON.stringify(cleanData));
 
         const response = await ai.generate({
-            model: 'googleai/gemini-3.1-flash-lite-preview',
+            model: 'googleai/gemini-3.1-flash-lite',
             prompt: prompt,
             config: {
                 temperature: 0.6, // Un poco más creativo para marketing
