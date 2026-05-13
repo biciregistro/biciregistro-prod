@@ -355,7 +355,7 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
             >
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                 <span className="flex items-center justify-center relative z-10">
-                    Cotizar mi Bici con Sprock IA <Zap className="w-5 h-5 ml-2 fill-current animate-pulse text-yellow-300" />
+                    Valuar y Registrar mi bici <Zap className="w-5 h-5 ml-2 fill-current animate-pulse text-yellow-300" />
                 </span>
             </Button>
             
