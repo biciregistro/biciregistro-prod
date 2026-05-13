@@ -273,3 +273,180 @@ export async function exportUniqueBikesCatalogAction() {
         return { success: false, error: 'Error del servidor al generar el catálogo: ' + error.message };
     }
 }
+
+// --- GENERACIÓN DEL LIBRO AZUL ---
+const normalizeBrand = (text: string | undefined): string => {
+    if (!text) return 'UNKNOWN';
+    return text.toLowerCase().trim().replace(/[-\s]+/g, '_').replace(/[^a-z0-9_]/g, '');
+};
+
+// Limpieza agresiva de modelos usando Regex para remover basura del usuario
+const normalizeModel = (modelRaw: string | undefined, brandRaw?: string): string => {
+    if (!modelRaw) return 'UNKNOWN';
+    
+    let cleanModel = modelRaw.toLowerCase().trim();
+
+    // 1. Quitar la marca si el usuario la repitió adentro del modelo (ej: "Benotto HK3" -> "HK3")
+    if (brandRaw) {
+        const brandLower = brandRaw.toLowerCase().trim();
+        cleanModel = cleanModel.replace(new RegExp(`\\b${brandLower}\\b`, 'g'), '');
+    }
+
+    // 2. Diccionario de "Stop Words" Ciclistas (Materiales, Colores, Tallas, Componentes)
+    const stopWords = [
+        // Materiales
+        'aluminio', 'carbono', 'carbon', 'alloy', 'fibra', 'acero',
+        // Tallas y Ruedas
+        'r29', 'r27.5', 'r26', 'r700', '29er', '29"', '27.5"', 'rodada', 'rin',
+        'talla', 'chica', 'mediana', 'grande', 'small', 'medium', 'large',
+        // Componentes Generales
+        'frenos', 'disco', 'hidraulicos', 'mecanicos', 'suspension', 'horquilla',
+        'shimano', 'sram', 'deore', 'xt', 'slx', 'altus', 'tourney', 'sx', 'nx', 'gx', 'fox', 'rockshox',
+        // Transmisiones
+        '1x10', '1x11', '1x12', '2x10', '3x8', '21v', '24v', 'vel', 'velocidades',
+        // Estados y Colores
+        'nueva', 'usada', 'seminueva', 'roja', 'rojo', 'azul', 'negro', 'negra', 'verde', 'blanco', 'blanca', 'gris', 'mate'
+    ];
+
+    // Remover Stop Words usando boundaries \b para no cortar palabras a la mitad
+    stopWords.forEach(word => {
+        cleanModel = cleanModel.replace(new RegExp(`\\b${word}\\b`, 'g'), '');
+    });
+
+    // 3. Quitar años sueltos si el usuario los puso en el modelo (ej. "Marlin 6 2022")
+    cleanModel = cleanModel.replace(/\b20[0-2][0-9]\b/g, ''); 
+
+    // 4. Normalización final: Juntar todo y quitar espacios/simbolos (ej: "fuel ex 7" -> "fuelex7")
+    return cleanModel.replace(/[^a-z0-9]/g, '');
+};
+
+export async function generateBlueBookAction(isDryRun: boolean = true) {
+    const session = await getDecodedSession();
+    
+    if (!session?.uid) {
+        return { success: false, message: 'No autorizado: Debes iniciar sesión.' };
+    }
+
+    const db = adminDb;
+
+    try {
+        const userDoc = await db.collection('users').doc(session.uid).get();
+        if (!userDoc.exists || userDoc.data()?.role !== 'admin') {
+            return { success: false, message: 'No autorizado: Solo administradores pueden generar el Libro Azul.' };
+        }
+
+        console.log(`[BlueBook] Iniciando generación solicitada por admin: ${session.uid} (DryRun: ${isDryRun})`);
+
+        const bikesRef = db.collection('bikes');
+        
+        // Obtenemos solo bicicletas con valor declarado, trayendo lo mínimo necesario
+        const snapshot = await bikesRef.where('appraisedValue', '>', 0).select('make', 'model', 'modelYear', 'appraisedValue').get();
+        
+        if (snapshot.empty) {
+            return { success: true, message: 'No se encontraron bicicletas con valor declarado para procesar.' };
+        }
+
+        const valuationMap = new Map<string, {
+            displayBrand: string;
+            displayModel: string;
+            year: string;
+            values: number[];
+        }>();
+
+        snapshot.forEach(doc => {
+            const bike = doc.data();
+            
+            if (!bike.make || !bike.model || !bike.modelYear) return;
+
+            const normBrand = normalizeBrand(bike.make);
+            const normModel = normalizeModel(bike.model, bike.make);
+            const yearKey = bike.modelYear.toString();
+            
+            const compoundKey = `${normBrand}_${normModel}_${yearKey}`;
+
+            if (!valuationMap.has(compoundKey)) {
+                valuationMap.set(compoundKey, {
+                    displayBrand: bike.make,
+                    displayModel: bike.model, 
+                    year: yearKey,
+                    values: []
+                });
+            }
+
+            const val = Number(bike.appraisedValue);
+            if (!isNaN(val) && val > 0) {
+                valuationMap.get(compoundKey)!.values.push(val);
+            }
+        });
+
+        let batch = db.batch();
+        let opsCount = 0;
+        let validModelsCount = 0;
+
+        for (const [key, data] of valuationMap.entries()) {
+            if (data.values.length < 2) continue; // Mínimo 2 registros para consenso estadístico
+
+            const sortedValues = data.values.sort((a, b) => a - b);
+            const sampleSize = sortedValues.length;
+
+            let min = sortedValues[0];
+            let max = sortedValues[sampleSize - 1];
+
+            // OUTLIER REMOVAL (Protección contra valores de broma)
+            let safeValues = sortedValues;
+            if (sampleSize >= 4) {
+                const chopCount = Math.floor(sampleSize * 0.25);
+                safeValues = sortedValues.slice(chopCount, sampleSize - chopCount);
+                min = safeValues[0];
+                max = safeValues[safeValues.length - 1];
+            }
+            
+            const sum = safeValues.reduce((a, b) => a + b, 0);
+            const average = Math.round(sum / safeValues.length);
+
+            const docRef = db.collection('blue-book-valuations').doc(key);
+            
+            const payload = {
+                brandId: normalizeBrand(data.displayBrand),
+                modelId: normalizeModel(data.displayModel, data.displayBrand),
+                displayBrand: data.displayBrand,
+                displayModel: data.displayModel,
+                year: data.year,
+                stats: {
+                    sampleSize,
+                    safeSampleSize: safeValues.length,
+                    averageValue: average,
+                    minValue: min,
+                    maxValue: max
+                },
+                lastUpdated: new Date().toISOString()
+            };
+
+            if (!isDryRun) {
+                batch.set(docRef, payload);
+                opsCount++;
+
+                if (opsCount >= 450) {
+                    await batch.commit();
+                    batch = db.batch();
+                    opsCount = 0;
+                }
+            }
+            validModelsCount++;
+        }
+
+        if (!isDryRun && opsCount > 0) {
+            await batch.commit();
+        }
+
+        const modeMsg = isDryRun ? '[PRUEBA]' : '';
+        return { 
+            success: true, 
+            message: `${modeMsg} Libro Azul generado con éxito. Se analizaron ${snapshot.size} bicicletas y se calcularon promedios para ${validModelsCount} modelos con consenso.`
+        };
+
+    } catch (error: any) {
+        console.error("Blue Book Generation Error:", error);
+        return { success: false, message: 'Error del servidor al generar el Libro Azul: ' + error.message };
+    }
+}

@@ -6,11 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Zap, ShieldCheck, Bike as BikeIcon, Search, Calendar, Tag, Sparkles, ShieldAlert, TrendingUp } from 'lucide-react';
+import { Loader2, Zap, ShieldCheck, Bike as BikeIcon, Search, Calendar, Tag, Sparkles, ShieldAlert, TrendingUp, Users } from 'lucide-react';
 import { bikeBrands } from '@/lib/bike-brands';
 import { valuateBikeAction } from '@/lib/actions/ai-valuation-actions';
+import { getModelsByBrandAction } from '@/lib/actions';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: currentYear - 1980 + 1 }, (_, i) => currentYear - i);
@@ -26,21 +29,40 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
     const [brand, setBrand] = useState('');
     const [model, setModel] = useState('');
     const [year, setYear] = useState('');
-    const [priceRange, setPriceRange] = useState<{ min: number; max: number } | null>(null);
+    const [priceRange, setPriceRange] = useState<{ min: number; max: number, isRagBased?: boolean } | null>(null);
     const [loadingState, setLoadingState] = useState({
         text: 'Sprock está analizando el mercado actual...',
         progress: 10,
         icon: <Search className="w-5 h-5" />
     });
 
+    // Estado para el autocompletado
+    const [availableModels, setAvailableModels] = useState<string[]>([]);
+    const [isModelComboboxOpen, setIsModelComboboxOpen] = useState(false);
+    const [modelSearchQuery, setModelSearchQuery] = useState("");
+    const [isLoadingModels, setIsLoadingModels] = useState(false);
+
+    useEffect(() => {
+        if (brand && brand !== 'Otra') {
+            setIsLoadingModels(true);
+            setModel(''); // Resetear el modelo al cambiar de marca
+            getModelsByBrandAction(brand).then(models => {
+                setAvailableModels(models);
+                setIsLoadingModels(false);
+            });
+        } else {
+            setAvailableModels([]);
+        }
+    }, [brand]);
+
     // Simulador de Textos de Carga con mayor impacto visual
     useEffect(() => {
         let interval: NodeJS.Timeout;
         if (step === 'loading') {
             const sequence = [
-                { text: 'Iniciando conexión con Sprock IA...', progress: 15, icon: <Zap className="w-5 h-5 text-yellow-500" /> },
+                { text: 'Buscando en la base de datos de BiciRegistro...', progress: 15, icon: <Search className="w-5 h-5 text-blue-500" /> },
                 { text: 'Analizando congruencia de marca y modelo...', progress: 35, icon: <ShieldCheck className="w-5 h-5 text-primary" /> },
-                { text: 'Comparando precios de reventa en México...', progress: 60, icon: <TrendingUp className="w-5 h-5 text-primary" /> },
+                { text: 'Comparando precios de reventa reales...', progress: 60, icon: <TrendingUp className="w-5 h-5 text-primary" /> },
                 { text: 'Ajustando depreciación por el año...', progress: 85, icon: <Calendar className="w-5 h-5 text-orange-500" /> },
                 { text: '¡Valuación patrimonial lista!', progress: 100, icon: <Sparkles className="w-5 h-5 text-purple-500" /> }
             ];
@@ -70,7 +92,7 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
         const [result] = await Promise.all([resultPromise, minimumAnimationTime]);
 
         if (result.success && result.minPrice && result.maxPrice) {
-            setPriceRange({ min: result.minPrice, max: result.maxPrice });
+            setPriceRange({ min: result.minPrice, max: result.maxPrice, isRagBased: true });
             setStep('result');
         } else if (result.isInvalidInput) {
             toast({
@@ -142,8 +164,15 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
     if (step === 'result' && priceRange) {
         return (
             <div className="bg-background/95 backdrop-blur-md p-0 rounded-2xl max-w-xl mx-auto border border-primary/20 shadow-2xl animate-in fade-in zoom-in duration-700 overflow-hidden">
-                <div className="p-8 text-center bg-gradient-to-b from-primary/5 to-transparent">
-                    <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-full mb-4 ring-8 ring-primary/5">
+                <div className="p-8 text-center bg-gradient-to-b from-primary/5 to-transparent relative">
+                    
+                    {/* Sello de Confianza RAG */}
+                    <div className="absolute top-4 right-4 flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm">
+                        <Users className="w-3.5 h-3.5" />
+                        <span>Validado por la Comunidad</span>
+                    </div>
+
+                    <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-full mb-4 ring-8 ring-primary/5 mt-4">
                         <ShieldCheck className="w-8 h-8 text-primary" />
                     </div>
                     <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">Valuación Digital Finalizada</h3>
@@ -218,18 +247,81 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
                     </Select>
                 </div>
 
-                <div className="space-y-2 group">
+                <div className="space-y-2 group relative">
                     <Label htmlFor="model-input" className="text-foreground flex items-center gap-1.5 ml-1 font-medium">
                         <BikeIcon className="w-3.5 h-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                         Modelo
                     </Label>
-                    <Input 
-                        id="model-input"
-                        placeholder="Ej. Marlin 5" 
-                        value={model} 
-                        onChange={(e) => setModel(e.target.value)} 
-                        className="bg-background border-muted-foreground/20 focus-visible:ring-primary focus-visible:border-primary h-11"
-                    />
+                    
+                    {/* AUTOCOMPLETADO DE MODELO */}
+                    <Popover open={isModelComboboxOpen} onOpenChange={setIsModelComboboxOpen}>
+                        <PopoverTrigger asChild>
+                            <Button 
+                                variant="outline" 
+                                role="combobox" 
+                                aria-expanded={isModelComboboxOpen} 
+                                disabled={!brand || isLoadingModels}
+                                className={cn(
+                                    "w-full justify-start h-11 font-normal bg-background border-muted-foreground/20 hover:border-primary/50 transition-all",
+                                    !model && "text-muted-foreground",
+                                    (!brand || isLoadingModels) && "opacity-50 cursor-not-allowed"
+                                )}
+                            >
+                                {isLoadingModels ? (
+                                    <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Cargando modelos...</span>
+                                ) : model ? (
+                                    model
+                                ) : brand === 'Otra' ? (
+                                    "Escribe el modelo"
+                                ) : (
+                                    "Selecciona o escribe el modelo"
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                            <Command>
+                                <CommandInput 
+                                    placeholder="Buscar modelo..." 
+                                    onValueChange={setModelSearchQuery} 
+                                />
+                                <CommandList>
+                                    <CommandEmpty className="p-4 text-sm text-center">
+                                        No encontrado. 
+                                        <Button 
+                                            variant="link" 
+                                            className="px-1 h-auto font-bold text-primary"
+                                            onClick={() => {
+                                                setModel(modelSearchQuery);
+                                                setIsModelComboboxOpen(false);
+                                            }}
+                                        >
+                                            Usar "{modelSearchQuery}"
+                                        </Button>
+                                    </CommandEmpty>
+                                    <CommandGroup>
+                                        {availableModels.map((m) => (
+                                            <CommandItem
+                                                key={m}
+                                                value={m}
+                                                onSelect={(currentValue) => {
+                                                    // cmdk a veces devuelve el valor en minúsculas, usamos el original del array
+                                                    const originalCaseModel = availableModels.find(am => am.toLowerCase() === currentValue.toLowerCase()) || currentValue;
+                                                    setModel(originalCaseModel);
+                                                    setIsModelComboboxOpen(false);
+                                                }}
+                                            >
+                                                {m}
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
+
+                    <p className="text-[10px] text-muted-foreground mt-1 px-1">
+                        ⚠️ No incluyas talla, color, año o componentes.
+                    </p>
                 </div>
 
                 <div className="space-y-2 md:col-span-2 group">

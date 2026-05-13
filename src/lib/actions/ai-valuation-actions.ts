@@ -23,6 +23,12 @@ const ValuationOutputSchema = z.object({
     maxPrice: z.number().int().describe("Valor máximo de reventa estimado en MXN. Cero si no es válida.")
 });
 
+// Helper para normalizar búsquedas en el Libro Azul
+const normalizeTextForBlueBook = (text: string | undefined): string => {
+    if (!text) return 'UNKNOWN';
+    return text.toLowerCase().replace(/[^a-z0-9]/g, '');
+};
+
 // Nuevo Helper con Jitter
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
@@ -30,6 +36,64 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
     let retries = 3;
     let backoffTime = 1000; // Inicia con 1 segundo
 
+    // --- FASE 1: BÚSQUEDA EN EL "LIBRO AZUL" (RAG) ---
+    let blueBookContext = "";
+    let isRAG = false;
+    let blueBookMin = 0;
+    let blueBookMax = 0;
+
+    try {
+        const normBrand = normalizeTextForBlueBook(brand);
+        const normModel = normalizeTextForBlueBook(model);
+        const compoundKey = `${normBrand}_${normModel}_${year}`;
+        
+        console.log(`[RAG] Buscando en Libro Azul: ${compoundKey}`);
+        const bbDoc = await adminDb.collection('blue-book-valuations').doc(compoundKey).get();
+        
+        if (bbDoc.exists) {
+            const bbData = bbDoc.data();
+            if (bbData && bbData.stats && bbData.stats.sampleSize >= 2) {
+                
+                // --- CÁLCULO MATEMÁTICO DE DEPRECIACIÓN DETERMINISTA ---
+                const currentYear = new Date().getFullYear();
+                const bikeYear = parseInt(year, 10) || currentYear;
+                const ageInYears = Math.max(0, currentYear - bikeYear);
+                
+                let depreciationFactor = 1.0;
+                // Fórmula: -25% el primer año, -10% subsecuentes, tope de retención 25% (pérdida máx 75%)
+                if (ageInYears === 1) depreciationFactor = 0.75;
+                else if (ageInYears >= 2) depreciationFactor = Math.max(0.25, 0.75 - (0.10 * (ageInYears - 1)));
+
+                const originalAverage = bbData.stats.averageValue;
+                const originalMin = bbData.stats.minValue;
+                const originalMax = bbData.stats.maxValue;
+
+                isRAG = true;
+                // Depreciamos los rangos para el mercado de reventa actual
+                blueBookMin = Math.round(originalMin * depreciationFactor);
+                blueBookMax = Math.round(originalMax * depreciationFactor);
+                const depreciatedAverage = Math.round(originalAverage * depreciationFactor);
+                
+                blueBookContext = `
+                DATOS EXTREMADAMENTE IMPORTANTES (LIBRO AZUL DE BICIREGISTRO):
+                Tenemos ${bbData.stats.sampleSize} bicicletas de este modelo exacto (${brand} ${model} ${year}) registradas.
+                Los usuarios reportaron un precio de compra original promedio de $${originalAverage} MXN.
+                Aplicando la depreciación algorítmica por ${ageInYears} años de antigüedad (factor: ${depreciationFactor}), el mercado real dicta que:
+                - Rango Real de Reventa Actual: De $${blueBookMin} a $${blueBookMax} MXN.
+                
+                INSTRUCCIÓN CRÍTICA:
+                Debes usar ESTOS VALORES DE REVENTA ACTUAL ($${blueBookMin} a $${blueBookMax}) para 'minPrice' y 'maxPrice'.
+                En 'msrpEstimation' usa el valor original de $${originalAverage}.
+                En el 'reasoning', MENCIONA EXPLÍCITAMENTE al usuario que tu valuación está respaldada por los registros reales de la comunidad y explica brevemente la depreciación por los ${ageInYears} años.
+                `;
+                console.log(`[RAG] ¡Éxito! Contexto inyectado. MSRP: $${originalAverage}. Reventa Calc: $${depreciatedAverage}`);
+            }
+        }
+    } catch (e) {
+        console.error("[RAG] Error buscando en el Libro Azul:", e);
+    }
+
+    // --- FASE 2: LLAMADA A LA IA ---
     while (retries > 0) {
         try {
             const currentYear = new Date().getFullYear();
@@ -63,6 +127,8 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
             Si no reconoces el modelo con total certeza, CONFÍA EN EL USUARIO. 
             No uses 'mismatch' por desconocimiento. Asume isBrandMatch = TRUE y status = 'valid'. 
             Procede a estimar el valor basándote en que probablemente sea una bicicleta de gama de entrada/media.
+
+            ${blueBookContext}
 
             VALUACIÓN (SÓLO SI ES 'valid'):
             - Estima el MSRP original en MXN.
@@ -107,8 +173,25 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
             }
 
             // Sanitización final para casos válidos
-            let finalMin = Math.max(1000, valuationData.minPrice || 1000);
-            let finalMax = Math.max(finalMin + 500, valuationData.maxPrice || 1500);
+            let finalMin = valuationData.minPrice || 1000;
+            let finalMax = valuationData.maxPrice || 1500;
+            
+            // Si usamos RAG, aseguramos que la IA no se haya desviado locamente de la realidad
+            if (isRAG && blueBookMin > 0 && blueBookMax > 0) {
+                // Permitimos un 15% de desviación de la IA respecto al libro azul
+                const minAllowed = blueBookMin * 0.85;
+                const maxAllowed = blueBookMax * 1.15;
+                
+                if (finalMin < minAllowed || finalMax > maxAllowed) {
+                    console.log(`[RAG CORRECTION] Ajustando la alucinación de la IA a los valores depreciados del Libro Azul.`);
+                    finalMin = blueBookMin;
+                    finalMax = blueBookMax;
+                }
+            }
+
+            // Sanitización absoluta
+            finalMin = Math.max(1000, finalMin);
+            finalMax = Math.max(finalMin + 500, finalMax);
 
             console.log(`[AI VALUATION SUCCESS] ${brand} ${model} ${year}`);
             console.log(`[AI VALUATION] Fabricante Confirmado:`, valuationData.actualManufacturer);
@@ -127,25 +210,20 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
             const isRateLimit = error.message?.includes('429') || error.status === 'RESOURCE_EXHAUSTED' || error.code === 429;
             
             if (isRateLimit && retries > 1) {
-                // Generamos un "Jitter" aleatorio entre 0 y 700ms
                 const jitter = Math.floor(Math.random() * 700);
                 const finalDelay = backoffTime + jitter;
-
-                console.warn(`[AI VALUATION] Límite de cuota excedido (429). Reintentando en ${finalDelay}ms... (Intentos restantes: ${retries - 1})`);
-                
+                console.warn(`[AI VALUATION] Límite de cuota excedido (429). Reintentando en ${finalDelay}ms...`);
                 await delay(finalDelay);
-                
                 retries--;
-                backoffTime *= 2; // Backoff Exponencial puro para el siguiente ciclo
+                backoffTime *= 2; 
                 continue;
             }
-
             console.error("Valuation Error:", error);
-            return { success: false, isInvalidInput: false, message: "No pudimos conectar con Sprock IA en este momento. Revisa tu conexión a internet o intenta más tarde." };
+            return { success: false, isInvalidInput: false, message: "No pudimos conectar con Sprock IA en este momento." };
         }
     }
     
-    return { success: false, isInvalidInput: false, message: "Demasiada demanda en los servidores de IA. Intenta de nuevo en unos minutos." };
+    return { success: false, isInvalidInput: false, message: "Demasiada demanda en los servidores de IA." };
 }
 
 // Helper interno para subir imagen Base64 y obtener URL PÚBLICA con Token
@@ -153,30 +231,22 @@ async function uploadBase64Image(base64String: string, path: string) {
     try {
         const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
         if (!bucketName) {
-            console.error("Storage Bucket not configured: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET missing");
+            console.error("Storage Bucket not configured");
             throw new Error("Storage configuration error");
         }
-
         const bucket = getStorage().bucket(bucketName);
         const base64Data = base64String.replace(/^data:image\/\w+;base64,/, "");
         const buffer = Buffer.from(base64Data, 'base64');
         const file = bucket.file(path);
-        
         const token = crypto.randomUUID();
-
         await file.save(buffer, {
             metadata: {
                 contentType: 'image/jpeg',
-                metadata: {
-                    firebaseStorageDownloadTokens: token,
-                }
+                metadata: { firebaseStorageDownloadTokens: token }
             },
         });
-
         const encodedPath = encodeURIComponent(path);
-        const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${token}`;
-        
-        return publicUrl;
+        return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${token}`;
     } catch (error) {
         console.error("Upload Error:", error);
         return null;
@@ -187,31 +257,23 @@ async function uploadBase64Image(base64String: string, path: string) {
 async function getClientIp(): Promise<string | undefined> {
     const headerList = await headers();
     const forwardedFor = headerList.get('x-forwarded-for');
-    if (forwardedFor) {
-        return forwardedFor.split(',')[0].trim();
-    }
+    if (forwardedFor) return forwardedFor.split(',')[0].trim();
     return undefined;
 }
 
 export async function createExpressBikeAction(payload: any) {
     const session = await getDecodedSession();
-    if (!session?.uid) {
-        return { success: false, message: 'No estás autenticado. Por favor inicia sesión.' };
-    }
+    if (!session?.uid) return { success: false, message: 'Inicia sesión.' };
 
     try {
         const userId = session.uid;
         const photoUrls: string[] = [];
-
         if (payload.bikeImage) {
             const path = `bike-photos/${userId}/${Date.now()}_express.jpg`;
             const url = await uploadBase64Image(payload.bikeImage, path);
             if (url) photoUrls.push(url);
         }
-
         const ip = await getClientIp();
-
-        // OBTENER DATOS DEL USUARIO PARA DESNORMALIZACIÓN
         const owner = await getUser(userId);
         if (!owner) throw new Error("Owner not found");
 
@@ -223,9 +285,7 @@ export async function createExpressBikeAction(payload: any) {
             ownerCity: owner.city,
         };
 
-        // Generar serial temporal "zero-regression"
         const temporarySerial = `PENDING_${crypto.randomUUID()}`;
-
         const parsedValue = parseFloat(payload.value);
 
         const newBikeId = await addBike({
@@ -240,29 +300,22 @@ export async function createExpressBikeAction(payload: any) {
             ownershipProof: '',
             registrationIp: ip,
             photos: photoUrls,
-            ...denormalizedData, // INYECTAR
+            ...denormalizedData,
         });
 
-        // ACTUALIZAR EL GARAJE DEL USUARIO
         if (newBikeId) {
             const userRef = adminDb.collection('users').doc(userId);
             await userRef.update({
                 ownedBrands: FieldValue.arrayUnion(payload.brand),
                 ...(payload.type ? { ownedModalities: FieldValue.arrayUnion(payload.type) } : {})
             });
-        }
-
-        // GAMIFICACIÓN DINÁMICA
-        let pointsAwarded = 0;
-        if (newBikeId) {
             const pointsResult = await awardPoints(userId, 'bike_registration', { bikeId: newBikeId, method: 'express' });
-            pointsAwarded = pointsResult?.points || 0;
+            return { success: true, message: '¡Bicicleta registrada!', pointsAwarded: pointsResult?.points || 0 };
         }
-
-        return { success: true, message: '¡Bicicleta registrada exitosamente!', pointsAwarded };
+        return { success: false, message: "Error al registrar." };
 
     } catch (error: any) {
         console.error("Express Registration Error:", error);
-        return { success: false, message: error.message || "Error al registrar la bicicleta." };
+        return { success: false, message: error.message };
     }
 }

@@ -372,3 +372,34 @@ export async function saveFinancialSettingsAction(prevState: ActionFormState, fo
         return { success: true, message: 'Guardado.' };
     } catch (error) { return { error: 'Error.' }; }
 }
+
+// --- AUTOCOMPLETADO DEL LIBRO AZUL ---
+export async function getModelsByBrandAction(brand: string): Promise<string[]> {
+    if (!brand) return [];
+    
+    try {
+        const { adminDb } = await import('@/lib/firebase/server');
+        // Usamos una normalizacion simplificada localmente para no depender de exportaciones circulares
+        const normBrand = brand.toLowerCase().trim().replace(/[-\s]+/g, '_').replace(/[^a-z0-9_]/g, '');
+        
+        const snapshot = await adminDb.collection('blue-book-valuations')
+            .where('brandId', '==', normBrand)
+            .get();
+            
+        if (snapshot.empty) return [];
+        
+        const uniqueModels = new Set<string>();
+        
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            if (data.displayModel) {
+                uniqueModels.add(data.displayModel);
+            }
+        });
+        
+        return Array.from(uniqueModels).sort();
+    } catch (error) {
+        console.error("Error fetching models for autocomplete:", error);
+        return [];
+    }
+}

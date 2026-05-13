@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { runAnalyticsDenormalizationMigration, exportUniqueBikesCatalogAction } from '@/lib/actions/migration-actions';
-import { Loader2, AlertTriangle, CheckCircle2, DownloadCloud } from 'lucide-react';
+import { runAnalyticsDenormalizationMigration, exportUniqueBikesCatalogAction, generateBlueBookAction } from '@/lib/actions/migration-actions';
+import { Loader2, AlertTriangle, CheckCircle2, DownloadCloud, BookOpen } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export function MigrationButton() {
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isBlueBookLoading, setIsBlueBookLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const handleMigration = async (isDryRun: boolean) => {
@@ -28,10 +29,8 @@ export function MigrationButton() {
     setIsExporting(true);
     setResult(null);
     try {
-      // 1. Llamar a la Server Action
       const response = await exportUniqueBikesCatalogAction();
       
-      // 2. Validar respuesta estructurada
       if (!response.success) {
           setResult({ success: false, message: response.error || 'Error al exportar catálogo.' });
           return;
@@ -42,7 +41,6 @@ export function MigrationButton() {
           return;
       }
 
-      // 3. Crear Blob y forzar descarga
       const blob = new Blob([response.csv], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -51,7 +49,6 @@ export function MigrationButton() {
       document.body.appendChild(link);
       link.click();
       
-      // Limpieza
       setTimeout(() => {
           document.body.removeChild(link);
           window.URL.revokeObjectURL(url);
@@ -66,24 +63,70 @@ export function MigrationButton() {
     }
   };
 
+  const handleGenerateBlueBook = async (isDryRun: boolean) => {
+    setIsBlueBookLoading(true);
+    setResult(null);
+    try {
+      const res = await generateBlueBookAction(isDryRun);
+      setResult(res);
+    } catch (error: any) {
+      setResult({ success: false, message: error.message || 'Error al generar el Libro Azul' });
+    } finally {
+      setIsBlueBookLoading(false);
+    }
+  };
+
+  const isAnyLoading = isLoading || isExporting || isBlueBookLoading;
+
   return (
     <div className="space-y-6 mb-8">
         
-        {/* --- NUEVA HERRAMIENTA: EXPORTAR CATÁLOGO ÚNICO --- */}
+        {/* --- NUEVA HERRAMIENTA: LIBRO AZUL (MOTOR RAG) --- */}
+        <div className="p-4 border border-indigo-200 rounded-lg bg-indigo-50/50 space-y-4">
+            <div className="flex items-center space-x-2 text-indigo-700">
+                <BookOpen className="h-5 w-5" />
+                <h3 className="font-semibold">Generador de Libro Azul (RAG AI)</h3>
+            </div>
+            <p className="text-sm text-slate-600">
+                Analiza el mercado actual (todas las bicicletas registradas) y genera un diccionario de valuaciones precisas. 
+                Sprock IA consultará esta base de datos antes de adivinar el precio de una bicicleta.
+            </p>
+            <div className="flex space-x-4">
+                <Button 
+                    variant="outline" 
+                    onClick={() => handleGenerateBlueBook(true)}
+                    disabled={isAnyLoading}
+                    className="border-indigo-200 text-indigo-700 hover:bg-indigo-100"
+                >
+                    {isBlueBookLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Prueba (Simulación)
+                </Button>
+                <Button 
+                    variant="default" 
+                    onClick={() => handleGenerateBlueBook(false)}
+                    disabled={isAnyLoading}
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                >
+                    {isBlueBookLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookOpen className="mr-2 h-4 w-4" />}
+                    {isBlueBookLoading ? 'Generando...' : 'Actualizar Libro Azul'}
+                </Button>
+            </div>
+        </div>
+
+        {/* --- HERRAMIENTA ORIGINAL: EXPORTAR CATÁLOGO ÚNICO --- */}
         <div className="p-4 border border-blue-200 rounded-lg bg-blue-50/50 space-y-4">
             <div className="flex items-center space-x-2 text-blue-700">
                 <DownloadCloud className="h-5 w-5" />
-                <h3 className="font-semibold">Herramientas de Datos (Machine Learning)</h3>
+                <h3 className="font-semibold">Exportar Catálogo para Machine Learning</h3>
             </div>
             <p className="text-sm text-slate-600">
-                Descarga un archivo CSV limpio con la lista <strong>única</strong> de todas las marcas, modelos y años registrados en la plataforma. 
-                Utiliza este archivo para alimentar el sistema de caché híbrido de valuación o para análisis de mercado externo.
+                Descarga un archivo CSV limpio con la lista <strong>única</strong> de todas las marcas, modelos y años registrados en la plataforma.
             </p>
             <div className="flex space-x-4">
                 <Button 
                     variant="default" 
                     onClick={handleExportCatalog}
-                    disabled={isExporting}
+                    disabled={isAnyLoading}
                     className="bg-blue-600 hover:bg-blue-700"
                 >
                     {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <DownloadCloud className="mr-2 h-4 w-4" />}
@@ -106,7 +149,7 @@ export function MigrationButton() {
                 <Button 
                     variant="outline" 
                     onClick={() => handleMigration(true)}
-                    disabled={isLoading || isExporting}
+                    disabled={isAnyLoading}
                 >
                     {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Prueba (Dry-Run)
@@ -114,7 +157,7 @@ export function MigrationButton() {
                 <Button 
                     variant="destructive" 
                     onClick={() => handleMigration(false)}
-                    disabled={isLoading || isExporting}
+                    disabled={isAnyLoading}
                 >
                     {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Ejecutar en BD Real
