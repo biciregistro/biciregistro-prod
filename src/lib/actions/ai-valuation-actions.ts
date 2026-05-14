@@ -35,10 +35,10 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
 
     try {
         const normBrand = normalizeBrand(brand);
-        const normModel = normalizeBikeModel(model, brand);
+        const { id: normModelId } = normalizeBikeModel(model, brand);
         
-        if (normModel !== 'INVALID') {
-            const compoundKey = `${normBrand}_${normModel}_${year}`;
+        if (normModelId !== 'INVALID') {
+            const compoundKey = `${normBrand}_${normModelId}_${year}`;
             console.log(`[RAG] Buscando en Libro Azul: ${compoundKey}`);
             
             const bbDoc = await adminDb.collection('blue-book-valuations').doc(compoundKey).get();
@@ -159,7 +159,9 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
             return { 
                 success: true, 
                 minPrice: finalMin, 
-                maxPrice: finalMax 
+                maxPrice: finalMax,
+                msrp: valuationData.msrpEstimation,
+                reasoning: valuationData.reasoning
             };
 
         } catch (error: any) {

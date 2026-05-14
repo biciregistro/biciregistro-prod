@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Zap, ShieldCheck, Bike as BikeIcon, Search, Calendar, Tag, Sparkles, ShieldAlert, TrendingUp, Users } from 'lucide-react';
+import { Zap, ShieldCheck, Bike as BikeIcon, Search, Calendar, Tag, Sparkles, ShieldAlert, TrendingUp, Users, Info } from 'lucide-react';
 import { bikeBrands } from '@/lib/bike-brands';
 import { valuateBikeAction } from '@/lib/actions/ai-valuation-actions';
 import { cn } from '@/lib/utils';
@@ -26,7 +26,7 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
     const [brand, setBrand] = useState('');
     const [model, setModel] = useState('');
     const [year, setYear] = useState('');
-    const [priceRange, setPriceRange] = useState<{ min: number; max: number, isRagBased?: boolean } | null>(null);
+    const [priceRange, setPriceRange] = useState<{ min: number; max: number, msrp?: number, reasoning?: string, isRagBased?: boolean } | null>(null);
     const [loadingState, setLoadingState] = useState({
         text: 'Sprock está analizando el mercado actual...',
         progress: 10,
@@ -75,7 +75,13 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
         const [result] = await Promise.all([resultPromise, minimumAnimationTime]);
 
         if (result.success && result.minPrice && result.maxPrice) {
-            setPriceRange({ min: result.minPrice, max: result.maxPrice, isRagBased: true });
+            setPriceRange({ 
+                min: result.minPrice, 
+                max: result.maxPrice, 
+                msrp: result.msrp,
+                reasoning: result.reasoning,
+                isRagBased: true 
+            });
             setStep('result');
         } else if (result.isInvalidInput) {
             toast({
@@ -160,18 +166,44 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
                     </div>
                     <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">Valuación Digital Finalizada</h3>
                     
-                    <div className="space-y-1 mb-4">
-                        <p className="text-sm text-muted-foreground">Valor estimado de tu {brand}:</p>
+                    <div className="space-y-1 mb-6">
+                        <p className="text-sm text-muted-foreground italic mb-1">Valor estimado de tu {brand} {model} {year}:</p>
                         <div className="text-4xl md:text-5xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-700 py-1">
                             ${priceRange.min.toLocaleString()} - ${priceRange.max.toLocaleString()}
                         </div>
                         <p className="text-xs font-bold text-primary uppercase tracking-widest">Pesos Mexicanos (MXN)</p>
                     </div>
 
-                    <div className="flex items-center justify-center gap-2 text-primary font-semibold bg-primary/10 w-fit mx-auto px-4 py-1.5 rounded-full text-sm border border-primary/20">
-                        <Sparkles className="w-4 h-4 fill-current" />
-                        ¡Mantiene un excelente valor comercial!
-                    </div>
+                    {/* MSRP Section */}
+                    {priceRange.msrp && (
+                        <div className="mb-6 flex flex-col items-center">
+                            <div className="flex items-center gap-2 text-slate-500 bg-slate-100 px-4 py-1.5 rounded-full border border-slate-200">
+                                <Tag className="w-3.5 h-3.5" />
+                                <span className="text-[11px] font-bold uppercase tracking-wider">Precio Estimada Nueva:</span>
+                                <span className="text-sm font-black text-slate-700">${priceRange.msrp.toLocaleString()} MXN</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Reasoning Section */}
+                    {priceRange.reasoning && (
+                        <div className="mb-8 px-4">
+                            <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl text-left flex gap-3">
+                                <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                                <p className="text-xs text-blue-900/80 leading-relaxed font-medium">
+                                    <span className="font-bold block mb-0.5 text-blue-900 uppercase tracking-tighter text-[10px]">Análisis de Sprock IA:</span>
+                                    {priceRange.reasoning}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    <Button 
+                        onClick={handleBlindar} 
+                        className="w-full sm:w-auto px-10 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg transition-all hover:scale-[1.02] rounded-full mb-2"
+                    >
+                        <ShieldCheck className="w-5 h-5 mr-2" /> Registrar mi bici
+                    </Button>
                 </div>
 
                 <div className="bg-slate-900 p-8 text-white text-left relative overflow-hidden">
