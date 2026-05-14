@@ -12,14 +12,15 @@ export function MarketValueCard({
     averageValue: number;
 }) {
     // Formatter for large numbers (K, M) with 2 decimals
+    // Using 'en-US' locale guarantees the '$' is always on the left in both Node (SSR) and Browser (CSR), preventing Hydration errors.
     const formatTotalCurrency = (value: number) => {
-        return new Intl.NumberFormat('es-MX', {
+        return new Intl.NumberFormat('en-US', {
             style: 'currency',
-            currency: 'MXN',
+            currency: 'USD', // We use USD solely for the reliable '$' symbol placement.
             notation: "compact",
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
-        }).format(value);
+        }).format(value).replace('$', '$ '); // Add a small space for better readability like '$ 5.26M'
     };
 
     return (

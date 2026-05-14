@@ -10,6 +10,7 @@ import { headers } from 'next/headers';
 import { getStorage } from 'firebase-admin/storage';
 import { awardPoints } from '@/lib/actions/gamification-actions';
 import { z } from 'zod';
+import { normalizeBrand, normalizeBikeModel } from '@/lib/utils'; // <-- Centralized Logic
 
 const ValuationOutputSchema = z.object({
     actualManufacturer: z.string().describe("PASO 1: IGNORA LA MARCA DEL USUARIO al inicio. Usa tu conocimiento ciclista: ¿Qué empresa (fabricante real) creó el modelo ingresado? (Ej. Si el modelo es 'Fuel EX', el fabricante es 'Trek'). Si el modelo es desconocido, pero suena a bicicleta, usa la marca del usuario."),
@@ -17,77 +18,63 @@ const ValuationOutputSchema = z.object({
     status: z.enum(['valid', 'mismatch', 'fake']).describe("PASO 3: Solo usa 'fake' si es claramente un auto, moto u objeto extraño. Si isBrandMatch es TRUE, usa 'valid'. Si isBrandMatch es FALSE, evalúa: si la marca es famosa mundialmente y hay un error evidente (ej. usuario dice Trek pero es una Specialized), usa 'mismatch'. PERO si es una marca local, genérica, departamental o desconocida para ti, asume que el usuario tiene razón y usa 'valid'."),
     message: z.string().describe("PASO 4: Mensaje para el usuario. Si status es 'mismatch', corrige de forma amable: 'Oye, ese modelo parece ser de [actualManufacturer], no de [Marca Usuario].'. Si es 'valid', pon 'Ok'."),
     searchQueryUsed: z.string().describe("Consulta de búsqueda sugerida para repuestos o referencias. Si no es válida, pon 'N/A'."),
-    msrpEstimation: z.number().int().describe("Estimación del precio de lista original (nueva) en MXN. Si es una marca genérica, asume un precio base económico."),
-    reasoning: z.string().describe("Breve razonamiento. Si es válida, explica la depreciación. Si es inválida, explica el error."),
-    minPrice: z.number().int().describe("Valor mínimo de reventa estimado en MXN. Cero si no es válida."),
-    maxPrice: z.number().int().describe("Valor máximo de reventa estimado en MXN. Cero si no es válida.")
+    msrpEstimation: z.number().int().describe("Estimación del PRECIO DE LISTA ORIGINAL (Nueva en Tienda) en MXN. Usa el contexto de la comunidad provisto como guía obligatoria, pero aplica tu criterio si el nivel de confianza de la comunidad es bajo."),
+    reasoning: z.string().describe("Breve razonamiento. Si es válida, explica la depreciación calculada basada en el año y los componentes (ej. Carbon, E+). Si es inválida, explica el error."),
+    minPrice: z.number().int().describe("Valor mínimo de reventa estimado en MXN considerando depreciación y mercado secundario. Cero si no es válida."),
+    maxPrice: z.number().int().describe("Valor máximo de reventa estimado en MXN considerando depreciación y mercado secundario. Cero si no es válida.")
 });
 
-// Helper para normalizar búsquedas en el Libro Azul
-const normalizeTextForBlueBook = (text: string | undefined): string => {
-    if (!text) return 'UNKNOWN';
-    return text.toLowerCase().replace(/[^a-z0-9]/g, '');
-};
-
-// Nuevo Helper con Jitter
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 export async function valuateBikeAction(brand: string, model: string, year: string) {
     let retries = 3;
-    let backoffTime = 1000; // Inicia con 1 segundo
+    let backoffTime = 1000;
 
-    // --- FASE 1: BÚSQUEDA EN EL "LIBRO AZUL" (RAG) ---
+    // --- FASE 1: BÚSQUEDA EN EL "LIBRO AZUL" (RAG HÍBRIDO) ---
     let blueBookContext = "";
-    let isRAG = false;
-    let blueBookMin = 0;
-    let blueBookMax = 0;
 
     try {
-        const normBrand = normalizeTextForBlueBook(brand);
-        const normModel = normalizeTextForBlueBook(model);
-        const compoundKey = `${normBrand}_${normModel}_${year}`;
+        const normBrand = normalizeBrand(brand);
+        const normModel = normalizeBikeModel(model, brand);
         
-        console.log(`[RAG] Buscando en Libro Azul: ${compoundKey}`);
-        const bbDoc = await adminDb.collection('blue-book-valuations').doc(compoundKey).get();
-        
-        if (bbDoc.exists) {
-            const bbData = bbDoc.data();
-            if (bbData && bbData.stats && bbData.stats.sampleSize >= 2) {
-                
-                // --- CÁLCULO MATEMÁTICO DE DEPRECIACIÓN DETERMINISTA ---
-                const currentYear = new Date().getFullYear();
-                const bikeYear = parseInt(year, 10) || currentYear;
-                const ageInYears = Math.max(0, currentYear - bikeYear);
-                
-                let depreciationFactor = 1.0;
-                // Fórmula: -25% el primer año, -10% subsecuentes, tope de retención 25% (pérdida máx 75%)
-                if (ageInYears === 1) depreciationFactor = 0.75;
-                else if (ageInYears >= 2) depreciationFactor = Math.max(0.25, 0.75 - (0.10 * (ageInYears - 1)));
-
-                const originalAverage = bbData.stats.averageValue;
-                const originalMin = bbData.stats.minValue;
-                const originalMax = bbData.stats.maxValue;
-
-                isRAG = true;
-                // Depreciamos los rangos para el mercado de reventa actual
-                blueBookMin = Math.round(originalMin * depreciationFactor);
-                blueBookMax = Math.round(originalMax * depreciationFactor);
-                const depreciatedAverage = Math.round(originalAverage * depreciationFactor);
-                
-                blueBookContext = `
-                DATOS EXTREMADAMENTE IMPORTANTES (LIBRO AZUL DE BICIREGISTRO):
-                Tenemos ${bbData.stats.sampleSize} bicicletas de este modelo exacto (${brand} ${model} ${year}) registradas.
-                Los usuarios reportaron un precio de compra original promedio de $${originalAverage} MXN.
-                Aplicando la depreciación algorítmica por ${ageInYears} años de antigüedad (factor: ${depreciationFactor}), el mercado real dicta que:
-                - Rango Real de Reventa Actual: De $${blueBookMin} a $${blueBookMax} MXN.
-                
-                INSTRUCCIÓN CRÍTICA:
-                Debes usar ESTOS VALORES DE REVENTA ACTUAL ($${blueBookMin} a $${blueBookMax}) para 'minPrice' y 'maxPrice'.
-                En 'msrpEstimation' usa el valor original de $${originalAverage}.
-                En el 'reasoning', MENCIONA EXPLÍCITAMENTE al usuario que tu valuación está respaldada por los registros reales de la comunidad y explica brevemente la depreciación por los ${ageInYears} años.
-                `;
-                console.log(`[RAG] ¡Éxito! Contexto inyectado. MSRP: $${originalAverage}. Reventa Calc: $${depreciatedAverage}`);
+        if (normModel !== 'INVALID') {
+            const compoundKey = `${normBrand}_${normModel}_${year}`;
+            console.log(`[RAG] Buscando en Libro Azul: ${compoundKey}`);
+            
+            const bbDoc = await adminDb.collection('blue-book-valuations').doc(compoundKey).get();
+            
+            if (bbDoc.exists) {
+                const bbData = bbDoc.data();
+                if (bbData && bbData.stats && bbData.stats.sampleSize >= 1) {
+                    
+                    const reportedPrice = bbData.stats.averageValue;
+                    const confidence = bbData.stats.confidenceLevel || 'LOW';
+                    const currentYear = new Date().getFullYear();
+                    const bikeYear = parseInt(year, 10) || currentYear;
+                    const ageInYears = Math.max(0, currentYear - bikeYear);
+                    
+                    // En lugar de imponer la depreciación matemática estricta al servidor, 
+                    // inyectamos el dato de la comunidad y empoderamos a la IA a auditarlo y depreciarlo.
+                    blueBookContext = `
+                    DATOS DE MERCADO BICIREGISTRO (RAG HÍBRIDO):
+                    Encontramos ${bbData.stats.sampleSize} bicicletas de este modelo exacto (${brand} ${model} ${year}) en la comunidad.
+                    El precio de compra/valoración promedio reportado por los usuarios es de $${reportedPrice} MXN.
+                    El nivel de confianza estadístico de este dato es: ${confidence}.
+                    
+                    INSTRUCCIÓN CRÍTICA DE VALUACIÓN Y AUDITORÍA:
+                    1. AUDITORÍA MSRP: El dato comunitario ($${reportedPrice} MXN) puede ser el precio que pagaron por la bici nueva, o puede estar ya devaluado si la compraron de segunda mano.
+                       Tú debes decidir el "msrpEstimation" (Precio Nueva) real. Si el nivel de confianza es HIGH o MEDIUM, dale mucho peso a este dato. Si es LOW y el precio te parece absurdo para esta gama, utiliza tu conocimiento experto para fijar el MSRP correcto.
+                    2. DEPRECIACIÓN DINÁMICA: Aplica tu propio modelo de depreciación sobre el MSRP para llegar al precio de reventa actual (minPrice y maxPrice). 
+                       Considera que la bicicleta tiene ${ageInYears} años de antigüedad. Las bicicletas de carbono (CRB, CF) retienen más valor. Las bicicletas eléctricas (E+, Hybrid) se deprecian rápido por la batería.
+                    3. MENCIONA EN EL REASONING si utilizaste los datos de la comunidad como base o si tuviste que corregirlos por ser irreales.
+                    `;
+                    console.log(`[RAG] Contexto inyectado. Precio reportado: $${reportedPrice}. Confianza: ${confidence}`);
+                }
+            } else {
+                 console.log(`[RAG] Sin coincidencias locales. Procediendo a Zero-Shot Valuation.`);
             }
+        } else {
+             console.log(`[RAG] Modelo detectado como ruidoso o genérico. Saltando RAG local.`);
         }
     } catch (e) {
         console.error("[RAG] Error buscando en el Libro Azul:", e);
@@ -101,8 +88,8 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
             const ageInYears = Math.max(0, currentYear - bikeYear);
 
             const prompt = `
-            Eres un Tasador de Bicicletas Inteligente y Comprensivo para la plataforma "BiciRegistro" en México.
-            Tu deber principal es ofrecer una cotización de mercado justa, evitando rechazos innecesarios.
+            Eres un Tasador de Bicicletas Experto para la plataforma "BiciRegistro" en México.
+            Tu deber principal es ofrecer una cotización de mercado justa en el mercado de reventa de bicicletas usadas, evitando rechazos innecesarios.
 
             Datos ingresados por el usuario:
             - Marca seleccionada: "${brand}"
@@ -129,27 +116,14 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
             Procede a estimar el valor basándote en que probablemente sea una bicicleta de gama de entrada/media.
 
             ${blueBookContext}
-
-            VALUACIÓN (SÓLO SI ES 'valid'):
-            - Estima el MSRP original en MXN.
-            - Aplica depreciación (-25% año 1, -10% subsecuentes, tope 75%).
-            - Calcula rango en MXN (minPrice y maxPrice) sin decimales.
             `;
 
-            // DIAGNÓSTICO DEL ARQUITECTO
-            console.log("🔍 REVISIÓN DE ENTORNO:", {
-                tieneGeminiKey: !!process.env.GEMINI_API_KEY,
-                tieneGoogleGenaiKey: !!process.env.GOOGLE_GENAI_API_KEY,
-                terminacionGemini: process.env.GEMINI_API_KEY?.slice(-4),
-                terminacionGoogleGenai: process.env.GOOGLE_GENAI_API_KEY?.slice(-4)
-            });
-
             const response = await ai.generate({
-                model: 'googleai/gemini-3.1-flash-lite',
+                model: 'googleai/gemini-3.1-flash-lite', // Cambiado a Gemini 3.1 Flash Lite por velocidad
                 prompt: prompt,
                 output: { schema: ValuationOutputSchema },
                 config: {
-                    temperature: 0.0, // Temperatura 0 para asegurar determinismo.
+                    temperature: 0.2, // Ligero aumento para permitir que la IA audite mejor si es necesario
                     topK: 1,
                 }
             });
@@ -172,26 +146,9 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
                 };
             }
 
-            // Sanitización final para casos válidos
-            let finalMin = valuationData.minPrice || 1000;
-            let finalMax = valuationData.maxPrice || 1500;
-            
-            // Si usamos RAG, aseguramos que la IA no se haya desviado locamente de la realidad
-            if (isRAG && blueBookMin > 0 && blueBookMax > 0) {
-                // Permitimos un 15% de desviación de la IA respecto al libro azul
-                const minAllowed = blueBookMin * 0.85;
-                const maxAllowed = blueBookMax * 1.15;
-                
-                if (finalMin < minAllowed || finalMax > maxAllowed) {
-                    console.log(`[RAG CORRECTION] Ajustando la alucinación de la IA a los valores depreciados del Libro Azul.`);
-                    finalMin = blueBookMin;
-                    finalMax = blueBookMax;
-                }
-            }
-
             // Sanitización absoluta
-            finalMin = Math.max(1000, finalMin);
-            finalMax = Math.max(finalMin + 500, finalMax);
+            let finalMin = Math.max(1000, valuationData.minPrice || 1000);
+            let finalMax = Math.max(finalMin + 500, valuationData.maxPrice || 1500);
 
             console.log(`[AI VALUATION SUCCESS] ${brand} ${model} ${year}`);
             console.log(`[AI VALUATION] Fabricante Confirmado:`, valuationData.actualManufacturer);
@@ -206,7 +163,6 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
             };
 
         } catch (error: any) {
-            // Detección robusta del error 429 de Genkit/Google
             const isRateLimit = error.message?.includes('429') || error.status === 'RESOURCE_EXHAUSTED' || error.code === 429;
             
             if (isRateLimit && retries > 1) {

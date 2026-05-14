@@ -126,3 +126,94 @@ export function parseLinksInText(text: string) {
         };
     });
 }
+
+/**
+ * Función maestra para normalizar nombres de marcas de bicicletas.
+ * Elimina espacios extra y caracteres especiales para crear un ID único de búsqueda.
+ */
+export const normalizeBrand = (text: string | undefined): string => {
+    if (!text) return 'UNKNOWN';
+    return text.toLowerCase().trim().replace(/[-\s]+/g, '_').replace(/[^a-z0-9_]/g, '');
+};
+
+/**
+ * Función quirúrgica para limpiar modelos de bicicletas de basura y devolver un arreglo [idNormalizado, displayModelLimpio]
+ * Implementa una taxonomía avanzada del mercado ciclista mexicano y global.
+ *
+ * MANTIENE (Atributos de valor): axs, slx, carbon, alloy, e+, +, -, .
+ * ELIMINA (Basura): Rodadas (29, 27.5, 26), Tallas, Colores, Categorías, Relatos, Años.
+ */
+export const normalizeBikeModel = (modelRaw: string | undefined, brandRaw?: string): { id: string, display: string } => {
+    if (!modelRaw || typeof modelRaw !== 'string') return { id: 'INVALID', display: 'INVALID' };
+
+    // 1. Rechazo inmediato de relatos (cadenas inusualmente largas) o valores nulos
+    if (modelRaw.length > 50 && modelRaw.split(' ').length > 8) {
+        return { id: 'INVALID', display: 'INVALID' };
+    }
+
+    let cleanModel = modelRaw.toLowerCase().trim();
+
+    // 2. Basura Explícita (Rechazo Directo)
+    const exactGarbage = [
+        'no se', 'no sé', 'desconocido', 'unknown', '???', 'otro', 'otra', 'sin modelo',
+        'no matching text found', 'bici', 'bicicleta', 'mtb', 'montaña', 'mountain',
+        '29', '27.5', '26', '700', '700c' // Rodadas solas sin modelo
+    ];
+    if (exactGarbage.includes(cleanModel)) {
+        return { id: 'INVALID', display: 'INVALID' };
+    }
+
+    // 3. Limpieza de Marca, Submarcas y Tallas con prefijo
+    cleanModel = cleanModel.replace(/\bliv\b/g, ' ');
+    cleanModel = cleanModel.replace(/\btalla\s+[smlxlxxl]\b/g, ' ');
+
+    if (brandRaw) {
+        const brandLower = brandRaw.toLowerCase().trim();
+        if (brandLower !== 'otra' && brandLower !== 'otro') {
+            const escapedBrand = brandLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            cleanModel = cleanModel.replace(new RegExp(`\\b${escapedBrand}\\b`, 'g'), ' ');
+        }
+    }
+
+    // 4. Limpieza de Años (1990 al 2029) repetidos en el modelo
+    cleanModel = cleanModel.replace(/\b(199[0-9]|20[0-2][0-9])\b/g, ' ');
+
+    // 5. Diccionario Avanzado de "Stop Words"
+    const stopWordsToRemove = [
+        'r\\s*26', 'r\\s*27\\.5', 'r\\s*29', 'r\\s*700c?', 'two nine',
+        '29er', '29', '27\\.5', '26', '700c?',
+        'bicicleta', 'electrica', 'montaña', 'mountain', 'montain', 'mtb', 'todo terreno', 'road', 'gravel', 'bmx', 'bike',
+        'talla', 'chica', 'mediana', 'grande', 'small', 'medium', 'large', 'xl', 'xxl', 'xs', 's[1-6]', 'ml', 't19', '56',
+        'gris', 'metal', 'matte', 'black', 'mirror', 'rd-bk', 'rojo', 'roja', 'azul', 'negro', 'negra', 'verde', 'blanco', 'blanca',
+        'es de segunda mano', 'de segunda mano'
+    ];
+
+    stopWordsToRemove.forEach(pattern => {
+        cleanModel = cleanModel.replace(new RegExp(`\\b${pattern}\\b`, 'g'), ' ');
+    });
+
+    // 6. GENERACIÓN DEL DISPLAY MODEL LIMPIO
+    // Tomamos el resultado limpio de palabras basura, quitamos los espacios múltiples y capitalizamos.
+    let displayModel = cleanModel.replace(/\s+/g, ' ').trim();
+    
+    // Capitalizar cada palabra para que luzca bien en el UI
+    displayModel = displayModel.split(' ').map(word => {
+        // Excepciones de capitalización (Componentes técnicos se ven mejor en mayúsculas)
+        const upperCaseWords = ['axs', 'slx', 'hpc', 'cf', 'crb', 'xta', 'slr', 'rdo', 'wc'];
+        if (upperCaseWords.includes(word)) return word.toUpperCase();
+        return word.charAt(0).toUpperCase() + word.slice(1);
+    }).join(' ');
+
+
+    // 7. GENERACIÓN DEL ID NORMALIZADO
+    // Pasamos todo a minúsculas, juntamos los caracteres permitidos y quitamos espacios
+    let idModel = cleanModel.replace(/[^a-z0-9.+-]/g, '');
+    idModel = idModel.replace(/^[.-]+|[.-]+$/g, '');
+
+    // Si después de la limpieza agresiva no queda nada útil
+    if (!idModel || (idModel.length < 2 && !['m', 'l', 's'].includes(idModel))) {
+        return { id: 'INVALID', display: 'INVALID' };
+    }
+
+    return { id: idModel, display: displayModel };
+};

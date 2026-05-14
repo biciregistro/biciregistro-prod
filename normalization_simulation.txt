@@ -1,0 +1,87 @@
+SIMULACIÓN DE NORMALIZACIÓN (NUEVA TAXONOMÍA + GENERADOR DISPLAY MODEL)
+=======================================================================
+
+Esta lista muestra cómo la función `normalizeBikeModel` (con la capitalización avanzada) procesaría los datos actuales de producción.
+
+---------------------------------------------------------------------------------------------------------
+| FABRICANTE (Make) | MODELO ORIGINAL (Input)            | MODELO DISPLAY (Listado UI)| MODELO NORMALIZADO (ID) |
+---------------------------------------------------------------------------------------------------------
+| ""                | "Otro"                             | INVALID                    | INVALID (Basura) |
+| 144 Rayos         | "Paloma "                          | Paloma                     | paloma |
+| 6ku               | "Urban track"                      | Urban Track                | urbantrack |
+| ALTA              | "Bike Share"                       | Share                      | share |
+| Alubike           | ""                                 | INVALID                    | INVALID (Vacío) |
+| Alubike           | "2.0"                              | 2.0                        | 2.0 |
+| Alubike           | "Chromboly"                        | Chromboly                  | chromboly |
+| Alubike           | "DS XTA"                           | DS XTA                     | dsxta |
+| Alubike           | "Expert"                           | Expert                     | expert |
+| Alubike           | "Hardteil"                         | Hardteil                   | hardteil |
+| Alubike           | "Kodiak29"                         | Kodiak                     | kodiak |
+| Alubike           | "Mazzima "                         | Mazzima                    | mazzima |
+| Alubike           | "Mazzima 700C"                     | Mazzima                    | mazzima |
+| Alubike           | "Mountain Sport"                   | Sport                      | sport |
+| Alubike           | "Revel gravel"                     | Revel                      | revel |
+| Alubike           | "Sierra 2026"                      | Sierra                     | sierra |
+| Alubike           | "sierra slite 26"                  | Sierra Slite               | sierraslite |
+| Alubike           | "XTA 1.0 "                         | XTA 1.0                    | xta1.0 |
+| Alubike           | "XTA 3.0 29"                       | XTA 3.0                    | xta3.0 |
+| Alubike           | "Xta expert "                      | XTA Expert                 | xtaexpert |
+| Alurock           | "Kraken"                           | Kraken                     | kraken |
+| Amyet             | "AMYET-EB26"                       | Eb                         | eb |
+| Belfort           | "Alom Judy"                        | Alom Judy                  | alomjudy |
+| Belfort           | "Balam Gold 35"                    | Balam Gold 35              | balamgold35 |
+| Belfort           | "Coalt rabe 2022"                  | Coalt Rabe                 | coaltrabe |
+| Belfort           | "COM-B3 "                          | Com-b3                     | com-b3 |
+| Benotto           | "Azul"                             | INVALID                    | INVALID (Color solo) |
+| Benotto Centurion | "Centurion roma R700"              | Roma                       | roma |
+| Benotto           | "3000"                             | 3000                       | 3000 |
+| Benotto           | "590 r700"                         | 590                        | 590 |
+| Benotto           | "Benotto Hk3 "                     | Hk3                        | hk3 |
+| Benotto           | "Blak"                             | INVALID                    | INVALID (Color/Basura) |
+| Blackburn         | "Blackburn "                       | INVALID                    | INVALID (Solo marca) |
+| Bluelander        | "Bicicleta Eléctrica BEM631 R26"   | Bem631                     | bem631 |
+| Bmx               | "Co. Since"                        | Co. Since                  | co.since |
+| BTwin             | "Riverside 500"                    | Riverside 500              | riverside500 |
+| Cannondale        | "Habit 4"                          | Habit 4                    | habit4 |
+| Cannondale        | "SuperSix Evo"                     | Supersix Evo               | supersixevo |
+| Cannondale        | "Topstone 2 MB S"                  | Topstone 2 Mb              | topstone2mb |
+| Canyon            | "Grizl CF SL 6 AXS "               | Grizl CF Sl 6 AXS          | grizlcfsl6axs |
+| Commencal         | "Meta am 27.5 2018"                | Meta Am                    | metaam |
+| Cube              | "REACTION CARBONO PRO GRIS TALLA M"| Reaction Carbono Pro       | reactioncarbonopro |
+| Cube              | "STEREO HYBRID 140 HPC SLX 29"     | Stereo Hybrid 140 HPC SLX  | stereo140hpcslx |
+| Cube              | "Aim 2019"                         | Aim                        | aim |
+| De segunda mano   | "Bici"                             | INVALID                    | INVALID (Basura) |
+| Diamondback       | "Overdrive 29.2 "                  | Overdrive .2               | overdrive.2 |
+| Eastman           | "Windsor "                         | Windsor                    | windsor |
+| Giant             | "Anthem2"                          | Anthem2                    | anthem2 |
+| Giant             | "Contend AR 3"                     | Contend Ar 3               | contendar3 |
+| Giant             | "Reign E+ 2"                       | Reign E+ 2                 | reigne+2 |
+| Giant             | "Trance X E + 3 PRO 29ER"          | Trance X E + 3 Pro         | trancexe+3pro |
+| Giant             | "Talón 29 1 "                      | Talón 1                    | talon1 |
+| Giant             | "LIV Intrigue X E+ 3 Pro 29er"     | Intrigue X E+ 3 Pro        | intriguexe+3pro |
+| Gravel            | "Everest R27.5"                    | Everest                    | everest |
+| Gravel            | "Everets R29 T19"                  | Everets                    | everets |
+| GT Bicycles       | "Montaña 29"                       | INVALID                    | INVALID (Solo montaña y rodada) |
+| Honey Whale       | "K6PRO"                            | K6pro                      | k6pro |
+| Huffy             | "AH21D126045"                      | Ah21d126045                | ah21d126045 |
+| Hunter            | "2024"                             | INVALID                    | INVALID (Solo año) |
+| Kona              | "Fire montain "                    | Fire                       | fire |
+| Liv               | "Avail ar 3"                       | Avail Ar 3                 | availar3 |
+| Liv               | "Tempt 29-4"                       | Tempt -4                   | tempt-4 |
+| Mercurio          | "29"                               | INVALID                    | INVALID (Solo rodada) |
+| Mercurio          | "9"                                | INVALID                    | INVALID (Muy corto) |
+| Mercurio          | "Kaizer DH "                       | Kaizer Dh                  | kaizerdh |
+| Mercurio          | "Two nine"                         | INVALID                    | INVALID (Rodada traducida) |
+| Specialized       | "Epic Worl cup pro"                | Epic Worl Cup Pro          | epicworlcuppro |
+| Specialized       | "Rockhopper Sea S 29"              | Rockhopper Sea             | rockhoppersea |
+| Specialized       | "Stumpjumper 15 alloy"             | Stumpjumper 15 Alloy       | stumpjumper15alloy |
+| Specialized       | "Stumpjumper Expert S3"            | Stumpjumper Expert         | stumpjumperexpert |
+| Specialized       | "Vita Fact carbon"                 | Vita Fact Carbon           | vitafactcarbon |
+| State             | "6061-All Road"                    | 6061-all                   | 6061-all |
+| Trek              | "DOMANE AL 2 56 "                  | Domane Al 2                | domaneal2 |
+| Trek              | "Marlin 5 Grande"                  | Marlin 5                   | marlin5 |
+| Trek              | "Marlin 6 Talla L"                 | Marlin 6                   | marlin6 |
+| Trek              | "Supercaliber 9.8 GX AXS"          | Supercaliber 9.8 Gx AXS    | supercaliber9.8gxaxs |
+| Trek              | "Turbo Levo 4 Alloy"               | Turbo Levo 4 Alloy         | turbolevo4alloy |
+| Zigna             | "Super Nova "                      | Super Nova                 | supernova |
+---------------------------------------------------------------------------------------------------------
