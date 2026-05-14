@@ -12,12 +12,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from "@/hooks/use-toast";
 import { bikeBrands } from '@/lib/bike-brands';
 import { modalityOptions } from '@/lib/bike-types';
-import { registerBikeWizardAction, getModelsByBrandAction } from '@/lib/actions'; 
+import { registerBikeWizardAction } from '@/lib/actions'; 
 import Image from 'next/image';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ModelCombobox } from '@/components/shared/model-combobox'; // <-- Componente reutilizable
 
 const simpleBikeSchema = z.object({
   serialNumber: z.string().min(3, "El número de serie es importante para recuperarla."),
@@ -74,12 +71,6 @@ export function SimpleBikeForm({ onSuccess }: SimpleBikeFormProps) {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: (currentYear + 1) - 1980 + 1 }, (_, i) => (currentYear + 1) - i);
 
-  // Estados para Autocompletado
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [isLoadingModels, setIsLoadingModels] = useState(false);
-  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
-  const [modelSearchQuery, setModelSearchQuery] = useState("");
-
   const form = useForm<SimpleBikeValues>({
     resolver: zodResolver(simpleBikeSchema),
     defaultValues: {
@@ -95,19 +86,6 @@ export function SimpleBikeForm({ onSuccess }: SimpleBikeFormProps) {
   });
 
   const selectedBrand = form.watch('brand');
-
-  useEffect(() => {
-      if (selectedBrand && selectedBrand !== 'Otra') {
-          setIsLoadingModels(true);
-          form.setValue('model', '');
-          getModelsByBrandAction(selectedBrand).then(models => {
-              setAvailableModels(models);
-              setIsLoadingModels(false);
-          });
-      } else {
-          setAvailableModels([]);
-      }
-  }, [selectedBrand, form]);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -205,7 +183,13 @@ export function SimpleBikeForm({ onSuccess }: SimpleBikeFormProps) {
                 render={({ field }) => (
                 <FormItem>
                 <FormLabel>Marca</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select 
+                    onValueChange={(val) => {
+                        field.onChange(val);
+                        form.setValue('model', ''); // Reset model on brand change
+                    }} 
+                    defaultValue={field.value}
+                >
                     <FormControl>
                     <SelectTrigger><SelectValue placeholder="Selecciona" /></SelectTrigger>
                     </FormControl>
@@ -225,63 +209,11 @@ export function SimpleBikeForm({ onSuccess }: SimpleBikeFormProps) {
                 render={({ field }) => (
                     <FormItem className="flex flex-col justify-end">
                     <FormLabel className="mb-2">Modelo</FormLabel>
-                    <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
-                        <PopoverTrigger asChild>
-                            <FormControl>
-                                <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    disabled={!selectedBrand || isLoadingModels}
-                                    className={cn(
-                                        "w-full justify-between font-normal h-10 px-3",
-                                        !field.value && "text-muted-foreground"
-                                    )}
-                                >
-                                    {isLoadingModels ? (
-                                        <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Cargando...</span>
-                                    ) : field.value ? (
-                                        field.value
-                                    ) : selectedBrand === 'Otra' ? (
-                                        "Escribe el modelo"
-                                    ) : (
-                                        "Busca tu modelo"
-                                    )}
-                                </Button>
-                            </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                            <Command>
-                                <CommandInput placeholder="Buscar modelo..." onValueChange={setModelSearchQuery} />
-                                <CommandList>
-                                    <CommandEmpty className="p-4 text-xs text-center">
-                                        No encontrado.
-                                        <Button 
-                                            variant="link" 
-                                            className="px-1 h-auto font-bold text-primary text-xs"
-                                            onClick={() => { field.onChange(modelSearchQuery); setIsComboboxOpen(false); }}
-                                        >
-                                            Usar "{modelSearchQuery}"
-                                        </Button>
-                                    </CommandEmpty>
-                                    <CommandGroup>
-                                        {availableModels.map((m) => (
-                                            <CommandItem
-                                                key={m}
-                                                value={m}
-                                                onSelect={(currentValue) => {
-                                                    const originalCaseModel = availableModels.find(am => am.toLowerCase() === currentValue.toLowerCase()) || currentValue;
-                                                    field.onChange(originalCaseModel);
-                                                    setIsComboboxOpen(false);
-                                                }}
-                                            >
-                                                {m}
-                                            </CommandItem>
-                                        ))}
-                                    </CommandGroup>
-                                </CommandList>
-                            </Command>
-                        </PopoverContent>
-                    </Popover>
+                    <ModelCombobox 
+                        brand={selectedBrand}
+                        value={field.value}
+                        onChange={field.onChange}
+                    />
                     <p className="text-[10px] text-muted-foreground mt-1">⚠️ No incluyas talla, color, año o componentes.</p>
                     <FormMessage />
                     </FormItem>

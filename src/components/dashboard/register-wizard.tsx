@@ -15,6 +15,7 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { bikeBrands } from '@/lib/bike-brands';
 import { modalityOptions } from '@/lib/bike-types';
+import { ModelCombobox } from '@/components/shared/model-combobox'; // <-- Componente reutilizable
 
 // Tipos básicos para el estado del formulario
 type WizardData = {
@@ -187,7 +188,7 @@ export function RegisterWizard({ userRole }: RegisterWizardProps) {
                     ...prev, 
                     brand: brandMatch.brand || prev.brand,
                     customBrand: brandMatch.custom || prev.customBrand,
-                    model: result.data.model || prev.model,
+                    model: result.data.model || prev.model, // La IA sigue intentando sugerir el modelo si lo ve
                     color: result.data.color || prev.color
                 }));
                 toast({ title: "Bicicleta analizada", description: "Sprock ha detectado las características.", className: "bg-green-50 border-green-200" });
@@ -210,6 +211,10 @@ export function RegisterWizard({ userRole }: RegisterWizardProps) {
   const validateStep2 = () => {
     if (!formData.brand || (formData.brand === 'Otra' && !formData.customBrand) || !formData.color) {
         toast({ variant: "destructive", title: "Faltan datos", description: "Marca y Color son obligatorios." });
+        return;
+    }
+    if (!formData.model) {
+        toast({ variant: "destructive", title: "Faltan datos", description: "El Modelo es obligatorio." });
         return;
     }
     setStep(3);
@@ -433,7 +438,7 @@ export function RegisterWizard({ userRole }: RegisterWizardProps) {
                             <Label>Marca</Label>
                              <Select 
                                 value={formData.brand} 
-                                onValueChange={(val) => setFormData({...formData, brand: val})}
+                                onValueChange={(val) => setFormData({...formData, brand: val, model: ''})} // Resetear modelo al cambiar marca
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Selecciona la marca" />
@@ -460,10 +465,11 @@ export function RegisterWizard({ userRole }: RegisterWizardProps) {
 
                         <div className="space-y-2">
                             <Label>Modelo</Label>
-                            <Input 
-                                value={formData.model} 
-                                onChange={(e) => setFormData({...formData, model: e.target.value})}
-                                placeholder="Ej. Marlin 7"
+                            <ModelCombobox 
+                                brand={formData.brand}
+                                value={formData.model}
+                                onChange={(val) => setFormData({...formData, model: val})}
+                                placeholder="Busca o escribe el modelo"
                             />
                         </div>
                         <div className="space-y-2">
@@ -521,7 +527,7 @@ export function RegisterWizard({ userRole }: RegisterWizardProps) {
                                     className="pl-7"
                                 />
                             </div>
-                            <p className="text-xs text-muted-foreground">Ingresa el valor en números enteros (sin centavos, puntos ni comas).</p>
+                            <p className="text-xs text-muted-foreground">Ingresa el valor de compra en pesos (sin centavos).</p>
                         </div>
                     </div>
 

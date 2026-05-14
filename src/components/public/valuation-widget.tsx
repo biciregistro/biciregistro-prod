@@ -3,17 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Zap, ShieldCheck, Bike as BikeIcon, Search, Calendar, Tag, Sparkles, ShieldAlert, TrendingUp, Users } from 'lucide-react';
+import { Zap, ShieldCheck, Bike as BikeIcon, Search, Calendar, Tag, Sparkles, ShieldAlert, TrendingUp, Users } from 'lucide-react';
 import { bikeBrands } from '@/lib/bike-brands';
 import { valuateBikeAction } from '@/lib/actions/ai-valuation-actions';
-import { getModelsByBrandAction } from '@/lib/actions';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { ModelCombobox } from '@/components/shared/model-combobox'; // <-- Importación del componente centralizado
 
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: currentYear - 1980 + 1 }, (_, i) => currentYear - i);
@@ -36,23 +33,9 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
         icon: <Search className="w-5 h-5" />
     });
 
-    // Estado para el autocompletado
-    const [availableModels, setAvailableModels] = useState<string[]>([]);
-    const [isModelComboboxOpen, setIsModelComboboxOpen] = useState(false);
-    const [modelSearchQuery, setModelSearchQuery] = useState("");
-    const [isLoadingModels, setIsLoadingModels] = useState(false);
-
+    // Resetear modelo cuando cambie la marca para evitar inconsistencias
     useEffect(() => {
-        if (brand && brand !== 'Otra') {
-            setIsLoadingModels(true);
-            setModel(''); // Resetear el modelo al cambiar de marca
-            getModelsByBrandAction(brand).then(models => {
-                setAvailableModels(models);
-                setIsLoadingModels(false);
-            });
-        } else {
-            setAvailableModels([]);
-        }
+        setModel('');
     }, [brand]);
 
     // Simulador de Textos de Carga con mayor impacto visual
@@ -253,71 +236,12 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
                         Modelo
                     </Label>
                     
-                    {/* AUTOCOMPLETADO DE MODELO */}
-                    <Popover open={isModelComboboxOpen} onOpenChange={setIsModelComboboxOpen}>
-                        <PopoverTrigger asChild>
-                            <Button 
-                                variant="outline" 
-                                role="combobox" 
-                                aria-expanded={isModelComboboxOpen} 
-                                disabled={!brand || isLoadingModels}
-                                className={cn(
-                                    "w-full justify-start h-11 font-normal bg-background border-muted-foreground/20 hover:border-primary/50 transition-all",
-                                    !model && "text-muted-foreground",
-                                    (!brand || isLoadingModels) && "opacity-50 cursor-not-allowed"
-                                )}
-                            >
-                                {isLoadingModels ? (
-                                    <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Cargando modelos...</span>
-                                ) : model ? (
-                                    model
-                                ) : brand === 'Otra' ? (
-                                    "Escribe el modelo"
-                                ) : (
-                                    "Selecciona o escribe el modelo"
-                                )}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                            <Command>
-                                <CommandInput 
-                                    placeholder="Buscar modelo..." 
-                                    onValueChange={setModelSearchQuery} 
-                                />
-                                <CommandList>
-                                    <CommandEmpty className="p-4 text-sm text-center">
-                                        No encontrado. 
-                                        <Button 
-                                            variant="link" 
-                                            className="px-1 h-auto font-bold text-primary"
-                                            onClick={() => {
-                                                setModel(modelSearchQuery);
-                                                setIsModelComboboxOpen(false);
-                                            }}
-                                        >
-                                            Usar "{modelSearchQuery}"
-                                        </Button>
-                                    </CommandEmpty>
-                                    <CommandGroup>
-                                        {availableModels.map((m) => (
-                                            <CommandItem
-                                                key={m}
-                                                value={m}
-                                                onSelect={(currentValue) => {
-                                                    // cmdk a veces devuelve el valor en minúsculas, usamos el original del array
-                                                    const originalCaseModel = availableModels.find(am => am.toLowerCase() === currentValue.toLowerCase()) || currentValue;
-                                                    setModel(originalCaseModel);
-                                                    setIsModelComboboxOpen(false);
-                                                }}
-                                            >
-                                                {m}
-                                            </CommandItem>
-                                        ))}
-                                    </CommandGroup>
-                                </CommandList>
-                            </Command>
-                        </PopoverContent>
-                    </Popover>
+                    <ModelCombobox 
+                        brand={brand}
+                        value={model}
+                        onChange={setModel}
+                        className="h-11"
+                    />
 
                     <p className="text-[10px] text-muted-foreground mt-1 px-1">
                         ⚠️ No incluyas talla, color, año o componentes.
