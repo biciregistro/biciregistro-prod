@@ -156,12 +156,12 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
                 <div className="p-8 text-center bg-gradient-to-b from-primary/5 to-transparent relative">
                     
                     {/* Sello de Confianza RAG */}
-                    <div className="absolute top-4 right-4 flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm">
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm whitespace-nowrap">
                         <Users className="w-3.5 h-3.5" />
                         <span>Validado por la Comunidad</span>
                     </div>
 
-                    <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-full mb-4 ring-8 ring-primary/5 mt-4">
+                    <div className="inline-flex items-center justify-center p-3 bg-primary/10 rounded-full mb-4 ring-8 ring-primary/5 mt-8">
                         <ShieldCheck className="w-8 h-8 text-primary" />
                     </div>
                     <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">Valuación Digital Finalizada</h3>
@@ -187,11 +187,13 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
 
                     {/* Reasoning Section */}
                     {priceRange.reasoning && (
-                        <div className="mb-8 px-4">
-                            <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl text-left flex gap-3">
-                                <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                        <div className="mb-8 w-full">
+                            <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl text-left flex flex-col gap-2">
+                                <div className="flex items-center gap-2 text-blue-900">
+                                    <Info className="w-4 h-4 shrink-0" />
+                                    <span className="font-bold uppercase tracking-tighter text-[10px]">Análisis de Sprock IA:</span>
+                                </div>
                                 <p className="text-xs text-blue-900/80 leading-relaxed font-medium">
-                                    <span className="font-bold block mb-0.5 text-blue-900 uppercase tracking-tighter text-[10px]">Análisis de Sprock IA:</span>
                                     {priceRange.reasoning}
                                 </p>
                             </div>
