@@ -89,12 +89,13 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
 
             const prompt = `
             Eres un Tasador de Bicicletas Experto para la plataforma "BiciRegistro" en México.
-            Tu deber principal es ofrecer una cotización de mercado justa en el mercado de reventa de bicicletas usadas, evitando rechazos innecesarios.
+            Tu deber principal es ofrecer una cotización de mercado justa en el mercado de reventa de bicicletas usadas, evitando rechazos innecesarios, y utilizando lógica financiera para estimar precios precisos al día de hoy (Año actual: ${currentYear}).
 
             Datos ingresados por el usuario:
             - Marca seleccionada: "${brand}"
             - Modelo ingresado: "${model}"
             - Año Modelo: ${year} (Antigüedad: ${ageInYears} años)
+            - Año de cálculo actual: ${currentYear}
 
             TABLA DE VERDADES ABSOLUTAS (SOLO APLICA PARA MARCAS PREMIUM GLOBALES):
             - Los modelos "Talon" son fabricados EXCLUSIVAMENTE por "Giant".
@@ -109,13 +110,36 @@ export async function valuateBikeAction(brand: string, model: string, year: stri
             El usuario sabe que su marca no está en el catálogo.
             Acción Obligatoria: isBrandMatch = TRUE y status = 'valid'. El 'actualManufacturer' debe ser la marca que dedujiste a partir del modelo.
 
-            REGLA DE TOLERANCIA PARA MARCAS LOCALES O DESCONOCIDAS:
+            REGLA DE TOLERANCIA Y JERARQUÍA PARA MARCAS LOCALES O DESCONOCIDAS (MUY IMPORTANTE):
             El mercado mexicano tiene cientas de marcas locales, departamentales o de importación directa (ej. Monk, Zigna, Veloci, Mercurio, Turbo, Gospel, Alubike, Benotto, Magistroni, etc.).
             Si no reconoces el modelo con total certeza, CONFÍA EN EL USUARIO. 
             No uses 'mismatch' por desconocimiento. Asume isBrandMatch = TRUE y status = 'valid'. 
-            Procede a estimar el valor basándote en que probablemente sea una bicicleta de gama de entrada/media.
+            OJO: NUNCA asumas que todas valen lo mismo ni que todas son "gama de entrada". DEBES analizar el texto del "${model}" para detectar la jerarquía:
+            - Variantes numéricas: Un sufijo "3.0", "4.0" o "SL 7" siempre representa componentes superiores y un precio drásticamente mayor que un "1.0", "2.0" o "SL 5" de la misma familia.
+            - Componentes y materiales: Palabras como "Carbon", "Comp", "Pro", "AXS", "E+" indican gamas medias-altas o altas, multiplicando el valor. 
+            
+            TABLA DE PRECIOS BASE (MSRP NUEVAS) PARA MARCA "ALUBIKE" (Válida 2024-2026):
+            - XTA DS (Doble Suspensión): $28,490 - $33,000 MXN
+            - XTA 3.0: $25,999 MXN
+            - Onix 700C: $23,899 MXN
+            - XTA 2.0: $17,849 - $19,200 MXN
+            - Kodiak 29: $12,800 - $15,800 MXN
+            - XTA 1.0: $14,699 MXN
+            - Sierra 29" o 27.5": $10,499 - $10,999 MXN
+            - Slite SLT / DF 29: $8,699 - $8,999 MXN
+            - Sierra (Infantil 20"/24"): $5,790 - $7,800 MXN
+            *Si el modelo consultado coincide o se parece a alguno de esta tabla, utiliza estos precios exactos como tu 'msrpEstimation'.
+
+            METODOLOGÍA DE VALUACIÓN Y ACTUALIZACIÓN AL AÑO ACTUAL (${currentYear}):
+            Para calcular el precio, sigue internamente esta lógica:
+            1. Basado en la marca, el modelo y la jerarquía (sufijos/versión), estima el Precio de Lista Original (MSRP) en pesos mexicanos (MXN) que tenía la bicicleta en su año de lanzamiento (${year}).
+            2. Si tu base de conocimiento está desactualizada, ajusta ese MSRP original proyectando la inflación acumulada hasta el año actual (${currentYear}).
+            3. Aplica una depreciación lógica: Las bicicletas pierden aprox. 25-30% de su valor al salir de tienda, y un 5-8% adicional por cada año de antigüedad (${ageInYears}).
 
             ${blueBookContext}
+
+            INSTRUCCIÓN FINAL DE CONCILIACIÓN:
+            Si el bloque anterior ("DATOS DE MERCADO BICIREGISTRO") existe y su nivel de confianza es MEDIUM o HIGH, el valor de la comunidad TIENE PRIORIDAD sobre tu estimación teórica del MSRP. Usa tu metodología heurística (Paso 1, 2, 3) ÚNICAMENTE como mecanismo de auditoría o si los datos de la comunidad son inexistentes (LOW/Vacíos).
             `;
 
             const response = await ai.generate({
