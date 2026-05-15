@@ -102,12 +102,14 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
     };
 
     const handleBlindar = () => {
-        const averageValue = priceRange ? Math.round((priceRange.min + priceRange.max) / 2) : 0;
+        // Enviar el MSRP (Precio Nueva) en lugar del valor depreciado para evitar la doble devaluación
+        const valueToSend = priceRange?.msrp || (priceRange ? Math.round((priceRange.min + priceRange.max) / 2) : 0);
+        
         const encodedBrand = encodeURIComponent(brand);
         const encodedModel = encodeURIComponent(model);
         
         // Construimos la ruta de destino interna (el registro express)
-        const expressRegisterPath = `/dashboard/express-register?brand=${encodedBrand}&model=${encodedModel}&year=${year}&value=${averageValue}`;
+        const expressRegisterPath = `/dashboard/express-register?brand=${encodedBrand}&model=${encodedModel}&year=${year}&value=${valueToSend}`;
         
         if (isAuthenticated) {
             router.push(expressRegisterPath);

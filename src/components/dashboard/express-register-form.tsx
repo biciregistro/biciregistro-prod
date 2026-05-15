@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Bike, ShieldCheck, Camera, Sparkles, Tag, Calendar, Wallet } from "lucide-react";
+import { Loader2, Bike, ShieldCheck, Camera, Sparkles, Tag, Calendar, Wallet, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 import { modalityOptions } from '@/lib/bike-types';
@@ -63,12 +63,16 @@ export function ExpressRegisterForm() {
     const initialBrand = searchParams.get('brand') || '';
     const initialModel = searchParams.get('model') || '';
     const initialYear = searchParams.get('year') || '';
-    const initialValue = searchParams.get('value') || '';
+    const initialValueParams = searchParams.get('value') || '';
 
     const [loading, setLoading] = useState(false);
     const [color, setColor] = useState('');
     const [type, setType] = useState('');
     const [bikeImage, setBikeImage] = useState<string | null>(null);
+    
+    // Estado para el manejo del precio editable
+    const [isEditingPrice, setIsEditingPrice] = useState(false);
+    const [bikeValue, setBikeValue] = useState(initialValueParams);
 
     // Si por alguna razón alguien entra directo sin parámetros, redirigir al Dashboard.
     useEffect(() => {
@@ -93,12 +97,19 @@ export function ExpressRegisterForm() {
         }
     };
 
+    const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let val = e.target.value;
+        // Solo dígitos
+        val = val.replace(/[^0-9]/g, '');
+        setBikeValue(val);
+    };
+
     const handleSubmit = async () => {
-        if (!color || !type || !bikeImage) {
+        if (!color || !type || !bikeImage || !bikeValue) {
             toast({ 
                 variant: "destructive", 
                 title: "Faltan datos", 
-                description: !bikeImage ? "La foto de la bicicleta es obligatoria para continuar." : "El Color y el Tipo de bicicleta son obligatorios para blindarla." 
+                description: !bikeImage ? "La foto de la bicicleta es obligatoria para continuar." : "Verifica que el color, tipo y precio estén llenos." 
             });
             return;
         }
@@ -109,7 +120,7 @@ export function ExpressRegisterForm() {
             brand: initialBrand,
             model: initialModel,
             year: initialYear,
-            value: initialValue,
+            value: bikeValue,
             color,
             type,
             bikeImage
@@ -163,7 +174,7 @@ export function ExpressRegisterForm() {
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2 text-slate-500 font-mono text-[10px] uppercase tracking-[0.3em]">
                                     <Tag className="w-3 h-3" />
-                                    Detalles de la valuación
+                                    Detalles del Activo
                                 </div>
                                 <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                                     <div className="space-y-0.5">
@@ -177,14 +188,53 @@ export function ExpressRegisterForm() {
                                 </div>
                             </div>
 
-                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 text-center w-full shadow-inner">
-                                <div className="flex items-center justify-center gap-1.5 text-primary mb-1">
+                            <div className="bg-slate-50 p-5 rounded-xl border border-slate-200/60 text-center w-full shadow-inner relative">
+                                <div className="flex items-center justify-center gap-1.5 text-primary mb-2">
                                     <Wallet className="w-3.5 h-3.5" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Valor aproximado</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Valor de Compra Original (MSRP)</span>
                                 </div>
-                                <div className="text-3xl font-black text-slate-950 tracking-tight">
-                                    ${Number(initialValue).toLocaleString()} <span className="text-xs font-bold text-slate-400">MXN</span>
-                                </div>
+                                
+                                {!isEditingPrice ? (
+                                    <div className="space-y-2">
+                                        <div className="text-4xl font-black text-slate-950 tracking-tight flex items-baseline justify-center gap-1">
+                                            <span className="text-2xl text-slate-400">$</span>
+                                            {Number(bikeValue).toLocaleString()} 
+                                            <span className="text-xs font-bold text-slate-400">MXN</span>
+                                        </div>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            className="text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 h-7"
+                                            onClick={() => setIsEditingPrice(true)}
+                                        >
+                                            <Pencil className="w-3 h-3 mr-1.5" /> ¿No es exacto? Ajustar precio
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                                        <div className="relative max-w-[200px] mx-auto">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                                            <Input 
+                                                type="text" 
+                                                inputMode="numeric"
+                                                value={bikeValue}
+                                                onChange={handleValueChange}
+                                                className="pl-8 text-xl font-bold h-12 text-center"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <p className="text-[10px] text-slate-500 leading-tight max-w-[250px] mx-auto">
+                                            Ingresa el precio real que pagaste al comprarla nueva (sin centavos).
+                                        </p>
+                                        <Button 
+                                            size="sm" 
+                                            className="w-full max-w-[200px] h-8 text-xs font-bold"
+                                            onClick={() => setIsEditingPrice(false)}
+                                        >
+                                            Confirmar Valor
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -271,7 +321,7 @@ export function ExpressRegisterForm() {
                     <div className="space-y-1">
                         <p className="font-bold">Paso Final del Registro Inteligente</p>
                         <p className="text-xs text-amber-800/80 leading-relaxed">
-                            Al guardar, tu bicicleta quedará blindada digitalmente. Podrás agregar el número de serie oficial después desde tu perfil para activar el <span className="font-bold">Certificado Antirrobo.</span>
+                            Al guardar, tu bicicleta quedará blindada digitalmente. Podrás agregar el número de serie oficial después desde tu perfil para obtener tu <span className="font-bold">Certificado de Propiedad.</span>
                         </p>
                     </div>
                 </div>
@@ -280,10 +330,10 @@ export function ExpressRegisterForm() {
             <CardFooter className="bg-slate-50 border-t border-slate-100 p-8 md:p-10">
                 <Button 
                     onClick={handleSubmit} 
-                    disabled={loading || !color || !type || !bikeImage} 
+                    disabled={loading || !color || !type || !bikeImage || !bikeValue} 
                     className={cn(
                         "w-full text-lg md:text-xl h-16 shadow-2xl transition-all font-black uppercase tracking-widest italic rounded-xl",
-                        !color || !type || !bikeImage 
+                        !color || !type || !bikeImage || !bikeValue
                             ? "bg-slate-200 text-slate-400" 
                             : "bg-slate-950 hover:bg-primary text-white"
                     )}
