@@ -379,7 +379,7 @@ export async function getModelsByBrandAction(brand: string): Promise<string[]> {
     
     try {
         const { adminDb } = await import('@/lib/firebase/server');
-        // Usamos una normalizacion simplificada localmente para no depender de exportaciones circulares
+        // Usamos una normalizacion simplificada localmente para la marca
         const normBrand = brand.toLowerCase().trim().replace(/[-\s]+/g, '_').replace(/[^a-z0-9_]/g, '');
         
         const snapshot = await adminDb.collection('blue-book-valuations')
@@ -388,16 +388,25 @@ export async function getModelsByBrandAction(brand: string): Promise<string[]> {
             
         if (snapshot.empty) return [];
         
-        const uniqueModels = new Set<string>();
+        // Usamos un Map para deduplicar semánticamente basados en el modelId
+        const modelMap = new Map<string, string>(); // modelId -> displayModel
         
         snapshot.forEach(doc => {
             const data = doc.data();
-            if (data.displayModel) {
-                uniqueModels.add(data.displayModel);
+            if (data.modelId && data.displayModel) {
+                const currentDisplay = modelMap.get(data.modelId);
+                // Si no existe, o si el nuevo displayModel es más largo/descriptivo que el guardado, lo reemplazamos
+                if (!currentDisplay || data.displayModel.length > currentDisplay.length) {
+                    modelMap.set(data.modelId, data.displayModel);
+                }
+            } else if (data.displayModel && !data.modelId) {
+                // Fallback de retrocompatibilidad si hay documentos viejos sin modelId explícito
+                modelMap.set(data.displayModel.toLowerCase(), data.displayModel);
             }
         });
         
-        return Array.from(uniqueModels).sort();
+        // Retornamos solo los nombres limpios deduplicados
+        return Array.from(modelMap.values()).sort();
     } catch (error) {
         console.error("Error fetching models for autocomplete:", error);
         return [];
