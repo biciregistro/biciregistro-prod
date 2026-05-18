@@ -300,10 +300,11 @@ export const getGeneralStats = unstable_cache(
         
         // SOLUCIÓN COUNT EN MEMORIA PARA USUARIOS
         // Como Firebase no permite > 1 array filter, descargamos los docs con proyección mínima y los filtramos en memoria.
+        // Extraemos lastLoginAt para poder medir usuarios activos en los ultimos 30 dias.
         const [usersDataSnapshot, bikesSnapshot, allUsersSnapshot, allBikesSnapshot] = await Promise.all([
             totalUsersQuery.select('ownedBrands', 'ownedModalities', 'ownedPriceRanges', 'ownedModelYears').get(),
             totalBikesQuery.count().get(), // Bicis no cruzan arrays (usan == y in), el count nativo funciona.
-            usersRef.select('createdAt').get(), 
+            usersRef.select('createdAt', 'lastLoginAt').get(), 
             bikesRef.select('createdAt').get(), 
         ]);
 
@@ -314,15 +315,25 @@ export const getGeneralStats = unstable_cache(
             }
         });
 
-        const dailyCounts: { [key: string]: { usersCount: number, bikesCount: number } } = {};
+        const dailyCounts: { [key: string]: { usersCount: number, bikesCount: number, activeUsersCount: number } } = {};
+        let totalActiveUsersLast30Days = 0;
         
         allUsersSnapshot.forEach(doc => {
             const data = doc.data();
-            const dateObj = parseFirestoreDate(data.createdAt);
-            if (dateObj && dateObj >= thirtyDaysAgo) {
-                const date = dateObj.toISOString().split('T')[0];
-                if (!dailyCounts[date]) dailyCounts[date] = { usersCount: 0, bikesCount: 0 };
+            const createdAtObj = parseFirestoreDate(data.createdAt);
+            const lastLoginAtObj = parseFirestoreDate(data.lastLoginAt);
+            
+            if (createdAtObj && createdAtObj >= thirtyDaysAgo) {
+                const date = createdAtObj.toISOString().split('T')[0];
+                if (!dailyCounts[date]) dailyCounts[date] = { usersCount: 0, bikesCount: 0, activeUsersCount: 0 };
                 dailyCounts[date].usersCount += 1;
+            }
+
+            if (lastLoginAtObj && lastLoginAtObj >= thirtyDaysAgo) {
+                const date = lastLoginAtObj.toISOString().split('T')[0];
+                if (!dailyCounts[date]) dailyCounts[date] = { usersCount: 0, bikesCount: 0, activeUsersCount: 0 };
+                dailyCounts[date].activeUsersCount += 1;
+                totalActiveUsersLast30Days += 1;
             }
         });
 
@@ -331,7 +342,7 @@ export const getGeneralStats = unstable_cache(
             const dateObj = parseFirestoreDate(data.createdAt);
             if (dateObj && dateObj >= thirtyDaysAgo) {
                 const date = dateObj.toISOString().split('T')[0];
-                if (!dailyCounts[date]) dailyCounts[date] = { usersCount: 0, bikesCount: 0 };
+                if (!dailyCounts[date]) dailyCounts[date] = { usersCount: 0, bikesCount: 0, activeUsersCount: 0 };
                 dailyCounts[date].bikesCount += 1;
             }
         });
@@ -343,7 +354,7 @@ export const getGeneralStats = unstable_cache(
         return {
             totalUsers: filteredUsersCount,
             totalBikes: bikesSnapshot.data().count,
-            activeUsers: 0, 
+            activeUsers: totalActiveUsersLast30Days, 
             dailyGrowth: dailyGrowth
         };
     },

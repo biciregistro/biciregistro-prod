@@ -111,6 +111,7 @@ export type User = {
   communityId?: string; 
   notificationPreferences?: NotificationPreferences;
   createdAt?: string;
+  lastLoginAt?: string; // Track last user login/interaction
   bloodType?: string;
   insuranceInfo?: string;
   allergies?: string; 

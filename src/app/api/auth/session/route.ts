@@ -1,6 +1,5 @@
 // src/app/api/auth/session/route.ts
-import { adminAuth } from "@/lib/firebase/server";
-import { cookies } from "next/headers";
+import { adminAuth, adminDb } from "@/lib/firebase/server";
 import { NextRequest, NextResponse } from "next/server";
 
 const SESSION_COOKIE_NAME = '__session';
@@ -18,12 +17,26 @@ export async function POST(request: NextRequest) {
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const isAdmin = decodedToken.admin === true;
     const isOng = decodedToken.role === 'ong';
+    const uid = decodedToken.uid;
 
     const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
     const sessionCookie = await adminAuth.createSessionCookie(idToken, {
       expiresIn,
     });
     
+    // --- TRACK LAST LOGIN ACTIVE METRIC ---
+    try {
+        // Ejecutamos esto de forma asíncrona sin bloquear la respuesta de la sesión (fire and forget)
+        // Solo actualizamos lastLoginAt para no sobreescribir otros datos.
+        adminDb.collection('users').doc(uid).update({
+            lastLoginAt: new Date().toISOString()
+        }).catch(err => {
+            console.error("Error updating lastLoginAt for user", uid, err);
+        });
+    } catch (e) {
+        // Fail silently para analíticas
+    }
+
     // Include isAdmin and isOng status in the response
     const response = NextResponse.json({ status: "success", isAdmin, isOng }, { status: 200 });
 

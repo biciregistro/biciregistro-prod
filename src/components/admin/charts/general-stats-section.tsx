@@ -8,7 +8,7 @@ interface GeneralStatsData {
     totalUsers: number;
     totalBikes: number;
     activeUsers: number;
-    dailyGrowth: { date: string; usersCount: number; bikesCount: number }[];
+    dailyGrowth: { date: string; usersCount: number; bikesCount: number; activeUsersCount: number }[];
 }
 
 function StatCard({ title, value, icon: Icon, description }: { title: string, value: number | string, icon: any, description?: string }) {
@@ -57,9 +57,9 @@ export function GeneralStatsSection({ data }: { data: GeneralStatsData }) {
                 />
                 <StatCard 
                     title="Usuarios Activos" 
-                    value={data.activeUsers > 0 ? data.activeUsers : "—"} 
+                    value={data.activeUsers > 0 ? data.activeUsers : "0"} 
                     icon={Activity} 
-                    description="Inicios de sesión (Últimos 30 días)"
+                    description="Últimos 30 días"
                 />
             </div>
 
@@ -102,7 +102,7 @@ export function GeneralStatsSection({ data }: { data: GeneralStatsData }) {
                                     <Area 
                                         type="monotone" 
                                         dataKey="usersCount" 
-                                        name="Usuarios"
+                                        name="Registros Usuarios"
                                         stroke="hsl(var(--primary))" 
                                         fill="hsl(var(--primary))" 
                                         fillOpacity={0.2} 
@@ -110,9 +110,17 @@ export function GeneralStatsSection({ data }: { data: GeneralStatsData }) {
                                     <Area 
                                         type="monotone" 
                                         dataKey="bikesCount" 
-                                        name="Bicicletas"
+                                        name="Registros Bicicletas"
                                         stroke="#10b981" 
                                         fill="#10b981" 
+                                        fillOpacity={0.2} 
+                                    />
+                                    <Area 
+                                        type="monotone" 
+                                        dataKey="activeUsersCount" 
+                                        name="Usuarios Activos"
+                                        stroke="#f59e0b" // Amber color to contrast with primary and green
+                                        fill="#f59e0b" 
                                         fillOpacity={0.2} 
                                     />
                                 </AreaChart>

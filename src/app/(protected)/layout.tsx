@@ -50,7 +50,7 @@ export default async function ProtectedLayout({
   }
 
   return (
-    <div className="flex flex-col min-h-screen pb-16 md:pb-0"> {/* Add padding bottom for mobile nav */}
+    <div className="flex flex-col min-h-screen pb-16 md:pb-0 bg-secondary/20"> {/* Se restaura bg-secondary/20 para contraste de tarjetas */}
       <NotificationsInitializer userId={user.id} />
       <GamificationListener />
       <Header user={user} />
