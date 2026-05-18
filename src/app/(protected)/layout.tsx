@@ -5,6 +5,7 @@ import { Footer } from '@/components/shared/footer';
 import { NotificationsInitializer } from '@/components/shared/notifications-initializer';
 import { GamificationListener } from '@/components/shared/gamification-listener';
 import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
+import { ClientActivityTracker } from '@/components/shared/client-activity-tracker';
 import { Suspense } from 'react';
 
 // This forces all pages within this layout to be dynamically rendered.
@@ -53,6 +54,7 @@ export default async function ProtectedLayout({
     <div className="flex flex-col min-h-screen pb-16 md:pb-0 bg-secondary/20"> {/* Se restaura bg-secondary/20 para contraste de tarjetas */}
       <NotificationsInitializer userId={user.id} />
       <GamificationListener />
+      <ClientActivityTracker />
       <Header user={user} />
       <main className="flex-1">{children}</main>
       {/* 

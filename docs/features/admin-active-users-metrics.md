@@ -42,3 +42,12 @@ Posteriormente a la creación del panel, se modificó el endpoint de sesión `sr
 Cada vez que un usuario (ya sea nuevo registro o login habitual, redes sociales o email) genera exitosamente una cookie de sesión con su Token JWT de Firebase, se despacha en el backend de forma asíncrona ("fire and forget") un Update a su documento de `User` actualizando la propiedad `lastLoginAt` con el Timestamp ISO actual.
 
 Esto garantiza que las analíticas comiencen a reflejar y contabilizar usuarios reales activos en los últimos 30 días automáticamente.
+
+---
+
+## Estrategia de Daily Active Users (DAU)
+Para resolver la problemática del ciclo de vida de la Cookie de Firebase (5 días) y asegurar que los usuarios que ingresan diariamente pero no renuevan sesión sean contabilizados en la métrica histórica (Daily Growth), se ha añadido un esquema de "Heartbeat" (Ping) silencioso en cliente.
+
+1.  **Componente `ClientActivityTracker`:** Este componente React sin interfaz de usuario se inyecta en el `ProtectedLayout` (aplicando a todas las rutas detrás de la autenticación). 
+2.  **Lógica del Ping:** Utiliza `localStorage` para guardar una bandera del día actual (ej. `Mon May 18 2026`). Si un usuario carga el dashboard y esta fecha difiere de la actual, invoca la *Server Action* `recordDailyActivity()`. 
+3.  **Optimizador de Base de Datos:** Esta estrategia asegura una sola lectura en la BD por día y por usuario activo, garantizando precisión máxima en el histórico sin saturar de escrituras `update()` a Firestore.

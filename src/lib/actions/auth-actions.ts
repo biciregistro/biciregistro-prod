@@ -533,3 +533,17 @@ export async function restoreAdminSession(originalAdminUid: string): Promise<{ s
         return { success: false, error: 'Ocurrió un error al restaurar la sesión de administrador.' };
     }
 }
+
+// --- METRICAS DE ACTIVIDAD ---
+export async function recordDailyActivity(): Promise<void> {
+    const user = await getAuthenticatedUser();
+    if (!user) return;
+
+    try {
+        await db.collection('users').doc(user.id).update({
+            lastLoginAt: new Date().toISOString()
+        });
+    } catch (e) {
+        console.error("Failed to record daily activity for user", user.id, e);
+    }
+}
