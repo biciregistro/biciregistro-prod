@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Zap, ShieldCheck, Bike as BikeIcon, Search, Calendar, Tag, Sparkles, ShieldAlert, TrendingUp, Users, Info } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Zap, ShieldCheck, Bike as BikeIcon, Search, Calendar, Tag, Sparkles, ShieldAlert, TrendingUp, Users, Info, Check, ChevronsUpDown } from 'lucide-react';
 import { bikeBrands } from '@/lib/bike-brands';
 import { valuateBikeAction } from '@/lib/actions/ai-valuation-actions';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { ModelCombobox } from '@/components/shared/model-combobox'; // <-- Importación del componente centralizado
+import { ModelCombobox } from '@/components/shared/model-combobox'; 
 
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: currentYear - 1980 + 1 }, (_, i) => currentYear - i);
@@ -26,6 +28,7 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
     const [brand, setBrand] = useState('');
     const [model, setModel] = useState('');
     const [year, setYear] = useState('');
+    const [openBrand, setOpenBrand] = useState(false);
     const [priceRange, setPriceRange] = useState<{ min: number; max: number, msrp?: number, reasoning?: string, isRagBased?: boolean } | null>(null);
     const [loadingState, setLoadingState] = useState({
         text: 'Sprock está analizando el mercado actual...',
@@ -250,20 +253,66 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
         <div className="p-2 max-w-xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-left">
                 <div className="space-y-2 group">
-                    <Label htmlFor="brand-select" className="text-foreground flex items-center gap-1.5 ml-1 font-medium">
+                    <Label className="text-foreground flex items-center gap-1.5 ml-1 font-medium">
                         <Tag className="w-3.5 h-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                         Marca
                     </Label>
-                    <Select value={brand} onValueChange={setBrand}>
-                        <SelectTrigger id="brand-select" className="bg-background border-muted-foreground/20 hover:border-primary/50 transition-all h-11">
-                            <SelectValue placeholder="Selecciona" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[250px]">
-                            {bikeBrands.map((b) => (
-                                <SelectItem key={b} value={b}>{b}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    
+                    <Popover open={openBrand} onOpenChange={setOpenBrand}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={openBrand}
+                                className="w-full justify-between bg-background border-muted-foreground/20 hover:border-primary/50 transition-all h-11 font-normal"
+                            >
+                                {brand ? brand : "Selecciona una marca"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0" align="start">
+                            <Command>
+                                <CommandInput placeholder="Buscar marca..." />
+                                <CommandList>
+                                    <CommandEmpty>
+                                        <div className="p-2 text-sm text-center">
+                                            No se encontró la marca.
+                                            <Button 
+                                                variant="ghost" 
+                                                className="w-full mt-2 text-primary font-bold"
+                                                onClick={() => {
+                                                    setBrand("Otra");
+                                                    setOpenBrand(false);
+                                                }}
+                                            >
+                                                Seleccionar "Otra"
+                                            </Button>
+                                        </div>
+                                    </CommandEmpty>
+                                    <CommandGroup className="max-h-[250px] overflow-y-auto">
+                                        {bikeBrands.map((b) => (
+                                            <CommandItem
+                                                key={b}
+                                                value={b}
+                                                onSelect={(currentValue) => {
+                                                    setBrand(currentValue === brand ? "" : currentValue);
+                                                    setOpenBrand(false);
+                                                }}
+                                            >
+                                                <Check
+                                                    className={cn(
+                                                        "mr-2 h-4 w-4",
+                                                        brand === b ? "opacity-100" : "opacity-0"
+                                                    )}
+                                                />
+                                                {b}
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
                 </div>
 
                 <div className="space-y-2 group relative">
