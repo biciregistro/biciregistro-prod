@@ -41,6 +41,9 @@ import {
     validateSerialNumberAction as validateSerialNumberActionImpl
 } from './actions/bike-actions';
 
+// IMPORT NEW UTILS
+import { normalizeBrand } from './utils';
+
 // --- WRAPPERS FOR BIKE ACTIONS ---
 
 export async function registerBike(prevState: BikeFormState, formData: FormData) {
@@ -379,13 +382,25 @@ export async function getModelsByBrandAction(brand: string): Promise<string[]> {
     
     try {
         const { adminDb } = await import('@/lib/firebase/server');
-        // Usamos una normalizacion simplificada localmente para la marca
-        const normBrand = brand.toLowerCase().trim().replace(/[-\s]+/g, '_').replace(/[^a-z0-9_]/g, '');
         
-        const snapshot = await adminDb.collection('blue-book-valuations')
+        // 1. Usar el normalizador oficial para la marca completa
+        const normBrand = normalizeBrand(brand);
+        
+        let snapshot = await adminDb.collection('blue-book-valuations')
             .where('brandId', '==', normBrand)
             .get();
             
+        // 2. FALLBACK: Si no hay resultados y la marca tiene múltiples palabras (ej. "Honey Whale", "Pivot Cycles")
+        // el script de ingesta antiguo guardaba solo la primera palabra. Intentamos buscar con ella.
+        if (snapshot.empty && brand.trim().includes(' ')) {
+            const firstWord = brand.trim().split(' ')[0];
+            const fallbackNormBrand = normalizeBrand(firstWord);
+            
+            snapshot = await adminDb.collection('blue-book-valuations')
+                .where('brandId', '==', fallbackNormBrand)
+                .get();
+        }
+
         if (snapshot.empty) return [];
         
         // Usamos un Map para deduplicar semánticamente basados en el modelId

@@ -1,25 +1,30 @@
-# Mejora de UI: Búsqueda en Selección de Marca (Valuation Widget)
+# Mejora de UI: Búsqueda en Selección de Marca y Sincronización del Bluebook (Valuation Widget)
 
 ## 📋 Descripción del Requerimiento
-Actualmente, el widget de valuación utiliza un componente `Select` simple para la marca. Esto dificulta la experiencia del usuario cuando la lista de marcas es extensa. Se requiere transformar este campo en un dropdown con buscador integrado (similar a un Combobox), que permita filtrar marcas y ofrezca la opción "Otra" si no hay coincidencias.
+Actualmente, el widget de valuación utiliza un componente `<Popover>` y `<Command>` para seleccionar la marca con buscador integrado. Sin embargo, existe un problema técnico en la sincronización con los datos del "Libro Azul" (Blue Book) alojados en Firestore.
+
+### 🐛 Problema Detectado (Bug)
+Cuando el script de ingesta del Blue Book guarda los registros, acorta el `brandId` a la primera palabra de la marca (Ej. "Honey Whale" se guarda como `honey`, "Pivot Cycles" como `pivot`). Al consultar desde el Widget, el cliente enviaba el ID normalizado completo (`honey_whale`), lo que causaba que la consulta en la base de datos no encontrara coincidencias y devolviera un arreglo vacío. 
 
 ## 🚀 Cambios Realizados
 
+### Backend Action `getModelsByBrandAction` (en `src/lib/actions.ts`)
+- Se actualizó la función para implementar un **Mecanismo de Búsqueda Resiliente (Fallback)**.
+- **Paso 1:** Se importó e implementó la función centralizada `normalizeBrand` de `utils.ts` para estandarizar la entrada.
+- **Paso 2:** La función realiza una primera consulta usando la marca normalizada completa (`normBrand`).
+- **Paso 3 (Fallback):** Si la primera consulta falla (el snapshot está vacío), la función extrae la primera palabra de la marca original, la normaliza, y realiza una segunda consulta.
+- Este mecanismo asegura que funcionen tanto las marcas registradas erróneamente en el script (con una palabra) como posibles arreglos futuros donde la marca se guarde completa.
+
 ### Componente `valuation-widget.tsx`
-- Se reemplazó el componente `<Select>` de Radix/Shadcn por una implementación de `<Popover>` y `<Command>`.
-- **Buscador Integrado:** Se añadió un input de búsqueda que filtra en tiempo real la lista proveniente de `bikeBrands`.
-- **Opción "Otra":** 
-    - Se incluyó una validación en el estado de búsqueda vacía (`CommandEmpty`).
-    - Si no hay resultados que coincidan con la búsqueda, el usuario puede seleccionar "Otra".
-- **UX Consistente:** Se mantuvo el estilo visual (bordes, alturas, fuentes) para que coincida con el campo de "Modelo".
+- Se reemplazó el componente `<Select>` de Radix/Shadcn por una implementación de `<Popover>` y `<Command>`. (Implementación Previa).
+- Mantiene la consistencia de limpiar el campo `model` cuando cambia `brand`.
 
 ## 🛠️ Detalles Técnicos
-- **Dependencias de UI:** `Popover`, `Command`, `CommandInput`, `CommandList`, `CommandItem`, `CommandEmpty`.
-- **Lógica de Estado:** Se utiliza el estado `brand` existente para no romper la integración con `valuateBikeAction`.
-- **Accesibilidad:** Se añadieron roles de accesibilidad y estados de apertura/cierre gestionados por el Popover.
+- **Archivo modificado:** `src/lib/actions.ts`
+- **Función modificada:** `getModelsByBrandAction`
+- **Impacto:** Restaura el autocompletado de modelos en el Valuation Widget para decenas de marcas con nombres compuestos.
 
 ## 🧪 Plan de Pruebas
-1. **Búsqueda Positiva:** Escribir "Trek" debe mostrar únicamente "Trek".
-2. **Búsqueda Negativa:** Escribir "MarcaFicticia" debe mostrar el mensaje "No se encontró la marca." junto con la opción de seleccionar "Otra".
-3. **Persistencia:** Al seleccionar una marca, el popover debe cerrarse y el nombre debe aparecer en el trigger.
-4. **Limpieza:** Cambiar la marca debe seguir limpiando el campo de modelo (lógica de `useEffect` preexistente).
+1. **Prueba Nombres Compuestos (Resolución del Bug):** Seleccionar "Honey Whale" o "GT Bicycles". Debe desplegar la lista de modelos.
+2. **Prueba Búsqueda Positiva Normal:** Escribir "Trek" o "Specialized" (una palabra) debe mostrar su respectiva lista de modelos.
+3. **Búsqueda Negativa:** Escribir una marca inexistente como "MarcaFicticia", debe permitir hacer clic en el botón de fallback "Usar 'MarcaFicticia'" en la UI.
