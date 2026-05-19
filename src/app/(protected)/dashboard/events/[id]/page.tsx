@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy, Hash, AlertCircle, CheckCircle2, Package, User, Phone, Globe, HeartPulse, FileText, Download, Shirt, TriangleAlert, ShieldCheck, QrCode } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy, Hash, AlertCircle, CheckCircle2, Package, User, Phone, Globe, HeartPulse, FileText, Download, Shirt, TriangleAlert, ShieldCheck, QrCode, Lock } from 'lucide-react';
 import { EventActionCard } from '@/components/dashboard/event-action-card';
 import { EventBikeSelector } from '@/components/dashboard/event-bike-selector';
 import { PaymentStatusHandler } from '@/components/payment-status-handler';
@@ -21,8 +21,8 @@ import dynamic from 'next/dynamic';
 import { RegistrationQRCode } from '@/components/dashboard/RegistrationQrCode';
 import { WaiverDownloadButton } from './waiver-download-button-client'; 
 
-// Import the new Blur Wall
-import { TicketBlurWall } from '@/components/dashboard/ticket-blur-wall';
+// Import the new Checklist component
+import { EventUnlockChecklist } from '@/components/dashboard/event-unlock-checklist';
 
 export default async function EventRegistrationDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthenticatedUser();
@@ -94,8 +94,11 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
   
   const requiresBike = event.requiresBike !== false; 
   const hasBike = userBikes.length > 0;
+  const hasBikeSelected = !!registration.bikeId;
   
-  const showBlurWall = !isFinished && (!isProfileComplete || (requiresBike && !hasBike));
+  // Condición maestra para desbloquear el ticket
+  // NOTA: isPaid se mantiene como advertencia dentro del ticket, el Checklist se enfoca en Bici y Perfil
+  const isCheckinComplete = isProfileComplete && (!requiresBike || hasBikeSelected);
 
   return (
     <>
@@ -104,19 +107,6 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
 
       <div className="container max-w-4xl mx-auto py-6 md:py-10 px-4 relative">
         
-        {/* INJECT TICKET BLUR WALL OVERLAY */}
-        {showBlurWall && (
-            <TicketBlurWall 
-                userId={user.id}
-                userName={user.name}
-                userLastName={user.lastName || ''}
-                userEmail={user.email}
-                isProfileComplete={isProfileComplete}
-                needsBike={requiresBike && !hasBike}
-                userRole={user.role}
-            />
-        )}
-
         <PaymentStatusHandler />
         
         {/* Mobile Floating Payment CTA */}
@@ -129,8 +119,22 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
             />
         )}
 
+        {/* INJECT INLINE UNLOCK CHECKLIST si faltan requisitos operativos */}
+        {!isFinished && !isCheckinComplete && (
+            <EventUnlockChecklist 
+                user={user}
+                isProfileComplete={isProfileComplete}
+                needsBike={requiresBike}
+                hasBike={hasBike}
+                userBikes={userBikes}
+                registration={registration}
+                eventId={eventId}
+            />
+        )}
+
         {/* TICKET DIGITAL PRINCIPAL */}
-        <div className="max-w-2xl mx-auto">
+        {/* Si el check-in no está completo, le bajamos la opacidad y deshabilitamos interacciones visualmente */}
+        <div className={cn("max-w-2xl mx-auto transition-all duration-500", !isCheckinComplete && !isFinished && "opacity-60 grayscale pointer-events-none")}>
           <Card className="overflow-hidden border-none shadow-2xl relative bg-card ticket-shape">
               {/* Cabecera del Ticket */}
               <div className="bg-primary text-primary-foreground p-6 md:p-8 space-y-4">
@@ -252,18 +256,18 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                                       <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex gap-2">
                                           <TriangleAlert className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
                                           <p className="text-xs text-yellow-800 leading-tight">
-                                              Faltan datos en tu perfil. Completa tu registro para asegurar tu lugar.
+                                              Faltan datos en tu perfil. Completa tu registro arriba.
                                           </p>
                                       </div>
                                   )}
                               </div>
                               
-                              <div className="grid grid-cols-2 gap-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div>
                                       <p className="text-[10px] text-muted-foreground font-bold uppercase mb-0.5">Nivel</p>
                                       <p className="font-bold text-sm">{tierName}</p>
                                   </div>
-                                  <div>
+                                  <div className="md:col-span-1">
                                       <p className="text-[10px] text-muted-foreground font-bold uppercase mb-0.5">Categoría</p>
                                       <EventCategoryDisplay 
                                           registrationId={registration.id}
@@ -357,7 +361,15 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                   <Separator className="border-dashed border-muted-foreground/30" />
 
                   {/* 4. SECCIÓN CHECK-IN (QR) */}
-                  <div className="p-8 bg-muted/20 flex flex-col md:flex-row items-center justify-between gap-8">
+                  <div className="p-8 bg-muted/20 flex flex-col md:flex-row items-center justify-between gap-8 relative">
+                      {!isCheckinComplete && !isFinished && (
+                          <div className="absolute inset-0 bg-slate-900/5 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-b-xl">
+                              <div className="bg-white/90 px-4 py-2 rounded-full shadow-sm flex items-center gap-2 font-bold text-slate-700">
+                                  <Lock className="w-4 h-4 text-amber-500" />
+                                  Ticket Bloqueado
+                              </div>
+                          </div>
+                      )}
                       <div className="space-y-3 flex-1 text-center md:text-left">
                           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
                               <QrCode className="h-3 w-3" /> Check-in Digital
@@ -366,7 +378,7 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                           <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
                               Presenta este código al staff del evento para validar tu asistencia y el blindaje de tu bicicleta.
                           </p>
-                          {isPendingPayment && (
+                          {isPendingPayment && isCheckinComplete && (
                                <p className="text-xs text-destructive font-bold animate-pulse">
                                   * PAGO PENDIENTE: Completa tu pago para activar el Check-in.
                                </p>

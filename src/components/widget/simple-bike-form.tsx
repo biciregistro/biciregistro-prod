@@ -316,7 +316,7 @@ export function SimpleBikeForm({ onSuccess }: SimpleBikeFormProps) {
         />
 
         <Button type="submit" disabled={loading} className="w-full">
-          {loading ? 'Procesando...' : 'Crear Registro'}
+          {loading ? 'Procesando...' : 'Registrar bicicleta'}
         </Button>
       </form>
     </Form>
