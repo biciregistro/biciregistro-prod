@@ -24,6 +24,7 @@ interface ValuationWidgetProps {
 export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProps) {
     const router = useRouter();
     const { toast } = useToast();
+    const [isMounted, setIsMounted] = useState(false);
     const [step, setStep] = useState<'form' | 'loading' | 'result'>('form');
     const [brand, setBrand] = useState('');
     const [model, setModel] = useState('');
@@ -35,6 +36,10 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
         progress: 10,
         icon: <Search className="w-5 h-5" />
     });
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     // Resetear modelo cuando cambie la marca para evitar inconsistencias
     useEffect(() => {
@@ -121,6 +126,29 @@ export function ValuationWidget({ isAuthenticated = false }: ValuationWidgetProp
             router.push(signupUrl);
         }
     };
+
+    if (!isMounted) {
+        // Renderizamos un esqueleto estático que no generará Hydration Mismatch
+        return (
+            <div className="p-2 max-w-xl mx-auto opacity-50 pointer-events-none">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-left">
+                    <div className="space-y-2">
+                        <div className="h-5 w-20 bg-muted rounded animate-pulse"></div>
+                        <div className="h-11 w-full border border-muted-foreground/20 rounded-md bg-background"></div>
+                    </div>
+                    <div className="space-y-2 relative">
+                        <div className="h-5 w-24 bg-muted rounded animate-pulse"></div>
+                        <div className="h-11 w-full border border-muted-foreground/20 rounded-md bg-background"></div>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                        <div className="h-5 w-28 bg-muted rounded animate-pulse"></div>
+                        <div className="h-11 w-full border border-muted-foreground/20 rounded-md bg-background"></div>
+                    </div>
+                </div>
+                <div className="w-full h-14 bg-muted rounded-md"></div>
+            </div>
+        );
+    }
 
     if (step === 'loading') {
         return (

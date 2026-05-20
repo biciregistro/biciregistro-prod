@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ShieldAlert, ShieldCheck, Loader2, ExternalLink, AlertTriangle } from "lucide-react";
+import { Search, ShieldAlert, ShieldCheck, Loader2, ExternalLink, AlertTriangle, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export function WidgetSearch() {
@@ -28,13 +28,19 @@ export function WidgetSearch() {
       const data = await response.json();
 
       if (data.isUnique) {
-        setResult({ status: 'safe' });
+          // Es única localmente, pero podría estar robada en Bike Index
+          if (data.externalTheft) {
+              setResult({ status: 'stolen', data: data.externalTheft });
+          } else {
+              setResult({ status: 'safe' });
+          }
       } else {
+        // Existe localmente, verificamos su estado público
         const infoRes = await fetch(`/api/bike-public-info?serial=${serial}`);
         const info = await infoRes.json();
         
         if (info.status === 'stolen') {
-            setResult({ status: 'stolen', data: info });
+            setResult({ status: 'stolen', data: { ...info, source: 'BiciRegistro' } });
         } else {
             // Existe pero no está robada (o está recuperada/safe)
             setResult({ status: 'safe' });
@@ -114,7 +120,7 @@ export function WidgetSearch() {
                 </div>
                 <div>
                     <p className="font-bold text-green-800 text-sm">Sin reportes de robo</p>
-                    <p className="text-xs text-green-700 mt-0.5">Este número de serie no aparece en nuestra base de datos de bicicletas robadas.</p>
+                    <p className="text-xs text-green-700 mt-0.5">Este número de serie no aparece en nuestra base de datos ni en redes globales.</p>
                 </div>
             </div>
         )}
@@ -125,10 +131,19 @@ export function WidgetSearch() {
                     <ShieldAlert className="w-5 h-5 text-red-700" />
                 </div>
                 <div className="flex-1">
-                    <p className="font-bold text-red-800 uppercase tracking-tight text-sm">¡ALERTA: ROBADA!</p>
+                    <p className="font-bold text-red-800 uppercase tracking-tight text-sm flex items-center gap-1">
+                        ¡ALERTA: ROBADA!
+                    </p>
                     <p className="text-xs text-red-700 font-medium mt-1">
                         {result.data?.brand} {result.data?.model} ({result.data?.color})
                     </p>
+                    
+                    {result.data?.source === 'Bike Index' && (
+                        <div className="flex items-center gap-1 mt-1.5 text-[10px] bg-red-100 text-red-800 px-1.5 py-0.5 rounded w-fit font-medium">
+                            <Globe className="w-3 h-3" /> Reportada en red global ({result.data.source})
+                        </div>
+                    )}
+                    
                     {result.data?.date && <p className="text-[10px] text-red-600 mt-1">Fecha: {result.data.date}</p>}
                     
                     <Button 
@@ -147,7 +162,7 @@ export function WidgetSearch() {
       
       <div className="mt-auto pt-4 flex justify-center">
         <p className="text-[10px] text-gray-400 font-medium flex items-center gap-1">
-            Respaldo de <span className="font-bold text-gray-600">BiciRegistro.mx</span>
+            Respaldo de <span className="font-bold text-gray-600">BiciRegistro.mx</span> & <span className="font-bold text-gray-600">Bike Index</span>
         </p>
       </div>
     </div>

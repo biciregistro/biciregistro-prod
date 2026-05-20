@@ -6,13 +6,69 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { Bike, BikeStatus } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Globe } from 'lucide-react';
 import type { Metadata } from 'next';
 
-// This function generates dynamic metadata for each bike page
+// Helper for exact match comparison
+function isExactMatch(biSerial: string | null | undefined, ourSerial: string): boolean {
+    if (!biSerial) return false;
+    const cleanBi = biSerial.replace(/[\s-]+/g, '').toUpperCase();
+    const cleanOur = ourSerial.replace(/[\s-]+/g, '').toUpperCase();
+    return cleanBi === cleanOur;
+}
+
+// Función para obtener la bici de Bike Index como mock
+async function getBikeFromBikeIndex(serial: string): Promise<(Bike & { isExternal?: boolean, externalUrl?: string }) | null> {
+    try {
+        const cleanSerialForBi = serial.replace(/[\s-]+/g, '').toUpperCase();
+        const biRes = await fetch(`https://bikeindex.org/api/v3/search?serial=${encodeURIComponent(cleanSerialForBi)}&stolenness=stolen`, { next: { revalidate: 60 } });
+        
+        if (biRes.ok) {
+            const biData = await biRes.json();
+            if (biData.bikes && biData.bikes.length > 0) {
+                // Buscamos coincidencia exacta igual que en el API
+                const stolenBike = biData.bikes.find((b: any) => 
+                    b.stolen && isExactMatch(b.serial, cleanSerialForBi)
+                );
+
+                if (stolenBike) {
+                    return {
+                        id: `bi-${stolenBike.id}`,
+                        userId: 'external',
+                        make: stolenBike.manufacturer_name || 'Desconocida',
+                        model: stolenBike.frame_model || 'Desconocido',
+                        color: stolenBike.frame_colors?.join(', ') || 'Desconocido',
+                        serialNumber: serial,
+                        photos: stolenBike.large_img ? [stolenBike.large_img] : (stolenBike.thumb ? [stolenBike.thumb] : ['/logo.png']),
+                        status: 'stolen',
+                        createdAt: new Date().toISOString(),
+                        isExternal: true,
+                        externalUrl: stolenBike.url,
+                        theftReport: {
+                            date: stolenBike.date_stolen ? new Date(stolenBike.date_stolen * 1000).toISOString() : new Date().toISOString(),
+                            location: stolenBike.stolen_location || 'Ubicación no especificada',
+                            details: 'Bicicleta reportada como robada en la red global de Bike Index.',
+                        }
+                    };
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Error fetching from Bike Index:", error);
+    }
+    return null;
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ serial: string }> }): Promise<Metadata> {
   const { serial } = await params;
-  const bike = await getBikeBySerial(serial);
+  let bike = await getBikeBySerial(serial);
+  
+  if (!bike) {
+      const biBike = await getBikeFromBikeIndex(serial);
+      if (biBike) {
+          bike = biBike as Bike;
+      }
+  }
 
   if (!bike) {
     return {
@@ -25,7 +81,6 @@ export async function generateMetadata({ params }: { params: Promise<{ serial: s
   const statusText = isStolen ? 'Reportada como ROBADA' : 'Marcada como Segura';
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
   
-  // Construir URL para la imagen dinámica OG
   const ogSearchParams = new URLSearchParams({
     brand: bike.make,
     model: bike.model || '',
@@ -81,9 +136,12 @@ const bikeStatusStyles: { [key in BikeStatus]: string } = {
 };
 
 export default async function PublicBikePage({ params }: { params: Promise<{ serial: string }> }) {
-  // Await params before accessing properties
   const { serial } = await params;
-  const bike = await getBikeBySerial(serial);
+  let bike: (Bike & { isExternal?: boolean, externalUrl?: string }) | null = await getBikeBySerial(serial);
+
+  if (!bike) {
+      bike = await getBikeFromBikeIndex(serial);
+  }
 
   if (!bike) {
     notFound();
@@ -92,15 +150,33 @@ export default async function PublicBikePage({ params }: { params: Promise<{ ser
   return (
     <div className="container py-8">
         <div className="max-w-4xl mx-auto space-y-8">
-            <h1 className="text-3xl font-bold tracking-tight">Registro Público de Bicicleta</h1>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+                <h1 className="text-3xl font-bold tracking-tight">Registro Público de Bicicleta</h1>
+                {bike.isExternal && (
+                    <div className="flex items-center gap-3">
+                        <Badge variant="outline" className="flex items-center gap-1.5 bg-blue-50 text-blue-800 border-blue-200 shadow-sm py-1">
+                            <Globe className="w-3.5 h-3.5" />
+                            Red Global
+                        </Badge>
+                        <div className="h-6 opacity-70">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img 
+                                src="https://bikeindex.org/assets/resources/logo_backgrounded_black-f42a6565a502cb609020b10d7ffbbefadca7bfc993bcf526f8c57730a99a713e.svg" 
+                                alt="Bike Index Logo" 
+                                className="h-full w-auto object-contain"
+                            />
+                        </div>
+                    </div>
+                )}
+            </div>
             <Card>
                 <CardContent className="grid md:grid-cols-2 gap-8 p-6">
-                    <div className="relative aspect-video rounded-lg overflow-hidden border">
+                    <div className="relative aspect-video rounded-lg overflow-hidden border bg-gray-50 flex items-center justify-center">
                         <Image 
-                            src={bike.photos[0] || ''}
+                            src={bike.photos[0] || '/logo.png'}
                             alt={`${bike.make} ${bike.model}`}
                             fill
-                            className="object-cover"
+                            className="object-contain"
                         />
                     </div>
                     <div className="space-y-4">
@@ -123,6 +199,19 @@ export default async function PublicBikePage({ params }: { params: Promise<{ ser
                                  'En transferencia'}
                             </Badge>
                         </div>
+
+                        {bike.isExternal && bike.externalUrl && (
+                            <div className="pt-2">
+                                <a 
+                                    href={bike.externalUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                                >
+                                    Ver reporte original completo <Globe className="w-3 h-3" />
+                                </a>
+                            </div>
+                        )}
                     </div>
                 </CardContent>
             </Card>
@@ -132,7 +221,14 @@ export default async function PublicBikePage({ params }: { params: Promise<{ ser
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>¡Esta bicicleta está reportada como robada!</AlertTitle>
                     <AlertDescription>
-                        No intentes comprar esta bicicleta. Si tienes información sobre su paradero, por favor contacta a tu agencia de policía local.
+                        {bike.isExternal 
+                            ? "Este reporte proviene de la red global de Bike Index. No intentes comprar esta bicicleta." 
+                            : "No intentes comprar esta bicicleta. Si tienes información sobre su paradero, por favor contacta a tu agencia de policía local."}
+                        {bike.theftReport?.location && (
+                            <div className="mt-2 text-sm font-medium">
+                                Última ubicación conocida: {bike.theftReport.location}
+                            </div>
+                        )}
                     </AlertDescription>
                 </Alert>
             )}
