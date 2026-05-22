@@ -1,6 +1,6 @@
 import { GamificationProfile } from './gamification/gamification-types';
 
-export type BikeStatus = 'safe' | 'stolen' | 'in_transfer' | 'recovered';
+export type BikeStatus = 'safe' | 'stolen' | 'in_transfer' | 'recovered' | 'inventory';
 
 export type BikonDeviceStatus = 'available' | 'assigned' | 'inactive';
 

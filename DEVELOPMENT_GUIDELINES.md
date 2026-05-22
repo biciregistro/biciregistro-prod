@@ -206,7 +206,7 @@ Este proceso se realiza únicamente cuando `develop` es estable y está listo pa
     git merge develop
     git push origin main
     ```
-2.  **¡Lanzamiento!** El `push` a `main` activará el desplieggue a producción.
+2.  **¡Lanzamiento!** El `push` a `main` activará el despliegue a producción.
 
 ### Despliegue de Configuración de Firebase (Firestore y Storage)
 
@@ -279,3 +279,16 @@ Para garantizar que el código sea mantenible, legible y pueda ser procesado efi
     *   **Ejemplo:** En lugar de un `EventForm.tsx` gigante, crea una carpeta `event-form-sections/` y divide el formulario en `GeneralSection.tsx`, `ConfigSection.tsx`, etc.
 
 3.  **Separación de Responsabilidades (SoC):** Cada archivo debe tener un propósito único y claro. Evita los archivos "utils" o "helpers" monolíticos que contienen funciones no relacionadas entre sí.
+
+---
+
+## 7. Documentación Obligatoria de Funcionalidades
+
+Cualquier funcionalidad nueva, modificación relevante o bugfix crítico **DEBE** ser documentado en la carpeta `docs/features/` o `docs/bug-resolutions/` utilizando el formato Markdown estándar del proyecto.
+
+#### Requisitos del Documento:
+1.  **Contexto de Negocio:** Historia de usuario y necesidad que resuelve.
+2.  **Diseño Técnico:** Flujo de ejecución y cambios en modelos de datos.
+3.  **Detalles de Implementación:** Archivos creados y modificaciones quirúrgicas realizadas.
+4.  **QA:** Criterios de aceptación y plan de pruebas de no-regresión.
+5.  **Despliegue:** Pasos específicos para el rollout y plan de rollback.

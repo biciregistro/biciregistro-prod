@@ -31,6 +31,7 @@ import { EventCard } from '@/components/ong/event-card';
 import { BikeCard } from '@/components/bike-card';
 import { OngDashboardHero } from '@/components/ong/ong-dashboard-hero';
 import { OngCampaignManager } from '@/components/ong/ong-campaign-manager';
+import { BulkImportModal } from '@/components/ong/bulk-import-modal';
 import type { Event, OngUser, Bike, Campaign } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -284,12 +285,15 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
                             <BikeIcon className="h-5 w-5" />
                             Garaje de la Organización ({bikes.length})
                         </h2>
-                        <Link href="/dashboard/register">
-                            <Button>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Registrar Bici
-                            </Button>
-                        </Link>
+                        <div className="flex items-center gap-2">
+                            <BulkImportModal />
+                            <Link href="/dashboard/register">
+                                <Button>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Registrar Bici
+                                </Button>
+                            </Link>
+                        </div>
                     </div>
 
                     {bikes.length === 0 ? (

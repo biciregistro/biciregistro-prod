@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, ArrowLeft, ShieldAlert, Zap } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ShieldAlert, Zap, Box } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { ImageUpload } from '@/components/shared/image-upload';
@@ -42,18 +42,21 @@ import { RecoverBikeButton } from '@/components/bike-components/recover-bike-but
 import { TheftReportForm } from '@/components/bike-components/theft-report-form';
 import { BikeTheftShareMenu } from '@/components/dashboard/bike-theft-share-menu';
 
-const bikeStatusStyles: { [key in BikeStatus]: string } = {
+// AÑADIDO: 'inventory' type safely ignoring strict BikeStatus if it's not defined there yet
+const bikeStatusStyles: Record<string, string> = {
   safe: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700',
   stolen: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700',
   in_transfer: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700',
   recovered: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700',
+  inventory: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
 };
 
-const bikeStatusTexts: { [key in BikeStatus]: string } = {
+const bikeStatusTexts: Record<string, string> = {
   safe: 'En Regla',
   stolen: 'Robada',
   in_transfer: 'En Transferencia',
   recovered: 'Recuperada',
+  inventory: 'En Inventario',
 };
 
 // Reusable component for the required field indicator
@@ -127,8 +130,9 @@ export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
                                 <CardDescription className="font-mono mt-1">{bike.serialNumber}</CardDescription>
                             )}
                         </div>
-                        <Badge className={cn("text-base whitespace-nowrap", bikeStatusStyles[bike.status])}>
-                            {bikeStatusTexts[bike.status]}
+                        <Badge className={cn("text-base whitespace-nowrap", bikeStatusStyles[bike.status as string] || bikeStatusStyles.safe)}>
+                            {bike.status === 'inventory' && <Box className="w-4 h-4 mr-1.5" />}
+                            {bikeStatusTexts[bike.status as string] || 'En Regla'}
                         </Badge>
                     </div>
 
@@ -140,7 +144,7 @@ export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
                     </div>
 
                     {/* Pending Serial Call to Action */}
-                    {isPendingSerial && (
+                    {isPendingSerial && bike.status !== 'inventory' && (
                         <div className="mb-4 bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-800 flex items-start gap-2">
                             <Zap className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                             <div>
