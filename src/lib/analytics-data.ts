@@ -180,6 +180,8 @@ export const getBikeStatusCounts = unstable_cache(
         let totalQuery = applyBikeFilters(bikesRef, filters, 'owner');
         const residentStolenQuery = applyBikeFilters(bikesRef.where('status', '==', 'stolen'), filters, 'owner');
         const residentRecoveredQuery = applyBikeFilters(bikesRef.where('status', '==', 'recovered'), filters, 'owner');
+        // FIX: Necesitamos saber cuántas están en inventario para restarlas del SafeCount
+        const residentInventoryQuery = applyBikeFilters(bikesRef.where('status', '==', 'inventory'), filters, 'owner');
 
         // 2. Incidentes Policiales (Basado en DÓNDE OCURRIÓ EL ROBO)
         // Para los contadores puros de criminalidad en la zona (Tasa de Recuperación, Top Marcas Robadas, etc.)
@@ -190,12 +192,14 @@ export const getBikeStatusCounts = unstable_cache(
             totalSnapshot, 
             residentStolenSnapshot, 
             residentRecoveredSnapshot,
+            residentInventorySnapshot,
             incidentStolenSnapshot,
             incidentRecoveredSnapshot
         ] = await Promise.all([
             totalQuery.count().get(),
             residentStolenQuery.count().get(),
             residentRecoveredQuery.count().get(),
+            residentInventoryQuery.count().get(),
             incidentStolenQuery.count().get(),
             incidentRecoveredQuery.count().get(),
         ]);
@@ -203,12 +207,12 @@ export const getBikeStatusCounts = unstable_cache(
         const totalCount = totalSnapshot.data().count;
         const residentStolenCount = residentStolenSnapshot.data().count;
         const residentRecoveredCount = residentRecoveredSnapshot.data().count;
+        const residentInventoryCount = residentInventorySnapshot.data().count;
         
-        // Bicicletas Seguras: Total de bicis de los residentes - (Robadas a residentes + Recuperadas de residentes)
-        const safeCount = Math.max(0, totalCount - (residentStolenCount + residentRecoveredCount));
+        // Bicicletas Seguras: Total - (Robadas + Recuperadas + En Inventario)
+        // De esta forma, el ecosistema no se ve mágicamente "súper seguro" por culpa del inventario de tiendas
+        const safeCount = Math.max(0, totalCount - (residentStolenCount + residentRecoveredCount + residentInventoryCount));
 
-        // Para la UI de "Monitor de Seguridad", entregamos los contadores de INCIDENTES (dónde pasó).
-        // Pero para la Barra de Salud, entregamos 'safeCount' que es coherente con el universo de residentes.
         return {
             stolen: incidentStolenSnapshot.data().count,
             recovered: incidentRecoveredSnapshot.data().count,
@@ -298,20 +302,27 @@ export const getGeneralStats = unstable_cache(
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         
-        // SOLUCIÓN COUNT EN MEMORIA PARA USUARIOS
-        // Como Firebase no permite > 1 array filter, descargamos los docs con proyección mínima y los filtramos en memoria.
-        // Extraemos lastLoginAt para poder medir usuarios activos en los ultimos 30 dias.
+        // FIX: Cambiamos totalBikesQuery.count() a get() para poder filtrar en memoria las `inventory`
+        // y descargamos solo el campo status para optimizar.
         const [usersDataSnapshot, bikesSnapshot, allUsersSnapshot, allBikesSnapshot] = await Promise.all([
             totalUsersQuery.select('ownedBrands', 'ownedModalities', 'ownedPriceRanges', 'ownedModelYears').get(),
-            totalBikesQuery.count().get(), // Bicis no cruzan arrays (usan == y in), el count nativo funciona.
+            totalBikesQuery.select('status').get(), 
             usersRef.select('createdAt', 'lastLoginAt').get(), 
-            bikesRef.select('createdAt').get(), 
+            bikesRef.select('createdAt', 'status').get(), 
         ]);
 
         let filteredUsersCount = 0;
         usersDataSnapshot.forEach(doc => {
             if (passesMemoryUserFilters(doc.data(), filters)) {
                 filteredUsersCount++;
+            }
+        });
+
+        // FIX: Contador de bicis ignorando el inventario
+        let activeBikesCount = 0;
+        bikesSnapshot.forEach(doc => {
+            if (doc.data().status !== 'inventory') {
+                activeBikesCount++;
             }
         });
 
@@ -339,11 +350,14 @@ export const getGeneralStats = unstable_cache(
 
         allBikesSnapshot.forEach(doc => {
             const data = doc.data();
-            const dateObj = parseFirestoreDate(data.createdAt);
-            if (dateObj && dateObj >= thirtyDaysAgo) {
-                const date = dateObj.toISOString().split('T')[0];
-                if (!dailyCounts[date]) dailyCounts[date] = { usersCount: 0, bikesCount: 0, activeUsersCount: 0 };
-                dailyCounts[date].bikesCount += 1;
+            // FIX: La gráfica de crecimiento de bicis también ignora el inventario
+            if (data.status !== 'inventory') {
+                const dateObj = parseFirestoreDate(data.createdAt);
+                if (dateObj && dateObj >= thirtyDaysAgo) {
+                    const date = dateObj.toISOString().split('T')[0];
+                    if (!dailyCounts[date]) dailyCounts[date] = { usersCount: 0, bikesCount: 0, activeUsersCount: 0 };
+                    dailyCounts[date].bikesCount += 1;
+                }
             }
         });
 
@@ -353,7 +367,7 @@ export const getGeneralStats = unstable_cache(
 
         return {
             totalUsers: filteredUsersCount,
-            totalBikes: bikesSnapshot.data().count,
+            totalBikes: activeBikesCount, // Usamos el conteo en memoria
             activeUsers: totalActiveUsersLast30Days, 
             dailyGrowth: dailyGrowth
         };
@@ -549,8 +563,8 @@ export const getMarketMetrics = unstable_cache(
         // CONTEXTO: Dueño (El mercado se mide por la residencia de los propietarios y sus activos)
         query = applyBikeFilters(query, filters, 'owner'); 
 
-        // Seleccionamos también 'priceRange' que fue guardado en DB por la migración
-        const snapshot = await query.select('make', 'modality', 'appraisedValue', 'modelYear', 'priceRange').get();
+        // FIX: Seleccionamos el 'status' para poder ignorar las bicis de inventario
+        const snapshot = await query.select('make', 'modality', 'appraisedValue', 'modelYear', 'priceRange', 'status').get();
         
         if (snapshot.empty) {
             return {
@@ -573,12 +587,18 @@ export const getMarketMetrics = unstable_cache(
         let validValueCount = 0;
         let totalValidYears = 0;
         let sumOfValidYears = 0;
+        let activeBikesCount = 0; // Conteo real ignorando el inventario
 
         const currentYear = new Date().getFullYear();
 
         snapshot.forEach(doc => {
             const data = doc.data();
             
+            // FIX PRINCIPAL: Ignorar el estatus 'inventory' para no sesgar el mercado
+            if (data.status === 'inventory') return;
+            
+            activeBikesCount++;
+
             const brand = data.make;
             if (brand) brandCounts[brand] = (brandCounts[brand] || 0) + 1;
 
@@ -630,12 +650,12 @@ export const getMarketMetrics = unstable_cache(
             .sort((a, b) => b.count - a.count)
             .slice(0, 10);
 
-        const totalBikes = snapshot.size;
         const modalities = Object.entries(modalityCounts)
             .map(([name, count]) => ({ 
                 name, 
                 count, 
-                percentage: (count / totalBikes) * 100 
+                // Usamos el conteo real en lugar de snapshot.size
+                percentage: activeBikesCount > 0 ? (count / activeBikesCount) * 100 : 0 
             }))
             .sort((a, b) => b.count - a.count);
 

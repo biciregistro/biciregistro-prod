@@ -1,5 +1,6 @@
 // Constants for Dashboard Filters to avoid expensive DB reads
 import { BIKE_MODALITIES_OPTIONS, MODALITY_MAPPING } from '@/lib/bike-types';
+import { bikeBrands } from '@/lib/bike-brands';
 
 export const COUNTRIES = [
   { value: 'México', label: 'México' },
@@ -41,29 +42,11 @@ export const STATES_MX = [
   { value: 'Zacatecas', label: 'Zacatecas' },
 ];
 
-export const BIKE_BRANDS = [
-  { value: 'Alubike', label: 'Alubike' },
-  { value: 'Benotto', label: 'Benotto' },
-  { value: 'Bianchi', label: 'Bianchi' },
-  { value: 'BMC', label: 'BMC' },
-  { value: 'Cannondale', label: 'Cannondale' },
-  { value: 'Canyon', label: 'Canyon' },
-  { value: 'Cervélo', label: 'Cervélo' },
-  { value: 'Colnago', label: 'Colnago' },
-  { value: 'Cube', label: 'Cube' },
-  { value: 'Giant', label: 'Giant' },
-  { value: 'Merida', label: 'Merida' },
-  { value: 'Orbea', label: 'Orbea' },
-  { value: 'Pinarello', label: 'Pinarello' },
-  { value: 'Santa Cruz', label: 'Santa Cruz' },
-  { value: 'Scott', label: 'Scott' },
-  { value: 'Specialized', label: 'Specialized' },
-  { value: 'Trek', label: 'Trek' },
-  { value: 'Turbo', label: 'Turbo' },
-  { value: 'Veloci', label: 'Veloci' },
-  { value: 'Yeti', label: 'Yeti' },
-  { value: 'Otra', label: 'Otra' },
-];
+// Reemplazado array hardcodeado para usar el catálogo global y evitar discrepancias.
+export const BIKE_BRANDS = bikeBrands.map((brand) => ({
+  value: brand,
+  label: brand
+}));
 
 // Re-exporting from the single source of truth
 export const MODALITIES = BIKE_MODALITIES_OPTIONS;
