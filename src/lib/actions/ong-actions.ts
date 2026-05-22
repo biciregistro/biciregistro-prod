@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 
-import { getAuthenticatedUser } from "@/lib/data";
+import { getAuthenticatedUser, getUserByEmail } from "@/lib/data";
 import { createEvent, updateEvent, getEvent } from "@/lib/data";
 import { ongProfileSchema, financialProfileSchema, eventFormSchema, wizardStep1Schema, wizardStep2Schema, wizardStep3Schema } from "@/lib/schemas";
 import { adminDb as db } from "@/lib/firebase/server";
@@ -12,7 +12,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { updateOngFinancialData, getFinancialSettings } from "@/lib/financial-data";
 import { calculateGrossUp, calculateFeeBreakdown, calculateAbsorbedFee } from "@/lib/utils";
 import type { ActionFormState, Event, OngUser } from "@/lib/types";
-
+import { sendShopSightingAlertEmail } from "@/lib/email/resend-service";
 
 export async function updateOngProfile(values: z.infer<typeof ongProfileSchema>) {
     const user = await getAuthenticatedUser();
@@ -388,5 +388,207 @@ export async function cloneEvent(originalEventId: string) {
     } catch (error) {
         console.error("Clone event error:", error);
         return { success: false, message: "Ocurrió un error al clonar el evento." };
+    }
+}
+
+// --- B2B BIKE VALIDATION ACTIONS ---
+
+// Helper interno para BI
+function isExactMatch(biSerial: string | null | undefined, ourSerial: string): boolean {
+    if (!biSerial) return false;
+    const cleanBi = biSerial.replace(/[\s-]+/g, '').toUpperCase();
+    const cleanOur = ourSerial.replace(/[\s-]+/g, '').toUpperCase();
+    return cleanBi === cleanOur;
+}
+
+export async function validateBikeStatusAction(serialNumber: string) {
+    const user = await getAuthenticatedUser();
+    if (!user || user.role !== 'ong') {
+        return { success: false, error: 'No tienes permisos para realizar esta validación.' };
+    }
+
+    try {
+        const cleanSerial = serialNumber.trim().toUpperCase();
+        
+        // 1. BÚSQUEDA LOCAL EN BICICLETAS REGISTRADAS
+        const snapshot = await db.collection('bikes').where('serialNumber', '==', cleanSerial).limit(1).get();
+
+        if (!snapshot.empty) {
+            const bikeData = snapshot.docs[0].data();
+
+            // Obtener nombre completo del dueño si no es anónimo
+            let ownerName = 'Usuario Registrado';
+            if (bikeData.userId) {
+                const ownerDoc = await db.collection('users').doc(bikeData.userId).get();
+                if (ownerDoc.exists) {
+                    const oData = ownerDoc.data();
+                    const fullName = [oData?.name, oData?.lastName].filter(Boolean).join(' ');
+                    ownerName = fullName || 'Usuario Registrado';
+                }
+            }
+
+            // Limpiador estricto para objetos Firebase Timestamp
+            const parseDateString = (dateField: any): string | null => {
+                if (!dateField) return null;
+                if (typeof dateField.toDate === 'function') {
+                    return dateField.toDate().toISOString(); 
+                }
+                if (typeof dateField === 'string') {
+                    return new Date(dateField).toISOString();
+                }
+                if (dateField._seconds !== undefined) {
+                     return new Date(dateField._seconds * 1000).toISOString();
+                }
+                return null;
+            };
+
+            const history = [];
+            if (bikeData.createdAt) {
+                const dateStr = parseDateString(bikeData.createdAt);
+                if (dateStr) {
+                    history.push({ 
+                        event: bikeData.status === 'inventory' ? 'Registrada en inventario' : 'Registrada por ciclista', 
+                        date: dateStr 
+                    });
+                }
+            }
+            if (bikeData.transferredAt) {
+                const dateStr = parseDateString(bikeData.transferredAt);
+                if (dateStr) {
+                     history.push({ 
+                        event: 'Transferida de tienda a ciclista', 
+                        date: dateStr 
+                    });
+                }
+            }
+
+            let serializedTheftReport = bikeData.theftReport;
+            if (serializedTheftReport && serializedTheftReport.date) {
+                 const dateStr = parseDateString(serializedTheftReport.date);
+                 if (dateStr) {
+                     serializedTheftReport = {
+                         ...serializedTheftReport,
+                         date: dateStr
+                     };
+                 }
+            }
+
+            const rawResponse = {
+                success: true,
+                bike: {
+                    id: snapshot.docs[0].id,
+                    make: bikeData.make,
+                    model: bikeData.model,
+                    color: bikeData.color,
+                    modality: bikeData.modality,
+                    status: bikeData.status,
+                    ownerId: bikeData.userId,
+                    ownerName: ownerName,
+                    theftReport: serializedTheftReport, 
+                    history: history.sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime()),
+                    isExternal: false
+                }
+            };
+            return JSON.parse(JSON.stringify(rawResponse));
+        }
+
+        // 2. SI NO EXISTE LOCALMENTE, BUSCAR EN BIKE INDEX (SOLO ROBOS)
+        let externalTheft = null;
+        try {
+            const cleanSerialForBi = cleanSerial.replace(/[\s-]+/g, '');
+            const biUrl = `https://bikeindex.org/api/v3/search?serial=${encodeURIComponent(cleanSerialForBi)}&stolenness=stolen`;
+            
+            const biRes = await fetch(biUrl, { next: { revalidate: 3600 } }); // Cache 1 hour
+            
+            if (biRes.ok) {
+                const biData = await biRes.json();
+                if (biData.bikes && biData.bikes.length > 0) {
+                    const stolenBike = biData.bikes.find((b: any) => 
+                        b.stolen && isExactMatch(b.serial, cleanSerialForBi)
+                    );
+
+                    if (stolenBike) {
+                        externalTheft = {
+                            id: `bi_${stolenBike.id}`,
+                            make: stolenBike.manufacturer_name || 'Desconocida',
+                            model: stolenBike.frame_model || 'Desconocido',
+                            color: stolenBike.frame_colors?.join(', ') || 'Desconocido',
+                            modality: 'N/A', // Bike Index no clasifica por modalidad de la misma forma
+                            status: 'stolen',
+                            ownerId: null, // No tenemos el ID local para mandar correo
+                            ownerName: 'Registrado en Bike Index',
+                            theftReport: {
+                                date: stolenBike.date_stolen ? new Date(stolenBike.date_stolen * 1000).toISOString() : null,
+                                city: stolenBike.stolen_location || 'Ubicación Desconocida',
+                                state: 'Internacional',
+                                details: `Reporte importado desde la base de datos internacional de Bike Index. URL: ${stolenBike.url}`
+                            },
+                            history: [{
+                                event: 'Reportada robada en Bike Index',
+                                date: stolenBike.date_stolen ? new Date(stolenBike.date_stolen * 1000).toISOString() : new Date().toISOString()
+                            }],
+                            isExternal: true, // Bandera para la UI
+                            biUrl: stolenBike.url // Para que puedan ver el reporte original
+                        };
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Error consultando Bike Index desde modal ONG:", e);
+        }
+
+        if (externalTheft) {
+            return JSON.parse(JSON.stringify({ success: true, bike: externalTheft }));
+        }
+
+        // 3. SI NO EXISTE EN NINGÚN LADO
+        return { success: false, notFound: true, message: 'Esta bicicleta no está registrada ni cuenta con reportes internacionales activos.' };
+
+    } catch (error) {
+        console.error("Error validating bike:", error);
+        return { success: false, error: 'Ocurrió un error al consultar la base de datos.' };
+    }
+}
+
+export async function sendShopSightingAlertAction(bikeOwnerId: string, bikeMake: string, bikeModel: string) {
+    const shopUser = await getAuthenticatedUser();
+    if (!shopUser || shopUser.role !== 'ong') {
+        return { success: false, error: 'No autorizado' };
+    }
+
+    try {
+        // Obtener datos del dueño
+        const ownerDoc = await db.collection('users').doc(bikeOwnerId).get();
+        if (!ownerDoc.exists) return { success: false, error: 'Dueño original no encontrado.' };
+        
+        const owner = ownerDoc.data();
+        if (!owner || !owner.email) return { success: false, error: 'El dueño no tiene email registrado.' };
+
+        // Obtener datos de la ONG logueada
+        const shopDoc = await db.collection('ong-profiles').doc(shopUser.id).get();
+        const shopData = shopDoc.data() || {};
+        
+        const locationString = [shopData.city, shopData.state, shopData.country].filter(Boolean).join(', ');
+
+        const emailData = {
+            ownerName: owner.name || 'Ciclista',
+            bikeMake,
+            bikeModel,
+            shopName: shopData.organizationName || shopUser.name || 'Una tienda',
+            shopWhatsapp: shopData.contactWhatsapp,
+            shopEmail: shopData.email || shopUser.email,
+            shopLocation: locationString || 'Ubicación no especificada',
+        };
+
+        const result = await sendShopSightingAlertEmail(owner.email, emailData);
+
+        if (result.success) {
+            return { success: true, message: 'Alerta enviada exitosamente al propietario.' };
+        } else {
+            return { success: false, error: 'Fallo al enviar el correo a través del proveedor.' };
+        }
+    } catch (error) {
+        console.error("Error in sendShopSightingAlertAction:", error);
+        return { success: false, error: 'Error interno del servidor al procesar la alerta.' };
     }
 }

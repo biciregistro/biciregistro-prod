@@ -32,6 +32,7 @@ import { BikeCard } from '@/components/bike-card';
 import { OngDashboardHero } from '@/components/ong/ong-dashboard-hero';
 import { OngCampaignManager } from '@/components/ong/ong-campaign-manager';
 import { BulkImportModal } from '@/components/ong/bulk-import-modal';
+import { BikeValidationModal } from '@/components/ong/bike-validation-modal';
 import type { Event, OngUser, Bike, Campaign } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -265,6 +266,12 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
     return (
         <div className="space-y-6">
             <OngDashboardHero ongProfile={ongProfile} />
+
+            {/* QUICK ACTIONS BAR (B2B Tools) */}
+            <div className="bg-muted/40 border border-border/50 rounded-xl p-4 flex gap-4 overflow-x-auto shadow-inner">
+                <BikeValidationModal />
+                {/* Future tools can be added here: Valuation, Express Checkout, etc */}
+            </div>
 
             <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
                 <TabsList className="grid w-full grid-cols-5 mb-8">

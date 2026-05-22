@@ -4,6 +4,7 @@ import { getWelcomeEmailTemplate } from './templates/welcome';
 import { getOrganizerNotificationEmailTemplate } from './templates/organizer-notification';
 import { getCyclistRewardTemplate, CyclistRewardTemplateProps } from './templates/reward-cyclist';
 import { getOngRewardTemplate, OngRewardTemplateProps } from './templates/reward-ong';
+import { generateShopSightingAlertEmail } from './templates/shop-sighting-alert';
 import { Event, User, EventRegistration } from '@/lib/types';
 
 // Initialize Resend only if API key is present
@@ -231,6 +232,40 @@ export async function sendRewardPurchaseOngEmail(toEmail: string, props: OngRewa
         return { success: true, id: data?.id };
     } catch (error: any) {
         console.error("Email Service Exception (Reward ONG):", error.message || error);
+        return { success: false, error };
+    }
+}
+
+// B2B: Notificación de avistamiento en tienda
+export async function sendShopSightingAlertEmail(toEmail: string, props: Parameters<typeof generateShopSightingAlertEmail>[0]) {
+    // FIX: Ahora desestructuramos el objeto retornado por la nueva versión de la plantilla
+    const { subject, html, text } = generateShopSightingAlertEmail(props);
+
+    if (!resend) {
+        console.log('--- [MOCK SIGHTING ALERT EMAIL] ---');
+        console.log(`To: ${toEmail}`);
+        console.log(`Subject: ${subject}`);
+        console.log('-------------------------------');
+        return { success: true, id: 'mock-sighting-alert-id' };
+    }
+
+    try {
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [toEmail],
+            subject: subject,
+            html: html,
+            text: text, // Añadida la versión en texto plano para evitar Spam
+        });
+
+        if (error) {
+            console.error("Resend API Error (Sighting Alert):", error);
+            return { success: false, error };
+        }
+
+        return { success: true, id: data?.id };
+    } catch (error: any) {
+        console.error("Email Service Exception (Sighting Alert):", error);
         return { success: false, error };
     }
 }
