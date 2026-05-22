@@ -13,7 +13,7 @@ import { TransferOwnershipForm } from '@/components/bike-components/transfer-own
 import { cn } from '@/lib/utils';
 import type { Bike, User, BikeStatus, InsuranceRequest } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Pencil, FileDown, Loader2, MessageCircle, ShoppingCart, Zap, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Pencil, FileDown, Loader2, MessageCircle, ShoppingCart, Zap, AlertCircle, ShieldAlert } from 'lucide-react';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { updateOwnershipProof } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -50,6 +50,7 @@ const bikeStatusStyles: { [key in BikeStatus]: string } = {
   stolen: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700',
   in_transfer: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700',
   recovered: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700',
+  inventory: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
 };
 
 // Text mapping for the status badge
@@ -58,6 +59,7 @@ const bikeStatusTexts: { [key in BikeStatus]: string } = {
   stolen: 'Robada',
   in_transfer: 'En Transferencia',
   recovered: 'Recuperada',
+  inventory: 'En Inventario',
 };
 
 function DetailItem({ label, value }: { label: string; value: React.ReactNode }) {
@@ -173,7 +175,8 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
     ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(bike.theftReport.reward))
     : null;
 
-  const isTransferable = bike.status === 'safe' || bike.status === 'recovered';
+  // CORRECCIÓN B2B: Añadido 'inventory' para habilitar el bloque de transferencia
+  const isTransferable = bike.status === 'safe' || bike.status === 'recovered' || bike.status === 'inventory';
   const isPendingSerial = bike.serialNumber.startsWith('PENDING_');
 
   const backUrl = user.role === 'ong' ? '/dashboard/ong?tab=garage' : '/dashboard';
@@ -378,23 +381,28 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                   </Card>
               )}
 
-              {/* Only allow theft report if serial is registered */}
-              {!isPendingSerial && (
-                  <Card id="tour-bike-report">
-                      <CardHeader>
-                          <CardTitle>Gestionar Estado de la Bicicleta</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                          {bike.status === 'stolen' ? (
-                              <RecoverBikeButton bikeId={bike.id} />
-                          ) : (
-                              <TheftReportForm bike={bike} />
-                          )}
-                      </CardContent>
-                  </Card>
-              )}
+              {/* CORRECCIÓN UX: Mostrar la tarjeta siempre para educar al usuario */}
+              <Card id="tour-bike-report">
+                  <CardHeader>
+                      <CardTitle>Gestionar Estado de la Bicicleta</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                      {bike.status === 'stolen' ? (
+                          <RecoverBikeButton bikeId={bike.id} />
+                      ) : isPendingSerial ? (
+                          <div className="text-center p-4 bg-muted/50 rounded-lg border border-dashed">
+                              <ShieldAlert className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                              <p className="text-sm text-muted-foreground">Para proteger tu bicicleta y generar un reporte de robo válido ante las autoridades, primero debes registrar su número de serie oficial.</p>
+                              <Button variant="outline" size="sm" className="mt-4" onClick={() => setIsEditing(true)}>Agregar Número de Serie</Button>
+                          </div>
+                      ) : (
+                          <TheftReportForm bike={bike} />
+                      )}
+                  </CardContent>
+              </Card>
               
-              {isTransferable && !isPendingSerial && (
+              {/* CORRECCIÓN UX: Mostrar la tarjeta siempre que el estatus lo permita (safe, recovered, inventory) */}
+              {isTransferable && (
                   <Card id="tour-bike-transfer">
                       <CardHeader>
                           <CardTitle>Transferir Propiedad</CardTitle>
@@ -404,10 +412,19 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                           </CardDescription>
                       </CardHeader>
                       <CardContent>
-                          <TransferOwnershipForm 
-                              bikeId={bike.id} 
-                              bikeName={`${bike.make} ${bike.model}`}
-                          />
+                          {isPendingSerial ? (
+                              <div className="text-center p-4 bg-muted/50 rounded-lg border border-dashed">
+                                  <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                                  <p className="text-sm font-semibold text-foreground">Acción Bloqueada</p>
+                                  <p className="text-sm text-muted-foreground">Por favor ingresa el número de serie para poder transferir oficialmente esta bicicleta.</p>
+                                  <Button variant="outline" size="sm" className="mt-4" onClick={() => setIsEditing(true)}>Registrar Serie Ahora</Button>
+                              </div>
+                          ) : (
+                              <TransferOwnershipForm 
+                                  bikeId={bike.id} 
+                                  bikeName={`${bike.make} ${bike.model}`}
+                              />
+                          )}
                       </CardContent>
                   </Card>
               )}

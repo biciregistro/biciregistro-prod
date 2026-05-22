@@ -412,24 +412,26 @@ export async function transferOwnership(prevState: { error?: string; success?: b
     const schema = z.object({
         bikeId: z.string(),
         newOwnerEmail: z.string().email('Por favor, introduce un correo electrónico válido.'),
+        saleAmount: z.string().optional(), // Nuevo campo para trazabilidad
     });
 
     const validatedFields = schema.safeParse({
         bikeId: formData.get('bikeId'),
         newOwnerEmail: formData.get('newOwnerEmail'),
+        saleAmount: formData.get('saleAmount'),
     });
 
     if (!validatedFields.success) {
         return { error: 'Datos inválidos. Por favor, revisa el correo electrónico.' };
     }
 
-    const { bikeId, newOwnerEmail } = validatedFields.data;
+    const { bikeId, newOwnerEmail, saleAmount } = validatedFields.data;
     const currentUserId = session.uid;
 
     try {
         const newOwner = await getUserByEmail(newOwnerEmail);
         if (!newOwner) {
-            return { error: 'El usuario con ese correo electrónico no fue encontrado.' };
+            return { error: 'El usuario con ese correo electrónico no fue encontrado en BiciRegistro. Pídele que cree una cuenta para poder transferirle la bicicleta.' };
         }
 
         if (newOwner.id === currentUserId) {
@@ -441,31 +443,51 @@ export async function transferOwnership(prevState: { error?: string; success?: b
             return { error: 'No estás autorizado para transferir esta bicicleta.' };
         }
 
-        // ACTUALIZAR EL DOCUMENTO DE LA BICICLETA
-        await updateBikeData(bikeId, { 
+        const saleValueNum = saleAmount ? parseFloat(saleAmount) : 0;
+        const batch = adminDb.batch();
+
+        // 1. ACTUALIZAR EL DOCUMENTO DE LA BICICLETA
+        const bikeRef = adminDb.collection('bikes').doc(bikeId);
+        batch.update(bikeRef, { 
             userId: newOwner.id,
-            ownerGender: newOwner.gender || undefined, // Corregido: undefined en lugar de null
+            status: 'safe', // Cambia de 'inventory' o cualquier otro a 'safe' (Activa)
+            appraisedValue: saleValueNum > 0 ? saleValueNum : (bike.appraisedValue || 0), // El precio de venta se vuelve el nuevo MSRP/Valor
+            ownerGender: newOwner.gender || undefined, 
             ownerBirthDate: newOwner.birthDate || undefined,
             ownerCountry: newOwner.country || undefined,
             ownerState: newOwner.state || undefined,
             ownerCity: newOwner.city || undefined,
+            transferredAt: new Date().toISOString()
         });
         
-        // ACTUALIZAR EL GARAJE DEL NUEVO DUEÑO
+        // 2. ACTUALIZAR EL GARAJE DEL NUEVO DUEÑO (Filtros cruzados)
         const newOwnerRef = adminDb.collection('users').doc(newOwner.id);
-        await newOwnerRef.update({
+        batch.update(newOwnerRef, {
             ownedBrands: FieldValue.arrayUnion(bike.make),
             ...(bike.modality ? { ownedModalities: FieldValue.arrayUnion(bike.modality) } : {})
         });
 
-        // NOTA: Idealmente removeríamos la marca/modalidad del dueño anterior,
-        // pero como es un array plano y podría tener varias de la misma marca, 
-        // lo dejaremos así por ahora para no afectar performance.
+        // 3. REGISTRO EN ECOSYSTEM SALES (Trazabilidad)
+        if (saleValueNum > 0) {
+            const saleRef = adminDb.collection('ecosystem-sales').doc();
+            batch.set(saleRef, {
+                bikeId,
+                sellerId: currentUserId,
+                buyerId: newOwner.id,
+                saleAmount: saleValueNum,
+                make: bike.make,
+                model: bike.model,
+                date: new Date().toISOString()
+            });
+        }
+
+        await batch.commit();
 
         // GAMIFICACIÓN DINÁMICA
         const pointsResult = await awardPoints(currentUserId, 'ownership_transfer', { bikeId, newOwnerId: newOwner.id });
 
         revalidatePath('/dashboard');
+        revalidatePath(`/dashboard/bikes/${bikeId}`);
         
         return { success: true, pointsAwarded: pointsResult?.points || 0 };
 

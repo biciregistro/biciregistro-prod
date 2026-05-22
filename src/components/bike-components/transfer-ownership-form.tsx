@@ -7,9 +7,8 @@ import { transferOwnership } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Wallet } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -30,7 +29,7 @@ interface TransferOwnershipFormProps {
 function SubmitButton() {
     const { pending } = useFormStatus();
     return (
-        <Button type="submit" disabled={pending} aria-disabled={pending}>
+        <Button type="submit" disabled={pending} className="w-full sm:w-auto bg-primary text-primary-foreground">
             {pending ? 'Transfiriendo...' : 'Confirmar y Transferir'}
         </Button>
     );
@@ -44,8 +43,8 @@ export function TransferOwnershipForm({ bikeId, bikeName }: TransferOwnershipFor
 
     useEffect(() => {
         if (state.success) {
-            setOpen(false); // Cierra el dialogo
-            router.push('/dashboard'); // Redirige al dashboard
+            setOpen(false); 
+            router.push('/dashboard');
         }
     }, [state.success, router]);
 
@@ -53,22 +52,23 @@ export function TransferOwnershipForm({ bikeId, bikeName }: TransferOwnershipFor
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline">Transferir Propiedad</Button>
+                <Button variant="outline" className="w-full">Transferir Propiedad</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <form action={dispatch}>
                     <DialogHeader>
-                        <DialogTitle>Transferir Propiedad</DialogTitle>
-                        <DialogDescription>
-                            Estás a punto de transferir la propiedad de <strong>{bikeName}</strong>. 
-                            Esta acción no se puede deshacer.
+                        <DialogTitle className="text-2xl font-bold">Transferir Propiedad</DialogTitle>
+                        <DialogDescription className="text-muted-foreground mt-2">
+                            Estás a punto de transferir la propiedad de <span className="font-bold text-foreground">{bikeName}</span>. 
+                            Asegúrate de que el correo sea el correcto.
                         </DialogDescription>
                     </DialogHeader>
                     
-                    <div className="grid gap-4 py-4">
+                    <div className="grid gap-6 py-6">
                         <input type="hidden" name="bikeId" value={bikeId} />
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="newOwnerEmail" className="text-right">
+                        
+                        <div className="space-y-2">
+                            <Label htmlFor="newOwnerEmail" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
                                 Email del Nuevo Dueño
                             </Label>
                             <Input
@@ -76,14 +76,35 @@ export function TransferOwnershipForm({ bikeId, bikeName }: TransferOwnershipFor
                                 name="newOwnerEmail"
                                 type="email"
                                 placeholder="ejemplo@email.com"
-                                className="col-span-3"
+                                className="h-12"
                                 required
                             />
+                            <p className="text-[10px] text-muted-foreground">El usuario debe tener una cuenta activa en BiciRegistro.</p>
+                        </div>
+
+                        <div className="space-y-2 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Wallet className="w-4 h-4 text-primary" />
+                                <Label htmlFor="saleAmount" className="text-sm font-bold uppercase tracking-wider">
+                                    Monto de Venta (Opcional)
+                                </Label>
+                            </div>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">$</span>
+                                <Input
+                                    id="saleAmount"
+                                    name="saleAmount"
+                                    type="number"
+                                    placeholder="0"
+                                    className="pl-7 h-12 bg-white"
+                                />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">Este monto se registrará como el nuevo valor comercial de la bicicleta en el ecosistema.</p>
                         </div>
                     </div>
 
                     {state.error && (
-                         <Alert variant="destructive" className="mb-4">
+                         <Alert variant="destructive" className="mb-6">
                             <AlertCircle className="h-4 w-4" />
                             <AlertDescription>
                                 {state.error}
@@ -91,9 +112,9 @@ export function TransferOwnershipForm({ bikeId, bikeName }: TransferOwnershipFor
                         </Alert>
                     )}
 
-                    <DialogFooter>
+                    <DialogFooter className="gap-2 sm:gap-0">
                         <DialogClose asChild>
-                            <Button type="button" variant="secondary">Cancelar</Button>
+                            <Button type="button" variant="ghost">Cancelar</Button>
                         </DialogClose>
                         <SubmitButton />
                     </DialogFooter>
