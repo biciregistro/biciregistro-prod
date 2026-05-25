@@ -248,6 +248,7 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
 
     const defaultTab = searchParams.get('tab') || 'community';
     const [activeTab, setActiveTab] = useState(defaultTab);
+    const [garageSearchTerm, setGarageSearchTerm] = useState('');
 
     useEffect(() => {
         const tab = searchParams.get('tab');
@@ -262,6 +263,16 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
         params.set('tab', value);
         router.push(`${pathname}?${params.toString()}`, { scroll: false });
     };
+
+    const filteredBikes = useMemo(() => {
+        if (!garageSearchTerm.trim()) return bikes;
+        const lowerSearch = garageSearchTerm.toLowerCase();
+        return bikes.filter(bike => 
+            bike.serialNumber?.toLowerCase().includes(lowerSearch) ||
+            bike.make?.toLowerCase().includes(lowerSearch) ||
+            bike.model?.toLowerCase().includes(lowerSearch)
+        );
+    }, [bikes, garageSearchTerm]);
 
     return (
         <div className="space-y-6">
@@ -287,19 +298,44 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
                 </TabsContent>
 
                 <TabsContent value="garage" className="space-y-4">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-semibold flex items-center gap-2">
-                            <BikeIcon className="h-5 w-5" />
-                            Garaje de la Organización ({bikes.length})
-                        </h2>
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                         <div className="flex items-center gap-2">
-                            <BulkImportModal />
-                            <Link href="/dashboard/register">
-                                <Button>
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Registrar Bici
-                                </Button>
-                            </Link>
+                             <h2 className="text-xl font-semibold flex items-center gap-2">
+                                <BikeIcon className="h-5 w-5" />
+                                Garaje de la Organización
+                            </h2>
+                            <Badge variant="secondary" className="font-bold">
+                                {filteredBikes.length} de {bikes.length}
+                            </Badge>
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                            <div className="relative w-full sm:w-72">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Serial, marca o modelo..."
+                                    value={garageSearchTerm}
+                                    onChange={(e) => setGarageSearchTerm(e.target.value)}
+                                    className="pl-9 pr-9"
+                                />
+                                {garageSearchTerm && (
+                                    <button 
+                                        onClick={() => setGarageSearchTerm('')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded-full"
+                                    >
+                                        <X className="h-3 w-3 text-muted-foreground" />
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
+                                <BulkImportModal />
+                                <Link href="/dashboard/register" className="flex-1 sm:flex-none">
+                                    <Button className="w-full">
+                                        <PlusCircle className="mr-2 h-4 w-4" />
+                                        Registrar Bici
+                                    </Button>
+                                </Link>
+                            </div>
                         </div>
                     </div>
 
@@ -313,9 +349,19 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
                         </Alert>
                     ) : (
                         <div className="space-y-4">
-                            {bikes.map((bike) => (
-                                <BikeCard key={bike.id} bike={bike} />
-                            ))}
+                            {filteredBikes.length > 0 ? (
+                                filteredBikes.map((bike) => (
+                                    <BikeCard key={bike.id} bike={bike} />
+                                ))
+                            ) : (
+                                <div className="text-center py-12 border-2 border-dashed rounded-xl bg-muted/5">
+                                    <Search className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-20" />
+                                    <p className="text-muted-foreground font-medium">No se encontraron bicicletas con "{garageSearchTerm}"</p>
+                                    <Button variant="link" onClick={() => setGarageSearchTerm('')} className="mt-1">
+                                        Limpiar búsqueda
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </TabsContent>
