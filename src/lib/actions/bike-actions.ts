@@ -6,7 +6,7 @@ import { getStorage } from 'firebase-admin/storage';
 import { getDecodedSession } from '@/lib/auth';
 import { adminAuth, adminDb } from '@/lib/firebase/server';
 import { BikeRegistrationSchema } from '@/lib/schemas';
-import { BikeFormState } from '@/lib/types';
+import { BikeFormState, Modality } from '@/lib/types';
 import { 
     addBike, 
     updateBikeData, 
@@ -102,6 +102,56 @@ async function getClientIp(): Promise<string | undefined> {
     return undefined;
 }
 
+// --- INTELLIGENCE & SECURITY HELPERS ---
+
+function isExactMatch(biSerial: string | null | undefined, ourSerial: string): boolean {
+    if (!biSerial) return false;
+    const cleanBi = biSerial.replace(/[\s-]+/g, '').toUpperCase();
+    const cleanOur = ourSerial.replace(/[\s-]+/g, '').toUpperCase();
+    return cleanBi === cleanOur;
+}
+
+/**
+ * Consulta a Bike Index para verificar si un serial está robado internacionalmente
+ */
+async function checkBikeIndexForTheft(serialNumber: string): Promise<boolean> {
+    try {
+        const cleanSerialForBi = serialNumber.replace(/[\s-]+/g, '').toUpperCase();
+        const biUrl = `https://bikeindex.org/api/v3/search?serial=${encodeURIComponent(cleanSerialForBi)}&stolenness=stolen`;
+        
+        const biRes = await fetch(biUrl, { next: { revalidate: 3600 } }); 
+        
+        if (biRes.ok) {
+            const biData = await biRes.json();
+            if (biData.bikes && biData.bikes.length > 0) {
+                const isStolen = biData.bikes.some((b: any) => b.stolen && isExactMatch(b.serial, cleanSerialForBi));
+                return isStolen;
+            }
+        }
+        return false;
+    } catch (error) {
+        console.error("Error validando en Bike Index (fallo silencioso, se asume limpia):", error);
+        return false; // Fail-open para no bloquear el negocio si se cae BikeIndex
+    }
+}
+
+/**
+ * Registra silenciosamente un intento de registro fraudulento (Fire-and-forget)
+ */
+async function logFraudAttempt(userId: string, serialNumber: string, source: 'local' | 'bike_index', ip: string | undefined) {
+    try {
+        // En un bloque try-catch separado para no tumbar la petición principal
+        adminDb.collection('fraud-attempts').add({
+            userId,
+            serialNumber: serialNumber.trim().toUpperCase(),
+            source,
+            ipAddress: ip || 'unknown',
+            attemptedAt: new Date().toISOString()
+        });
+    } catch (e) {
+        console.error("No se pudo guardar el log de fraude", e);
+    }
+}
 
 // --- Actions ---
 
@@ -130,18 +180,36 @@ export async function registerBike(prevState: any, formData: FormData): Promise<
 
     const { photoUrl, serialNumberPhotoUrl, additionalPhoto1Url, additionalPhoto2Url, ownershipProofUrl, serialNumber, ...bikeData } = validatedFields.data;
     
+    const ip = await getClientIp();
+
+    // 1. VALIDACIÓN LOCAL
     const isUnique = await isSerialNumberUnique(serialNumber);
     if (!isUnique) {
+        // Ejecutamos tracking silencioso de fraude local
+        logFraudAttempt(session.uid, serialNumber, 'local', ip);
+
         return {
             success: false,
-            message: `Error: El número de serie '${serialNumber}' ya se encuentra registrado.`,
+            message: `Error: El número de serie '${serialNumber}' ya se encuentra registrado en la plataforma.`,
             errors: { serialNumber: ["Este número de serie ya está registrado."] },
         };
     }
 
+    // 2. VALIDACIÓN INTERNACIONAL (BIKE INDEX)
+    const isStolenInternationally = await checkBikeIndexForTheft(serialNumber);
+    if (isStolenInternationally) {
+         // Ejecutamos tracking silencioso de fraude internacional
+         logFraudAttempt(session.uid, serialNumber, 'bike_index', ip);
+
+         return {
+            success: false,
+            message: `Alerta de Seguridad: No podemos registrar esta bicicleta porque cuenta con un reporte internacional de robo activo.`,
+            errors: { serialNumber: ["Reporte de robo internacional detectado (Bike Index)."] },
+        };
+    }
+
+    // 3. REGISTRO EXITOSO
     try {
-        const ip = await getClientIp();
-        
         // OBTENER DATOS DEL USUARIO PARA DESNORMALIZACIÓN
         const owner = await getUser(session.uid);
         if (!owner) throw new Error("Owner not found");
@@ -156,10 +224,12 @@ export async function registerBike(prevState: any, formData: FormData): Promise<
 
         const newBikeId = await addBike({
             ...bikeData,
+            modality: bikeData.modality as Modality | undefined, // FIXED: Type casting for modality
             userId: session.uid,
             serialNumber,
             ownershipProof: ownershipProofUrl || '',
             registrationIp: ip,
+            updatedAt: new Date().toISOString(),
             photos: [
                 photoUrl,
                 serialNumberPhotoUrl,
@@ -241,6 +311,7 @@ export async function updateBike(prevState: BikeFormState, formData: FormData): 
     try {
         await updateBikeData(id, {
             ...bikeData,
+            modality: bikeData.modality as Modality | undefined, // FIXED: Type casting for modality
             serialNumber,
             ownershipProof: ownershipProofUrl || '',
             photos: [
@@ -519,16 +590,29 @@ export async function registerBikeWizardAction(formData: any) {
             if (url) photoUrls.push(url);
         }
 
+        const ip = await getClientIp();
+
+        // 1. VALIDACIÓN LOCAL
         const isUnique = await isSerialNumberUnique(formData.serialNumber);
         if (!isUnique) {
+            logFraudAttempt(userId, formData.serialNumber, 'local', ip);
             return {
                 success: false,
                 message: `Error: El número de serie '${formData.serialNumber}' ya se encuentra registrado.`,
             };
         }
 
-        const ip = await getClientIp();
+        // 2. VALIDACIÓN INTERNACIONAL (BIKE INDEX)
+        const isStolenInternationally = await checkBikeIndexForTheft(formData.serialNumber);
+        if (isStolenInternationally) {
+            logFraudAttempt(userId, formData.serialNumber, 'bike_index', ip);
+            return {
+                success: false,
+                message: `Alerta: No se puede registrar. La bicicleta cuenta con un reporte internacional de robo (Bike Index).`,
+            };
+        }
 
+        // 3. REGISTRO EXITOSO
         // OBTENER DATOS DEL USUARIO PARA DESNORMALIZACIÓN
         const owner = await getUser(userId);
         if (!owner) throw new Error("Owner not found");
@@ -547,11 +631,12 @@ export async function registerBikeWizardAction(formData: any) {
             make: formData.brand,
             model: formData.model,
             color: formData.color,
-            modality: formData.type,
+            modality: formData.type as Modality | undefined, // FIXED: Type casting for modality
             modelYear: formData.year,
             appraisedValue: parseFloat(formData.value),
             ownershipProof: '',
             registrationIp: ip,
+            updatedAt: new Date().toISOString(), // FIXED: Missing updatedAt
             photos: photoUrls,
             ...denormalizedData, // INYECTAR
         });
@@ -582,10 +667,27 @@ export async function registerBikeWizardAction(formData: any) {
 }
 
 export async function validateSerialNumberAction(serialNumber: string) {
+    const session = await getDecodedSession(); // Opcional, pero ideal para el log
+    
+    // 1. Validación Local Rápida
     const isUnique = await isSerialNumberUnique(serialNumber);
     if (!isUnique) {
-        return { exists: true, message: "Este número de serie ya está registrado." };
+        // En este punto no siempre logueamos porque el usuario solo está escribiendo en el input, 
+        // pero podemos atraparlo si el frontend lanza el Submit prematuramente.
+        return { exists: true, message: "Este número de serie ya está registrado en BiciRegistro." };
     }
+
+    // 2. Validación Externa Asíncrona (Solo si no existe localmente)
+    const isStolenInternationally = await checkBikeIndexForTheft(serialNumber);
+    if (isStolenInternationally) {
+        // Si lo detectamos "en vivo" mientras teclea
+        if (session?.uid) {
+            const ip = await getClientIp();
+            logFraudAttempt(session.uid, serialNumber, 'bike_index', ip);
+        }
+        return { exists: true, message: "Alerta: Reporte de robo internacional activo (Bike Index)." };
+    }
+
     return { exists: false };
 }
 
