@@ -89,7 +89,12 @@ export async function parseMultimodalInventoryAction(
 /**
  * Guarda las bicicletas validadas en Firestore usando un Batch Write
  */
-export async function registerBulkBikesAction(bikesArray: ParsedInventoryBike[]): Promise<{ success: boolean; count?: number; error?: string }> {
+export async function registerBulkBikesAction(bikesArray: ParsedInventoryBike[]): Promise<{ 
+    success: boolean; 
+    count?: number; 
+    error?: string;
+    rejectedBikes?: { serial: string; reason: string }[];
+}> {
   const session = await getDecodedSession();
   if (!session?.uid || session.role !== 'ong') {
       return { success: false, error: 'No tienes permisos para realizar esta acción.' };
@@ -98,14 +103,19 @@ export async function registerBulkBikesAction(bikesArray: ParsedInventoryBike[])
   const batch = adminDb.batch();
   const bikesCollection = adminDb.collection('bikes');
   let registeredCount = 0;
+  const rejectedBikes: { serial: string; reason: string }[] = [];
 
   try {
     for (const bike of bikesArray) {
-      // 1. Validar que el número de serie no esté vacío y no exista previamente
+      // 1. Validar que el número de serie no esté vacío y no exista previamente o esté robado
       if (bike.numeroSerie && bike.numeroSerie.trim() !== '' && bike.numeroSerie.toLowerCase() !== 'no especificado') {
         const check = await validateSerialNumberAction(bike.numeroSerie);
         if (check.exists) {
-           console.warn(`Serie ${bike.numeroSerie} duplicada, saltando registro en lote.`);
+           console.warn(`Serie ${bike.numeroSerie} rechazada: ${check.message}`);
+           rejectedBikes.push({ 
+               serial: bike.numeroSerie, 
+               reason: check.message || 'Duplicado o reportado.' 
+           });
            continue; 
         }
       }
@@ -134,7 +144,11 @@ export async function registerBulkBikesAction(bikesArray: ParsedInventoryBike[])
       await batch.commit();
     }
 
-    return { success: true, count: registeredCount };
+    return { 
+        success: true, 
+        count: registeredCount,
+        rejectedBikes: rejectedBikes.length > 0 ? rejectedBikes : undefined
+    };
 
   } catch (error) {
     console.error("[registerBulkBikesAction] Error:", error);

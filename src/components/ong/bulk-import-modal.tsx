@@ -6,9 +6,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, UploadCloud, FileText, CheckCircle, AlertCircle, FileImage, Trash2 } from 'lucide-react';
+import { Loader2, UploadCloud, FileText, CheckCircle, AlertCircle, FileImage, Trash2, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { parseMultimodalInventoryAction, registerBulkBikesAction, ParsedInventoryBike } from '@/lib/actions/ai-inventory-actions';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 // Helper para leer archivo localmente
 const readFileAsDataURL = (file: File): Promise<string> => {
@@ -31,8 +32,9 @@ const readFileAsText = (file: File): Promise<string> => {
 
 export function BulkImportModal() {
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<'upload' | 'analyzing' | 'review' | 'saving'>('upload');
+  const [step, setStep] = useState<'upload' | 'analyzing' | 'review' | 'saving' | 'result'>('upload');
   const [parsedBikes, setParsedBikes] = useState<ParsedInventoryBike[]>([]);
+  const [importResult, setImportResult] = useState<{count: number, rejected?: {serial: string, reason: string}[]} | null>(null);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -50,8 +52,6 @@ export function BulkImportModal() {
          payload.data = await readFileAsText(file);
          payload.isText = true;
       } else {
-         // PDF, Imágenes (JPG, PNG) o Excels (Fallback a binario si no parseamos en cliente)
-         // Nota: Para Excel puro lo ideal es parsear localmente con xlsx, pero el PDF/Imagen requieren Base64
          payload.data = await readFileAsDataURL(file);
       }
 
@@ -88,21 +88,26 @@ export function BulkImportModal() {
     const result = await registerBulkBikesAction(parsedBikes);
     
     if (result.success) {
-      toast({ title: '¡Inventario Guardado!', description: `Se registraron ${result.count} bicicletas exitosamente.`, className: 'bg-green-600 text-white' });
-      setOpen(false);
-      setTimeout(() => {
-        setStep('upload');
-        setParsedBikes([]);
-        router.refresh(); // Refrescar el dashboard
-      }, 500);
+      setImportResult({ count: result.count || 0, rejected: result.rejectedBikes });
+      setStep('result');
+      router.refresh(); // Refrescar el dashboard en el fondo
     } else {
       toast({ variant: 'destructive', title: 'Error al guardar', description: result.error });
       setStep('review');
     }
   };
 
+  const closeAndReset = () => {
+      setOpen(false);
+      setTimeout(() => {
+        setStep('upload');
+        setParsedBikes([]);
+        setImportResult(null);
+      }, 300);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(val) => { if (step !== 'analyzing' && step !== 'saving') setOpen(val) }}>
+    <Dialog open={open} onOpenChange={(val) => { if (step !== 'analyzing' && step !== 'saving') { if(!val) closeAndReset(); else setOpen(val); } }}>
       <DialogTrigger asChild>
         <Button variant="outline" className="border-primary text-primary hover:bg-primary/5">
           <UploadCloud className="mr-2 h-4 w-4" /> Importación Masiva (Beta)
@@ -204,18 +209,76 @@ export function BulkImportModal() {
           {step === 'saving' && (
             <div className="flex flex-col items-center justify-center min-h-[300px] space-y-4">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <h3 className="text-lg font-bold">Registrando en base de datos...</h3>
+              <h3 className="text-lg font-bold">Registrando en base de datos e inspeccionando seriales...</h3>
             </div>
+          )}
+
+          {/* PASO 5: RESULTADO */}
+          {step === 'result' && importResult && (
+              <div className="space-y-6 py-6">
+                  <div className="flex flex-col items-center text-center space-y-2">
+                      {importResult.rejected && importResult.rejected.length > 0 ? (
+                          <AlertTriangle className="h-16 w-16 text-amber-500 mb-2" />
+                      ) : (
+                          <CheckCircle className="h-16 w-16 text-green-500 mb-2" />
+                      )}
+                      <h3 className="text-2xl font-bold">Importación Finalizada</h3>
+                      <p className="text-muted-foreground">
+                          Se han añadido <span className="font-bold text-foreground">{importResult.count}</span> bicicletas a tu inventario.
+                      </p>
+                  </div>
+
+                  {importResult.rejected && importResult.rejected.length > 0 && (
+                      <Alert variant="destructive" className="bg-red-50/50 border-red-200 mt-6">
+                          <ShieldAlert className="h-5 w-5 text-red-600" />
+                          <AlertTitle className="text-red-800 font-bold flex items-center gap-2">
+                              Alerta de Seguridad: {importResult.rejected.length} unidades rechazadas
+                          </AlertTitle>
+                          <AlertDescription className="mt-3">
+                              <p className="text-red-700 mb-3 text-sm">
+                                  El sistema de prevención de fraude bloqueó las siguientes bicicletas porque ya están registradas o cuentan con un <strong>reporte de robo internacional activo</strong>. Por favor, separa esta mercancía de tu piso de ventas.
+                              </p>
+                              <div className="max-h-[150px] overflow-y-auto border border-red-200 rounded-md bg-white">
+                                  <Table>
+                                      <TableHeader className="bg-red-50 sticky top-0">
+                                          <TableRow>
+                                              <TableHead className="text-red-900 font-bold h-8 text-xs py-1">No. Serie</TableHead>
+                                              <TableHead className="text-red-900 font-bold h-8 text-xs py-1">Motivo del Rechazo</TableHead>
+                                          </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                          {importResult.rejected.map((item, idx) => (
+                                              <TableRow key={idx}>
+                                                  <TableCell className="font-mono text-xs py-2">{item.serial}</TableCell>
+                                                  <TableCell className="text-xs text-red-700 py-2">{item.reason}</TableCell>
+                                              </TableRow>
+                                          ))}
+                                      </TableBody>
+                                  </Table>
+                              </div>
+                          </AlertDescription>
+                      </Alert>
+                  )}
+              </div>
           )}
         </div>
 
+        {/* FOOTER ACTIONS */}
         {step === 'review' && (
-          <div className="flex justify-end gap-3 pt-4 border-t mt-auto">
+          <div className="flex justify-end gap-3 pt-4 border-t mt-auto shrink-0">
             <Button variant="outline" onClick={() => setStep('upload')}>Cancelar</Button>
             <Button onClick={handleConfirmSave} className="bg-green-600 hover:bg-green-700">
               <CheckCircle className="mr-2 h-4 w-4" /> Confirmar e Ingresar Inventario
             </Button>
           </div>
+        )}
+        
+        {step === 'result' && (
+            <div className="flex justify-center pt-4 border-t mt-auto shrink-0">
+                <Button onClick={closeAndReset} className="w-full sm:w-auto px-12">
+                    Cerrar y Volver al Garaje
+                </Button>
+            </div>
         )}
       </DialogContent>
     </Dialog>

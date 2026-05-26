@@ -685,20 +685,30 @@ export async function registerBikeWizardAction(formData: any) {
 }
 
 export async function validateSerialNumberAction(serialNumber: string) {
-    const session = await getDecodedSession(); // Opcional, pero ideal para el log
+    const session = await getDecodedSession(); 
     
-    // 1. Validación Local Rápida
-    const isUnique = await isSerialNumberUnique(serialNumber);
-    if (!isUnique) {
-        // En este punto no siempre logueamos porque el usuario solo está escribiendo en el input, 
-        // pero podemos atraparlo si el frontend lanza el Submit prematuramente.
-        return { exists: true, message: "Este número de serie ya está registrado en BiciRegistro." };
+    // 1. Validación Local con Detalles de Estado
+    const cleanSerial = serialNumber.trim().toUpperCase();
+    const snapshot = await adminDb.collection('bikes').where('serialNumber', '==', cleanSerial).limit(1).get();
+
+    if (!snapshot.empty) {
+        const bikeData = snapshot.docs[0].data();
+        
+        // Diferenciamos el mensaje si está reportada como robada localmente
+        if (bikeData.status === 'stolen') {
+            if (session?.uid) {
+                const ip = await getClientIp();
+                logFraudAttempt(session.uid, serialNumber, 'local', ip);
+            }
+            return { exists: true, message: "Alerta: Reporte de robo LOCAL activo (BiciRegistro)." };
+        }
+        
+        return { exists: true, message: "Este número de serie ya pertenece a otro usuario." };
     }
 
     // 2. Validación Externa Asíncrona (Solo si no existe localmente)
     const isStolenInternationally = await checkBikeIndexForTheft(serialNumber);
     if (isStolenInternationally) {
-        // Si lo detectamos "en vivo" mientras teclea
         if (session?.uid) {
             const ip = await getClientIp();
             logFraudAttempt(session.uid, serialNumber, 'bike_index', ip);
