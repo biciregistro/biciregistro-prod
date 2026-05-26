@@ -139,7 +139,7 @@ const BikePDFTag = ({ bike, qrCodeUrl, logoUrl }: { bike: Bike; qrCodeUrl: strin
   );
 };
 
-export default function BikePDFDownloader({ bike, className }: { bike: Bike, className?: string }) {
+export default function BikePDFDownloader({ bike, className, label }: { bike: Bike, className?: string, label?: string }) {
     const [loading, setLoading] = useState(false);
     const { showRewardToast } = useGamificationToast();
 
@@ -185,7 +185,7 @@ export default function BikePDFDownloader({ bike, className }: { bike: Bike, cla
       ) : (
         <Download className="mr-2 h-4 w-4" />
       )}
-      {loading ? 'Generando...' : 'Descargar Etiqueta QR'}
+      {loading ? 'Generando...' : (label || 'Descargar Etiqueta QR')}
     </Button>
   );
 }

@@ -19,11 +19,13 @@ import {
     DialogTrigger,
     DialogClose,
 } from "@/components/ui/dialog"
+import { cn } from '@/lib/utils';
 
 
 interface TransferOwnershipFormProps {
     bikeId: string;
     bikeName: string;
+    className?: string;
 }
 
 function SubmitButton() {
@@ -35,7 +37,7 @@ function SubmitButton() {
     );
 }
 
-export function TransferOwnershipForm({ bikeId, bikeName }: TransferOwnershipFormProps) {
+export function TransferOwnershipForm({ bikeId, bikeName, className }: TransferOwnershipFormProps) {
     const initialState = { error: '', success: false };
     const [state, dispatch] = useActionState(transferOwnership, initialState);
     const [open, setOpen] = useState(false);
@@ -52,7 +54,7 @@ export function TransferOwnershipForm({ bikeId, bikeName }: TransferOwnershipFor
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline" className="w-full">Transferir Propiedad</Button>
+                <Button variant="outline" className={cn("w-full", className)}>Transferir Propiedad</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <form action={dispatch}>

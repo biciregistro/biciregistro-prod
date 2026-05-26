@@ -3,6 +3,12 @@ import { notFound, redirect } from 'next/navigation';
 import BikeDetailsPageClient from './page-client';
 import type { User, Bike } from '@/lib/types';
 import { getInsuranceRequestByBikeId } from '@/lib/actions/insurance-actions';
+import { ActionPanel } from '@/components/dashboard/action-panel';
+
+// Helper function to check if the user profile is complete (Matches profile/page.tsx)
+const isProfileComplete = (user: User): boolean => {
+    return !!user.birthDate && !!user.country && !!user.state;
+};
 
 // The props object is destructured directly in the function signature
 export default async function BikeDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -24,6 +30,12 @@ export default async function BikeDetailsPage({ params }: { params: Promise<{ id
 
   // Fetch insurance request
   const insuranceRequest = await getInsuranceRequestByBikeId(id);
+  const profileIsComplete = isProfileComplete(user);
 
-  return <BikeDetailsPageClient user={user} bike={bike} insuranceRequest={insuranceRequest} />;
+  return (
+    <>
+        <ActionPanel user={user} isComplete={profileIsComplete} />
+        <BikeDetailsPageClient user={user} bike={bike} insuranceRequest={insuranceRequest} />
+    </>
+  );
 }
