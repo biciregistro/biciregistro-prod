@@ -6,6 +6,8 @@ import { adminDb } from '@/lib/firebase/server';
 import { getDecodedSession } from '@/lib/auth';
 import { validateSerialNumberAction } from '@/lib/actions/bike-actions';
 import crypto from 'crypto';
+import { headers } from 'next/headers';
+import { getUser } from '@/lib/data';
 
 // 1. Esquema estructurado para obligar a Gemini a devolver el formato exacto
 const BulkInventorySchema = z.object({
@@ -106,8 +108,17 @@ export async function registerBulkBikesAction(bikesArray: ParsedInventoryBike[])
   const rejectedBikes: { serial: string; reason: string }[] = [];
 
   try {
+    // 1. OBTENER METADATOS DE TRAZABILIDAD DEL USUARIO ONG
+    const headerList = await headers();
+    const forwardedFor = headerList.get('x-forwarded-for');
+    const ip = forwardedFor ? forwardedFor.split(',')[0].trim() : 'IP no disponible';
+
+    const owner = await getUser(session.uid);
+    const ownerNameStr = owner ? `${owner.name} ${owner.lastName || ''}`.trim() : 'Organización Desconocida';
+    const ownerLocationStr = owner ? [owner.city, owner.state, owner.country].filter(Boolean).join(', ') : 'Ubicación no especificada';
+
     for (const bike of bikesArray) {
-      // 1. Validar que el número de serie no esté vacío y no exista previamente o esté robado
+      // 2. Validar que el número de serie no esté vacío y no exista previamente o esté robado
       if (bike.numeroSerie && bike.numeroSerie.trim() !== '' && bike.numeroSerie.toLowerCase() !== 'no especificado') {
         const check = await validateSerialNumberAction(bike.numeroSerie);
         if (check.exists) {
@@ -120,7 +131,7 @@ export async function registerBulkBikesAction(bikesArray: ParsedInventoryBike[])
         }
       }
 
-      // 2. Preparar el documento
+      // 3. Preparar el documento con Trazabilidad Completa
       const newBikeRef = bikesCollection.doc();
       batch.set(newBikeRef, {
         userId: session.uid,
@@ -133,8 +144,14 @@ export async function registerBulkBikesAction(bikesArray: ParsedInventoryBike[])
         modelYear: bike.anoModelo,
         appraisedValue: bike.precioEstimado || 0,
         photos: [], // Sin foto por ser inventario
-        registrationIp: 'bulk_upload',
-        createdAt: new Date().toISOString()
+        registrationIp: ip, // Usar la IP extraída de la petición
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        
+        // Snapshot legal de creación (Quien subió el bulk)
+        originalOwnerId: session.uid,
+        originalOwnerName: ownerNameStr,
+        originalOwnerLocation: ownerLocationStr,
       });
       
       registeredCount++;

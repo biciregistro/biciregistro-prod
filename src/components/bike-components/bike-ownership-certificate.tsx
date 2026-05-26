@@ -1,7 +1,7 @@
 'use client';
 
 import { Document, Image, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer';
-import { Bike, User } from '@/lib/types';
+import { Bike, User, CustodyEvent } from '@/lib/types';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileText, Loader2 } from 'lucide-react';
@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: '#f8fafc',
     border: '1px solid #cbd5e1',
-    marginBottom: 20,
+    marginBottom: 15,
     borderRadius: 4,
   },
   legalText: {
@@ -48,39 +48,72 @@ const styles = StyleSheet.create({
     lineHeight: 1.3,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
     backgroundColor: '#f1f5f9',
     padding: 5,
-    marginTop: 15,
-    marginBottom: 10,
+    marginTop: 10,
+    marginBottom: 8,
     color: '#334155',
   },
   row: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   label: {
-    width: 150,
-    fontSize: 10,
+    width: 140,
+    fontSize: 9,
     color: '#64748b',
     fontWeight: 'bold',
   },
   value: {
     flex: 1,
-    fontSize: 10,
+    fontSize: 9,
     color: '#0f172a',
   },
+  hashBlock: {
+    marginTop: 10,
+    padding: 8,
+    backgroundColor: '#f8fafc',
+    border: '1px dashed #cbd5e1',
+    borderRadius: 4,
+  },
+  hashLabel: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#0f172a',
+    marginBottom: 2,
+  },
+  hashSubLabel: {
+    fontSize: 7,
+    color: '#64748b',
+    marginBottom: 4,
+  },
   hashValue: {
-    flex: 1,
     fontSize: 8,
     fontFamily: 'Courier',
     color: '#0f172a',
-    marginTop: 2,
+  },
+  custodyBox: {
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottom: '1px solid #f1f5f9'
+  },
+  custodyTitle: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#0f172a',
+    marginBottom: 4,
+    textTransform: 'uppercase'
+  },
+  custodyText: {
+    fontSize: 8,
+    color: '#475569',
+    marginBottom: 2,
   },
   bikeImage: {
     width: '100%',
-    height: 250, 
+    height: 200, 
     objectFit: 'contain',
     borderRadius: 8,
     marginTop: 10,
@@ -89,7 +122,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 25,
     left: 40,
     right: 40,
     borderTop: '1px solid #e2e8f0',
@@ -114,14 +147,30 @@ const styles = StyleSheet.create({
 
 // --- Hash Generation Utility (SHA-256) ---
 const generateSecureHash = async (bike: Bike, user: User) => {
-    const ipPart = bike.registrationIp || 'NO_IP';
-    const input = `${user.id}|${bike.id}|${bike.serialNumber}|${bike.createdAt}|${ipPart}|BICIREGISTRO_PROPERTY_CERTIFICATE`;
+    const ipPart = bike.transferIp || bike.registrationIp || 'NO_IP';
+    const datePart = bike.transferredAt || bike.createdAt;
+    
+    // El input del hash amarra irrevocablemente al usuario actual, con su bici y el momento exacto
+    const input = `${user.id}|${bike.id}|${bike.serialNumber}|${datePart}|${ipPart}|BICIREGISTRO_PROPERTY_CERTIFICATE`;
     
     const msgBuffer = new TextEncoder().encode(input);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     return hashHex;
+};
+
+const formatDate = (isoString?: string) => {
+    if (!isoString) return 'Fecha no disponible';
+    return new Date(isoString).toLocaleString('es-MX', {
+        dateStyle: 'long',
+        timeStyle: 'short'
+    });
+};
+
+const formatCurrency = (amount?: number) => {
+    if (!amount) return 'No especificado';
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 };
 
 // --- PDF Document Component ---
@@ -132,18 +181,15 @@ const CertificateDocument = ({ bike, user, logoUrl, bikeImageUrl, hash }: {
     bikeImageUrl?: string;
     hash: string;
 }) => {
-  const registrationDate = bike.createdAt ? new Date(bike.createdAt).toLocaleString('es-MX', {
-    dateStyle: 'long',
-    timeStyle: 'medium'
-  }) : 'Fecha no disponible';
-
-  const formattedValue = bike.appraisedValue 
-    ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(bike.appraisedValue) 
-    : 'No especificado';
-
-  const displayIp = bike.registrationIp 
-    ? bike.registrationIp 
-    : 'No disponible (Registro previo a v2.0)';
+  const formattedValue = formatCurrency(bike.appraisedValue);
+  
+  // Logica de Trazabilidad
+  const hasHistory = bike.chainOfCustody && bike.chainOfCustody.length > 0;
+  
+  // Datos del Creador Original (Para el bloque de origen)
+  // Utilizamos los datos del snapshot original guardados en la base de datos
+  const originalCreatorName = bike.originalOwnerName || 'Usuario Desconocido';
+  const originalCreatorLocation = bike.originalOwnerLocation || 'Ubicación no especificada';
 
   return (
     <Document>
@@ -159,22 +205,22 @@ const CertificateDocument = ({ bike, user, logoUrl, bikeImageUrl, hash }: {
         {/* Legal Disclaimer */}
         <View style={styles.legalDisclaimerBox}>
              <Text style={styles.legalText}>
-                El presente documento constituye una prueba documental privada de existencia y registro digital. El Usuario declara bajo protesta de decir verdad ser el legítimo poseedor del bien descrito, amparándose en la presunción de propiedad establecida en el Artículo 798 del Código Civil Federal. La integridad de este certificado y su fecha cierta están garantizadas mediante sellado criptográfico (Hash), otorgándole valor probatorio pleno conforme al Artículo 210-A del Código Federal de Procedimientos Civiles. Biciregistro.mx actúa como tercero de buena fe y custodio de la información; la veracidad de los datos origen es responsabilidad exclusiva del declarante según los Términos y Condiciones de la plataforma.
+                El presente documento constituye una prueba documental privada de existencia y registro digital. El Usuario declara bajo protesta de decir verdad ser el legítimo poseedor del bien descrito. La integridad de este certificado y su fecha cierta están garantizadas mediante sellado criptográfico (Hash). Biciregistro.mx actúa como tercero de buena fe y custodio de la cadena de bloques y custodia; la veracidad de los datos origen es responsabilidad exclusiva del declarante.
             </Text>
         </View>
 
         {/* Owner Information */}
-        <Text style={styles.sectionTitle}>INFORMACIÓN DEL PROPIETARIO</Text>
+        <Text style={styles.sectionTitle}>PROPIETARIO ACTUAL (VIGENTE)</Text>
         <View style={styles.row}>
           <Text style={styles.label}>Nombre completo:</Text>
           <Text style={styles.value}>{user.name} {user.lastName || ''}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>Correo electrónico:</Text>
-          <Text style={styles.value}>{user.email}</Text>
+          <Text style={styles.label}>ID de Usuario:</Text>
+          <Text style={styles.value}>{user.id}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>Ubicación de registro:</Text>
+          <Text style={styles.label}>Ubicación:</Text>
           <Text style={styles.value}>
             {user.city || 'N/A'}, {user.state || 'N/A'}, {user.country || 'N/A'}
           </Text>
@@ -187,39 +233,59 @@ const CertificateDocument = ({ bike, user, logoUrl, bikeImageUrl, hash }: {
           <Text style={styles.value}>{bike.serialNumber}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>Marca:</Text>
-          <Text style={styles.value}>{bike.make}</Text>
+          <Text style={styles.label}>Marca / Modelo:</Text>
+          <Text style={styles.value}>{bike.make} {bike.model}</Text>
         </View>
         <View style={styles.row}>
-          <Text style={styles.label}>Modelo:</Text>
-          <Text style={styles.value}>{bike.model}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Color:</Text>
-          <Text style={styles.value}>{bike.color}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Modalidad:</Text>
-          <Text style={styles.value}>{bike.modality || 'No especificada'}</Text>
+          <Text style={styles.label}>Color / Modalidad:</Text>
+          <Text style={styles.value}>{bike.color} / {bike.modality || 'No especificada'}</Text>
         </View>
         <View style={styles.row}>
           <Text style={styles.label}>Valor Declarado:</Text>
           <Text style={styles.value}>{formattedValue}</Text>
         </View>
 
-        {/* Registration Metadata */}
-        <Text style={styles.sectionTitle}>METADATOS DE REGISTRO</Text>
-        <View style={styles.row}>
-          <Text style={styles.label}>Fecha y Hora de Registro:</Text>
-          <Text style={styles.value}>{registrationDate}</Text>
+        {/* Traceability Metadata */}
+        <Text style={styles.sectionTitle}>CADENA DE CUSTODIA (HISTORIAL LEGAL)</Text>
+        
+        {/* Siempre mostramos el origen enriquecido */}
+        <View style={styles.custodyBox}>
+            <Text style={styles.custodyTitle}>Registro Original (Alta en Plataforma)</Text>
+            <Text style={styles.custodyText}>Fecha y Hora: {formatDate(bike.createdAt)}</Text>
+            <Text style={styles.custodyText}>Registrado por: {originalCreatorName} ({bike.originalOwnerId || bike.userId})</Text>
+            <Text style={styles.custodyText}>Ubicación: {originalCreatorLocation}</Text>
+            <Text style={styles.custodyText}>IP del Dispositivo: {bike.registrationIp || 'No disponible'}</Text>
         </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>IP de Registro:</Text>
-          <Text style={styles.value}>{displayIp}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Hash de Validación:</Text>
-          <Text style={styles.hashValue}>{hash}</Text>
+
+        {/* Soporte Legacy para la primera transferencia si no está en el chainOfCustody */}
+        {/* Si existe transferredAt pero no hay chainOfCustody, O si la primera fecha del chainOfCustody NO coincide con transferredAt */}
+        {bike.transferredAt && (!hasHistory || (hasHistory && new Date(bike.chainOfCustody![0].date).getTime() > new Date(bike.transferredAt).getTime() + 1000)) && (
+            <View style={styles.custodyBox}>
+                <Text style={styles.custodyTitle}>Transacción {hasHistory ? 'previa' : '1'}: Cambio de Propietario (Legacy)</Text>
+                <Text style={styles.custodyText}>Fecha de Transferencia: {formatDate(bike.transferredAt)}</Text>
+                {bike.previousOwnerId && <Text style={styles.custodyText}>Emisor (ID): {bike.previousOwnerId}</Text>}
+                {bike.transferIp && <Text style={styles.custodyText}>IP de Transacción: {bike.transferIp}</Text>}
+            </View>
+        )}
+
+        {/* Iteramos sobre el historial moderno de transferencias si existe */}
+        {hasHistory && bike.chainOfCustody!.map((event: CustodyEvent, index: number) => (
+            <View key={index} style={styles.custodyBox}>
+                <Text style={styles.custodyTitle}>Transacción {bike.transferredAt && !hasHistory ? index + 2 : index + 1}: Cambio de Propietario (Digital)</Text>
+                <Text style={styles.custodyText}>Fecha de Transferencia: {formatDate(event.date)}</Text>
+                <Text style={styles.custodyText}>Emisor: {event.previousOwnerName || 'Usuario'} ({event.previousOwnerId})</Text>
+                <Text style={styles.custodyText}>Receptor: {event.ownerName || 'Usuario'} ({event.ownerId})</Text>
+                {event.saleAmount ? <Text style={styles.custodyText}>Monto Declarado: {formatCurrency(event.saleAmount)}</Text> : null}
+                <Text style={styles.custodyText}>Ubicación Reportada: {event.location || 'No especificada'}</Text>
+                <Text style={styles.custodyText}>IP de Transacción: {event.ipAddress}</Text>
+            </View>
+        ))}
+
+        {/* Hash Block visualmente rediseñado (Salto de linea) */}
+        <View style={styles.hashBlock}>
+            <Text style={styles.hashLabel}>SELLO CRIPTOGRÁFICO DE INTEGRIDAD</Text>
+            <Text style={styles.hashSubLabel}>Generado contra estado actual para validación pericial (SHA-256)</Text>
+            <Text style={styles.hashValue}>{hash}</Text>
         </View>
 
         {/* Bike Photo */}
@@ -233,10 +299,10 @@ const CertificateDocument = ({ bike, user, logoUrl, bikeImageUrl, hash }: {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Este documento certifica que la bicicleta descrita anteriormente se encuentra registrada en la plataforma BiciRegistro.mx por el usuario mencionado.
+            Este documento certifica que la bicicleta descrita se encuentra registrada en la plataforma BiciRegistro.mx.
           </Text>
           <Text style={styles.footerText}>
-            Para validar la autenticidad de este certificado, escanee el código QR de la bicicleta o contacte a soporte@biciregistro.mx
+            Para validar la autenticidad de este certificado y su cadena de custodia, escanee el código QR físico de la bicicleta o contacte a soporte@biciregistro.mx
           </Text>
         </View>
       </Page>

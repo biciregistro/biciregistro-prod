@@ -6,7 +6,7 @@ import { getStorage } from 'firebase-admin/storage';
 import { getDecodedSession } from '@/lib/auth';
 import { adminAuth, adminDb } from '@/lib/firebase/server';
 import { BikeRegistrationSchema } from '@/lib/schemas';
-import { BikeFormState, Modality } from '@/lib/types';
+import { BikeFormState, Modality, CustodyEvent } from '@/lib/types';
 import { 
     addBike, 
     updateBikeData, 
@@ -210,9 +210,12 @@ export async function registerBike(prevState: any, formData: FormData): Promise<
 
     // 3. REGISTRO EXITOSO
     try {
-        // OBTENER DATOS DEL USUARIO PARA DESNORMALIZACIÓN
+        // OBTENER DATOS DEL USUARIO PARA DESNORMALIZACIÓN Y TRAZABILIDAD
         const owner = await getUser(session.uid);
         if (!owner) throw new Error("Owner not found");
+
+        const ownerNameStr = owner.name + (owner.lastName ? ` ${owner.lastName}` : '');
+        const ownerLocationStr = [owner.city, owner.state, owner.country].filter(Boolean).join(', ');
 
         const denormalizedData = {
             ownerGender: owner.gender,
@@ -236,6 +239,12 @@ export async function registerBike(prevState: any, formData: FormData): Promise<
                 additionalPhoto1Url,
                 additionalPhoto2Url,
             ].filter((url): url is string => !!url),
+            
+            // Snapshot del dueño original para trazabilidad
+            originalOwnerId: session.uid,
+            originalOwnerName: ownerNameStr,
+            originalOwnerLocation: ownerLocationStr,
+
             ...denormalizedData, // INYECTAR DATOS
         });
 
@@ -534,8 +543,30 @@ export async function transferOwnership(prevState: { error?: string; success?: b
 
         const saleValueNum = saleAmount ? parseFloat(saleAmount) : 0;
         const batch = adminDb.batch();
+        const ip = await getClientIp();
+        const transferDate = new Date().toISOString();
 
-        // 1. ACTUALIZAR EL DOCUMENTO DE LA BICICLETA
+        // TRAZABILIDAD LEGAL: Obtener nombres y ubicaciones de emisor y receptor
+        const currentOwnerDoc = await getUser(currentUserId);
+        const currentOwnerName = currentOwnerDoc ? `${currentOwnerDoc.name} ${currentOwnerDoc.lastName || ''}`.trim() : 'Usuario Desconocido';
+        const currentOwnerLocation = currentOwnerDoc ? [currentOwnerDoc.city, currentOwnerDoc.state, currentOwnerDoc.country].filter(Boolean).join(', ') : 'Ubicación Desconocida';
+
+        const newOwnerName = `${newOwner.name} ${newOwner.lastName || ''}`.trim();
+
+        // Construir el evento de custodia
+        const custodyEvent: CustodyEvent = {
+            type: 'transfer',
+            date: transferDate,
+            ipAddress: ip || 'unknown',
+            ownerId: newOwner.id,
+            ownerName: newOwnerName,
+            previousOwnerId: currentUserId,
+            previousOwnerName: currentOwnerName,
+            saleAmount: saleValueNum > 0 ? saleValueNum : undefined,
+            location: currentOwnerLocation // La transferencia asume la ubicación legal del vendedor
+        };
+
+        // 1. ACTUALIZAR EL DOCUMENTO DE LA BICICLETA CON TRAZABILIDAD LEGAL
         const bikeRef = adminDb.collection('bikes').doc(bikeId);
         batch.update(bikeRef, { 
             userId: newOwner.id,
@@ -546,7 +577,12 @@ export async function transferOwnership(prevState: { error?: string; success?: b
             ownerCountry: newOwner.country || undefined,
             ownerState: newOwner.state || undefined,
             ownerCity: newOwner.city || undefined,
-            transferredAt: new Date().toISOString()
+            // Guardamos el historial en el arreglo
+            chainOfCustody: FieldValue.arrayUnion(custodyEvent),
+            // Legacy fields for backward compatibility
+            transferredAt: transferDate,
+            transferIp: ip || 'unknown', 
+            previousOwnerId: currentUserId 
         });
         
         // 2. ACTUALIZAR EL GARAJE DEL NUEVO DUEÑO (Filtros cruzados)
@@ -556,7 +592,7 @@ export async function transferOwnership(prevState: { error?: string; success?: b
             ...(bike.modality ? { ownedModalities: FieldValue.arrayUnion(bike.modality) } : {})
         });
 
-        // 3. REGISTRO EN ECOSYSTEM SALES (Trazabilidad)
+        // 3. REGISTRO EN ECOSYSTEM SALES (Trazabilidad Comercial)
         if (saleValueNum > 0) {
             const saleRef = adminDb.collection('ecosystem-sales').doc();
             batch.set(saleRef, {
@@ -566,7 +602,8 @@ export async function transferOwnership(prevState: { error?: string; success?: b
                 saleAmount: saleValueNum,
                 make: bike.make,
                 model: bike.model,
-                date: new Date().toISOString()
+                date: transferDate,
+                ipAddress: ip || 'unknown'
             });
         }
 
@@ -631,9 +668,12 @@ export async function registerBikeWizardAction(formData: any) {
         }
 
         // 3. REGISTRO EXITOSO
-        // OBTENER DATOS DEL USUARIO PARA DESNORMALIZACIÓN
+        // OBTENER DATOS DEL USUARIO PARA DESNORMALIZACIÓN Y TRAZABILIDAD
         const owner = await getUser(userId);
         if (!owner) throw new Error("Owner not found");
+
+        const ownerNameStr = owner.name + (owner.lastName ? ` ${owner.lastName}` : '');
+        const ownerLocationStr = [owner.city, owner.state, owner.country].filter(Boolean).join(', ');
 
         const denormalizedData = {
             ownerGender: owner.gender,
@@ -656,6 +696,12 @@ export async function registerBikeWizardAction(formData: any) {
             registrationIp: ip,
             updatedAt: new Date().toISOString(), // FIXED: Missing updatedAt
             photos: photoUrls,
+            
+            // Snapshot del dueño original para trazabilidad
+            originalOwnerId: userId,
+            originalOwnerName: ownerNameStr,
+            originalOwnerLocation: ownerLocationStr,
+
             ...denormalizedData, // INYECTAR
         });
 

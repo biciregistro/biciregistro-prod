@@ -41,6 +41,18 @@ export interface TheftReport {
     reward?: string;
 }
 
+export interface CustodyEvent {
+    type: 'registration' | 'transfer';
+    date: string;
+    ipAddress: string;
+    ownerId: string; // Quién asume o mantiene la propiedad en este evento
+    ownerName?: string; // Nombre de quien recibe
+    previousOwnerId?: string; // Solo en caso de transferencia
+    previousOwnerName?: string; // Nombre de quien transfiere
+    saleAmount?: number; // Precio de la transferencia
+    location?: string; // Ubicación donde ocurrió la transferencia (o del vendedor)
+}
+
 export type Bike = {
     id: string;
     userId: string;
@@ -59,11 +71,11 @@ export type Bike = {
     updatedAt: string;
     registrationIp?: string;
     appraisedValue?: number; // USD o MXN según moneda preferida, usualmente MXN. Calculado via Genkit.
-    ownerGender?: string; // Desnormalizado del User
-    ownerBirthDate?: string; // Desnormalizado del User
-    ownerCountry?: string; // Desnormalizado del User
-    ownerState?: string; // Desnormalizado del User
-    ownerCity?: string; // Desnormalizado del User
+    ownerGender?: string; // Desnormalizado del User actual
+    ownerBirthDate?: string; 
+    ownerCountry?: string; 
+    ownerState?: string; 
+    ownerCity?: string; 
     bikonId?: string; // Referencia al ID corto o UUID del Bikon asignado
 
     theftReport?: TheftReport;
@@ -73,7 +85,20 @@ export type Bike = {
 
     // Trazabilidad y Mercado (B2B / B2C)
     salePrice?: number; // A cuánto se compró originalmente (declarado por usuario)
-    transferredAt?: string; // Cuándo cambió de dueño por última vez
+    
+    // Trazabilidad Legal Absoluta
+    chainOfCustody?: CustodyEvent[];
+    
+    // Snapshot del Registro Original (Para no perderlo en transferencias futuras)
+    originalOwnerId?: string;
+    originalOwnerName?: string;
+    originalOwnerLocation?: string;
+
+    // Legacy (Mantenido para compatibilidad)
+    transferredAt?: string; 
+    transferIp?: string; 
+    previousOwnerId?: string; 
+    
     adminSharedAt?: string; // Fecha en que un admin compartió la bici robada en redes
 };
 
