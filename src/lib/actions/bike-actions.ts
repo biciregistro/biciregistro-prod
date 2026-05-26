@@ -299,15 +299,33 @@ export async function updateBike(prevState: BikeFormState, formData: FormData): 
          return { success: false, message: "No tienes permiso para actualizar esta bicicleta." };
     }
 
+    const ip = await getClientIp();
+
+    // 1. VALIDACIÓN LOCAL (Si el serial cambió)
     const isUnique = await isSerialNumberUnique(serialNumber, id);
     if (!isUnique) {
+        logFraudAttempt(session.uid, serialNumber, 'local', ip);
         return {
             success: false,
-            message: `Error: El número de serie '${serialNumber}' ya se encuentra registrado.`,
+            message: `Error: El número de serie '${serialNumber}' ya se encuentra registrado por otro usuario.`,
             errors: { serialNumber: ["Este número de serie ya está registrado."] },
         };
     }
 
+    // 2. VALIDACIÓN INTERNACIONAL (Solo si el serial es nuevo o cambió y no empieza con PENDING_)
+    if (serialNumber !== currentBike.serialNumber && !serialNumber.startsWith('PENDING_')) {
+        const isStolenInternationally = await checkBikeIndexForTheft(serialNumber);
+        if (isStolenInternationally) {
+             logFraudAttempt(session.uid, serialNumber, 'bike_index', ip);
+             return {
+                success: false,
+                message: `Alerta de Seguridad: No podemos registrar este número de serie porque cuenta con un reporte internacional de robo activo en Bike Index.`,
+                errors: { serialNumber: ["Reporte de robo internacional detectado."] },
+            };
+        }
+    }
+
+    // 3. ACTUALIZACIÓN EN DB
     try {
         await updateBikeData(id, {
             ...bikeData,
