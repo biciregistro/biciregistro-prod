@@ -205,10 +205,10 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
   const mercadoLibreUrl = "https://articulo.mercadolibre.com.mx/MLM-4837649934-bikon-otag-doble-localizador-para-bicicleta-_JM";
 
   return (
-    <div className="container py-6 md:py-8 max-w-6xl">
+    <div className="w-full py-6 md:py-8">
       {/* HEADER SECTION - Hidden on mobile entirely, visible on Desktop */}
       {!isEditing && (
-          <div className="mb-6 hidden md:flex flex-col sm:flex-row items-center justify-between px-4 sm:px-0 gap-4">
+          <div className="mb-6 hidden md:flex flex-col sm:flex-row items-center justify-between gap-4">
             <Button asChild variant="ghost" className="w-full sm:w-auto -ml-2 text-muted-foreground hover:text-primary transition-colors">
               <Link href={backUrl}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -224,7 +224,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
       )}
 
       {isEditing ? (
-        <div className="max-w-2xl mx-auto px-4 sm:px-0">
+        <div className="max-w-2xl mx-auto">
             <div className="mb-4">
                 <Button variant="ghost" onClick={() => setIsEditing(false)} className="gap-2 text-muted-foreground">
                     <ArrowLeft className="h-4 w-4" /> Cancelar Edición
@@ -236,7 +236,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
         <div className="space-y-8">
             {/* PENDING SERIAL BANNER - GLOBAL */}
             {isPendingSerial && (
-                <div className="mx-4 sm:mx-0 bg-amber-50 border-2 border-amber-200 rounded-xl p-4 text-amber-900 shadow-sm animate-in fade-in slide-in-from-top-4 duration-700">
+                <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 text-amber-900 shadow-sm animate-in fade-in slide-in-from-top-4 duration-700">
                     <div className="flex items-start gap-4">
                         <div className="bg-amber-100 p-2 rounded-lg shrink-0">
                             <Zap className="w-6 h-6 text-amber-600 animate-pulse" />
@@ -258,7 +258,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
             )}
 
             <Tabs defaultValue="passport" className="w-full">
-                <div className="px-4 sm:px-0 mb-6">
+                <div className="mb-6">
                     {/* TabsList style matching Profile */}
                     <TabsList className="grid grid-cols-3 h-14 bg-muted/30 p-1 mb-8 rounded-xl border border-border/50">
                         <TabsTrigger value="passport" className="flex flex-col gap-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md rounded-lg py-2 transition-all">
@@ -278,39 +278,73 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
 
                 {/* TAB 1: PASAPORTE (IDENTIDAD Y PROPIEDAD) */}
                 <TabsContent value="passport" className="space-y-6 focus-visible:outline-none animate-in fade-in duration-300">
-                    <div className="grid md:grid-cols-2 gap-8 px-4 sm:px-0">
-                        {/* PHOTOS SECTION */}
-                        <div className="space-y-4">
-                            <Carousel className="w-full">
-                                <CarouselContent>
-                                    {bike.photos.length > 0 ? bike.photos.map((photo, index) => (
-                                    <CarouselItem key={index}>
-                                        <div className="aspect-video relative rounded-2xl overflow-hidden border shadow-sm">
-                                        <Image src={photo} alt={`Foto de la bicicleta ${index + 1}`} fill className="object-cover" />
-                                        </div>
-                                    </CarouselItem>
-                                    )) : (
-                                    <CarouselItem>
-                                        <div className="aspect-video bg-muted/40 rounded-2xl flex items-center justify-center border-2 border-dashed border-muted-foreground/20">
-                                            <p className="text-muted-foreground font-medium">Sin fotografías cargadas</p>
-                                        </div>
-                                    </CarouselItem>
-                                    )}
-                                </CarouselContent>
-                                {bike.photos.length > 1 && <>
-                                    <CarouselPrevious className="hidden md:flex ml-12" />
-                                    <CarouselNext className="hidden md:flex mr-12" />
-                                </>}
-                            </Carousel>
-                            <div className="flex justify-center gap-1.5">
-                                {bike.photos.map((_, i) => (
-                                    <div key={i} className="w-1.5 h-1.5 rounded-full bg-primary/20" />
-                                ))}
+                    <div className="grid md:grid-cols-2 gap-8">
+                        {/* LEFT COLUMN: PHOTOS & DOCUMENTS & TRANSFER */}
+                        <div className="space-y-6">
+                            {/* PHOTOS SECTION */}
+                            <div className="space-y-4">
+                                <Carousel className="w-full">
+                                    <CarouselContent>
+                                        {bike.photos.length > 0 ? bike.photos.map((photo, index) => (
+                                        <CarouselItem key={index}>
+                                            <div className="aspect-video relative rounded-2xl overflow-hidden border shadow-sm">
+                                            <Image src={photo} alt={`Foto de la bicicleta ${index + 1}`} fill className="object-cover" />
+                                            </div>
+                                        </CarouselItem>
+                                        )) : (
+                                        <CarouselItem>
+                                            <div className="aspect-video bg-muted/40 rounded-2xl flex items-center justify-center border-2 border-dashed border-muted-foreground/20">
+                                                <p className="text-muted-foreground font-medium">Sin fotografías cargadas</p>
+                                            </div>
+                                        </CarouselItem>
+                                        )}
+                                    </CarouselContent>
+                                    {bike.photos.length > 1 && <>
+                                        <CarouselPrevious className="hidden md:flex ml-12" />
+                                        <CarouselNext className="hidden md:flex mr-12" />
+                                    </>}
+                                </Carousel>
+                                <div className="flex justify-center gap-1.5">
+                                    {bike.photos.map((_, i) => (
+                                        <div key={i} className="w-1.5 h-1.5 rounded-full bg-primary/20" />
+                                    ))}
+                                </div>
                             </div>
+
+                            {/* INVOICE SECTION (Moved from Right to Left) */}
+                            <OwnershipProofSection bike={bike} />
+
+                            {/* TRANSFER SECTION (Moved from Right to Left) */}
+                            {isTransferable && (
+                                !isPendingSerial ? (
+                                    <Card className="border-muted-foreground/10 bg-muted/5">
+                                        <CardHeader className="pb-4">
+                                            <CardTitle className="text-lg">Transferir o Vender</CardTitle>
+                                            <CardDescription>
+                                                Cede la propiedad digital a otro usuario de BiciRegistro.
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <TransferOwnershipForm 
+                                                bikeId={bike.id} 
+                                                bikeName={`${bike.make} ${bike.model}`}
+                                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                                            />
+                                        </CardContent>
+                                    </Card>
+                                ) : (
+                                    <LockedFeatureCard 
+                                        title="Pasaporte - Transferencia" 
+                                        description="No puedes transferir una unidad sin número de serie registrado."
+                                        onAction={() => setIsEditing(true)}
+                                    />
+                                )
+                            )}
                         </div>
 
-                        {/* INFO & DOCS SECTION */}
+                        {/* RIGHT COLUMN: INFO & CERTIFICATE */}
                         <div className="space-y-6">
+                            {/* INFO & DOCS SECTION */}
                             <Card className="border-primary/10 shadow-sm overflow-hidden">
                                 <CardHeader className="pb-4 border-b border-muted/50 mb-4">
                                     <div className="flex justify-between items-start">
@@ -370,36 +404,6 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                                     description="Para generar tu certificado oficial con validez jurídica, es necesario asignar el número de serie."
                                     onAction={() => setIsEditing(true)}
                                 />
-                            )}
-
-                            {/* INVOICE SECTION */}
-                            <OwnershipProofSection bike={bike} />
-
-                            {/* TRANSFER SECTION */}
-                            {isTransferable && (
-                                !isPendingSerial ? (
-                                    <Card className="border-muted-foreground/10 bg-muted/5">
-                                        <CardHeader className="pb-4">
-                                            <CardTitle className="text-lg">Transferir o Vender</CardTitle>
-                                            <CardDescription>
-                                                Cede la propiedad digital a otro usuario de BiciRegistro.
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <TransferOwnershipForm 
-                                                bikeId={bike.id} 
-                                                bikeName={`${bike.make} ${bike.model}`}
-                                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
-                                            />
-                                        </CardContent>
-                                    </Card>
-                                ) : (
-                                    <LockedFeatureCard 
-                                        title="Pasaporte - Transferencia" 
-                                        description="No puedes transferir una unidad sin número de serie registrado."
-                                        onAction={() => setIsEditing(true)}
-                                    />
-                                )
                             )}
                         </div>
                     </div>

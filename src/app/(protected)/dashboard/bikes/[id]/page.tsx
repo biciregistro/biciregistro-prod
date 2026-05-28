@@ -33,9 +33,9 @@ export default async function BikeDetailsPage({ params }: { params: Promise<{ id
   const profileIsComplete = isProfileComplete(user);
 
   return (
-    <>
+    <div className="container max-w-6xl mx-auto px-4 md:px-0 py-6 md:py-0">
         <ActionPanel user={user} isComplete={profileIsComplete} />
         <BikeDetailsPageClient user={user} bike={bike} insuranceRequest={insuranceRequest} />
-    </>
+    </div>
   );
 }
