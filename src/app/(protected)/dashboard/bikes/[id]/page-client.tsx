@@ -279,7 +279,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                 {/* TAB 1: PASAPORTE (IDENTIDAD Y PROPIEDAD) */}
                 <TabsContent value="passport" className="space-y-6 focus-visible:outline-none animate-in fade-in duration-300">
                     <div className="grid md:grid-cols-2 gap-8">
-                        {/* LEFT COLUMN: PHOTOS & DOCUMENTS & TRANSFER */}
+                        {/* LEFT COLUMN: PHOTOS & INFO & INVOICE */}
                         <div className="space-y-6">
                             {/* PHOTOS SECTION */}
                             <div className="space-y-4">
@@ -311,40 +311,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                                 </div>
                             </div>
 
-                            {/* INVOICE SECTION (Moved from Right to Left) */}
-                            <OwnershipProofSection bike={bike} />
-
-                            {/* TRANSFER SECTION (Moved from Right to Left) */}
-                            {isTransferable && (
-                                !isPendingSerial ? (
-                                    <Card className="border-muted-foreground/10 bg-muted/5">
-                                        <CardHeader className="pb-4">
-                                            <CardTitle className="text-lg">Transferir o Vender</CardTitle>
-                                            <CardDescription>
-                                                Cede la propiedad digital a otro usuario de BiciRegistro.
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <TransferOwnershipForm 
-                                                bikeId={bike.id} 
-                                                bikeName={`${bike.make} ${bike.model}`}
-                                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
-                                            />
-                                        </CardContent>
-                                    </Card>
-                                ) : (
-                                    <LockedFeatureCard 
-                                        title="Pasaporte - Transferencia" 
-                                        description="No puedes transferir una unidad sin número de serie registrado."
-                                        onAction={() => setIsEditing(true)}
-                                    />
-                                )
-                            )}
-                        </div>
-
-                        {/* RIGHT COLUMN: INFO & CERTIFICATE */}
-                        <div className="space-y-6">
-                            {/* INFO & DOCS SECTION */}
+                            {/* INFO & DOCS SECTION (Moved from Right to Left) */}
                             <Card className="border-primary/10 shadow-sm overflow-hidden">
                                 <CardHeader className="pb-4 border-b border-muted/50 mb-4">
                                     <div className="flex justify-between items-start">
@@ -381,6 +348,12 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                                 </CardContent>
                             </Card>
 
+                            {/* INVOICE SECTION */}
+                            <OwnershipProofSection bike={bike} />
+                        </div>
+
+                        {/* RIGHT COLUMN: CERTIFICATE & TRANSFER */}
+                        <div className="space-y-6">
                             {/* CERTIFICATE SECTION */}
                             {!isPendingSerial ? (
                                 <Card className="border-primary/20 bg-primary/[0.02] shadow-sm">
@@ -404,6 +377,33 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                                     description="Para generar tu certificado oficial con validez jurídica, es necesario asignar el número de serie."
                                     onAction={() => setIsEditing(true)}
                                 />
+                            )}
+
+                            {/* TRANSFER SECTION */}
+                            {isTransferable && (
+                                !isPendingSerial ? (
+                                    <Card className="border-muted-foreground/10 bg-muted/5">
+                                        <CardHeader className="pb-4">
+                                            <CardTitle className="text-lg">Transferir o Vender</CardTitle>
+                                            <CardDescription>
+                                                Cede la propiedad digital a otro usuario de BiciRegistro.
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <TransferOwnershipForm 
+                                                bikeId={bike.id} 
+                                                bikeName={`${bike.make} ${bike.model}`}
+                                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                                            />
+                                        </CardContent>
+                                    </Card>
+                                ) : (
+                                    <LockedFeatureCard 
+                                        title="Pasaporte - Transferencia" 
+                                        description="No puedes transferir una unidad sin número de serie registrado."
+                                        onAction={() => setIsEditing(true)}
+                                    />
+                                )
                             )}
                         </div>
                     </div>
