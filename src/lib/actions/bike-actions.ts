@@ -6,14 +6,15 @@ import { getStorage } from 'firebase-admin/storage';
 import { getDecodedSession } from '@/lib/auth';
 import { adminAuth, adminDb } from '@/lib/firebase/server';
 import { BikeRegistrationSchema } from '@/lib/schemas';
-import { BikeFormState, Modality, CustodyEvent } from '@/lib/types';
+import { BikeFormState, Modality, CustodyEvent, User, OngUser } from '@/lib/types';
 import { 
     addBike, 
     updateBikeData, 
     isSerialNumberUnique, 
     getBike, 
     getUserByEmail,
-    getUser 
+    getUser,
+    getOngProfile
 } from '@/lib/data';
 import crypto from 'crypto';
 import { sendTheftAlert } from '@/lib/notifications/service';
@@ -501,7 +502,7 @@ export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
     }
 }
 
-export async function transferOwnership(prevState: { error?: string; success?: boolean }, formData: FormData): Promise<{ error?: string; success?: boolean, pointsAwarded?: number }> {
+export async function transferOwnership(prevState: { error?: string; success?: boolean; userNotFound?: boolean; invitationData?: any }, formData: FormData): Promise<{ error?: string; success?: boolean; pointsAwarded?: number; userNotFound?: boolean; invitationData?: any }> {
     const session = await getDecodedSession();
     if (!session?.uid) {
         return { error: 'Debes iniciar sesión para transferir la propiedad.' };
@@ -528,17 +529,46 @@ export async function transferOwnership(prevState: { error?: string; success?: b
 
     try {
         const newOwner = await getUserByEmail(newOwnerEmail);
-        if (!newOwner) {
-            return { error: 'El usuario con ese correo electrónico no fue encontrado en BiciRegistro. Pídele que cree una cuenta para poder transferirle la bicicleta.' };
-        }
-
-        if (newOwner.id === currentUserId) {
-            return { error: 'No puedes transferirte la bicicleta a ti mismo.' };
-        }
         
         const bike = await getBike(currentUserId, bikeId);
         if (!bike) {
             return { error: 'No estás autorizado para transferir esta bicicleta.' };
+        }
+
+        const currentUser = await getUser(currentUserId) as any; // Cast as any to access communityId/affiliatedOngId flexibly
+        if (!currentUser) throw new Error("Current user not found");
+
+        if (!newOwner) {
+            // LÓGICA DE INVITACIÓN: Preparar datos para el cliente
+            let invitationLink = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx'}/signup`;
+            
+            // 1. Si el usuario logueado ES una ONG, su comunidad es su propio ID.
+            // 2. Si es ciclista, verificamos si está afiliado a una (affiliatedOngId o communityId).
+            const communityId = currentUser.role === 'ong' ? currentUser.id : (currentUser.affiliatedOngId || currentUser.communityId);
+
+            if (communityId) {
+                const ongProfile = await getOngProfile(communityId) as any;
+                if (ongProfile?.invitationLink) {
+                    invitationLink = ongProfile.invitationLink;
+                } else {
+                    invitationLink = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx'}/join/${communityId}`;
+                }
+            }
+
+            return { 
+                error: 'El usuario con ese correo electrónico no fue encontrado en BiciRegistro, puedes ingresar su numero de whatsapp para enviarle una invitación y completar la transferencia.',
+                userNotFound: true,
+                invitationData: {
+                    senderName: currentUser.name,
+                    bikeMake: bike.make,
+                    bikeModel: bike.model,
+                    invitationLink
+                }
+            };
+        }
+
+        if (newOwner.id === currentUserId) {
+            return { error: 'No puedes transferirte la bicicleta a ti mismo.' };
         }
 
         const saleValueNum = saleAmount ? parseFloat(saleAmount) : 0;
@@ -547,9 +577,8 @@ export async function transferOwnership(prevState: { error?: string; success?: b
         const transferDate = new Date().toISOString();
 
         // TRAZABILIDAD LEGAL: Obtener nombres y ubicaciones de emisor y receptor
-        const currentOwnerDoc = await getUser(currentUserId);
-        const currentOwnerName = currentOwnerDoc ? `${currentOwnerDoc.name} ${currentOwnerDoc.lastName || ''}`.trim() : 'Usuario Desconocido';
-        const currentOwnerLocation = currentOwnerDoc ? [currentOwnerDoc.city, currentOwnerDoc.state, currentOwnerDoc.country].filter(Boolean).join(', ') : 'Ubicación Desconocida';
+        const currentOwnerName = `${currentUser.name} ${currentUser.lastName || ''}`.trim();
+        const currentOwnerLocation = [currentUser.city, currentUser.state, currentUser.country].filter(Boolean).join(', ') || 'Ubicación Desconocida';
 
         const newOwnerName = `${newOwner.name} ${newOwner.lastName || ''}`.trim();
 

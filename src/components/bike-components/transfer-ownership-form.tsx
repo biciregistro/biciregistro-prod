@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Wallet } from 'lucide-react';
+import { AlertCircle, Wallet, MessageCircle, UserPlus } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -38,9 +38,10 @@ function SubmitButton() {
 }
 
 export function TransferOwnershipForm({ bikeId, bikeName, className }: TransferOwnershipFormProps) {
-    const initialState = { error: '', success: false };
+    const initialState = { error: '', success: false, userNotFound: false, invitationData: null as any };
     const [state, dispatch] = useActionState(transferOwnership, initialState);
     const [open, setOpen] = useState(false);
+    const [whatsapp, setWhatsapp] = useState('');
     const router = useRouter();
 
     useEffect(() => {
@@ -49,6 +50,28 @@ export function TransferOwnershipForm({ bikeId, bikeName, className }: TransferO
             router.push('/dashboard');
         }
     }, [state.success, router]);
+
+    const handleInviteWhatsApp = () => {
+        if (!state.invitationData || !whatsapp) return;
+
+        const { senderName, bikeMake, bikeModel, invitationLink } = state.invitationData;
+        
+        const message = `¡Hola! 👋 Te escribo de parte de ${senderName}.
+
+Te contacto porque el Pasaporte Digital de tu ${bikeMake} ${bikeModel} en BiciRegistro.mx está listo para que ruedes con total tranquilidad. 🛡️🚲
+
+Para acceder a tu Certificado de Propiedad y completar su protección contra el mercado negro, te invitamos a activar tu cuenta en este enlace:
+🔗 ${invitationLink}
+
+¿Qué es BiciRegistro.mx?✨
+No es solo un registro; es un ecosistema ciclista digital que protege a la comunidad, frena el mercado negro y recompensa cada kilómetro que ruedas. Es la herramienta para validar que tu bici es tuya, cuidar tu inversión y ganar beneficios reales por el simple hecho de salir a pedalear.
+
+Avisame cuando hayas creado tu cuenta para hacerte la asignación de tu bicicleta 🚴‍♂️💨`;
+
+        const encodedMessage = encodeURIComponent(message);
+        const cleanWhatsapp = whatsapp.replace(/\D/g, '');
+        window.open(`https://wa.me/${cleanWhatsapp}?text=${encodedMessage}`, '_blank');
+    };
 
 
     return (
@@ -66,7 +89,7 @@ export function TransferOwnershipForm({ bikeId, bikeName, className }: TransferO
                         </DialogDescription>
                     </DialogHeader>
                     
-                    <div className="grid gap-6 py-6">
+                    <div className={cn("grid gap-6 py-6 animate-in fade-in duration-300", state.userNotFound && "hidden")}>
                         <input type="hidden" name="bikeId" value={bikeId} />
                         
                         <div className="space-y-2">
@@ -79,7 +102,7 @@ export function TransferOwnershipForm({ bikeId, bikeName, className }: TransferO
                                 type="email"
                                 placeholder="ejemplo@email.com"
                                 className="h-12"
-                                required
+                                required={!state.userNotFound}
                             />
                             <p className="text-[10px] text-muted-foreground">El usuario debe tener una cuenta activa en BiciRegistro.</p>
                         </div>
@@ -106,19 +129,47 @@ export function TransferOwnershipForm({ bikeId, bikeName, className }: TransferO
                     </div>
 
                     {state.error && (
-                         <Alert variant="destructive" className="mb-6">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>
+                         <Alert variant={state.userNotFound ? "default" : "destructive"} className={cn("mb-6 mt-6", state.userNotFound && "bg-blue-50 border-blue-200 text-blue-900")}>
+                            {state.userNotFound ? <UserPlus className="h-4 w-4 text-blue-600" /> : <AlertCircle className="h-4 w-4" />}
+                            <AlertDescription className="font-medium">
                                 {state.error}
                             </AlertDescription>
                         </Alert>
+                    )}
+
+                    {state.userNotFound && (
+                        <div className="mb-6 p-4 border rounded-xl bg-slate-50 space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="whatsapp" className="text-xs font-bold uppercase text-muted-foreground">Número de WhatsApp</Label>
+                                <div className="flex gap-2">
+                                    <Input 
+                                        id="whatsapp"
+                                        placeholder="521..." 
+                                        value={whatsapp}
+                                        onChange={(e) => setWhatsapp(e.target.value)}
+                                        className="h-10"
+                                    />
+                                    <Button 
+                                        type="button" 
+                                        onClick={handleInviteWhatsApp}
+                                        className="bg-green-600 hover:bg-green-700 text-white gap-2"
+                                        disabled={!whatsapp}
+                                    >
+                                        <MessageCircle className="w-4 h-4" /> Invitar
+                                    </Button>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">Se abrirá WhatsApp con una invitación personalizada.</p>
+                            </div>
+                        </div>
                     )}
 
                     <DialogFooter className="gap-2 sm:gap-0">
                         <DialogClose asChild>
                             <Button type="button" variant="ghost">Cancelar</Button>
                         </DialogClose>
-                        <SubmitButton />
+                        {!state.userNotFound ? <SubmitButton /> : (
+                            <Button type="submit" variant="outline" className="w-full sm:w-auto">Reintentar</Button>
+                        )}
                     </DialogFooter>
                 </form>
             </DialogContent>
