@@ -39,15 +39,16 @@ export async function getActiveCampaigns(
     campaignsSnapshot.forEach((doc: QueryDocumentSnapshot) => {
       const data = doc.data() as Campaign;
       const start = new Date(data.startDate);
-      const end = new Date(data.endDate);
+      const end = data.endDate ? new Date(data.endDate) : new Date(8640000000000000); // Far future if no end date
+      
       if (start <= now && end >= now) {
           // Backward compatibility: If targetScope is undefined, assume it's global
           const scope = data.targetScope || 'global';
           
           if (scope === 'global') {
               campaigns.push({ ...data, id: doc.id });
-          } else if (scope === 'state' && userCountry && userState) {
-              if (data.targetCountry === userCountry && data.targetState === userState) {
+          } else if (scope === 'state' && userState) {
+              if (data.targetStates?.includes(userState)) {
                   campaigns.push({ ...data, id: doc.id });
               }
           }
@@ -57,7 +58,7 @@ export async function getActiveCampaigns(
     const enrichedCampaigns = await Promise.all(campaigns.map(async (c) => {
         let advertiserName = 'Aliado';
         try {
-            const userDoc = await db.collection('users').doc(c.advertiserId).get();
+            const userDoc = await db.collection('users').doc(c.ongId).get();
             if (userDoc.exists) {
                 const userData = userDoc.data();
                 advertiserName = userData?.organizationName || userData?.name || 'Aliado';
@@ -110,22 +111,29 @@ export async function recordCampaignConversion(
     const conversionData: Omit<CampaignConversion, 'id'> = {
         campaignId,
         userId,
+        ongId: userData.affiliatedOngId || 'unknown',
         userEmail: userData.email,
         userName: `${userData.name} ${userData.lastName || ''}`.trim(),
-        userCity: userData.city || 'Desconocido',
         userState: userData.state,
-        userCountry: userData.country,
         convertedAt: new Date().toISOString(),
+    };
+    
+    // We can add extra tracking fields to the document directly even if the type doesn't specify them
+    // but we have to bypass TypeScript's exact type checking.
+    const fullConversionData = {
+        ...conversionData,
+        userCity: userData.city || 'Desconocido',
+        userCountry: userData.country,
         ipAddress: ip,
         privacyPolicyVersion: privacyPolicyVersion,
         metadata: { deviceType: 'unknown', userAgent: userAgent },
         consent: { accepted: consentData.accepted, text: consentData.text, timestamp: new Date().toISOString() }
     };
 
-    await db.collection('campaign_conversions').add(conversionData);
+    await db.collection('campaign_conversions').add(fullConversionData);
     await db.collection('campaigns').doc(campaignId).update({
-        clickCount: FieldValue.increment(1),
-        uniqueConversionCount: FieldValue.increment(1)
+        clicksCount: FieldValue.increment(1),
+        conversionsCount: FieldValue.increment(1)
     });
 
     // GAMIFICACIÓN DINÁMICA: Puntos por participar
@@ -150,7 +158,7 @@ export async function recordCampaignConversion(
  * @param data - The campaign data.
  * @returns The created campaign ID or error.
  */
-export async function createCampaign(data: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt' | 'clickCount' | 'uniqueConversionCount'>): Promise<ActionFormState> {
+export async function createCampaign(data: Omit<Campaign, 'id' | 'createdAt' | 'updatedAt' | 'clicksCount' | 'conversionsCount' | 'viewsCount'>): Promise<ActionFormState> {
     try {
         const session = await getDecodedSession();
         
@@ -174,15 +182,16 @@ export async function createCampaign(data: Omit<Campaign, 'id' | 'createdAt' | '
 
         // Check for placement overlap logic IF the campaign is going to be active AND it's not a reward/giveaway
         if (data.status === 'active' && data.type !== 'reward' && data.type !== 'giveaway') {
-            const overlapError = await checkCampaignOverlap(finalPlacement, scope, data.targetCountry, data.targetState);
+            const overlapError = await checkCampaignOverlap(finalPlacement, scope, data.targetStates);
             if (overlapError) return { error: overlapError };
         }
 
         const newCampaign: Omit<Campaign, 'id'> = {
             ...data,
             placement: finalPlacement,
-            clickCount: 0,
-            uniqueConversionCount: 0,
+            clicksCount: 0,
+            conversionsCount: 0,
+            viewsCount: 0,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         };
@@ -206,8 +215,7 @@ export async function createCampaign(data: Omit<Campaign, 'id' | 'createdAt' | '
 async function checkCampaignOverlap(
     placement: string, 
     scope: 'global' | 'state', 
-    country?: string, 
-    state?: string, 
+    states?: string[], 
     excludeCampaignId?: string
 ): Promise<string | null> {
     const activeCampaignsSnap = await db.collection('campaigns')
@@ -229,8 +237,8 @@ async function checkCampaignOverlap(
 
         const s = data.targetScope || 'global';
         if (s === 'global') hasGlobal = true;
-        if (s === 'state' && data.targetCountry && data.targetState) {
-            activeStates.add(`${data.targetCountry}-${data.targetState}`);
+        if (s === 'state' && data.targetStates) {
+            data.targetStates.forEach(st => activeStates.add(st));
         }
     });
 
@@ -239,8 +247,8 @@ async function checkCampaignOverlap(
         if (activeStates.size > 0) return 'No puedes crear una campaña global en esta ubicación porque hay campañas por estado activas.';
     } else {
         if (hasGlobal) return 'No puedes crear una campaña por estado porque ya existe una campaña global activa en esta ubicación.';
-        if (activeStates.has(`${country}-${state}`)) {
-            return `Ya existe una campaña activa para el estado ${state} en esta ubicación.`;
+        if (states?.some(st => activeStates.has(st))) {
+            return `Ya existe una campaña activa para alguno de los estados seleccionados en esta ubicación.`;
         }
     }
 
@@ -273,15 +281,14 @@ export async function updateCampaign(campaignId: string, data: Partial<Campaign>
 
         const newStatus = data.status || currentData.status;
         const newScope = data.targetScope || currentData.targetScope || 'global';
-        const newCountry = data.targetCountry !== undefined ? data.targetCountry : currentData.targetCountry;
-        const newState = data.targetState !== undefined ? data.targetState : currentData.targetState;
+        const newStates = data.targetStates !== undefined ? data.targetStates : currentData.targetStates;
 
         // Determine if the current or resulting type is a reward/giveaway
         const isRewardOrGiveaway = (data.type || currentData.type) === 'reward' || (data.type || currentData.type) === 'giveaway';
 
         // If it's being set to active, or updated while active, check overlaps (UNLESS it's a reward/giveaway)
         if (newStatus === 'active' && !isRewardOrGiveaway) {
-             const overlapError = await checkCampaignOverlap(finalPlacement, newScope, newCountry, newState, campaignId);
+             const overlapError = await checkCampaignOverlap(finalPlacement, newScope, newStates, campaignId);
              if (overlapError) return { error: overlapError };
         }
 
@@ -289,8 +296,9 @@ export async function updateCampaign(campaignId: string, data: Partial<Campaign>
         const updatePayload = { ...data, updatedAt: new Date().toISOString() };
         delete (updatePayload as any).id;
         delete (updatePayload as any).createdAt;
-        delete (updatePayload as any).clickCount;
-        delete (updatePayload as any).uniqueConversionCount;
+        delete (updatePayload as any).clicksCount;
+        delete (updatePayload as any).conversionsCount;
+        delete (updatePayload as any).viewsCount;
         updatePayload.placement = finalPlacement;
 
         await db.collection('campaigns').doc(campaignId).update(updatePayload);
@@ -393,8 +401,7 @@ export async function updateCampaignStatus(campaignId: string, newStatus: 'draft
                      const overlapError = await checkCampaignOverlap(
                          currentData.placement, 
                          currentData.targetScope || 'global', 
-                         currentData.targetCountry, 
-                         currentData.targetState, 
+                         currentData.targetStates,
                          campaignId
                      );
                      if (overlapError) return { error: overlapError };
@@ -428,7 +435,7 @@ export async function updateCampaignStatus(campaignId: string, newStatus: 'draft
 export async function getAdvertiserCampaigns(advertiserId: string): Promise<Campaign[]> {
     try {
         const snapshot = await db.collection('campaigns')
-            .where('advertiserId', '==', advertiserId)
+            .where('ongId', '==', advertiserId)
             .orderBy('createdAt', 'desc')
             .get();
 
@@ -465,7 +472,7 @@ export async function getCampaignLeads(campaignId: string, advertiserId: string)
         }
         
         // Double check: if passed advertiserId doesn't match campaign owner
-        if (campaignData.advertiserId !== advertiserId) {
+        if (campaignData.ongId !== advertiserId) {
              throw new Error('Discrepancia de datos de campaña.');
         }
 
@@ -485,7 +492,7 @@ export async function getCampaignLeads(campaignId: string, advertiserId: string)
                 if (uDoc.exists) {
                     const uData = uDoc.data() as User;
                     enrichedData.userState = uData.state || data.userState || '';
-                    enrichedData.userCountry = uData.country || data.userCountry || '';
+                    enrichedData.userCountry = uData.country || '';
                     enrichedData.userGender = uData.gender || 'Desconocido';
                     enrichedData.userBirthDate = uData.birthDate || '';
                     enrichedData.userBrands = uData.ownedBrands || [];
@@ -493,8 +500,10 @@ export async function getCampaignLeads(campaignId: string, advertiserId: string)
                 }
 
                 // Traer estado del cupón si existe un rewardId
-                if (data.metadata?.rewardId) {
-                    const rewardDoc = await db.collection('user_rewards').doc(data.metadata.rewardId).get();
+                // Bypass strict type checking here for document fields not mapped to types
+                const dbData = doc.data() as any;
+                if (dbData.metadata?.rewardId) {
+                    const rewardDoc = await db.collection('user_rewards').doc(dbData.metadata.rewardId).get();
                     if (rewardDoc.exists) {
                         const rewardData = rewardDoc.data() as UserReward;
                         enrichedData.rewardStatus = rewardData.status;
@@ -529,7 +538,7 @@ export async function getCampaignAnalyticsAction(campaignId: string): Promise<Ev
         
         const campaign = campaignDoc.data() as Campaign;
         
-        if (session.uid !== campaign.advertiserId) {
+        if (session.uid !== campaign.ongId) {
              const userDoc = await db.collection('users').doc(session.uid).get();
              if (userDoc.data()?.role !== 'admin') {
                  console.error('Unauthorized access to campaign analytics');

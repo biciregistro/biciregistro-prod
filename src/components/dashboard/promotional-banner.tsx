@@ -100,8 +100,8 @@ export function PromotionalBanner({ userCountry, userState }: PromotionalBannerP
           }
 
           // Perform external redirect/download
-          if (campaign.assetUrl) {
-              window.open(campaign.assetUrl, '_blank');
+          if (campaign.actionUrl) {
+              window.open(campaign.actionUrl, '_blank');
           }
       }
 
@@ -123,14 +123,20 @@ export function PromotionalBanner({ userCountry, userState }: PromotionalBannerP
     <>
       <div className="w-full mb-6 relative group cursor-pointer overflow-hidden rounded-xl border shadow-sm hover:shadow-md transition-all" onClick={handleCtaClick}>
         <div className="relative w-full aspect-[3/1] md:aspect-[4/1] bg-gray-100">
-             <Image 
-                src={campaign.bannerImageUrl} 
-                alt={campaign.title}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 1200px"
-                priority
-             />
+             {campaign.imageUrl ? (
+                 <Image 
+                    src={campaign.imageUrl} 
+                    alt={campaign.title}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 1200px"
+                    priority
+                 />
+             ) : (
+                 <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                     <span className="text-gray-400">Sin imagen</span>
+                 </div>
+             )}
         </div>
       </div>
 
