@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Campaign } from '@/lib/types';
+import { Campaign, CampaignPlacement } from '@/lib/types';
 import { getActiveCampaigns, recordCampaignConversion } from '@/lib/actions/campaign-actions';
 import { purchaseReward } from '@/lib/actions/reward-actions';
 import { Button } from '@/components/ui/button';
@@ -25,11 +25,12 @@ interface CampaignWithAdvertiser extends Campaign {
 }
 
 interface PromotionalBannerProps {
+    placement?: CampaignPlacement; // Made dynamic to receive the exact context placement
     userCountry?: string;
     userState?: string;
 }
 
-export function PromotionalBanner({ userCountry, userState }: PromotionalBannerProps) {
+export function PromotionalBanner({ placement = 'dashboard_main', userCountry, userState }: PromotionalBannerProps) {
   const [campaigns, setCampaigns] = useState<CampaignWithAdvertiser[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -45,16 +46,16 @@ export function PromotionalBanner({ userCountry, userState }: PromotionalBannerP
   useEffect(() => {
     async function loadCampaigns() {
       try {
-        const activeCampaigns = await getActiveCampaigns('dashboard_main', userCountry, userState);
+        const activeCampaigns = await getActiveCampaigns(placement, userCountry, userState);
         setCampaigns(activeCampaigns as CampaignWithAdvertiser[]);
       } catch (error) {
-        console.error('Failed to load banner:', error);
+        console.error(`Failed to load banner for placement ${placement}:`, error);
       } finally {
         setLoading(false);
       }
     }
     loadCampaigns();
-  }, [userCountry, userState]);
+  }, [userCountry, userState, placement]);
 
   const handleCtaClick = (campaign: CampaignWithAdvertiser) => {
     setSelectedCampaign(campaign);

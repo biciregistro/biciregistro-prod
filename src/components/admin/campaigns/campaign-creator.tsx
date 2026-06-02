@@ -309,6 +309,9 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                                     <SelectItem value="dashboard_sidebar">Barra Lateral</SelectItem>
                                     <SelectItem value="event_list">Lista de Recompensas / Eventos</SelectItem>
                                     <SelectItem value="welcome_banner">Banner de Bienvenida (Nuevos Usuarios)</SelectItem>
+                                    <SelectItem value="bike_passport">Detalle de Bici: Pasaporte</SelectItem>
+                                    <SelectItem value="bike_blindaje">Detalle de Bici: Blindaje y Seguridad</SelectItem>
+                                    <SelectItem value="ticket_welcome_kit">Ticket de Evento (Kit de Bienvenida)</SelectItem>
                                 </SelectContent>
                             </Select>
                             {(formData.type === 'reward' || formData.type === 'giveaway') && (

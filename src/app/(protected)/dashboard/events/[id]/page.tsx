@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy, Hash, AlertCircle, CheckCircle2, Package, User, Phone, Globe, HeartPulse, FileText, Download, Shirt, TriangleAlert, ShieldCheck, QrCode, Lock } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy, Hash, AlertCircle, CheckCircle2, Package, User, Phone, Globe, HeartPulse, FileText, Download, Shirt, TriangleAlert, ShieldCheck, QrCode, Lock, Gift } from 'lucide-react';
 import { EventActionCard } from '@/components/dashboard/event-action-card';
 import { EventBikeSelector } from '@/components/dashboard/event-bike-selector';
 import { PaymentStatusHandler } from '@/components/payment-status-handler';
@@ -15,6 +15,7 @@ import { FloatingPaymentButton } from '@/components/dashboard/floating-payment-b
 import { EventCategoryDisplay } from '@/components/dashboard/event-category-display';
 import { cn } from '@/lib/utils';
 import { ActionPanel } from '@/components/dashboard/action-panel';
+import { PromotionalBanner } from '@/components/dashboard/promotional-banner';
 import dynamic from 'next/dynamic';
 
 // Registration QR Component (Client Component)
@@ -307,7 +308,7 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                       <>
                           <Separator className="border-dashed border-muted-foreground/30" />
                           <div className="p-6 md:p-8">
-                              <h3 className="text-lg font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
+                              <h3 className="text-lg font-bold uppercase tracking-wider mb-4 flex items-center gap-2 animate-in fade-in duration-300">
                                   <HeartPulse className="h-5 w-5 text-primary" /> Información Adicional
                               </h3>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm">
@@ -354,6 +355,19 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                                       </div>
                                   )}
                               </div>
+                          </div>
+                      </>
+                  )}
+
+                  {/* --- CONTEXTUAL ADVERTISING: TICKET WELCOME KIT INSIDE TICKET CARD --- */}
+                  {isCheckinComplete && (
+                      <>
+                          <Separator className="border-dashed border-primary/20" />
+                          <div className="p-6 md:p-8 bg-blue-600/[0.03] dark:bg-blue-600/[0.01] space-y-4 animate-in fade-in duration-300">
+                              <h3 className="text-lg font-bold uppercase tracking-wider flex items-center gap-2 text-slate-900 dark:text-white">
+                                  <Gift className="h-5 w-5 text-blue-600 shrink-0" /> TU KIT DE BIENVENIDA
+                              </h3>
+                              <PromotionalBanner placement="ticket_welcome_kit" userCountry={user.country} userState={user.state} />
                           </div>
                       </>
                   )}

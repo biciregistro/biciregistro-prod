@@ -576,7 +576,7 @@ export type LandingEventsContent = {
 
 export type CampaignType = 'download' | 'link' | 'coupon' | 'reward' | 'giveaway';
 export type CampaignStatus = 'draft' | 'active' | 'paused' | 'ended';
-export type CampaignPlacement = 'dashboard_main' | 'dashboard_sidebar' | 'event_list' | 'welcome_banner';
+export type CampaignPlacement = 'dashboard_main' | 'dashboard_sidebar' | 'event_list' | 'welcome_banner' | 'bike_passport' | 'bike_blindaje' | 'ticket_welcome_kit';
 export type CampaignTargetScope = 'global' | 'state';
 
 export type Campaign = {

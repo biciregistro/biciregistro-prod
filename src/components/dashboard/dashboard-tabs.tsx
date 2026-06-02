@@ -297,7 +297,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
             <TabsContent value="garage" className="space-y-4">
                 {/* Desktop: Show promotional banner at top. */}
                 <div className="hidden md:block mb-6">
-                    <PromotionalBanner userCountry={user.country} userState={user.state} />
+                    <PromotionalBanner placement="dashboard_main" userCountry={user.country} userState={user.state} />
                 </div>
 
                 {bikes.length === 0 ? (
@@ -324,7 +324,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                         
                         {/* Mobile Banner: Insert here if no bikes (Requirement: Below CTA) */}
                         <div className="md:hidden mt-8 w-full">
-                            <PromotionalBanner userCountry={user.country} userState={user.state} />
+                            <PromotionalBanner placement="dashboard_main" userCountry={user.country} userState={user.state} />
                         </div>
                     </div>
                 ) : (
@@ -336,7 +336,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                                 {/* Mobile Banner: Insert after first bike (Requirement) */}
                                 {index === 0 && (
                                     <div className="md:hidden mt-4">
-                                        <PromotionalBanner userCountry={user.country} userState={user.state} />
+                                        <PromotionalBanner placement="dashboard_main" userCountry={user.country} userState={user.state} />
                                     </div>
                                 )}
                             </div>
@@ -352,6 +352,11 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
             </TabsContent>
             
             <TabsContent value="events" className="space-y-4">
+                {/* INJECTION IN THE BIKE REGISTERED USER EVENT LIST TAB */}
+                <div className="mb-6">
+                    <PromotionalBanner placement="event_list" userCountry={user.country} userState={user.state} />
+                </div>
+
                 <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
                     <h2 className="text-xl font-semibold hidden sm:block">Mis Eventos</h2>
                     <Button asChild className="w-full sm:w-auto"><Link href="/events"><Compass className="mr-2 h-4 w-4" />Explorar eventos</Link></Button>

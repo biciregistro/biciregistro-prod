@@ -27,6 +27,7 @@ import { InsuranceCard } from '@/components/bike-components/insurance-card';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useGamificationToast } from '@/hooks/use-gamification-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PromotionalBanner } from '@/components/dashboard/promotional-banner';
 
 // Dynamic import for PDF downloaders
 const BikePDFDownloader = dynamic(
@@ -348,6 +349,11 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                                 </CardContent>
                             </Card>
 
+                            {/* INJECTION OF CONTEXTUAL BANNER ON BIKE PASSPORT TAB */}
+                            <div className="my-2">
+                                <PromotionalBanner placement="bike_passport" userCountry={user.country} userState={user.state} />
+                            </div>
+
                             {/* INVOICE SECTION */}
                             <OwnershipProofSection bike={bike} />
                         </div>
@@ -549,6 +555,11 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                                 onAction={() => setIsEditing(true)}
                             />
                         )}
+                    </div>
+
+                    {/* INJECTION OF CONTEXTUAL BANNER ON BIKE SHIELD TAB */}
+                    <div className="max-w-4xl mx-auto mt-6">
+                        <PromotionalBanner placement="bike_blindaje" userCountry={user.country} userState={user.state} />
                     </div>
                 </TabsContent>
             </Tabs>

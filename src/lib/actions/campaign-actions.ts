@@ -18,7 +18,7 @@ import { awardPoints } from '@/lib/actions/gamification-actions'; // Importar ga
  * for other states. If not provided, it returns only global campaigns.
  */
 export async function getActiveCampaigns(
-    placement: 'dashboard_main' | 'dashboard_sidebar' | 'event_list' | 'welcome_banner' = 'dashboard_main',
+    placement: string = 'dashboard_main', // Made string to accept dynamic Context Placements loosely
     userCountry?: string,
     userState?: string
 ): Promise<(Campaign & { advertiserName?: string })[]> {
@@ -29,7 +29,8 @@ export async function getActiveCampaigns(
       .where('status', '==', 'active')
       .where('placement', '==', placement);
 
-    if (placement === 'dashboard_main' || placement === 'dashboard_sidebar' || placement === 'welcome_banner') {
+    // Filter by type depending on placements to optimize performance
+    if (placement === 'dashboard_main' || placement === 'dashboard_sidebar' || placement === 'welcome_banner' || placement === 'bike_passport' || placement === 'bike_blindaje' || placement === 'ticket_welcome_kit') {
         query = query.where('type', 'in', ['download', 'link', 'coupon']);
     }
 
