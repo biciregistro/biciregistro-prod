@@ -6,7 +6,7 @@ import { getStorage } from 'firebase-admin/storage';
 import { getDecodedSession } from '@/lib/auth';
 import { adminAuth, adminDb } from '@/lib/firebase/server';
 import { BikeRegistrationSchema } from '@/lib/schemas';
-import { BikeFormState, Modality, CustodyEvent, User, OngUser } from '@/lib/types';
+import { BikeFormState, CustodyEvent, User, OngUser } from '@/lib/types';
 import { 
     addBike, 
     updateBikeData, 
@@ -228,12 +228,10 @@ export async function registerBike(prevState: any, formData: FormData): Promise<
 
         const newBikeId = await addBike({
             ...bikeData,
-            modality: bikeData.modality as Modality | undefined, // FIXED: Type casting for modality
             userId: session.uid,
             serialNumber,
             ownershipProof: ownershipProofUrl || '',
             registrationIp: ip,
-            updatedAt: new Date().toISOString(),
             photos: [
                 photoUrl,
                 serialNumberPhotoUrl,
@@ -339,7 +337,6 @@ export async function updateBike(prevState: BikeFormState, formData: FormData): 
     try {
         await updateBikeData(id, {
             ...bikeData,
-            modality: bikeData.modality as Modality | undefined, // FIXED: Type casting for modality
             serialNumber,
             ownershipProof: ownershipProofUrl || '',
             photos: [
@@ -718,12 +715,11 @@ export async function registerBikeWizardAction(formData: any) {
             make: formData.brand,
             model: formData.model,
             color: formData.color,
-            modality: formData.type as Modality | undefined, // FIXED: Type casting for modality
+            modality: formData.type,
             modelYear: formData.year,
             appraisedValue: parseFloat(formData.value),
             ownershipProof: '',
             registrationIp: ip,
-            updatedAt: new Date().toISOString(), // FIXED: Missing updatedAt
             photos: photoUrls,
             
             // Snapshot del dueño original para trazabilidad

@@ -13,6 +13,14 @@ export default async function CreateAdminEventPage() {
     redirect('/dashboard');
   }
 
+  // Assuming global financial settings are retrieved here or passed down if it's admin
+  const mockFinancialSettings = {
+    commissionRate: 5,
+    pasarelaRate: 3.6,
+    pasarelaFixed: 3,
+    ivaRate: 16
+  };
+
   return (
     <div className="container py-8 px-4 md:px-6">
       <div className="max-w-4xl mx-auto">
@@ -32,7 +40,7 @@ export default async function CreateAdminEventPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <EventForm />
+            <EventForm financialSettings={mockFinancialSettings} hasFinancialData={true} />
           </CardContent>
         </Card>
       </div>

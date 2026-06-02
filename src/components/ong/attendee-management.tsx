@@ -192,7 +192,7 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
         } else {
             toast({
                 title: "Error",
-                description: result.error || "No se pudo actualizar la asistencia.",
+                description: (result as any).error || "No se pudo actualizar la asistencia.",
                 variant: "destructive"
             });
         }
@@ -280,11 +280,11 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
         }
         
         // Truncate long text
-        if (answer.length > 30) {
+        if (typeof answer === 'string' && answer.length > 30) {
             return (
                 <div 
                     className="flex items-center gap-1 cursor-pointer hover:bg-muted p-1 rounded transition-colors"
-                    onClick={() => openAnswerModal(question.label, answer)}
+                    onClick={() => openAnswerModal(question.label, answer as string)}
                 >
                     <span className="truncate max-w-[150px]">{answer}</span>
                     <HelpCircle className="h-3 w-3 text-muted-foreground" />

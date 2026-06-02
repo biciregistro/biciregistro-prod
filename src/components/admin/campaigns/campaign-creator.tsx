@@ -14,7 +14,6 @@ import { CampaignType, CampaignPlacement, CampaignStatus, Campaign, CampaignTarg
 import { ImageUpload } from '@/components/shared/image-upload';
 import { RewardFieldsSection } from './reward-fields-section';
 import { countries } from '@/lib/countries';
-import { getCitiesByState } from '@/lib/cities';
 
 interface AdvertiserOption {
     id: string;
@@ -55,7 +54,8 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
         status: (initialData?.status || 'draft') as CampaignStatus,
         bannerImageUrl: initialData?.bannerImageUrl || '',
         rewardImageUrl: initialData?.rewardImageUrl || '', // Added
-        assetUrl: initialData?.assetUrl || '', 
+        assetUrl: initialData?.assetUrl || '',
+        targetUrl: initialData?.targetUrl || '', 
         startDate: formatForInput(initialData?.startDate),
         endDate: formatForInput(initialData?.endDate),
         // Reward / Giveaway / Coupon Fields
@@ -86,6 +86,14 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
+    const handleUrlBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        let url = e.target.value;
+        if (url && !/^https?:\/\//i.test(url)) {
+            url = `https://${url}`;
+            handleChange('targetUrl', url);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -107,6 +115,12 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
 
             if (formData.type === 'download' && !formData.assetUrl) {
                  toast({ title: "Error", description: "Debes subir el archivo descargable.", variant: "destructive" });
+                 setLoading(false);
+                 return;
+            }
+            
+            if (formData.type === 'link' && !formData.targetUrl) {
+                 toast({ title: "Error", description: "Debes proveer un enlace de destino.", variant: "destructive" });
                  setLoading(false);
                  return;
             }
@@ -177,9 +191,9 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
 
             let result;
             if (isEditing && initialData) {
-                result = await updateCampaign(initialData.id, finalPayload);
+                result = await updateCampaign(initialData.id, finalPayload as any);
             } else {
-                result = await createCampaign(finalPayload);
+                result = await createCampaign(finalPayload as any);
             }
 
             if (result?.success) {
@@ -196,6 +210,7 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                         bannerImageUrl: '',
                         rewardImageUrl: '',
                         assetUrl: '',
+                        targetUrl: '',
                         startDate: '',
                         endDate: '',
                         priceKm: 0,
@@ -451,10 +466,11 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                                 </div>
                             ) : (
                                 <Input 
-                                    id="assetUrl" 
+                                    id="targetUrl" 
                                     placeholder="https://mi-sitio.com/promo"
-                                    value={formData.assetUrl}
-                                    onChange={(e) => handleChange('assetUrl', e.target.value)}
+                                    value={formData.targetUrl}
+                                    onChange={(e) => handleChange('targetUrl', e.target.value)}
+                                    onBlur={handleUrlBlur}
                                 />
                             )}
                         </div>

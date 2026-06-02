@@ -86,12 +86,14 @@ export function WaiverModal({
     }, [processedText, isOpen]);
 
     const clearSignature = () => {
-        sigCanvas.current?.clear();
+        if (sigCanvas.current && sigCanvas.current.clear) {
+            sigCanvas.current.clear();
+        }
         setIsSignatureEmpty(true);
     };
 
     const handleEndDrawing = () => {
-        if (sigCanvas.current) {
+        if (sigCanvas.current && sigCanvas.current.isEmpty) {
             setIsSignatureEmpty(sigCanvas.current.isEmpty());
         }
     };
@@ -116,9 +118,11 @@ export function WaiverModal({
         }
 
         // Obtener la imagen en base64
-        const signatureData = sigCanvas.current?.getTrimmedCanvas().toDataURL('image/png');
-        if (signatureData) {
-            onConfirm(signatureData, processedText);
+        if (sigCanvas.current && sigCanvas.current.getTrimmedCanvas) {
+            const signatureData = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
+            if (signatureData) {
+                onConfirm(signatureData, processedText);
+            }
         }
     };
 
@@ -163,8 +167,10 @@ export function WaiverModal({
                         </div>
                         
                         <div className="border-2 border-dashed border-gray-300 rounded-lg bg-white relative overflow-hidden touch-none h-40">
+                            {/* Pass a function to capture the internal component instance */}
                             <SignatureCanvas 
-                                ref={sigCanvas}
+                                // @ts-ignore - The dynamic import typing isn't exposing ref properly, we're sure it exists in the underlying component
+                                ref={(ref: any) => { sigCanvas.current = ref; }}
                                 penColor="black"
                                 canvasProps={{
                                     className: "w-full h-full cursor-crosshair"

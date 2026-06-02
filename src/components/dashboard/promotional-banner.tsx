@@ -30,50 +30,53 @@ interface PromotionalBannerProps {
 }
 
 export function PromotionalBanner({ userCountry, userState }: PromotionalBannerProps) {
-  const [campaign, setCampaign] = useState<CampaignWithAdvertiser | null>(null);
+  const [campaigns, setCampaigns] = useState<CampaignWithAdvertiser[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCampaign, setSelectedCampaign] = useState<CampaignWithAdvertiser | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [consent, setConsent] = useState(false);
+  
   const { toast } = useToast();
   const { showRewardToast } = useGamificationToast();
 
   useEffect(() => {
-    async function loadCampaign() {
+    async function loadCampaigns() {
       try {
-        const campaigns = await getActiveCampaigns('dashboard_main', userCountry, userState);
-        if (campaigns.length > 0) {
-          setCampaign(campaigns[0] as CampaignWithAdvertiser);
-        }
+        const activeCampaigns = await getActiveCampaigns('dashboard_main', userCountry, userState);
+        setCampaigns(activeCampaigns as CampaignWithAdvertiser[]);
       } catch (error) {
         console.error('Failed to load banner:', error);
       } finally {
         setLoading(false);
       }
     }
-    loadCampaign();
+    loadCampaigns();
   }, [userCountry, userState]);
 
-  const handleCtaClick = () => {
+  const handleCtaClick = (campaign: CampaignWithAdvertiser) => {
+    setSelectedCampaign(campaign);
     setConsent(false);
     setIsModalOpen(true);
   };
 
   const handleConfirm = async () => {
-    if (!campaign) return;
+    if (!selectedCampaign) return;
     if (!consent) return;
 
     setIsProcessing(true);
     try {
-      const consentText = `Acepto compartir mis datos con ${campaign.advertiserName || 'el aliado'}. He leído y estoy de acuerdo con los terminos y condiciones de uso y la politica de privacidad.`;
+      const consentText = `Acepto compartir mis datos con ${selectedCampaign.advertiserName || 'el aliado'}. He leído y estoy de acuerdo con los terminos y condiciones de uso y la politica de privacidad.`;
       
       let result;
 
       // Handle 'coupon' type specifically
-      if (campaign.type === 'coupon') {
-          result = await purchaseReward(campaign.id, { accepted: true, text: consentText });
+      if (selectedCampaign.type === 'coupon') {
+          result = await purchaseReward(selectedCampaign.id, { accepted: true, text: consentText });
       } else {
-          result = await recordCampaignConversion(campaign.id, { accepted: true, text: consentText }) as any;
+          result = await recordCampaignConversion(selectedCampaign.id, { accepted: true, text: consentText }) as any;
       }
 
       if (result?.error) {
@@ -86,7 +89,7 @@ export function PromotionalBanner({ userCountry, userState }: PromotionalBannerP
       }
 
       // Handle success messaging
-      if (campaign.type === 'coupon') {
+      if (selectedCampaign.type === 'coupon') {
           toast({ 
               title: "¡Cupón adquirido!", 
               description: "El cupón se ha guardado en 'Mis Beneficios'. Revisa tu correo." 
@@ -94,14 +97,19 @@ export function PromotionalBanner({ userCountry, userState }: PromotionalBannerP
       } else {
           // Gamification for normal leads/clicks
           if (result.pointsAwarded && result.pointsAwarded > 0) {
-              showRewardToast(result.pointsAwarded, `¡Beneficio desbloqueado! Gracias por participar en la campaña de ${campaign.advertiserName}.`);
+              showRewardToast(result.pointsAwarded, `¡Beneficio desbloqueado! Gracias por participar en la campaña de ${selectedCampaign.advertiserName}.`);
           } else {
               toast({ title: "¡Éxito!", description: "Tu solicitud ha sido procesada." });
           }
 
           // Perform external redirect/download
-          if (campaign.actionUrl) {
-              window.open(campaign.actionUrl, '_blank');
+          if (selectedCampaign.targetUrl) {
+              // Corrección Quirúrgica: Asegurar que el targetUrl tiene http:// o https://
+              let finalUrl = selectedCampaign.targetUrl;
+              if (!/^https?:\/\//i.test(finalUrl)) {
+                  finalUrl = `https://${finalUrl}`;
+              }
+              window.open(finalUrl, '_blank');
           }
       }
 
@@ -117,39 +125,51 @@ export function PromotionalBanner({ userCountry, userState }: PromotionalBannerP
     }
   };
 
-  if (loading || !campaign) return null;
+  if (loading || campaigns.length === 0) return null;
 
   return (
     <>
-      <div className="w-full mb-6 relative group cursor-pointer overflow-hidden rounded-xl border shadow-sm hover:shadow-md transition-all" onClick={handleCtaClick}>
-        <div className="relative w-full aspect-[3/1] md:aspect-[4/1] bg-gray-100">
-             {campaign.imageUrl ? (
-                 <Image 
-                    src={campaign.imageUrl} 
-                    alt={campaign.title}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 1200px"
-                    priority
-                 />
-             ) : (
-                 <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                     <span className="text-gray-400">Sin imagen</span>
-                 </div>
-             )}
-        </div>
+      <div className="w-full mb-6">
+          {/* Scroll container snap-x */}
+          <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 hide-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+              {campaigns.map((campaign) => (
+                   <div 
+                        key={campaign.id}
+                        className="relative group cursor-pointer overflow-hidden rounded-xl border shadow-sm hover:shadow-md transition-all shrink-0 snap-center w-[90%] md:w-[85%]" 
+                        onClick={() => handleCtaClick(campaign)}
+                    >
+                        <div className="relative w-full aspect-[3/1] md:aspect-[4/1] bg-gray-100">
+                             {campaign.bannerImageUrl ? (
+                                 <Image 
+                                    src={campaign.bannerImageUrl} 
+                                    alt={campaign.title}
+                                    fill
+                                    className="object-cover"
+                                    sizes="(max-width: 768px) 90vw, (max-width: 1200px) 85vw, 1000px"
+                                    priority
+                                 />
+                             ) : (
+                                 <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                                     <span className="text-gray-400">Sin imagen</span>
+                                 </div>
+                             )}
+                        </div>
+                   </div>
+              ))}
+          </div>
       </div>
 
+      {/* Reusable Dialog for the selected campaign */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-                {campaign.type === 'download' ? 'Descargar Contenido' : 
-                 campaign.type === 'coupon' ? 'Obtener Cupón' : 
+                {selectedCampaign?.type === 'download' ? 'Descargar Contenido' : 
+                 selectedCampaign?.type === 'coupon' ? 'Obtener Cupón' : 
                  'Ir al sitio del aliado'}
             </DialogTitle>
             <DialogDescription>
-              Estás a un clic de {campaign.type === 'coupon' ? 'adquirir' : 'acceder a'} <strong>{campaign.title}</strong>.
+              Estás a un clic de {selectedCampaign?.type === 'coupon' ? 'adquirir' : 'acceder a'} <strong>{selectedCampaign?.title}</strong>.
             </DialogDescription>
           </DialogHeader>
           
@@ -166,7 +186,7 @@ export function PromotionalBanner({ userCountry, userState }: PromotionalBannerP
                         htmlFor="consent"
                         className="text-sm text-muted-foreground text-justify font-normal cursor-pointer leading-relaxed"
                     >
-                        Acepto compartir mis datos con <strong>{campaign.advertiserName || 'el aliado'}</strong>. He leído y estoy de acuerdo con los terminos y condiciones de uso y la politica de privacidad.
+                        Acepto compartir mis datos con <strong>{selectedCampaign?.advertiserName || 'el aliado'}</strong>. He leído y estoy de acuerdo con los terminos y condiciones de uso y la politica de privacidad.
                     </Label>
                 </div>
             </div>
@@ -178,9 +198,9 @@ export function PromotionalBanner({ userCountry, userState }: PromotionalBannerP
             </Button>
             <Button onClick={handleConfirm} disabled={isProcessing || !consent} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white">
               {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {campaign.type === 'download' ? (
+              {selectedCampaign?.type === 'download' ? (
                   <><Download className="mr-2 h-4 w-4" /> Descargar</>
-              ) : campaign.type === 'coupon' ? (
+              ) : selectedCampaign?.type === 'coupon' ? (
                   <><Ticket className="mr-2 h-4 w-4" /> Obtener Cupón</>
               ) : (
                   <><ExternalLink className="mr-2 h-4 w-4" /> Ir al sitio</>

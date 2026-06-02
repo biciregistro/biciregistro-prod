@@ -39,8 +39,8 @@ export function FinancialRegistrationModal({ ongProfile, isOpen, onOpenChange, o
         </DialogHeader>
         <OngFinancialForm 
             ongProfile={safeProfile} 
-            onSuccess={handleSuccess} 
-            hideHeader={true} 
+            onSuccess={handleSuccess}
+            hideHeader={true}
         />
       </DialogContent>
     </Dialog>

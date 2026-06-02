@@ -133,6 +133,7 @@ const bikeStatusStyles: { [key in BikeStatus]: string } = {
     stolen: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700',
     in_transfer: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700',
     recovered: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700',
+    inventory: 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-700',
 };
 
 export default async function PublicBikePage({ params }: { params: Promise<{ serial: string }> }) {
@@ -196,6 +197,7 @@ export default async function PublicBikePage({ params }: { params: Promise<{ ser
                                 {bike.status === 'safe' ? 'En Regla' : 
                                  bike.status === 'stolen' ? 'Robada' : 
                                  bike.status === 'recovered' ? 'Recuperada' :
+                                 bike.status === 'inventory' ? 'En Inventario' :
                                  'En transferencia'}
                             </Badge>
                         </div>

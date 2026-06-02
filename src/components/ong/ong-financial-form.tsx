@@ -24,7 +24,16 @@ function SubmitButton({ isUploading }: { isUploading: boolean }) {
     );
 }
 
-export function OngFinancialForm({ ongProfile }: { ongProfile: Partial<OngUser> }) {
+// Added onSuccess and hideHeader props to the interface to comply with usage inside modals
+export function OngFinancialForm({ 
+    ongProfile, 
+    onSuccess, 
+    hideHeader = false 
+}: { 
+    ongProfile: Partial<OngUser>, 
+    onSuccess?: () => void, 
+    hideHeader?: boolean 
+}) {
     const { toast } = useToast();
     const [state, formAction] = useActionState(saveOngFinancialsAction, null);
     const [isUploading, setIsUploading] = useState(false);
@@ -38,6 +47,10 @@ export function OngFinancialForm({ ongProfile }: { ongProfile: Partial<OngUser> 
                 title: "Actualización Exitosa",
                 description: state.message,
             });
+            // Invoke the callback if provided, so parent components (like the Wizard Modal) can react
+            if (onSuccess) {
+                onSuccess();
+            }
         } else if (state?.error) {
             toast({
                 variant: "destructive",
@@ -45,7 +58,10 @@ export function OngFinancialForm({ ongProfile }: { ongProfile: Partial<OngUser> 
                 description: state.error,
             });
         }
-    }, [state, toast]);
+        // FIXED: Removed onSuccess from dependency array to prevent infinite re-renders 
+        // when the parent component updates state and passes a new function reference.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [state, toast]); 
 
     const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -99,16 +115,18 @@ export function OngFinancialForm({ ongProfile }: { ongProfile: Partial<OngUser> 
 
     return (
         <div className="space-y-6">
-            <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
-                <Banknote className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <AlertTitle className="text-blue-800 dark:text-blue-300">Gestión de Dispersión de Fondos</AlertTitle>
-                <AlertDescription className="text-blue-700 dark:text-blue-400 mt-1">
-                    Esta información es requerida estrictamente para procesar los pagos recaudados por las inscripciones a tus eventos. 
-                    BiciRegistro utiliza transferencias SPEI para abonar tu saldo semanalmente.
-                    <br/><br/>
-                    <strong>Importante:</strong> Como procesador de pagos, requerimos tu Constancia de Situación Fiscal actualizada para la correcta facturación de las comisiones de uso de plataforma.
-                </AlertDescription>
-            </Alert>
+            {!hideHeader && (
+                <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900">
+                    <Banknote className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <AlertTitle className="text-blue-800 dark:text-blue-300">Gestión de Dispersión de Fondos</AlertTitle>
+                    <AlertDescription className="text-blue-700 dark:text-blue-400 mt-1">
+                        Esta información es requerida estrictamente para procesar los pagos recaudados por las inscripciones a tus eventos. 
+                        BiciRegistro utiliza transferencias SPEI para abonar tu saldo semanalmente.
+                        <br/><br/>
+                        <strong>Importante:</strong> Como procesador de pagos, requerimos tu Constancia de Situación Fiscal actualizada para la correcta facturación de las comisiones de uso de plataforma.
+                    </AlertDescription>
+                </Alert>
+            )}
 
             <form action={formAction} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 p-6 rounded-lg border">

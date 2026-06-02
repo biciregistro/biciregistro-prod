@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { User } from '@/lib/types';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { getLatestActiveCampaignDate } from '@/lib/actions/user-rewards-actions';
 
 interface MobileBottomNavProps {
@@ -17,22 +17,19 @@ export function MobileBottomNav({ user }: MobileBottomNavProps) {
     const searchParams = useSearchParams();
     const [showIndicator, setShowIndicator] = useState(false);
     
-    // Check if the user is an ONG to adjust links if necessary
+    // Evaluate these unconditionally so hooks are always called in the same order
     const isOng = user?.role === 'ong';
     const isProfile = pathname.includes('/profile');
     
     const dashboardBase = isOng ? '/dashboard/ong' : '/dashboard';
     const profilePath = isOng ? '/dashboard/ong/profile' : '/dashboard/profile';
-
-    // Only show the bottom nav for authenticated users in the dashboard area
-    if (!user || !pathname.startsWith('/dashboard')) {
-        return null;
-    }
-
     const currentTab = searchParams.get('tab') || 'garage';
 
     // Lógica para el Indicador de Recompensas
     useEffect(() => {
+        // Safe check for missing user
+        if (!user) return;
+        
         // ONG users don't see rewards tab
         if (isOng) return;
 
@@ -78,8 +75,13 @@ export function MobileBottomNav({ user }: MobileBottomNavProps) {
             localStorage.setItem(LOCAL_STORAGE_KEY, new Date().toISOString());
         }
 
-    }, [currentTab, isProfile, isOng, user.id]);
+    }, [currentTab, isProfile, isOng, user?.id]); // Added optional chaining to user.id
 
+    // Only show the bottom nav for authenticated users in the dashboard area.
+    // THIS conditional return MUST go after ALL hooks.
+    if (!user || !pathname.startsWith('/dashboard')) {
+        return null;
+    }
 
     return (
         <nav id="tour-mobile-nav" className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t pb-safe">

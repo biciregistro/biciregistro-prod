@@ -19,6 +19,7 @@ import { StepOneDefinition } from './step-one-definition';
 import { StepTwoDetails } from './step-two-details';
 import { StepThreeConfiguration } from './step-three-configuration';
 import { StepFourShare } from './step-four-share';
+import { FinancialRegistrationModal } from '../financial-registration-modal';
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
@@ -36,10 +37,15 @@ const STEPS = [
     { id: 4, title: "Publicar" },
 ];
 
-export function EventWizard({ initialData, financialSettings, hasFinancialData, ongProfile }: EventWizardProps) {
+export function EventWizard({ initialData, financialSettings, hasFinancialData: initialHasFinancialData, ongProfile }: EventWizardProps) {
     const [currentStep, setCurrentStep] = useState(1);
     const [isPending, startTransition] = useTransition();
     const [savedEventId, setSavedEventId] = useState<string | null>(initialData?.id || null);
+    
+    // Financial State Tracking
+    const [hasFinancialData, setHasFinancialData] = useState(initialHasFinancialData);
+    const [isFinancialModalOpen, setIsFinancialModalOpen] = useState(false);
+
     const { toast } = useToast();
     const router = useRouter();
 
@@ -122,6 +128,14 @@ export function EventWizard({ initialData, financialSettings, hasFinancialData, 
             return result;
     };
 
+    const handleFinancialSuccess = () => {
+        setHasFinancialData(true);
+        setIsFinancialModalOpen(false);
+        // Automatically advance to the next step since they successfully registered their account
+        setCurrentStep(2);
+        window.scrollTo(0, 0);
+        toast({ title: "Datos Bancarios Guardados", description: "Ahora puedes configurar el costo de tu evento." });
+    };
 
     const handleNext = async () => {
         let fieldsToValidate: any[] = [];
@@ -142,6 +156,12 @@ export function EventWizard({ initialData, financialSettings, hasFinancialData, 
         }
 
         if (isValid) {
+            // INTERCEPTION LOGIC: Check financial data if trying to advance from step 1 with a Paid event
+            if (currentStep === 1 && form.getValues('costType') === 'Con Costo' && !hasFinancialData) {
+                setIsFinancialModalOpen(true);
+                return; // Stop advancement
+            }
+
             if (currentStep === 3) {
                // PUBLISH ACTION
                startTransition(async () => {
@@ -193,7 +213,7 @@ export function EventWizard({ initialData, financialSettings, hasFinancialData, 
             {/* Stepper Header */}
             <div className="space-y-2">
                 <div className="flex justify-between text-sm font-medium text-muted-foreground mb-2">
-                     <span>Paso {currentStep} de 4: {STEPS[currentStep-1].title}</span>
+                     <span>Paso {currentStep} de 4: {STEPS[currentStep-1]?.title || 'Finalizando...'}</span>
                      <span>{Math.round(progress)}%</span>
                 </div>
                 <Progress value={progress} className="h-2" />
@@ -271,6 +291,14 @@ export function EventWizard({ initialData, financialSettings, hasFinancialData, 
                     )}
                 </form>
             </Form>
+
+            {/* Financial Modal Interceptor */}
+            <FinancialRegistrationModal 
+                isOpen={isFinancialModalOpen} 
+                onOpenChange={setIsFinancialModalOpen} 
+                ongProfile={ongProfile || {}} 
+                onSuccess={handleFinancialSuccess} 
+            />
         </div>
     );
 }
