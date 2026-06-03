@@ -10,8 +10,8 @@ export function RegistrationQRCode({ registrationId }: { registrationId: string 
 
     useEffect(() => {
         if (typeof window !== 'undefined' && registrationId) {
-            // Future URL for check-in
-            const url = `${window.location.origin}/admin/checkin/${registrationId}`;
+            // URL neutral de Check-in (Accesible por Admin, ONG y futuros Co-organizadores)
+            const url = `${window.location.origin}/checkin/${registrationId}`;
             
             QRCode.toDataURL(url, {
                 width: 200,
