@@ -354,7 +354,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
             <TabsContent value="events" className="space-y-4">
                 {/* INJECTION IN THE BIKE REGISTERED USER EVENT LIST TAB */}
                 <div className="mb-6">
-                    <PromotionalBanner placement="event_list" userCountry={user.country} userState={user.state} />
+                    <PromotionalBanner placement="public_event_board" userCountry={user.country} userState={user.state} />
                 </div>
 
                 <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">

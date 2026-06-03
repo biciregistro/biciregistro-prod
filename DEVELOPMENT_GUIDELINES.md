@@ -144,7 +144,7 @@ Next.js tiene reglas estrictas sobre cómo se debe estructurar el código para q
 Mantén los archivos de configuración limpios y únicos.
 
 1.  **Un solo `tsconfig.json` y `next.config.ts`.** Estos archivos deben existir únicamente en la raíz del proyecto. No crees duplicados en otras carpetas.
-2.  **Mantener `baseUrl` en `tsconfig.json`.** Esto asegura que el alias `@/` se resuelva de manera explícita y sin ambigüedades.
+2.  **Mantener `baseUrl` in `tsconfig.json`.** Esto asegura que el alias `@/` se resuelva de manera explícita y sin ambigüedades.
     ```json
     {
       "compilerOptions": {
@@ -185,7 +185,13 @@ Para garantizar la estabilidad y un flujo de trabajo ordenado, seguimos una estr
 
 2.  **Desarrollar:** Trabaja y haz `commit` de tus cambios en tu rama `feature`.
 
-3.  **Fusionar a `develop`:** Cuando tu característica esté lista y probada localmente, fusiónala en `develop` para desplegarla en el entorno de pruebas.
+3.  **Fusión y Pruebas Obligatorias:** Antes de fusionar o hacer commit de tus cambios a cualquier rama, es **OBLIGATORIO** validar los tipos del proyecto para asegurar que no se introducen regresiones ni se rompe el compilador.
+    ```bash
+    # Ejecuta el TypeCheck local antes de guardar cualquier cambio
+    npx tsc --noEmit
+    ```
+
+4.  **Fusionar a `develop`:** Cuando tu característica esté lista y probada localmente (habiendo pasado exitosamente el paso anterior), fusiónala en `develop` para desplegarla en el entorno de pruebas.
     ```bash
     git checkout develop
     git pull origin develop
@@ -193,7 +199,7 @@ Para garantizar la estabilidad y un flujo de trabajo ordenado, seguimos una estr
     git push origin develop
     ```
 
-4.  **Verificar en `dev`:** Confirma que tus cambios funcionan como se espera en la URL del ambiente de desarrollo.
+5.  **Verificar en `dev`:** Confirma que tus cambios funcionan como se espera en la URL del ambiente de desarrollo.
 
 ### Flujo de Trabajo para Lanzamientos a Producción
 
@@ -292,3 +298,15 @@ Cualquier funcionalidad nueva, modificación relevante o bugfix crítico **DEBE*
 3.  **Detalles de Implementación:** Archivos creados y modificaciones quirúrgicas realizadas.
 4.  **QA:** Criterios de aceptación y plan de pruebas de no-regresión.
 5.  **Despliegue:** Pasos específicos para el rollout y plan de rollback.
+
+---
+
+## 8. Integridad Estricta de Contratos de Datos (Types.ts)
+
+**⚠️ LEYENDA ULTRA CRÍTICA DE DESARROLLO:**
+
+BiciRegistro se rige bajo contratos de datos estrictos gobernados por el archivo `src/lib/types.ts`. Bajo ninguna circunstancia, escenario o caso de uso, **se autoriza la reescritura completa del archivo `types.ts`**. 
+
+Cualquier adición, modificación o actualización de tipos debe realizarse de manera **estrictamente quirúrgica** e incremental. 
+*   **Regla de Oro:** Se añaden tipos nuevos o propiedades opcionales (`?`) para dar soporte a nuevas funcionalidades. 
+*   **Prohibición Absoluta:** Queda prohibido renombrar, reordenar o eliminar tipos estructurales existentes por fines puricos o estéticos, ya que esto fragmenta las bases desnormalizadas de Firestore y corrompe los compiladores de módulos históricos del sistema.

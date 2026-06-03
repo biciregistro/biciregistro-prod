@@ -30,7 +30,7 @@ export async function getActiveCampaigns(
       .where('placement', '==', placement);
 
     // Filter by type depending on placements to optimize performance
-    if (placement === 'dashboard_main' || placement === 'dashboard_sidebar' || placement === 'welcome_banner' || placement === 'bike_passport' || placement === 'bike_blindaje' || placement === 'ticket_welcome_kit') {
+    if (placement === 'dashboard_main' || placement === 'dashboard_sidebar' || placement === 'welcome_banner' || placement === 'bike_passport' || placement === 'bike_blindaje' || placement === 'ticket_welcome_kit' || placement === 'public_event_board') {
         query = query.where('type', 'in', ['download', 'link', 'coupon']);
     }
 

@@ -307,7 +307,8 @@ export function CampaignCreator({ advertisers, initialData, onSuccess }: Campaig
                                 <SelectContent>
                                     <SelectItem value="dashboard_main">Dashboard Principal (Arriba)</SelectItem>
                                     <SelectItem value="dashboard_sidebar">Barra Lateral</SelectItem>
-                                    <SelectItem value="event_list">Lista de Recompensas / Eventos</SelectItem>
+                                    <SelectItem value="public_event_board">Listado de Eventos (Intercalado en Cartelera)</SelectItem>
+                                    <SelectItem value="event_list">Bóveda de Recompensas y Sorteos</SelectItem>
                                     <SelectItem value="welcome_banner">Banner de Bienvenida (Nuevos Usuarios)</SelectItem>
                                     <SelectItem value="bike_passport">Detalle de Bici: Pasaporte</SelectItem>
                                     <SelectItem value="bike_blindaje">Detalle de Bici: Blindaje y Seguridad</SelectItem>

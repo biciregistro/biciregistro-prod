@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,7 +9,7 @@ import { FinancialSettingsForm } from '@/components/admin/financial-settings-for
 import { AdminEventFinancialList } from '@/components/admin/admin-event-financial-list';
 import { HomepageSection, User, OngUser, Event, FinancialSettings, LandingEventsContent, Bike, InsuranceRequest } from '@/lib/types';
 import { EventCard } from '@/components/ong/event-card';
-import { UserPlus, CalendarPlus, AlertTriangle, Megaphone, ShieldCheck, Trophy } from 'lucide-react';
+import { UserPlus, CalendarPlus, AlertTriangle, Megaphone, ShieldCheck, Trophy, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DashboardFilterBar } from '@/components/admin/dashboard-filter-bar';
 import { NotificationComposer } from '@/components/admin/notifications/notification-composer';
@@ -57,6 +57,14 @@ function AdminDashboardTabsContent({
   const router = useRouter();
   const pathname = usePathname();
 
+  // FIX Hydration Mismatch: Usamos estado local para que el render inicial del cliente
+  // no compita contra la inyección de hooks dinámicos de useSearchParams si fallan los ids.
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Controlled component state by URL, no local duplicate state
   const activeTab = searchParams.get('tab') || initialTab;
   const activeSubTab = searchParams.get('subtab') || 'homepage';
@@ -75,6 +83,16 @@ function AdminDashboardTabsContent({
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
+  // Pre-hidratación: Para evitar que Radix asigne IDs desfasados al servidor, 
+  // renderizamos un esqueleto estático inicial muy ligero (O el server dibuja lo mínimo).
+  if (!isMounted) {
+      return (
+          <div className="w-full flex items-center justify-center p-12 text-muted-foreground">
+              <Loader2 className="w-6 h-6 animate-spin mr-2" /> 
+              Cargando panel de administración...
+          </div>
+      );
+  }
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
