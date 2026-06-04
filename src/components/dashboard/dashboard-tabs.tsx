@@ -275,6 +275,14 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
 
     const hasAnyEventData = registrations.length > 0 || filteredOngEvents.length > 0 || filteredLocalEvents.length > 0;
 
+    // Build the dynamic, localized rewards section title for mobile
+    const mobileRewardsSectionTitle = useMemo(() => {
+        const userStateUpper = user?.state ? user.state.toUpperCase() : '';
+        return userStateUpper 
+            ? `RECOMPENSAS DISPONIBLES EN ${userStateUpper}` 
+            : "RECOMPENSAS DISPONIBLES";
+    }, [user?.state]);
+
     return (
         <>
         <Tabs id="tour-garage" value={activeTab} onValueChange={onTabChange} className="w-full relative">
@@ -733,7 +741,9 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                                 {regularRewards.length > 0 && (
                                     <div className="space-y-4">
                                         <div className="px-1">
-                                            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Recompensas Disponibles</h3>
+                                            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                                                {mobileRewardsSectionTitle}
+                                            </h3>
                                         </div>
                                         <div className="grid grid-cols-1 gap-4">
                                             {regularRewards.map((campaign) => (

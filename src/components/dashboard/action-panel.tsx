@@ -2,10 +2,11 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DownloadEmergencyStickerButton } from '@/components/dashboard/download-sticker-button';
-import { PlusCircle, User as UserIcon, ChevronRight } from 'lucide-react';
+import { PlusCircle, User as UserIcon } from 'lucide-react';
 import type { User } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/icons/logo';
+import { GamificationRulesSheet } from '@/components/dashboard/gamification-rules-sheet';
 
 interface ActionPanelProps {
     user: User;
@@ -93,13 +94,16 @@ export function ActionPanel({ user, isComplete }: ActionPanelProps) {
                         Tienes <span className="font-bold text-foreground">{pointsBalance} B-coins</span> para canjear
                     </span>
                     
-                    <Link 
-                        href="/dashboard?tab=rewards" 
-                        className="font-semibold text-primary flex items-center hover:underline whitespace-nowrap"
-                    >
-                        Ir a mis regalos
-                        <ChevronRight className="h-4 w-4 ml-0.5" />
-                    </Link>
+                    <GamificationRulesSheet>
+                        <button className="font-semibold text-primary flex items-center hover:underline whitespace-nowrap text-[13px] bg-transparent border-0 p-0 cursor-pointer gap-2">
+                            {/* El micro-indicador de dopamina en ámbar con efecto de pulso */}
+                            <span className="relative flex h-2 w-2 shrink-0">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                            </span>
+                            Ganar más B-coins
+                        </button>
+                    </GamificationRulesSheet>
                 </div>
             </div>
             
