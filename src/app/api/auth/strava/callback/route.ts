@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/server';
 import { StravaConnectionData, BadgeType, GamificationSettings } from '@/lib/gamification/gamification-types';
+import { FieldValue } from 'firebase-admin/firestore';
 
 const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
@@ -23,6 +24,8 @@ export async function GET(request: Request) {
 
     try {
         // 2. Intercambiar el código por el Access Token
+        // NOTA: Se mantiene la base URL antigua para el intercambio de tokens por ahora, 
+        // pero la llamada principal se hace a api-v3 en strava-actions.ts según la política 2026.
         const tokenResponse = await fetch('https://www.strava.com/oauth/token', {
             method: 'POST',
             headers: {
@@ -38,10 +41,20 @@ export async function GET(request: Request) {
 
         if (!tokenResponse.ok) {
             console.error("Error al obtener token de Strava", await tokenResponse.text());
+            
+            // Intercepción de Errores Tardíos (Limit Exceeded / Rate Limit)
+            if (tokenResponse.status === 429 || tokenResponse.status === 403) {
+                 return NextResponse.redirect(`${APP_URL}/dashboard?tab=rewards&strava=waitlist_auto`);
+            }
+            
             return NextResponse.redirect(`${APP_URL}/dashboard?tab=rewards&strava=error`);
         }
 
         const tokenData = await tokenResponse.json();
+        
+        // Offset de 7 días para capturar historial inicial y mejorar UX (Evita pérdida de actividades)
+        const offsetDate = new Date();
+        offsetDate.setDate(offsetDate.getDate() - 7);
 
         // 3. Preparar los datos de conexión
         const stravaData: StravaConnectionData = {
@@ -50,20 +63,31 @@ export async function GET(request: Request) {
             expiresAt: tokenData.expires_at, // En segundos
             athleteId: tokenData.athlete.id,
             connectedAt: new Date().toISOString(),
-            lastSyncDate: new Date().toISOString(), // Empezamos a contar desde hoy
+            lastSyncDate: offsetDate.toISOString(), // Empezamos a contar desde hace 7 días
             totalKmSynced: 0,
+            processedActivityIds: [], // Inicializamos array de idempotencia
         };
 
-        // 4. Obtener configuración global para el bono inicial
+        // 4. Obtener configuración global para el bono inicial y límites
         const settingsRef = adminDb.collection('config').doc('gamification');
         const doc = await settingsRef.get();
-        const settings = doc.exists ? (doc.data() as GamificationSettings) : { stravaInitialBonusPoints: 100 };
+        const settings = doc.exists ? (doc.data() as GamificationSettings) : { stravaInitialBonusPoints: 100, stravaConnectionLimit: 10, stravaConnectedCount: 0 };
         const bonusPoints = settings.stravaInitialBonusPoints || 0;
+        
+        // 5. Verificar si hay cupo disponible (Límite de Atletas)
+        const limit = settings.stravaConnectionLimit || 10;
+        const currentCount = settings.stravaConnectedCount || 0;
+        
+        // Si el límite se alcanzó JUSTO antes de que el usuario completara el OAuth (Race condition)
+        if (currentCount >= limit) {
+             // Inscribir automáticamente en la lista de espera
+             return NextResponse.redirect(`${APP_URL}/dashboard?tab=rewards&strava=waitlist_auto`);
+        }
 
-        // 5. Actualizar el perfil del usuario en Firestore
+        // 6. Actualizar el perfil del usuario y el contador global en Firestore
         const userRef = adminDb.collection('users').doc(stateUserId);
         
-        // Ejecutamos en transacción para asegurar consistencia del balance
+        // Ejecutamos en transacción para asegurar consistencia del balance y del contador
         await adminDb.runTransaction(async (transaction: FirebaseFirestore.Transaction) => {
             const userDoc = await transaction.get(userRef);
             if (!userDoc.exists) throw new Error("Usuario no encontrado");
@@ -96,9 +120,14 @@ export async function GET(request: Request) {
                 'gamification.badges': newBadges,
                 'isStravaConnected': true
             });
+            
+            // Incrementamos el contador global de conexiones
+            transaction.update(settingsRef, {
+                stravaConnectedCount: FieldValue.increment(1)
+            });
         });
 
-        // 6. Redirigir al dashboard con éxito
+        // 7. Redirigir al dashboard con éxito
         return NextResponse.redirect(`${APP_URL}/dashboard?tab=rewards&strava=success`);
 
     } catch (error) {

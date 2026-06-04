@@ -23,6 +23,9 @@ export type StravaConnectionData = {
     connectedAt: string; // ISO string
     lastSyncDate: string; // ISO string de la última sincronización manual
     totalKmSynced: number; // Acumulado histórico sincronizado
+    lastSyncAddedKm?: number; // KM obtenidos en la operación de sincronización más reciente
+    processedActivityIds?: string[]; // Para garantizar idempotencia y evitar doble gasto
+    waitlistStatus?: 'pending' | 'invited'; // Estado de la lista de espera
 };
 
 export type GamificationProfile = {
@@ -47,4 +50,9 @@ export type GamificationSettings = {
     stravaMaxDailyKmLimit: number; // 0 significa sin límite
     stravaConversionRate: number; // Ej: 1.0 (1km = 1 punto)
     stravaAllowedActivityTypes: string[]; // ['Ride', 'MountainBikeRide', 'GravelRide', 'E-BikeRide']
+    
+    // Gestión de Cuotas y Límites
+    stravaConnectionLimit?: number; // Límite de atletas permitidos por Strava (ej. 10 para Standard Tier)
+    stravaConnectedCount?: number; // Contador actual de usuarios conectados
+    stravaWaitlistCount?: number; // Contador de usuarios en lista de espera
 };

@@ -8,10 +8,11 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { GAMIFICATION_RULES, GamificationRuleId } from '@/lib/gamification/constants';
 import { getGamificationRules, updateGamificationRules, getStravaSettings, updateStravaSettings } from '@/lib/actions/gamification-actions';
-import { Loader2, Save, Activity, Bike } from 'lucide-react';
+import { Loader2, Save, Activity, Bike, Users } from 'lucide-react';
 import { GamificationSettings } from '@/lib/gamification/gamification-types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
 
 export function GamificationRulesEditor() {
     // Estado de reglas de acciones estáticas (B-coins)
@@ -25,6 +26,9 @@ export function GamificationRulesEditor() {
         stravaMaxDailyKmLimit: 0,
         stravaConversionRate: 1.0,
         stravaAllowedActivityTypes: ['Ride', 'MountainBikeRide', 'GravelRide', 'E-BikeRide', 'Handcycle'],
+        stravaConnectionLimit: 10,
+        stravaConnectedCount: 0,
+        stravaWaitlistCount: 0
     });
 
     const [loading, setLoading] = useState(true);
@@ -80,6 +84,11 @@ export function GamificationRulesEditor() {
 
     if (loading) return <Loader2 className="h-8 w-8 animate-spin mx-auto mt-10" />;
 
+    const limit = stravaSettings.stravaConnectionLimit || 10;
+    const connected = stravaSettings.stravaConnectedCount || 0;
+    const waitlist = stravaSettings.stravaWaitlistCount || 0;
+    const usagePercent = Math.min((connected / limit) * 100, 100);
+
     return (
         <Tabs defaultValue="actions" className="space-y-6">
             <TabsList>
@@ -129,6 +138,43 @@ export function GamificationRulesEditor() {
             </TabsContent>
 
             <TabsContent value="strava">
+                {/* MÉTRICAS DE CAPACIDAD B2B (Cumplimiento Política 2026 y Waitlist) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <Card className="col-span-1 md:col-span-2 shadow-sm border-blue-100">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                <Users className="w-4 h-4 text-blue-500" /> Ocupación de API (Atletas)
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-end gap-2 mb-2">
+                                <span className="text-3xl font-black">{connected}</span>
+                                <span className="text-muted-foreground mb-1">/ {limit} usuarios</span>
+                            </div>
+                            <Progress value={usagePercent} className="h-2 mb-2" />
+                            <p className="text-xs text-muted-foreground">
+                                {usagePercent >= 100 
+                                    ? "Límite alcanzado. Las nuevas solicitudes se enviarán a la lista de espera." 
+                                    : "Aún hay cupo disponible en el nivel actual."}
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="shadow-sm border-amber-100 bg-amber-50/30">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                                <Activity className="w-4 h-4 text-amber-500" /> Lista de Espera VIP
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-3xl font-black text-amber-600">{waitlist}</div>
+                            <p className="text-xs text-amber-700/70 mt-2 font-medium">
+                                Usuarios esperando aumento de capacidad. Utiliza este dato para justificar un "Capacity Increase" con Strava.
+                            </p>
+                        </CardContent>
+                    </Card>
+                </div>
+
                 <Card className="border-orange-200 shadow-sm">
                     <CardHeader className="bg-orange-50/50 rounded-t-xl border-b border-orange-100">
                         <CardTitle className="text-orange-900 flex items-center gap-2">
@@ -153,6 +199,22 @@ export function GamificationRulesEditor() {
                                 checked={!!stravaSettings.stravaIntegrationEnabled}
                                 onCheckedChange={(checked) => handleStravaSettingChange('stravaIntegrationEnabled', checked)}
                             />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center border-b pb-4">
+                            <div className="md:col-span-3">
+                                <Label className="text-base font-semibold text-slate-900">Límite Técnico de Atletas</Label>
+                                <p className="text-sm text-muted-foreground">Máximo de conexiones permitidas antes de activar la Lista de Espera (Default: 10).</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Input 
+                                    type="number" 
+                                    value={stravaSettings.stravaConnectionLimit} 
+                                    onChange={(e) => handleStravaSettingChange('stravaConnectionLimit', parseInt(e.target.value) || 0)}
+                                    className="text-right font-mono border-orange-200 focus-visible:ring-orange-500"
+                                />
+                                <span className="text-sm font-bold text-muted-foreground w-12">Users</span>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center border-b pb-4">

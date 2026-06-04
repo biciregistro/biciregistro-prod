@@ -20,6 +20,38 @@ interface RegistrationEmailData {
     registration: EventRegistration;
 }
 
+// Nueva función genérica para envíos simples (texto o HTML)
+export async function sendEmail({ to, subject, html, text }: { to: string; subject: string; html: string; text?: string }) {
+    if (!resend) {
+        console.log('--- [MOCK EMAIL] ---');
+        console.log(`To: ${to}`);
+        console.log(`Subject: ${subject}`);
+        console.log('--------------------');
+        return { success: true, id: 'mock-email-id' };
+    }
+
+    try {
+        const { data, error } = await resend.emails.send({
+            from: FROM_EMAIL,
+            to: [to],
+            subject: subject,
+            html: html,
+            text: text || '', // Fallback a string vacío si no se provee texto
+        });
+
+        if (error) {
+            console.error("Resend API Error (Generic Email):", error);
+            return { success: false, error };
+        }
+
+        return { success: true, id: data?.id };
+    } catch (error) {
+        console.error("Email Service Exception (Generic Email):", error);
+        return { success: false, error };
+    }
+}
+
+
 export async function sendRegistrationEmail({ event, user, registration }: RegistrationEmailData) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
     const dashboardUrl = `${baseUrl}/dashboard/events/${event.id}`;

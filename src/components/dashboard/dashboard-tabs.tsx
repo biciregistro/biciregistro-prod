@@ -143,6 +143,16 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
             const newUrl = new URL(window.location.href);
             newUrl.searchParams.delete("strava");
             window.history.replaceState({}, "", newUrl.toString());
+        } else if (stravaStatus === "waitlist_auto") {
+            toast({
+                title: "¡Alta demanda! 🚀",
+                description: "Los cupos se agotaron mientras intentabas conectar, pero te hemos inscrito a la Lista VIP automáticamente.",
+                variant: "default"
+            });
+            // Clean up the URL parameter
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete("strava");
+            window.history.replaceState({}, "", newUrl.toString());
         } else if (stravaStatus === "error") {
             toast({
                 title: "Error de conexión",

@@ -4,7 +4,8 @@ import { getDecodedSession } from '../auth/server';
 import { adminDb } from '../firebase/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { StravaConnectionData, GamificationSettings, BadgeType } from '../gamification/gamification-types';
-import { B2BStravaActivity } from '../types';
+import { sendEmail } from '../email/resend-service';
+import { getStravaDisconnectTemplate } from '../email/templates/strava-disconnect';
 
 // ==========================================
 // 1. CONFIGURACIÓN Y CONSTANTES
@@ -14,6 +15,8 @@ const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
 const APP_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 const REDIRECT_URI = `${APP_URL}/api/auth/strava/callback`;
+// NUEVO: URL base de Strava API V3 (Requerido por Política 2026)
+const STRAVA_API_BASE_URL = 'https://www.api-v3.strava.com';
 
 // Tipos de Strava
 interface StravaTokenResponse {
@@ -118,28 +121,58 @@ export async function disconnectStrava() {
     if (!session || !session.uid) return { success: false, message: "No autenticado" };
 
     try {
-        // 1. Actualizar perfil de usuario para eliminar conexión con Strava
         const userRef = adminDb.collection('users').doc(session.uid);
-        await userRef.update({ 
-            'gamification.strava': FieldValue.delete(),
-            'isStravaConnected': false
-        });
+        const userDoc = await userRef.get();
+        const userData = userDoc.data();
+        const stravaData = userData?.gamification?.strava as StravaConnectionData | undefined;
 
-        // 2. CUMPLIMIENTO (COMPLIANCE): Eliminar todas las actividades crudas almacenadas para este usuario.
-        // Strava API Agreement Sección 7 y 4: Se deben eliminar los datos a la terminación del acceso.
-        const activitiesSnapshot = await adminDb.collection('strava_activities')
-            .where('userId', '==', session.uid)
-            .get();
-
-        if (!activitiesSnapshot.empty) {
-            const batch = adminDb.batch();
-            activitiesSnapshot.docs.forEach((doc) => {
-                batch.delete(doc.ref);
-            });
-            await batch.commit();
+        // 1. Llamada a endpoint oauth/revoke de Strava (Requisito 2026)
+        if (stravaData && stravaData.accessToken) {
+            try {
+                await fetch('https://www.strava.com/oauth/revoke', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `access_token=${stravaData.accessToken}`
+                });
+            } catch (e) {
+                console.error("Error al revocar token en Strava (no bloqueante):", e);
+            }
         }
 
-        return { success: true, message: "Cuenta de Strava desconectada y datos eliminados en cumplimiento." };
+        // 2. Actualizar perfil de usuario para eliminar conexión con Strava y decrementar contador global
+        const settingsRef = adminDb.collection('config').doc('gamification');
+        
+        await adminDb.runTransaction(async (transaction) => {
+            transaction.update(userRef, { 
+                'gamification.strava': FieldValue.delete(),
+                'isStravaConnected': false
+            });
+            // Si el usuario no estaba en waitlist y sí estaba conectado, liberamos un espacio
+            if (stravaData && !stravaData.waitlistStatus) {
+                transaction.update(settingsRef, {
+                    stravaConnectedCount: FieldValue.increment(-1)
+                });
+            }
+        });
+
+        // 3. Confirmación Escrita (Compliance Sección 2.5: "Written confirmation of successful deletion")
+        if (userData?.email) {
+            try {
+                const userName = userData.firstName || 'Ciclista';
+                const { subject, html, text } = getStravaDisconnectTemplate({ userName });
+                
+                await sendEmail({
+                    to: userData.email,
+                    subject,
+                    html,
+                    text
+                });
+            } catch (emailError) {
+                console.error("Error enviando email de confirmación (Sección 2.5):", emailError);
+            }
+        }
+
+        return { success: true, message: "Cuenta de Strava desconectada y confirmación enviada." };
     } catch (error) {
         console.error("Error desconectando Strava:", error);
         return { success: false, message: "Error al desconectar la cuenta" };
@@ -148,7 +181,8 @@ export async function disconnectStrava() {
 
 /**
  * Sincroniza rodadas desde Strava, calcula KM válidos y actualiza la Wallet.
- * IMPORTANTE: Los datos en 'strava_activities' NO PUEDEN SER USADOS para entrenar modelos de Inteligencia Artificial (Strava API Agreement Section 4).
+ * MODELO EFÍMERO (PASS-THROUGH): En cumplimiento con la política 2026, los datos 
+ * no se guardan permanentemente. Solo procesamos en memoria y usamos IDs para idempotencia.
  */
 export async function syncStravaActivities() {
     const session = await getDecodedSession();
@@ -164,8 +198,8 @@ export async function syncStravaActivities() {
         const userData = userDoc.data();
         const stravaData = userData?.gamification?.strava as StravaConnectionData | undefined;
 
-        if (!stravaData || !stravaData.accessToken) {
-            return { success: false, message: "Cuenta de Strava no conectada" };
+        if (!stravaData || !stravaData.accessToken || stravaData.waitlistStatus) {
+            return { success: false, message: "Cuenta de Strava no conectada o en lista de espera" };
         }
 
         // 1. Manejo del Token: Refrescar si está expirado (o expira en los próximos 5 mins)
@@ -173,18 +207,19 @@ export async function syncStravaActivities() {
         const nowInSeconds = Math.floor(Date.now() / 1000);
         
         if (stravaData.expiresAt < nowInSeconds + 300) {
+            // AWAIT crítico para evitar Race Conditions (Token no refrescado a tiempo)
             const newTokenData = await refreshStravaToken(stravaData.refreshToken);
             if (!newTokenData) {
                 return { success: false, message: "Sesión de Strava expirada. Por favor reconecta tu cuenta." };
             }
             currentAccessToken = newTokenData.access_token;
             
-            // Actualizamos en DB (sin esperar) para no bloquear
-            userRef.update({
+            // Actualizamos en BD esperando resolución
+            await userRef.update({
                 'gamification.strava.accessToken': newTokenData.access_token,
                 'gamification.strava.refreshToken': newTokenData.refresh_token,
                 'gamification.strava.expiresAt': newTokenData.expires_at,
-            }).catch(console.error);
+            });
         }
 
         // 2. Traer Configuración y Definir Tiempos
@@ -193,9 +228,8 @@ export async function syncStravaActivities() {
         const afterEpoch = Math.floor(new Date(stravaData.lastSyncDate).getTime() / 1000);
         const currentSyncDateStr = new Date().toISOString();
 
-        // 3. Consultar a Strava
-        // Endpoint: Devuelve hasta 30 actividades por defecto, suficiente para la mayoría de syncs manuales
-        const stravaRes = await fetch(`https://www.strava.com/api/v3/athlete/activities?after=${afterEpoch}`, {
+        // 3. Consultar a Strava (Usando nuevo endpoint V3 para cumplir con deprecación de 2027)
+        const stravaRes = await fetch(`${STRAVA_API_BASE_URL}/athlete/activities?after=${afterEpoch}`, {
             headers: { Authorization: `Bearer ${currentAccessToken}` }
         });
 
@@ -212,59 +246,42 @@ export async function syncStravaActivities() {
             return { success: false, message: "Tu cuenta ya está al día. No encontramos rodadas nuevas." };
         }
 
-        // 4. Filtrar y Calcular Distancia Válida + Recolección de Modalities
+        // 4. Filtrar y Calcular Distancia Válida + Idempotencia
         let newValidMeters = 0;
         const currentModalities = userData?.stravaTopModalities || [];
         const newModalitiesSet = new Set<string>(currentModalities);
-        
-        // Colección para la data B2B Cruda
-        const activitiesCollection = adminDb.collection('strava_activities');
-        const batch = adminDb.batch();
+        const processedIdsSet = new Set<string>(stravaData.processedActivityIds || []);
+        let hasNewActivities = false;
 
         for (const activity of activities) {
+            const actIdStr = activity.id.toString();
+            
+            // Evitar procesamiento doble (Idempotencia)
+            if (processedIdsSet.has(actIdStr)) {
+                continue;
+            }
+
             // Evaluamos si el tipo de actividad es permitido según la configuración del admin
-            // sport_type es más específico en v3, pero type es un buen fallback
             const actType = activity.sport_type || activity.type;
             if (settings.stravaAllowedActivityTypes.includes(actType)) {
                 newValidMeters += activity.distance;
                 newModalitiesSet.add(actType);
+                processedIdsSet.add(actIdStr);
+                hasNewActivities = true;
                 
-                // Mapear y guardar la data rica para Data Intelligence
-                // ADVERTENCIA DE COMPLIANCE: Esta data cruda no se puede pasar a la IA de Gemini.
-                const b2bData: B2BStravaActivity = {
-                    id: activity.id.toString(),
-                    userId: session.uid,
-                    name: activity.name,
-                    distance: activity.distance,
-                    movingTime: activity.moving_time,
-                    elapsedTime: activity.elapsed_time,
-                    totalElevationGain: activity.total_elevation_gain,
-                    type: activity.type,
-                    sportType: actType,
-                    startDate: activity.start_date,
-                    averageSpeed: activity.average_speed,
-                    maxSpeed: activity.max_speed,
-                    polyline: activity.map?.summary_polyline,
-                    gearId: activity.gear_id,
-                    syncedAt: currentSyncDateStr
-                };
-                
-                const docRef = activitiesCollection.doc(activity.id.toString());
-                batch.set(docRef, b2bData, { merge: true });
+                // NOTA COMPLIANCE 2026: Aquí YA NO se guarda la data rica en strava_activities.
+                // Se desecha inmediatamente la polyline y métricas tras sumar la distancia.
             }
         }
 
-        // Ejecutar el guardado masivo de actividades crudas (Compliance)
-        await batch.commit();
-
-        const newKm = newValidMeters / 1000;
-        
-        if (newKm <= 0) {
+        if (!hasNewActivities) {
             await userRef.update({ 'gamification.strava.lastSyncDate': currentSyncDateStr });
-            return { success: false, message: "Se encontraron actividades, pero ninguna fue en bicicleta al aire libre." };
+            return { success: false, message: "Las rodadas encontradas ya habían sido procesadas o no son en bicicleta." };
         }
 
-        // 5. Aplicar reglas de Gamificación y Actualizar Balance
+        const newKm = newValidMeters / 1000;
+
+        // 5. Aplicar reglas de Gamificación y Actualizar Balance (Transacción Segura)
         await adminDb.runTransaction(async (transaction) => {
             const freshUserDoc = await transaction.get(userRef);
             const data = freshUserDoc.data();
@@ -277,9 +294,6 @@ export async function syncStravaActivities() {
 
             let kmapplied = newKm;
             
-            // TODO: Si el Admin configuró un stravaMaxDailyKmLimit > 0, aquí tendríamos que 
-            // leer cuánto ha sincronizado hoy. Por simplicidad en MVP, aplicamos el cap directamente al bloque total
-            // asumiendo que el usuario sincroniza con frecuencia.
             if (settings.stravaMaxDailyKmLimit > 0 && newKm > settings.stravaMaxDailyKmLimit) {
                 kmapplied = settings.stravaMaxDailyKmLimit;
             }
@@ -287,11 +301,13 @@ export async function syncStravaActivities() {
             const pointsEarned = Math.floor(kmapplied * settings.stravaConversionRate);
             
             let newBadges = [...currentBadges];
-            let isFirstSync = false;
             if (!currentBadges.some((b: any) => b.id === 'first_ride_synced')) {
-                isFirstSync = true;
                 newBadges.push({ id: 'first_ride_synced' as BadgeType, earnedAt: new Date().toISOString() });
             }
+
+            // Mantener array de procesados a un tamaño razonable para no superar límites de Firestore (1MB por doc)
+            // Guardamos solo los últimos 200 IDs (suficiente para un after=lastSyncDate)
+            const processedIdsArray = Array.from(processedIdsSet).slice(-200);
 
             transaction.update(userRef, {
                 // Nested updates
@@ -300,8 +316,10 @@ export async function syncStravaActivities() {
                 'gamification.badges': newBadges,
                 'gamification.strava.lastSyncDate': currentSyncDateStr,
                 'gamification.strava.totalKmSynced': totalKmSynced + newKm,
+                'gamification.strava.lastSyncAddedKm': newKm, // <--- NUEVO CAMPO AÑADIDO AQUI
+                'gamification.strava.processedActivityIds': processedIdsArray,
                 
-                // Denormalized root level updates for Data Intelligence
+                // Denormalized root level updates
                 'isStravaConnected': true,
                 'stravaTotalKm': totalKmSynced + newKm,
                 'stravaTopModalities': Array.from(newModalitiesSet),
@@ -309,10 +327,10 @@ export async function syncStravaActivities() {
             });
         });
 
-        // 6. Mensaje de Respuesta
+        // 6. Mensaje de Respuesta Enmarcado Positivamente (UX)
         let message = `¡Sincronización exitosa! Sumaste ${newKm.toFixed(1)} KM a tu wallet.`;
         if (settings.stravaMaxDailyKmLimit > 0 && newKm > settings.stravaMaxDailyKmLimit) {
-            message = `Sincronizaste ${newKm.toFixed(1)} KM, pero se aplicó el límite diario administrativo de ${settings.stravaMaxDailyKmLimit} KM.`;
+            message = `¡Rendimiento brutal! Sumaste el tope de juego limpio diario (${settings.stravaMaxDailyKmLimit} KM). ¡Guarda piernas para mañana!`;
         }
 
         return { success: true, message, kmsAdded: newKm };
@@ -320,5 +338,51 @@ export async function syncStravaActivities() {
     } catch (error) {
         console.error("Error en syncStravaActivities:", error);
         return { success: false, message: "Hubo un error de servidor procesando tus rodadas." };
+    }
+}
+
+// ==========================================
+// 5. GESTIÓN DE LISTA DE ESPERA (ESCALABILIDAD)
+// ==========================================
+
+export async function joinStravaWaitlist() {
+    const session = await getDecodedSession();
+    if (!session || !session.uid) return { success: false, message: "No autenticado" };
+
+    try {
+        const userRef = adminDb.collection('users').doc(session.uid);
+        const settingsRef = adminDb.collection('config').doc('gamification');
+        const waitlistRef = adminDb.collection('strava_waitlist').doc(session.uid);
+
+        await adminDb.runTransaction(async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            if (!userDoc.exists) throw new Error("Usuario no encontrado");
+            const userData = userDoc.data();
+
+            // Insertar en colección de espera
+            transaction.set(waitlistRef, {
+                userId: session.uid,
+                email: userData?.email || '',
+                requestedAt: new Date().toISOString(),
+                status: 'pending'
+            });
+
+            // Actualizar estado en perfil
+            transaction.update(userRef, {
+                'gamification.strava': {
+                    waitlistStatus: 'pending'
+                }
+            });
+
+            // Incrementar contador global
+            transaction.update(settingsRef, {
+                stravaWaitlistCount: FieldValue.increment(1)
+            });
+        });
+
+        return { success: true, message: "¡Estás en la lista VIP! Te avisaremos cuando haya cupo." };
+    } catch (error) {
+        console.error("Error uniéndose a lista de espera:", error);
+        return { success: false, message: "Hubo un problema. Intenta más tarde." };
     }
 }
