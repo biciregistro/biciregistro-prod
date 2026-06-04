@@ -15,8 +15,8 @@ const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
 const APP_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 const REDIRECT_URI = `${APP_URL}/api/auth/strava/callback`;
-// NUEVO: URL base de Strava API V3 (Requerido por Política 2026)
-const STRAVA_API_BASE_URL = 'https://www.api-v3.strava.com';
+// NUEVO: URL base de Strava API V3
+const STRAVA_API_BASE_URL = 'https://www.strava.com/api/v3';
 
 // Tipos de Strava
 interface StravaTokenResponse {
@@ -228,7 +228,7 @@ export async function syncStravaActivities() {
         const afterEpoch = Math.floor(new Date(stravaData.lastSyncDate).getTime() / 1000);
         const currentSyncDateStr = new Date().toISOString();
 
-        // 3. Consultar a Strava (Usando nuevo endpoint V3 para cumplir con deprecación de 2027)
+        // 3. Consultar a Strava (Usando endpoint vigente operativo)
         const stravaRes = await fetch(`${STRAVA_API_BASE_URL}/athlete/activities?after=${afterEpoch}`, {
             headers: { Authorization: `Bearer ${currentAccessToken}` }
         });
