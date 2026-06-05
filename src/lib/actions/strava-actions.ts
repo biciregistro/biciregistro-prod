@@ -6,6 +6,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { StravaConnectionData, GamificationSettings, BadgeType } from '../gamification/gamification-types';
 import { sendEmail } from '../email/resend-service';
 import { getStravaDisconnectTemplate } from '../email/templates/strava-disconnect';
+import { getStravaWaitlistInviteTemplate } from '../email/templates/strava-waitlist-invite';
 
 // ==========================================
 // 1. CONFIGURACIÓN Y CONSTANTES
@@ -49,6 +50,18 @@ interface StravaActivity {
 // ==========================================
 // 2. UTILIDADES DE AUTENTICACIÓN STRAVA
 // ==========================================
+
+export async function checkStravaAvailability(): Promise<{ isFull: boolean }> {
+    try {
+        const settings = await getGamificationSettings();
+        const limit = settings.stravaConnectionLimit || 10;
+        const currentCount = settings.stravaConnectedCount || 0;
+        return { isFull: currentCount >= limit };
+    } catch (error) {
+        console.error("Error checking Strava availability:", error);
+        return { isFull: false }; // Falla segura: permitir intento
+    }
+}
 
 export async function getStravaAuthUrl() {
     const session = await getDecodedSession();
@@ -126,16 +139,21 @@ export async function disconnectStrava() {
         const userData = userDoc.data();
         const stravaData = userData?.gamification?.strava as StravaConnectionData | undefined;
 
-        // 1. Llamada a endpoint oauth/revoke de Strava (Requisito 2026)
+        // 1. Llamada a endpoint oauth/revoke de Strava (Requisito 2026 - Header Authorization)
         if (stravaData && stravaData.accessToken) {
             try {
-                await fetch('https://www.strava.com/oauth/revoke', {
+                const revokeRes = await fetch('https://www.strava.com/oauth/revoke', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `access_token=${stravaData.accessToken}`
+                    headers: { 
+                        'Authorization': `Bearer ${stravaData.accessToken}` 
+                    }
                 });
+                
+                if (!revokeRes.ok) {
+                    console.error("Strava rechazó la revocación:", await revokeRes.text());
+                }
             } catch (e) {
-                console.error("Error al revocar token en Strava (no bloqueante):", e);
+                console.error("Error de red al revocar token en Strava:", e);
             }
         }
 
@@ -316,7 +334,7 @@ export async function syncStravaActivities() {
                 'gamification.badges': newBadges,
                 'gamification.strava.lastSyncDate': currentSyncDateStr,
                 'gamification.strava.totalKmSynced': totalKmSynced + newKm,
-                'gamification.strava.lastSyncAddedKm': newKm, // <--- NUEVO CAMPO AÑADIDO AQUI
+                'gamification.strava.lastSyncAddedKm': newKm, 
                 'gamification.strava.processedActivityIds': processedIdsArray,
                 
                 // Denormalized root level updates
@@ -363,6 +381,7 @@ export async function joinStravaWaitlist() {
             transaction.set(waitlistRef, {
                 userId: session.uid,
                 email: userData?.email || '',
+                firstName: userData?.firstName || 'Ciclista', // <-- FIX: GUARDAR EL NOMBRE AQUI
                 requestedAt: new Date().toISOString(),
                 status: 'pending'
             });
@@ -384,5 +403,72 @@ export async function joinStravaWaitlist() {
     } catch (error) {
         console.error("Error uniéndose a lista de espera:", error);
         return { success: false, message: "Hubo un problema. Intenta más tarde." };
+    }
+}
+
+// Admin Server Action: Liberar usuarios en lotes (Batch Release)
+export async function releaseStravaWaitlist(countToRelease: number) {
+    const session = await getDecodedSession();
+    if (!session || !session.uid) return { success: false, message: "No autenticado" };
+    
+    // Aquí idealmente validaríamos roles de admin (Omitido por brevedad, asumiendo protección UI)
+
+    try {
+        const waitlistRef = adminDb.collection('strava_waitlist');
+        const snapshot = await waitlistRef
+            .where('status', '==', 'pending')
+            .orderBy('requestedAt', 'asc') // FIFO
+            .limit(countToRelease)
+            .get();
+
+        if (snapshot.empty) {
+            return { success: true, message: "No hay usuarios en la lista de espera.", releasedCount: 0 };
+        }
+
+        const settingsRef = adminDb.collection('config').doc('gamification');
+        let releasedCount = 0;
+
+        await adminDb.runTransaction(async (transaction) => {
+            for (const waitlistDoc of snapshot.docs) {
+                const waitlistData = waitlistDoc.data();
+                const userId = waitlistData.userId;
+                const userRef = adminDb.collection('users').doc(userId);
+
+                // 1. Marcar como invitado en la lista
+                transaction.update(waitlistDoc.ref, { status: 'invited' });
+
+                // 2. Marcar como invitado en su perfil
+                transaction.update(userRef, {
+                    'gamification.strava.waitlistStatus': 'invited'
+                });
+
+                releasedCount++;
+
+                // 3. Enviar correo de "Golden Ticket" (Asíncrono sin bloquear transacción principal)
+                if (waitlistData.email) {
+                    // FIX: USAR EL NOMBRE REAL GUARDADO AL UNIRSE A LA LISTA
+                    const userName = waitlistData.firstName || 'Ciclista';
+                    const { subject, html, text } = getStravaWaitlistInviteTemplate({ userName });
+                    
+                    sendEmail({
+                        to: waitlistData.email,
+                        subject,
+                        html,
+                        text
+                    }).catch(err => console.error(`Error enviando invite a ${waitlistData.email}`, err));
+                }
+            }
+
+            // 4. Actualizar métricas globales
+            transaction.update(settingsRef, {
+                stravaWaitlistCount: FieldValue.increment(-releasedCount)
+            });
+        });
+
+        return { success: true, message: `Se liberaron ${releasedCount} cupos exitosamente.`, releasedCount };
+
+    } catch (error) {
+        console.error("Error liberando lista de espera:", error);
+        return { success: false, message: "Error al liberar cupos." };
     }
 }

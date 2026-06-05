@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { GAMIFICATION_RULES, GamificationRuleId } from '@/lib/gamification/constants';
 import { getGamificationRules, updateGamificationRules, getStravaSettings, updateStravaSettings } from '@/lib/actions/gamification-actions';
-import { Loader2, Save, Activity, Bike, Users } from 'lucide-react';
+import { releaseStravaWaitlist } from '@/lib/actions/strava-actions';
+import { Loader2, Save, Activity, Bike, Users, Send } from 'lucide-react';
 import { GamificationSettings } from '@/lib/gamification/gamification-types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from '@/components/ui/switch';
@@ -33,6 +34,8 @@ export function GamificationRulesEditor() {
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [releasing, setReleasing] = useState(false);
+    const [releaseCount, setReleaseCount] = useState(1);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -79,6 +82,24 @@ export function GamificationRulesEditor() {
             toast({ title: 'Configuración Strava Actualizada', description: 'Las reglas de conversión están activas.' });
         } else {
             toast({ title: 'Error', description: 'No se pudo guardar la configuración de Strava.', variant: 'destructive' });
+        }
+    };
+
+    const handleReleaseWaitlist = async () => {
+        if (releaseCount <= 0 || releaseCount > (stravaSettings.stravaWaitlistCount || 0)) {
+            toast({ title: 'Cantidad inválida', description: 'Verifica el número de usuarios a liberar.', variant: 'destructive' });
+            return;
+        }
+
+        setReleasing(true);
+        const res = await releaseStravaWaitlist(releaseCount);
+        setReleasing(false);
+
+        if (res.success) {
+            toast({ title: '¡Invitaciones Enviadas!', description: res.message });
+            loadData(); // Recargar métricas visuales
+        } else {
+            toast({ title: 'Error', description: res.message, variant: 'destructive' });
         }
     };
 
@@ -160,17 +181,39 @@ export function GamificationRulesEditor() {
                         </CardContent>
                     </Card>
 
-                    <Card className="shadow-sm border-amber-100 bg-amber-50/30">
+                    <Card className="shadow-sm border-amber-100 bg-amber-50/30 flex flex-col">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                                <Activity className="w-4 h-4 text-amber-500" /> Lista de Espera VIP
+                            <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center justify-between gap-2">
+                                <span className="flex items-center gap-2"><Activity className="w-4 h-4 text-amber-500" /> En Espera</span>
                             </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-3xl font-black text-amber-600">{waitlist}</div>
-                            <p className="text-xs text-amber-700/70 mt-2 font-medium">
-                                Usuarios esperando aumento de capacidad. Utiliza este dato para justificar un "Capacity Increase" con Strava.
-                            </p>
+                        <CardContent className="flex-1 flex flex-col justify-between">
+                            <div className="text-3xl font-black text-amber-600 mb-4">{waitlist}</div>
+                            
+                            {/* Panel de Liberación por Lotes */}
+                            <div className="bg-white/60 rounded-md p-3 border border-amber-200/50">
+                                <Label className="text-xs font-bold text-amber-800 mb-2 block">Liberar Cupos (Enviar Invitación)</Label>
+                                <div className="flex gap-2">
+                                    <Input 
+                                        type="number" 
+                                        min="1" 
+                                        max={waitlist}
+                                        value={releaseCount}
+                                        onChange={(e) => setReleaseCount(parseInt(e.target.value) || 1)}
+                                        className="w-16 h-8 text-center text-sm border-amber-300"
+                                        disabled={waitlist === 0}
+                                    />
+                                    <Button 
+                                        size="sm" 
+                                        className="h-8 flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs"
+                                        onClick={handleReleaseWaitlist}
+                                        disabled={waitlist === 0 || releasing}
+                                    >
+                                        {releasing ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Send className="w-3 h-3 mr-1" />}
+                                        Notificar
+                                    </Button>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>

@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getStravaAuthUrl, disconnectStrava, joinStravaWaitlist } from '@/lib/actions/strava-actions';
+import { getStravaAuthUrl, disconnectStrava, joinStravaWaitlist, checkStravaAvailability } from '@/lib/actions/strava-actions';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, CheckCircle2, Link2Off, AlertCircle, Clock, MoreVertical, ExternalLink, HelpCircle } from 'lucide-react';
+import { RefreshCw, CheckCircle2, Link2Off, AlertCircle, Clock, MoreVertical, ExternalLink, HelpCircle, PartyPopper } from 'lucide-react';
 import { StravaConnectionData } from '@/lib/gamification/gamification-types';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -42,13 +42,24 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+    const [showWaitlistModal, setShowWaitlistModal] = useState(false);
 
     const isConnected = !!stravaData;
     const isWaitlist = stravaData?.waitlistStatus === 'pending' || stravaData?.waitlistStatus === 'invited';
 
-    const handleConnectClick = () => {
-        // En lugar de redirigir directamente, mostramos el modal de privacidad (Compliance 2026)
-        setShowPrivacyModal(true);
+    const handleConnectClick = async () => {
+        setIsLoading(true);
+        // Verificar proactivamente si hay cupo ANTES de mostrar cualquier modal
+        const { isFull } = await checkStravaAvailability();
+        setIsLoading(false);
+        
+        if (isFull) {
+            // Camino B: Sistema Lleno -> Lanzar Micro-Commitment FOMO
+            setShowWaitlistModal(true);
+        } else {
+            // Camino A: Hay cupo -> Lanzar el modal de privacidad habitual
+            setShowPrivacyModal(true);
+        }
     };
 
     const confirmConnection = async () => {
@@ -67,6 +78,24 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
         }
     };
 
+    const handleJoinWaitlist = async () => {
+        setIsLoading(true);
+        setShowWaitlistModal(false);
+        try {
+            const res = await joinStravaWaitlist();
+            if (res.success) {
+                toast({ title: "¡Lugar asegurado!", description: res.message });
+                router.refresh(); 
+            } else {
+                toast({ title: "Error", description: res.message, variant: "destructive" });
+            }
+        } catch (e) {
+             toast({ title: "Error crítico", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
     const handleDisconnect = async () => {
         setIsLoading(true);
         setShowDisconnectDialog(false);
@@ -75,7 +104,7 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
             if (res.success) {
                 toast({ title: "Cuenta desconectada" });
                 if (props.onDisconnect) props.onDisconnect();
-                router.refresh(); // Replace window.location.reload()
+                router.refresh(); 
             } else {
                 toast({ title: "Error", description: res.message, variant: "destructive" });
             }
@@ -114,23 +143,6 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
             setIsLoading(false);
         }
     };
-    
-    const handleJoinWaitlist = async () => {
-        setIsLoading(true);
-        try {
-            const res = await joinStravaWaitlist();
-            if (res.success) {
-                toast({ title: "¡Lista VIP confirmada!", description: res.message });
-                router.refresh(); // Replace window.location.reload()
-            } else {
-                toast({ title: "Error", description: res.message, variant: "destructive" });
-            }
-        } catch (e) {
-             toast({ title: "Error crítico", variant: "destructive" });
-        } finally {
-            setIsLoading(false);
-        }
-    }
 
     if (!isConnected) {
         return (
@@ -157,7 +169,7 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
                             >
                                 {isLoading ? (
                                     <div className="flex items-center justify-center gap-2 px-6 py-2 bg-[#FC5200] text-white rounded-md font-bold text-sm h-[48px] w-[193px] mx-auto sm:mx-0">
-                                        <RefreshCw className="h-4 w-4 animate-spin" /> Conectando...
+                                        <RefreshCw className="h-4 w-4 animate-spin" /> Procesando...
                                     </div>
                                 ) : (
                                     <Image 
@@ -186,7 +198,7 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
                 </CardContent>
             </Card>
 
-            {/* Privacy Trust Modal (Compliance 2026 Section 2.1) */}
+            {/* Privacy Trust Modal (Camino A: Hay Cupo) */}
             <AlertDialog open={showPrivacyModal} onOpenChange={setShowPrivacyModal}>
                 <AlertDialogContent className="max-w-md">
                     <AlertDialogHeader>
@@ -209,6 +221,36 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction onClick={confirmConnection} className="bg-[#FC5200] hover:bg-[#E34A00]">
                             Entendido, Conectar Strava
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Escasez VIP Modal (Camino B: No hay cupo, atrapar Micro-Commitment) */}
+            <AlertDialog open={showWaitlistModal} onOpenChange={setShowWaitlistModal}>
+                <AlertDialogContent className="max-w-md border-t-4 border-t-blue-500">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2 text-blue-600 text-xl">
+                            <PartyPopper className="h-6 w-6" /> ¡Qué éxito! 🚀
+                        </AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                            <div className="space-y-4 pt-2 text-sm text-slate-600">
+                                <p>
+                                    Miles de ciclistas ya están convirtiendo su sudor en B-coins. Debido a esta increíble demanda, <strong>hemos alcanzado el límite de conexiones simultáneas.</strong>
+                                </p>
+                                <p className="font-semibold text-slate-800 bg-blue-50 p-3 rounded-md border border-blue-100">
+                                    Pero no te preocupes, ¡tu intención no pasa desapercibida! Al aceptar, te añadiremos automáticamente a nuestra <span className="text-blue-600 font-bold">Lista VIP</span>.
+                                </p>
+                                <p>
+                                    Estamos ampliando nuestros servidores con Strava y tú serás de los primeros en ser notificado cuando se liberen nuevos cupos.
+                                </p>
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="mt-4">
+                        <AlertDialogCancel>En otro momento</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleJoinWaitlist} className="bg-blue-600 hover:bg-blue-700 text-white font-bold">
+                            ¡Genial, apartar mi lugar!
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
