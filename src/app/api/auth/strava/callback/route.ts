@@ -23,6 +23,13 @@ export async function GET(request: Request) {
     }
 
     try {
+        const userRef = adminDb.collection('users').doc(stateUserId);
+        const userDoc = await userRef.get();
+        if (!userDoc.exists) throw new Error("Usuario no encontrado");
+
+        const userData = userDoc.data();
+        const waitlistStatus = userData?.gamification?.strava?.waitlistStatus;
+        
         // 2. Obtener configuración global para verificar cupo ANTES de quemar el token
         const settingsRef = adminDb.collection('config').doc('gamification');
         const doc = await settingsRef.get();
@@ -56,12 +63,11 @@ export async function GET(request: Request) {
 
         const tokenData = await tokenResponse.json();
         
-        const userRef = adminDb.collection('users').doc(stateUserId);
-
         // =========================================================
         // CONDICIÓN DE CARRERA: SI EL SISTEMA ESTÁ LLENO, REVOCAR Y MANDAR A WAITLIST
+        // * EXCEPCIÓN: Los usuarios con "Golden Ticket" ('invited') ignoran el límite global.
         // =========================================================
-        if (isSystemFull) {
+        if (isSystemFull && waitlistStatus !== 'invited') {
             // A. Revocar el token inmediatamente en Strava para no consumir el cupo (Requisito 2026: Auth Header)
             try {
                 await fetch('https://www.strava.com/oauth/revoke', {
@@ -75,8 +81,8 @@ export async function GET(request: Request) {
             }
 
             // B. Obtener el email del usuario para la lista de espera
-            const userDocForWaitlist = await userRef.get();
-            const emailForWaitlist = userDocForWaitlist.data()?.email || '';
+            const emailForWaitlist = userData?.email || '';
+            const firstNameForWaitlist = userData?.firstName || 'Ciclista';
 
             // C. Ejecutar la transacción para agregarlo a la lista de espera formalmente
             const waitlistRef = adminDb.collection('strava_waitlist').doc(stateUserId);
@@ -85,6 +91,7 @@ export async function GET(request: Request) {
                 transaction.set(waitlistRef, {
                     userId: stateUserId,
                     email: emailForWaitlist,
+                    firstName: firstNameForWaitlist,
                     requestedAt: new Date().toISOString(),
                     status: 'pending'
                 });
@@ -106,12 +113,13 @@ export async function GET(request: Request) {
         }
 
         // =========================================================
-        // FLUJO NORMAL: SISTEMA CON CUPO DISPONIBLE
+        // FLUJO NORMAL: SISTEMA CON CUPO O USUARIO INVITADO (VIP)
         // =========================================================
 
         const offsetDate = new Date();
         offsetDate.setDate(offsetDate.getDate() - 7);
 
+        // Al sobrescribir stravaData, se elimina implícitamente waitlistStatus, lo cual es lo correcto.
         const stravaData: StravaConnectionData = {
             accessToken: tokenData.access_token,
             refreshToken: tokenData.refresh_token,
@@ -126,13 +134,13 @@ export async function GET(request: Request) {
         const bonusPoints = settings.stravaInitialBonusPoints || 0;
         
         await adminDb.runTransaction(async (transaction: FirebaseFirestore.Transaction) => {
-            const userDoc = await transaction.get(userRef);
-            if (!userDoc.exists) throw new Error("Usuario no encontrado");
+            const freshUserDoc = await transaction.get(userRef);
+            if (!freshUserDoc.exists) throw new Error("Usuario no encontrado");
 
-            const userData = userDoc.data();
-            const currentBalance = userData?.gamification?.pointsBalance || 0;
-            const currentLifetime = userData?.gamification?.lifetimePoints || 0;
-            const currentBadges = userData?.gamification?.badges || [];
+            const freshUserData = freshUserDoc.data();
+            const currentBalance = freshUserData?.gamification?.pointsBalance || 0;
+            const currentLifetime = freshUserData?.gamification?.lifetimePoints || 0;
+            const currentBadges = freshUserData?.gamification?.badges || [];
 
             const hasConnectedBefore = currentBadges.some((b: any) => b.id === 'strava_connected');
             
@@ -158,6 +166,13 @@ export async function GET(request: Request) {
             transaction.update(settingsRef, {
                 stravaConnectedCount: FieldValue.increment(1)
             });
+            
+            // Si venía de un status de waitlist invitado, no necesitamos hacer nada más en la BD 
+            // ya que al asignar `stravaData` borramos el estatus de waitlist. Pero limpiamos el registro en la colección de waitlist.
+            if (waitlistStatus) {
+               const waitlistDocRef = adminDb.collection('strava_waitlist').doc(stateUserId);
+               transaction.delete(waitlistDocRef);
+            }
         });
 
         return NextResponse.redirect(`${APP_URL}/dashboard?tab=rewards&strava=success`);

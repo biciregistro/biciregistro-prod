@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getStravaAuthUrl, disconnectStrava, joinStravaWaitlist, checkStravaAvailability } from '@/lib/actions/strava-actions';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, CheckCircle2, Link2Off, AlertCircle, Clock, MoreVertical, ExternalLink, HelpCircle, PartyPopper } from 'lucide-react';
+import { RefreshCw, CheckCircle2, Link2Off, AlertCircle, Clock, MoreVertical, ExternalLink, HelpCircle, PartyPopper, Ticket } from 'lucide-react';
 import { StravaConnectionData } from '@/lib/gamification/gamification-types';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -44,11 +44,22 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     const [showWaitlistModal, setShowWaitlistModal] = useState(false);
 
-    const isConnected = !!stravaData;
-    const isWaitlist = stravaData?.waitlistStatus === 'pending' || stravaData?.waitlistStatus === 'invited';
+    const isConnected = !!stravaData && !!stravaData.accessToken;
+    
+    // Separamos la validación en dos estados distintos
+    const isPending = stravaData?.waitlistStatus === 'pending';
+    const isInvited = stravaData?.waitlistStatus === 'invited';
 
     const handleConnectClick = async () => {
         setIsLoading(true);
+        
+        // Bypassear la cuota si el usuario ya tiene el Golden Ticket (isInvited)
+        if (isInvited) {
+            setIsLoading(false);
+            setShowPrivacyModal(true);
+            return;
+        }
+
         // Verificar proactivamente si hay cupo ANTES de mostrar cualquier modal
         const { isFull } = await checkStravaAvailability();
         setIsLoading(false);
@@ -144,22 +155,74 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
         }
     };
 
-    if (!isConnected) {
-        return (
-            <>
-            <Card className="overflow-hidden border-orange-500/30 bg-gradient-to-br from-orange-50 to-white shadow-sm relative group h-full flex flex-col justify-center">
+    // ============================================================================
+    // ESTADO 1: EN LISTA DE ESPERA PENDIENTE (Waitlist - No liberado)
+    // ============================================================================
+    if (isPending) {
+         return (
+            <Card className="overflow-hidden border-blue-500/30 bg-gradient-to-br from-blue-50 to-white shadow-sm relative group h-full flex flex-col justify-center">
                 <CardContent className="p-5">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                        {/* 1. Header Logo: BiciRegistro is the primary brand */}
+                        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+                            <Clock className="w-6 h-6" />
+                        </div>
+                        
+                        <div className="flex-1 text-center sm:text-left flex flex-col justify-center">
+                            <h3 className="font-bold text-slate-900 mb-1">¡Estás en la Lista VIP! 🚀</h3>
+                            <p className="text-sm text-slate-600 mb-4 max-w-sm leading-relaxed">
+                                Debido al increíble éxito de la plataforma, hemos alcanzado el límite inicial de conexiones con Strava. 
+                                Te notificaremos por correo en cuanto liberemos más cupos.
+                            </p>
+                            <div className="inline-flex items-center justify-center sm:justify-start gap-2 text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-100/50 px-3 py-1.5 rounded-full w-fit mx-auto sm:mx-0">
+                                <CheckCircle2 className="w-4 h-4" /> Lugar Reservado
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+         );
+    }
+
+    // ============================================================================
+    // ESTADO 2: INVITADO (Golden Ticket) O ESTADO 3: NO CONECTADO
+    // Ambos muestran la UI para iniciar la conexión, pero el invitado tiene un Badge.
+    // ============================================================================
+    if (!isConnected || isInvited) {
+        return (
+            <>
+            <Card className={cn(
+                "overflow-hidden shadow-sm relative group h-full flex flex-col justify-center transition-all",
+                isInvited 
+                    ? "border-amber-400/50 bg-gradient-to-br from-amber-50 to-white" 
+                    : "border-orange-500/30 bg-gradient-to-br from-orange-50 to-white"
+            )}>
+                <CardContent className="p-5">
+                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                        {/* 1. Header Logo */}
                         <div className="w-12 h-12 bg-white border border-slate-100 rounded-full flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
                             <Image src="/icon.png" alt="BiciRegistro" width={32} height={32} />
                         </div>
                         
                         <div className="flex-1 text-center sm:text-left flex flex-col justify-center">
-                            <h3 className="font-bold text-slate-900 mb-1">Convierte tu sudor en Recompensas</h3>
-                            <p className="text-sm text-slate-600 mb-5 max-w-sm leading-relaxed">
-                                Conecta tu cuenta de Strava para que tus rodadas reales se conviertan automáticamente en <strong>B-coins</strong> en tu wallet.
-                            </p>
+                            
+                            {isInvited ? (
+                                <>
+                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold uppercase tracking-wider w-fit mx-auto sm:mx-0 mb-2">
+                                        <Ticket className="w-3 h-3" /> Cupo VIP Asignado
+                                    </div>
+                                    <h3 className="font-bold text-slate-900 mb-1">¡Tu lugar está listo!</h3>
+                                    <p className="text-sm text-slate-600 mb-5 max-w-sm leading-relaxed">
+                                        Fuiste seleccionado de la lista de espera. Conecta tu cuenta ahora para asegurar tu cupo y ganar B-coins.
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <h3 className="font-bold text-slate-900 mb-1">Convierte tu sudor en Recompensas</h3>
+                                    <p className="text-sm text-slate-600 mb-5 max-w-sm leading-relaxed">
+                                        Conecta tu cuenta de Strava para que tus rodadas reales se conviertan automáticamente en <strong>B-coins</strong> en tu wallet.
+                                    </p>
+                                </>
+                            )}
                             
                             {/* 2. Official "Connect with Strava" Button Asset */}
                             <button 
@@ -198,7 +261,7 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
                 </CardContent>
             </Card>
 
-            {/* Privacy Trust Modal (Camino A: Hay Cupo) */}
+            {/* Privacy Trust Modal (Camino A: Hay Cupo o Es Invitado) */}
             <AlertDialog open={showPrivacyModal} onOpenChange={setShowPrivacyModal}>
                 <AlertDialogContent className="max-w-md">
                     <AlertDialogHeader>
@@ -259,33 +322,12 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
         );
     }
     
-    // ESTADO: EN LISTA DE ESPERA (Waitlist)
-    if (isWaitlist) {
-         return (
-            <Card className="overflow-hidden border-blue-500/30 bg-gradient-to-br from-blue-50 to-white shadow-sm relative group h-full flex flex-col justify-center">
-                <CardContent className="p-5">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
-                            <Clock className="w-6 h-6" />
-                        </div>
-                        
-                        <div className="flex-1 text-center sm:text-left flex flex-col justify-center">
-                            <h3 className="font-bold text-slate-900 mb-1">¡Estás en la Lista VIP! 🚀</h3>
-                            <p className="text-sm text-slate-600 mb-4 max-w-sm leading-relaxed">
-                                Debido al increíble éxito de la plataforma, hemos alcanzado el límite inicial de conexiones con Strava. 
-                                Te notificaremos por correo en cuanto liberemos más cupos.
-                            </p>
-                            <div className="inline-flex items-center justify-center sm:justify-start gap-2 text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-100/50 px-3 py-1.5 rounded-full w-fit mx-auto sm:mx-0">
-                                <CheckCircle2 className="w-4 h-4" /> Lugar Reservado
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-         );
-    }
+    // ============================================================================
+    // ESTADO 4: ESTADO FINAL (CONECTADO). Acceso Seguro a Variables Profundas.
+    // ============================================================================
 
-    const lastSyncDate = new Date(stravaData.lastSyncDate);
+    // En este punto estamos matemáticamente seguros de que stravaData y accessToken existen.
+    const lastSyncDate = new Date(stravaData!.lastSyncDate);
 
     return (
         <>
@@ -351,11 +393,11 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
                                 <div className="text-right w-full sm:w-auto flex flex-row sm:flex-col justify-between sm:justify-end items-end border-b sm:border-0 border-slate-200/60 pb-2 sm:pb-0">
                                     <div className="text-left sm:text-right">
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">KM Recorridos</p>
-                                        <p className="font-mono font-bold text-slate-900 leading-none">{stravaData.totalKmSynced.toFixed(0)}</p>
+                                        <p className="font-mono font-bold text-slate-900 leading-none">{stravaData!.totalKmSynced.toFixed(0)}</p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest">Sincronizados</p>
-                                        <p className="font-mono font-bold text-emerald-600 leading-none">+{stravaData.lastSyncAddedKm?.toFixed(1) || '0.0'}</p>
+                                        <p className="font-mono font-bold text-emerald-600 leading-none">+{stravaData!.lastSyncAddedKm?.toFixed(1) || '0.0'}</p>
                                     </div>
                                 </div>
 

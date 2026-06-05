@@ -74,6 +74,17 @@ export async function getStravaAuthUrl() {
         throw new Error("Configuración de servidor incompleta");
     }
 
+    // Validación Proactiva: Bypass de Inmunidad para usuarios 'invited'
+    const userDoc = await adminDb.collection('users').doc(session.uid).get();
+    const isInvited = userDoc.data()?.gamification?.strava?.waitlistStatus === 'invited';
+
+    if (!isInvited) {
+        const availability = await checkStravaAvailability();
+        if (availability.isFull) {
+            throw new Error("QUOTA_EXCEEDED");
+        }
+    }
+
     const scope = 'activity:read_all';
     const state = session.uid; 
 
