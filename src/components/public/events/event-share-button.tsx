@@ -6,8 +6,6 @@ import { Share2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { recordEventShareAction } from '@/lib/actions/gamification-actions';
 import { triggerConfetti } from '@/lib/confetti';
-import { parseISO, format } from 'date-fns';
-import { es } from 'date-fns/locale';
 
 interface EventShareButtonProps {
     event: {
@@ -35,11 +33,24 @@ export function EventShareButton({ event, organizerName, isLoggedIn }: EventShar
             const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://biciregistro.mx';
             const eventUrl = `${baseUrl}/events/${event.id}`;
             
-            // Fix Time Offset: Use parseISO to handle the ISO string from DB correctly
-            // and format it explicitly to avoid native Date object timezone shifts.
-            const eventDate = parseISO(event.date);
-            const dateStr = format(eventDate, "EEEE d 'de' MMMM", { locale: es });
-            const timeStr = format(eventDate, "HH:mm");
+            // Fix Time Offset: Utilizamos la internacionalización de JS con timeZone: 'UTC'
+            // Esto asegura que se imprima la hora "nominal" guardada en Firestore (Ej. 11:00)
+            // sin que el navegador le reste 6 horas de la zona local actual.
+            const eventDate = new Date(event.date);
+            
+            const dateStr = new Intl.DateTimeFormat('es-MX', { 
+                weekday: 'long', 
+                day: 'numeric', 
+                month: 'long',
+                timeZone: 'UTC' 
+            }).format(eventDate);
+            
+            const timeStr = new Intl.DateTimeFormat('es-MX', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                hour12: false,
+                timeZone: 'UTC' 
+            }).format(eventDate);
             
             const text = `¡Mira el evento que encontré! 🚴‍♂️🔥\n\nLo organiza ${organizerName}. Es una ${event.eventType} de ${event.modality || 'ciclismo'} para nivel ${event.level || 'libre'}, el próximo ${dateStr} a las ${timeStr} en ${event.state} y apenas son ${event.distance || 0} km.\n\nEste es el link para inscribirnos: ${eventUrl}\n\n¿Qué dices, vamos? 🙌`;
 
@@ -79,7 +90,8 @@ export function EventShareButton({ event, organizerName, isLoggedIn }: EventShar
             if (shareSuccess && isLoggedIn) {
                 setTimeout(async () => {
                     const result = await recordEventShareAction(event.id);
-                    if (result && result.success && result.points) {
+                    // Type Narrowing to satisfy TypeScript when result can be an error object without 'points'
+                    if (result && result.success && 'points' in result) {
                         triggerConfetti();
                         toast({
                             title: "¡Recompensa Desbloqueada! 🎉",

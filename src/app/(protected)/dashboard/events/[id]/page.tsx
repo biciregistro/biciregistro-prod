@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy, Hash, AlertCircle, CheckCircle2, Package, User, Phone, Globe, HeartPulse, FileText, Download, Shirt, TriangleAlert, ShieldCheck, QrCode, Lock, Gift } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy, Hash, AlertCircle, CheckCircle2, Package, User, Phone, Globe, HeartPulse, FileText, Download, Shirt, TriangleAlert, ShieldCheck, QrCode, Lock, Gift, Map } from 'lucide-react';
 import { EventActionCard } from '@/components/dashboard/event-action-card';
 import { EventBikeSelector } from '@/components/dashboard/event-bike-selector';
 import { PaymentStatusHandler } from '@/components/payment-status-handler';
@@ -158,10 +158,25 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                           <Clock className="h-4 w-4" />
                           <span>{eventDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                          <MapPin className="h-4 w-4" />
-                          <span className="line-clamp-1">{event.state}, {event.country}</span>
-                      </div>
+                      
+                      {/* MODIFICACIÓN QUIRÚRGICA: Acceso rápido a ubicación (Google Maps) */}
+                      {event.googleMapsUrl ? (
+                          <a 
+                              href={event.googleMapsUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="flex items-center gap-1.5 text-white hover:underline hover:text-amber-200 transition-colors group"
+                              title="Ver ubicación en mapa"
+                          >
+                              <MapPin className="h-4 w-4 text-amber-300 group-hover:scale-110 transition-transform" />
+                              <span className="line-clamp-1 font-bold">📍 Ver Ubicación en Mapa</span>
+                          </a>
+                      ) : (
+                          <div className="flex items-center gap-1.5 opacity-80">
+                              <MapPin className="h-4 w-4" />
+                              <span className="line-clamp-1">{event.state}, {event.country}</span>
+                          </div>
+                      )}
                   </div>
               </div>
 
@@ -395,7 +410,7 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                           {isPendingPayment && isCheckinComplete && (
                                <p className="text-xs text-destructive font-bold animate-pulse">
                                   * PAGO PENDIENTE: Completa tu pago para activar el Check-in.
-                               </p>
+                                </p>
                           )}
                       </div>
                       
