@@ -33,10 +33,10 @@ const STATIC_FIELDS = [
   { id: 'categoryName', label: 'Categoría' },
   { id: 'tierName', label: 'Nivel/Tier' },
   { id: 'gender', label: 'Género' },
-  { id: 'age', label: 'Edad' }, // NUEVO
-  { id: 'country', label: 'País' }, // NUEVO
-  { id: 'state', label: 'Estado' }, // NUEVO
-  { id: 'city', label: 'Ciudad' }, // NUEVO
+  { id: 'age', label: 'Edad' },
+  { id: 'country', label: 'País' },
+  { id: 'state', label: 'Estado' },
+  { id: 'city', label: 'Ciudad' },
   { id: 'jerseyModel', label: 'Modelo Jersey' },
   { id: 'jerseySize', label: 'Talla Jersey' },
   { id: 'status', label: 'Estatus Registro' },
@@ -46,6 +46,13 @@ const STATIC_FIELDS = [
   { id: 'emergencyContactName', label: 'Contacto Emergencia (Nombre)' },
   { id: 'emergencyContactPhone', label: 'Contacto Emergencia (Tel)' },
   { id: 'bikeInfo', label: 'Bicicleta (Marca/Modelo)' },
+  
+  // NUEVO: Columnas técnicas de trazabilidad legal para el Opt-in
+  { id: 'optInAccepted', label: 'Opt-in Patrocinadores' },
+  { id: 'optInDate', label: 'Opt-in Fecha' },
+  { id: 'optInIp', label: 'Opt-in IP' },
+  { id: 'optInAgent', label: 'Opt-in Dispositivo' },
+  { id: 'optInText', label: 'Opt-in Texto Legal' },
 ];
 
 export function AttendeeExportModal({ attendees, eventName, customQuestions = [] }: AttendeeExportModalProps) {
@@ -135,13 +142,29 @@ export function AttendeeExportModal({ attendees, eventName, customQuestions = []
                     value = attendee.registrationDate ? format(new Date(attendee.registrationDate), 'dd/MM/yyyy HH:mm') : '';
                 } catch (e) { value = attendee.registrationDate }
                 break;
+            // FIX: Extracción aplanada de los datos de auditoría legal
+            case 'optInAccepted':
+              value = attendee.marketingConsent?.accepted ? 'Sí' : 'No';
+              break;
+            case 'optInDate':
+              value = attendee.marketingConsent?.timestamp ? format(new Date(attendee.marketingConsent.timestamp), 'dd/MM/yyyy HH:mm:ss') : '';
+              break;
+            case 'optInIp':
+              value = attendee.marketingConsent?.ipAddress || '';
+              break;
+            case 'optInAgent':
+              value = attendee.marketingConsent?.userAgent || '';
+              break;
+            case 'optInText':
+              value = attendee.marketingConsent?.legalText || '';
+              break;
             default:
               // @ts-ignore - Acceso dinámico seguro dado que filtramos por whitelist
               value = attendee[key];
           }
 
           // Sanitizar para CSV (escapar comillas y manejar comas)
-          const stringValue = String(value || '');
+          const stringValue = String(value ?? '');
           if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
             return `"${stringValue.replace(/"/g, '""')}"`;
           }

@@ -68,6 +68,7 @@ export async function registerForEventAction(
     let marketingConsent: MarketingConsent | null = null;
     const headerList = await headers();
     const clientIp = headerList.get('x-forwarded-for') ?? headerList.get('x-real-ip') ?? 'IP_NOT_FOUND';
+    const userAgent = headerList.get('user-agent') ?? 'USER_AGENT_NOT_FOUND'; // FIX: Capturar dispositivo legal
 
     if (marketingConsentGiven) {
         marketingConsent = {
@@ -76,6 +77,8 @@ export async function registerForEventAction(
             ipAddress: clientIp,
             policyVersion: CURRENT_PRIVACY_POLICY_VERSION,
             legalText: MARKETING_CONSENT_TEXT,
+            userAgent: userAgent, // FIX: Trazabilidad Legal de Dispositivo
+            actionType: 'opt_in_marketing_event_registration' // FIX: Prueba de acción afirmativa
         };
     }
 

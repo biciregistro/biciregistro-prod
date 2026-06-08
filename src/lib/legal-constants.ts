@@ -19,7 +19,7 @@ Entiendo y acepto que BICIREGISTRO (y sus propietarios, desarrolladores y filial
 5. SEGURIDAD DE BIENES (BICICLETAS).
 Entiendo que, aunque EL EVENTO y BICIREGISTRO promueven la seguridad, el cuidado y custodia de mi bicicleta y equipo personal son mi exclusiva responsabilidad en todo momento. Renuncio a solicitar reembolso o indemnización a EL ORGANIZADOR o a BICIREGISTRO en caso de robo, extravío o daño a mi bicicleta durante EL EVENTO.
 
-6. TRATAMIENTO MÉDICO DE EMERGENCIA.
+6. TRATAMIENTO MÉDICO DE EMERGENCIAS.
 En caso de accidente o enfermedad durante EL EVENTO, autorizo a EL ORGANIZADOR y al personal médico a administrarme los primeros auxilios, tratamiento médico o transporte hospitalario que consideren necesarios para salvaguardar mi salud. Asumo la responsabilidad de todos los gastos médicos que se generen.
 
 7. USO DE IMAGEN.
@@ -32,4 +32,4 @@ He leído cuidadosamente este documento, entiendo su alcance legal y lo firmo de
 
 export const CURRENT_PRIVACY_POLICY_VERSION = "2025-12-23";
 
-export const MARKETING_CONSENT_TEXT = "Quiero recibir descuentos exclusivos, regalos y promociones de los Patrocinadores Oficiales del evento.";
+export const MARKETING_CONSENT_TEXT = "Deseo participar en las rifas, sorteos, promociones y entrega de premios de los Patrocinadores Oficiales del Evento.";

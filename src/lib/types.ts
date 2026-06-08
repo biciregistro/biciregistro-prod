@@ -317,6 +317,8 @@ export type MarketingConsent = {
   ipAddress: string;
   policyVersion: string; 
   legalText: string;
+  userAgent?: string; // Trazabilidad legal (Dispositivo/OS)
+  actionType?: string; // Acción afirmativa inequívoca
 };
 
 export type EventRegistration = {
@@ -398,6 +400,7 @@ export type EventAttendee = {
     country?: string | null;
     state?: string | null;
     city?: string | null;
+    marketingConsent?: MarketingConsent | null; // Extraído de la inscripción original
 };
 
 export type UserEventRegistration = EventRegistration & {

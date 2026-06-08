@@ -718,7 +718,7 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                             <Checkbox id="marketing-consent" checked={marketingConsent} onCheckedChange={(checked) => setMarketingConsent(!!checked)} />
                             <div className="grid gap-1.5 leading-none">
                                 <label htmlFor="marketing-consent" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                    Quiero recibir descuentos exclusivos, regalos y promociones de los Patrocinadores Oficiales del evento.
+                                    Deseo participar en las rifas, sorteos, promociones y entrega de premios de los Patrocinadores Oficiales del Evento.
                                 </label>
                                 <p className="text-xs text-muted-foreground">
                                     Al marcar esta casilla, aceptas que tus datos de contacto sean transferidos a las marcas aliadas conforme a la sección de Transferencias de nuestro Aviso de Privacidad.
