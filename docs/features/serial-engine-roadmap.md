@@ -16,10 +16,10 @@ Esta estructura está diseñada para que cualquier agente de IA o desarrollador 
     *   *Verificación:* `npx tsc --noEmit` debe pasar limpio en todo el proyecto.
 *   **Ticket 1.2: Motor de Asignación Atómica (Bib Service)**
     *   *Acción:* Crear `src/lib/actions/serial-bib-service.ts`.
-    *   *Scope:* Implementar la lógica de consulta histórica y extracción con `FieldValue.increment(1)` en Firestore.
+    *   *Scope:* Implementar la lógica de consulta histórica y extracción centralizada usando `FieldValue.increment(1)` en el contador global del Serial (`serial_bib_counters`).
 *   **Ticket 1.3: Server Actions de Creación de Campeonato**
     *   *Acción:* Crear `src/lib/actions/serial-actions.ts`.
-    *   *Scope:* Implementar `createSerialWithStagesAction`. Debe contener la validación (Zod) y la transacción multi-documento (`WriteBatch`) que crea el padre `Serial` y los hijos `Event` con sus rangos de placas desfasados.
+    *   *Scope:* Implementar `createSerialWithStagesAction`. Debe contener la validación (Zod) y la transacción multi-documento (`WriteBatch`) que crea el padre `Serial` y los hijos `Event` vinculados por el `serialId`.
 
 ---
 

@@ -1,7 +1,7 @@
 # Especificación Funcional (FRD): Motor de Seriales y Campeonatos
 
 **Módulo:** Motor de Seriales y Campeonatos para Biciregistro.mx
-**Versión:** 2.1 (Refinada para Producción y Adaptada a la Arquitectura Base - Flujo Individual)
+**Versión:** 2.2 (Simplificación Arquitectónica: Unificación de Asignación de Placas)
 **Rol:** Product Owner / Business Analyst / Technical Architect
 
 ---
@@ -27,7 +27,7 @@ Para mitigar riesgos técnicos y entregar valor rápido a los usuarios, el desar
 **MVP (Minimum Viable Product)**
 * **Etapa 1:** Panel Autogestionable de Creación de Seriales (UX/UI B2B) - Creación de la Entidad Wrapper y generación masiva de Eventos Hijos reutilizando el actual `EventWizard`.
 * **Etapa 3:** Interfaz del Ciclista (PWA UX/UI B2C) - Creación del carril "Mis Seriales" en el Dashboard y asignación del "Número Único Permanente". Leaderboard funcional (actualización inicial mediante tablas estáticas/manuales o CSV simple).
-* **Etapa 7:** Reglas del Sistema y Blindaje - Protección de la Piscina de Números (Bib Pool) a nivel de arquitectura y Criterios de desempate.
+* **Etapa 7:** Reglas del Sistema y Blindaje - Criterios de desempate y lógica de estados especiales.
 
 **Incrementales (Post-MVP)**
 * **Etapa 2:** Gestión de Co-Organizadores (Gobernanza B2B) - Sistema de permisos granulares para ligas locales.
@@ -60,7 +60,7 @@ El sistema debe habilitar el panel autogestionable de creación de Seriales dent
 **Paso 2: Detalles del serial**
 * **Cantidad de Fechas (Estructura de Carreras):** Interfaz con opción “+” para añadir etapas secuenciales. El sistema asignará un nombre genérico automático bajo la nomenclatura: `Fecha {Consecutivo} - {Nombre del serial}`. Para cada fecha, el organizador elegirá obligatoriamente: fecha, hora y precio individual.
 * **Transparencia de Costos:** El cálculo del fee de Biciregistro debe desglosarse por separado de manera explícita (reutilizando el esquema `CostSection`).
-* **Límite Global y Protección Numérica (Bib Pool):** El organizador definirá un "Cupo Máximo Global del Serial" (Ej. 300). Esto reservará estructuralmente la piscina de números (del 1 al 300) exclusivamente para el campeonato. Los eventos hijos individuales se configurarán automáticamente para asignar números independientes a partir de ese límite (Ej. a partir del 301).
+* **Cupo Máximo Global:** Campo numérico para definir el límite total de participantes únicos que el campeonato puede albergar en toda su duración.
 * **Puntos por Posición:** Matriz de configuración para definir el puntaje otorgado por lugar de llegada (1er lugar, 2° lugar, etc.).
 * **Categorías:** Lista de selección múltiple que reutiliza el configurador de categorías preexistente en los eventos del sistema.
 * **ID de Afiliación Requerido:** Switch de activación booleana. Si se encuentra activo (True), el formulario de inscripción pública de cada evento hijo habilitará obligatoriamente un campo para capturar el "Número de afiliación del corredor".
@@ -90,7 +90,6 @@ Escenario: Creación exitosa de un Serial y replicación de eventos hijos
   Y confirma la creación presionando el botón "Crear Campeonato"
   Entonces el sistema debe guardar la entidad Serial en la base de datos (Firestore)
   Y generar automáticamente N eventos hijos con el formato "Fecha {N} - {Nombre Serial}"
-  Y aislar estructuralmente el rango numérico (Bib Pool) del Serial frente a los eventos individuales
   Y exponer públicamente la Landing Page en la ruta indexada `/serial/{friendly-url}`
 ```
 
@@ -115,7 +114,7 @@ El co-organizador tiene acceso total para auditar y controlar la operación en c
 | **Detalles Logísticos** | WRITE | Modificación de descripciones, ubicación, rutas de Strava y horarios. |
 | **Categorías de Competencia** | BLOQUEADO | Deshabilitado. Están configuradas estrictamente por el organizador del serial. |
 | **Precios de Inscripción** | BLOQUEADO | Deshabilitado. El costo está bloqueado por el creador del campeonato. |
-| **Asignación de Números** | BLOQUEADO | Deshabilitado. Responde a la estrategia estructural definida en el Serial padre. |
+| **Asignación de Números** | BLOQUEADO | Deshabilitado. Responde a la estrategia estructural centralizada del Serial padre. |
 
 ## 5. Etapa 3: Interfaz del Ciclista (PWA UX/UI B2C) [MVP]
 
@@ -222,12 +221,7 @@ Cuando el motor de IA extraiga del archivo de cronometraje registros con marcas 
 * Los estados DNF (Did Not Finish), DNS (Did Not Start) y DSQ (Disqualified) acumularán 0 puntos en la etapa correspondiente.
 * **Renderizado en UI B2C:** En el carril de "Etapas Completadas" de la ventana del serial del ciclista, la tarjeta del evento de la PWA mostrará el badge visual del estado de carrera correspondiente (DNF/DNS/DSQ) con el campo de tiempo y posición numérica vacíos, asegurando que el usuario identifique el procesamiento de su estatus.
 
-### 8.3 Blindaje de la Piscina de Números (Bib Pool) contra "Invitados Sueltos"
-Para evitar colisiones en los reportes de cronometraje final, los rangos de números asignados a un Serial padre se protegen estructuralmente desde su creación:
-* **Rango del Serial:** Al crear el campeonato, el organizador define un "Cupo Máximo" (Ej. 300). Este límite blinda matemáticamente las placas del 1 al 300 exclusivamente para los usuarios que participan activamente dentro de la estructura general del serial.
-* **Autonomía del Evento Hijo:** Los eventos individuales vinculados a este campeonato configurarán su asignación nativa para repartir boletos a partir del límite máximo del serial + 1 (Ej. Comenzando en la placa 301). Así, cualquier ciclista "suelto" inscrito de forma unitaria al evento no afectará la lógica del campeonato.
-
-### 8.4 Mecanismo de Corrección Manual en el Match de la IA (Fallback Mechanism)
+### 8.3 Mecanismo de Corrección Manual en el Match de la IA (Fallback Mechanism)
 En caso de que el archivo del proveedor de chips contenga errores tipográficos (Ejemplo: placa #42 registrada como #422 inexistente) que impidan el match automático con el usuario de la plataforma:
 * La pantalla intermedia de auditoría de resultados desplegará una alerta visual indicando las filas sin correlación de usuario encontrada.
 * Se habilitará un botón de "Acción Manual" para que el organizador pueda editar la celda del número de placa o asociar directamente el ID del ciclista mediante un buscador predictivo antes de proceder con el botón final "Validar y Publicar".

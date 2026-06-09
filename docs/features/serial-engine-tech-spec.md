@@ -43,12 +43,8 @@ export type Serial = {
     coOrganizerEmails?: string[]; // Incremental: emails vinculados
     pointMatrix: PointMatrix[];
     
-    // Aislamiento Numérico Arquitectónico (FRD 8.3)
-    maxParticipantsGlobal: number; // Obligatorio. Define el límite de la piscina
-    protectedBibRange: {
-        min: number; // Siempre será 1
-        max: number; // Será igual a maxParticipantsGlobal
-    };
+    // Cupo Global
+    maxParticipantsGlobal?: number; 
 
     categories: EventCategory[]; // Reutilizado
     requiresAffiliationId: boolean; // Flag B2C
@@ -104,11 +100,11 @@ Se utilizará una estructura plana para facilitar consultas rápidas bajo el mod
 *   **Colección `events` (Existente):** Los eventos hijos se guardan aquí de manera plana. Para obtener el cronograma de etapas de un serial, se ejecutará una consulta indexada: `where("serialId", "==", target_serial_id) orderBy("date", "asc")`.
 *   **Colección `serial_leaderboards`:** Colección raíz para las tablas de posiciones. Utiliza Document IDs compuestos (`serialId_categoryId`) para permitir escrituras directas y optimizar la carga asíncrona de la tabla fragmentada por categoría en la PWA (evitando leer toda la base del campeonato).
 
-### 1.3 Arquitectura Wrapper y Aislamiento de Pool Numérico
+### 1.3 Arquitectura Wrapper y Simplificación de Pool Numérico
 
-1.  Al crear un campeonato desde el Dashboard B2B, el organizador define `maxParticipantsGlobal` (Ej. 300). Se guarda el documento `Serial` con su `protectedBibRange` (1-300).
-2.  Dentro del mismo flujo transaccional (`WriteBatch`), se generan `N` documentos en la colección `events`. En cada uno, se vincula `serialId` y se inyecta su propio `bibNumberConfig` configurado en Modo Automático iniciando a partir de `301` (`nextNumber: 301`). 
-    *   *Mitigación de Riesgo:* Esto implementa el principio de Composición sobre Modificación. El evento hijo queda 100% autónomo. Si un corredor compra un boleto "suelto" ahí, el motor del evento funciona como siempre y le da la placa 301+. Cero colisiones con el Serial y cero lógica condicional frágil en el checkout de la plataforma.
+1.  Al crear un campeonato desde el Dashboard B2B, se guarda un único documento en la colección `serials`.
+2.  Dentro del mismo flujo transaccional (`WriteBatch`), se generan `N` documentos en la colección `events`. En cada uno, se vincula `serialId`.
+    *   *Simplificación Arquitectónica:* Ya no existen rangos protegidos ni asignaciones complejas para "invitados". Todos los usuarios que compran un boleto para un evento hijo entran a la misma lógica de asignación centralizada del serial.
 3.  **Regla de Desconexión:** Si se elimina una fecha de un serial desde el panel, el sistema localizará el documento en la colección `events` y ejecutará un `update` seteando `serialId = null` y `isSerialStage = false`, desvinculándolo inmediatamente del Wrapper sin borrar registros comerciales.
 
 ---
@@ -136,7 +132,7 @@ Para mitigar el riesgo crítico de romper la emisión de boletos en MercadoPago 
 
 1.  **Interceptación No Invasiva:** Al final de la ejecución del Webhook, justo antes de persistir la entidad `EventRegistration` en Firestore, invocaremos un servicio externo e independiente (`SerialBibService`) envuelto estrictamente en un bloque `try-catch`. No se modificará el núcleo transaccional ni la validación criptográfica de MercadoPago.
 2.  **Consulta y Operación Atómica:**
-    *   El servicio ejecuta una query para verificar si el usuario es un corredor recurrente de ese campeonato.
+    *   El servicio ejecuta una query para verificar si el usuario es un corredor recurrente de ese campeonato (`serial_registrations/{serialId}_{userId}`).
     *   Si SÍ, recicla y extrae su número original.
     *   Si NO, extrae el siguiente número seguro mediante la operación atómica nativa de Firebase `FieldValue.increment(1)` sobre el documento `serial_bib_counters/{serialId}`.
 3.  **Mecanismo de Fallback:** Si por algún timeout, error de red, o indisponibilidad de Firestore el `SerialBibService` levanta una excepción, el bloque `catch` la silenciará e inyectará un número estándar o vacío delegando al motor base del evento. *Prioridad Absoluta de Negocio: La transacción financiera es sagrada; la creación del boleto pagado en base de datos debe completarse siempre, el número de placa puede corregirse administrativamente después.*
@@ -179,3 +175,7 @@ Para mitigar el riesgo de vulnerabilidades de acceso al delegar la organización
 1.  **Reglas Firestore (Conservadoras):** Se mantendrán las reglas base estrictas permitiendo escritura solo si el usuario pertenece al arreglo de dueños u organizadores.
 2.  **Filtro Sanitizador en Capa de Aplicación:** El control granular de los "Campos Bloqueados" (Precios, Categorías, Configuración Estructural de Placas) no se basará en complejas `Firestore Rules` a nivel de propiedad. Se implementará en el backend de actualización.
 3.  El Server Action leerá la sesión. Si detecta que el usuario está operando en capacidad de *invitado/co-organizador* (`coOrganizerEmails`), el payload de actualización se sanitizará forzosamente usando `zod.omit()` para borrar silenciosamente cualquier intento de mutar estructuras financieras, guardando únicamente cambios en descripciones logísticas o de campo.
+
+---
+
+Este Tech Spec refleja una implementación orientada a mitigar el riesgo de introducción de tecnologías no probadas, apoyándose en la reutilización de componentes UI existentes (Bulk Import Modal, Event Cards) y preservando intacto el núcleo transaccional del sistema de boletos sin complejidades de piscinas de números aisladas.
