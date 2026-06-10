@@ -269,6 +269,40 @@ export type CustomQuestion = {
     required: boolean;
 };
 
+// --- Tipos de Apoyo para Seriales ---
+export type PointMatrix = {
+    position: number;
+    points: number;
+};
+
+export type SerialStatus = 'draft' | 'published' | 'completed';
+
+// --- Entidad Wrapper: Serial ---
+export type Serial = {
+    id: string;
+    ongId: string;
+    name: string;
+    slug: string; // Friendly URL (/serial/[slug])
+    description: string;
+    status: SerialStatus;
+    heroImageUrl?: string;
+    country: string;
+    state: string;
+    guideUrl?: string; // PDF del reglamento
+    sponsors?: string[]; // Array de URLs de logos
+    coOrganizerEmails?: string[]; // Incremental: emails vinculados
+    pointMatrix: PointMatrix[];
+    
+    // Cupo Global
+    maxParticipantsGlobal?: number; 
+
+    categories: EventCategory[]; // Reutilizado
+    requiresAffiliationId: boolean; // Flag B2C
+    createdAt: string;
+    updatedAt: string;
+};
+
+
 export type Event = {
   id: string;
   ongId: string;
@@ -307,6 +341,11 @@ export type Event = {
   sponsors?: string[]; 
   isBlocked?: boolean; 
   pageViews?: number; 
+
+  // --- Campos para el Motor de Seriales ---
+  serialId?: string; // Llave foránea lógica al Serial
+  isSerialStage?: boolean;
+  stageOrder?: number; // Para ordenar las fechas cronológicamente (1, 2, 3...)
 };
 
 export type PaymentStatus = 'pending' | 'paid' | 'not_applicable';
@@ -361,6 +400,10 @@ export type EventRegistration = {
     waiverHash?: string; 
     marketingConsent?: MarketingConsent | null;
     customAnswers?: Record<string, string | string[]>; // Respuestas a preguntas personalizadas
+
+    // --- Campos para el Motor de Seriales ---
+    serialBibNumber?: number; // El "Número Único Permanente"
+    affiliationId?: string; // Captura si requiresAffiliationId es true
 };
 
 export type EventAttendee = {
@@ -401,10 +444,37 @@ export type EventAttendee = {
     state?: string | null;
     city?: string | null;
     marketingConsent?: MarketingConsent | null; // Extraído de la inscripción original
+    
+    // --- Campos para el Motor de Seriales ---
+    serialBibNumber?: number; // El "Número Único Permanente"
+    affiliationId?: string; // Captura si requiresAffiliationId es true
 };
 
 export type UserEventRegistration = EventRegistration & {
     event: Event;
+};
+
+// --- Entidad Leaderboard (Tabla Global del Serial) ---
+export type SerialLeaderboardRow = {
+    userId: string;
+    categoryId: string;
+    totalPoints: number;
+    overallPosition: number;
+    stagesCompleted: number;
+    lastStagePosition?: number; // Tie-breaker primario
+    totalChipTimeMs?: number; // Tie-breaker secundario
+    // Datos desnormalizados para lectura rápida en UI
+    userName: string;
+    userAvatar?: string;
+    categoryName: string;
+};
+
+export type SerialLeaderboard = {
+    id: string; // Document ID compuesto: `${serialId}_${categoryId}`
+    serialId: string;
+    categoryId: string;
+    rows: SerialLeaderboardRow[]; // Ordenado por overallPosition
+    lastCalculatedAt: string;
 };
 
 export type Feature = {

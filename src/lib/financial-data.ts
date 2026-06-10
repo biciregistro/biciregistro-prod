@@ -3,6 +3,7 @@ import { unstable_cache } from 'next/cache';
 import { adminDb } from './firebase/server';
 import { FieldPath } from 'firebase-admin/firestore';
 import type { FinancialSettings, OngUser, EventRegistration, Event, Payout } from './types';
+import { SerialBibService } from './actions/serial-bib-service';
 
 const SETTINGS_COLLECTION = 'settings';
 const FINANCIAL_DOC_ID = 'financial';
@@ -74,6 +75,33 @@ export async function getEventRegistration(registrationId: string): Promise<Even
 
 export async function updateRegistrationManualPayment(registrationId: string, feeAmount: number, priceAmount?: number) {
     try {
+        // En los casos manuales, no bloquearemos el pago si falla la base de datos de números,
+        // extraeremos el ID de serial de antemano.
+        const regDocPre = await adminDb.collection('event-registrations').doc(registrationId).get();
+        if (!regDocPre.exists) throw new Error("Registration not found");
+        const regDataPre = regDocPre.data() as EventRegistration;
+
+        let serialBibNumber: number | null = null;
+        let isSerialStage = false;
+
+        if (regDataPre.eventId && !regDataPre.serialBibNumber) {
+            const eventDocPre = await adminDb.collection('events').doc(regDataPre.eventId).get();
+            if (eventDocPre.exists) {
+                const eventDataPre = eventDocPre.data() as Event;
+                if (eventDataPre.serialId && eventDataPre.isSerialStage) {
+                    isSerialStage = true;
+                    try {
+                        serialBibNumber = await SerialBibService.getOrGenerateSerialBibNumber(
+                            eventDataPre.serialId,
+                            regDataPre.userId
+                        );
+                    } catch (e) {
+                        console.error("[Serial Engine] Error al asignar placa permanente en pago manual:", e);
+                    }
+                }
+            }
+        }
+
         await adminDb.runTransaction(async (transaction) => {
             // 1. READ Registration
             const regRef = adminDb.collection('event-registrations').doc(registrationId);
@@ -82,11 +110,11 @@ export async function updateRegistrationManualPayment(registrationId: string, fe
             if (!regDoc.exists) throw new Error("Registration not found");
             const regData = regDoc.data() as EventRegistration;
 
-            // 2. READ Event (Conditional - only if we might need to assign bib)
+            // 2. READ Event (Conditional - only if we might need to assign NORMAL bib)
             let nextNumber: number | null = null;
             let eventRef: FirebaseFirestore.DocumentReference | null = null;
 
-            if (!regData.bibNumber && regData.eventId) {
+            if (!regData.bibNumber && regData.eventId && !isSerialStage) {
                 eventRef = adminDb.collection('events').doc(regData.eventId);
                 const eventDoc = await transaction.get(eventRef);
                 
@@ -111,15 +139,18 @@ export async function updateRegistrationManualPayment(registrationId: string, fe
                 updateData.price = priceAmount;
             }
 
-            // If bib number needs assignment
-            if (nextNumber !== null) {
+            // Assign Number (Serial > Normal)
+            if (serialBibNumber !== null) {
+                updateData.serialBibNumber = serialBibNumber;
+                updateData.bibNumber = serialBibNumber; // Compatibilidad UI
+            } else if (nextNumber !== null) {
                 updateData.bibNumber = nextNumber;
             }
 
             transaction.update(regRef, updateData);
 
-            // 4. WRITE Event Update (Increment counter if assigned)
-            if (nextNumber !== null && eventRef) {
+            // 4. WRITE Event Update (Increment counter if assigned NORMAL number)
+            if (nextNumber !== null && eventRef && !isSerialStage) {
                 transaction.update(eventRef, { 'bibNumberConfig.nextNumber': nextNumber + 1 });
                 console.log(`[Auto-Assign] Assigned Bib #${nextNumber} to registration ${registrationId}`);
             }
@@ -141,6 +172,33 @@ export async function updateRegistrationStatusInternal(
     }
     
     try {
+        // Pre-fetch para el Serial Engine si es un cambio a Pagado
+        const regDocPre = await adminDb.collection('event-registrations').doc(registrationId).get();
+        if (!regDocPre.exists) throw new Error("Registration not found");
+        const regDataPre = regDocPre.data() as EventRegistration;
+
+        let serialBibNumber: number | null = null;
+        let isSerialStage = false;
+        const isTransitioningToPaid = data.paymentStatus === 'paid' && regDataPre.paymentStatus !== 'paid';
+
+        if (isTransitioningToPaid && regDataPre.eventId && !regDataPre.serialBibNumber) {
+            const eventDocPre = await adminDb.collection('events').doc(regDataPre.eventId).get();
+            if (eventDocPre.exists) {
+                const eventDataPre = eventDocPre.data() as Event;
+                if (eventDataPre.serialId && eventDataPre.isSerialStage) {
+                    isSerialStage = true;
+                    try {
+                        serialBibNumber = await SerialBibService.getOrGenerateSerialBibNumber(
+                            eventDataPre.serialId,
+                            regDataPre.userId
+                        );
+                    } catch (e) {
+                        console.error("[Serial Engine] Error al asignar placa permanente en Webhook interno:", e);
+                    }
+                }
+            }
+        }
+
         await adminDb.runTransaction(async (transaction) => {
             // 1. READ Registration
             const regRef = adminDb.collection('event-registrations').doc(registrationId);
@@ -149,13 +207,11 @@ export async function updateRegistrationStatusInternal(
             if (!regDoc.exists) throw new Error("Registration not found");
             const regData = regDoc.data() as EventRegistration;
 
-            // 2. READ Event (Conditional - check auto-assign criteria)
+            // 2. READ Event (Conditional - check auto-assign NORMAL criteria)
             let nextNumber: number | null = null;
             let eventRef: FirebaseFirestore.DocumentReference | null = null;
 
-            const isTransitioningToPaid = data.paymentStatus === 'paid' && regData.paymentStatus !== 'paid';
-
-            if (isTransitioningToPaid && !regData.bibNumber && regData.eventId) {
+            if (isTransitioningToPaid && !regData.bibNumber && regData.eventId && !isSerialStage) {
                 eventRef = adminDb.collection('events').doc(regData.eventId);
                 const eventDoc = await transaction.get(eventRef);
                 
@@ -169,14 +225,17 @@ export async function updateRegistrationStatusInternal(
             }
 
             // 3. WRITE Registration Update
-            if (nextNumber !== null) {
+            if (serialBibNumber !== null) {
+                (cleanData as any).serialBibNumber = serialBibNumber;
+                (cleanData as any).bibNumber = serialBibNumber; // Compatibilidad UI
+            } else if (nextNumber !== null) {
                 (cleanData as any).bibNumber = nextNumber;
             }
 
             transaction.update(regRef, cleanData);
 
-            // 4. WRITE Event Update
-            if (nextNumber !== null && eventRef) {
+            // 4. WRITE Event Update (Solo si es número normal)
+            if (nextNumber !== null && eventRef && !isSerialStage) {
                 transaction.update(eventRef, { 'bibNumberConfig.nextNumber': nextNumber + 1 });
                 console.log(`[Auto-Assign] Assigned Bib #${nextNumber} to registration ${registrationId}`);
             }

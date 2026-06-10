@@ -1,6 +1,24 @@
 {
   "indexes": [
     {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "serialId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "isSerialStage",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "bikes",
       "queryScope": "COLLECTION_GROUP",
       "fields": [

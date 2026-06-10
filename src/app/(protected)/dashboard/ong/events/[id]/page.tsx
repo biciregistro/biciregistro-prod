@@ -15,7 +15,8 @@ import { AttendeeManagement } from '@/components/ong/attendee-management';
 import { EventFinancialSummary } from '@/components/ong/event-financial-summary';
 import { EventAnalyticsView } from '@/components/ong/event-analytics-view';
 import { EventShareMenu } from '@/components/dashboard/event-share-menu';
-import { EventAttendee } from '@/lib/types'; // Importar el tipo
+import { ResultsImportModal } from '@/components/ong/serial-results/results-import-modal';
+import { EventAttendee } from '@/lib/types';
 
 export default async function EventDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -86,10 +87,20 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
             <h1 className="text-3xl font-bold tracking-tight">{event.name}</h1>
             <div className="flex items-center gap-2 mt-2">
                 <EventStatusBadge status={event.status} date={event.date} />
+                {event.serialId && (
+                   <span className="bg-orange-100 text-orange-800 text-xs px-2 py-0.5 rounded font-medium border border-orange-200">
+                       Etapa de Campeonato
+                   </span>
+                )}
             </div>
         </div>
         
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
+            {/* INYECCIÓN DEL MODAL DE RESULTADOS DE IA (TICKET 4.3) */}
+            {event.serialId && isFinished && (
+                <ResultsImportModal eventId={event.id} serialId={event.serialId} />
+            )}
+
             {!isFinished && (
                 <EventStatusButton eventId={event.id} currentStatus={event.status} />
             )}

@@ -91,13 +91,17 @@ export async function POST(req: NextRequest) {
                 const registrationId = metadata?.registration_id;
                 
                 if (registrationId) {
-                    // Update registration status internal will now handle auto-assigning bib number
-                    await updateRegistrationStatusInternal(registrationId, {
+                    
+                    const updatePayload: any = {
                         paymentStatus: 'paid',
                         paymentMethod: 'platform',
-                    });
+                    };
+
+                    // La inteligencia del Serial Engine y los Fallbacks ahora 
+                    // viven de forma segura y centralizada dentro de updateRegistrationStatusInternal.
+                    await updateRegistrationStatusInternal(registrationId, updatePayload);
                     
-                    console.log(`Pago aprobado y registrado para ID: ${registrationId}`);
+                    console.log(`Pago aprobado y procesado (incluyendo lógica de placas) para ID: ${registrationId}`);
                 } else {
                     console.warn(`Pago ${paymentId} aprobado pero sin registration_id en metadata.`);
                 }

@@ -25,7 +25,8 @@ import {
     Mail,
     MapPin,
     Search,
-    X
+    X,
+    Trophy
 } from 'lucide-react';
 import { EventCard } from '@/components/ong/event-card';
 import { BikeCard } from '@/components/bike-card';
@@ -246,7 +247,7 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
     const router = useRouter();
     const pathname = usePathname();
 
-    const defaultTab = searchParams.get('tab') || 'community';
+    const defaultTab = searchParams.get('tab') || 'events';
     const [activeTab, setActiveTab] = useState(defaultTab);
     const [garageSearchTerm, setGarageSearchTerm] = useState('');
 
@@ -286,12 +287,46 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
 
             <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
                 <TabsList className="grid w-full grid-cols-5 mb-8">
+                    <TabsTrigger value="events">Eventos</TabsTrigger>
                     <TabsTrigger value="community">Comunidad</TabsTrigger>
                     <TabsTrigger value="garage">Mi Garaje</TabsTrigger>
-                    <TabsTrigger value="events">Eventos</TabsTrigger>
                     <TabsTrigger value="campaigns">Campañas</TabsTrigger>
                     <TabsTrigger value="stats">Indicadores</TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="events" className="space-y-4">
+                    <div className="flex justify-end gap-3 mb-4">
+                        <Link href="/dashboard/ong/serials/create">
+                            <Button variant="default" className="bg-orange-600 hover:bg-orange-700 text-white shadow-sm border-orange-700">
+                                <Trophy className="mr-2 h-4 w-4" />
+                                Crear Campeonato
+                            </Button>
+                        </Link>
+                        <Link href="/dashboard/ong/events/create">
+                            <Button variant="outline">
+                                <CalendarPlus className="mr-2 h-4 w-4" />
+                                Crear Nuevo Evento
+                            </Button>
+                        </Link>
+                    </div>
+                    
+                    {events.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {events.map((event) => (
+                                <EventCard key={event.id} event={event} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-12 border rounded-lg bg-muted/10">
+                            <p className="text-muted-foreground mb-4">No has creado ningún evento aún.</p>
+                            <Link href="/dashboard/ong/events/create">
+                                <Button variant="outline">
+                                    Crear mi primer evento
+                                </Button>
+                            </Link>
+                        </div>
+                    )}
+                </TabsContent>
 
                 <TabsContent value="community" className="space-y-4">
                     <CommunityTable members={communityMembers} />
@@ -362,34 +397,6 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
                                     </Button>
                                 </div>
                             )}
-                        </div>
-                    )}
-                </TabsContent>
-
-                <TabsContent value="events" className="space-y-4">
-                    <div className="flex justify-end mb-4">
-                        <Link href="/dashboard/ong/events/create">
-                            <Button>
-                                <CalendarPlus className="mr-2 h-4 w-4" />
-                                Crear Nuevo Evento
-                            </Button>
-                        </Link>
-                    </div>
-                    
-                    {events.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {events.map((event) => (
-                                <EventCard key={event.id} event={event} />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-12 border rounded-lg bg-muted/10">
-                            <p className="text-muted-foreground mb-4">No has creado ningún evento aún.</p>
-                            <Link href="/dashboard/ong/events/create">
-                                <Button variant="outline">
-                                    Crear mi primer evento
-                                </Button>
-                            </Link>
                         </div>
                     )}
                 </TabsContent>
