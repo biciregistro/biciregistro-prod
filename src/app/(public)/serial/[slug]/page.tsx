@@ -22,7 +22,11 @@ async function getSerialData(slug: string) {
         return null;
     }
 
-    const serial = serialSnapshot.docs[0].data() as Serial;
+    // RCA FIX: Mapear explícitamente el ID del documento al objeto de datos
+    const serial = { 
+        id: serialSnapshot.docs[0].id, 
+        ...serialSnapshot.docs[0].data() 
+    } as Serial;
 
     // Ejecutar consultas en paralelo para mejorar el performance
     const [ongSnapshot, eventsSnapshot, leaderboardsSnapshot] = await Promise.all([

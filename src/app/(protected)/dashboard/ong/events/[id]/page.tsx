@@ -60,7 +60,12 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
       currency: 'MXN'
   }).format(financialSummary.total.gross);
 
-  const backLink = user.role === 'admin' ? '/admin?tab=events' : '/dashboard/ong?tab=events';
+  // LOGIC FIX: Environment-aware back link handling (Serial Stage vs Independent Event)
+  const backLink = user.role === 'admin' 
+      ? '/admin?tab=events' 
+      : event.serialId 
+          ? `/dashboard/ong/serials/${event.serialId}?tab=stages` // Redirect back to serial manager stages tab
+          : '/dashboard/ong?tab=events'; // Redirect to general dashboard
 
   const formattedEventDate = new Date(event.date).toLocaleDateString('es-MX', {
     day: 'numeric',
@@ -82,7 +87,7 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
             <Link href={backLink} className="text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2 text-sm">
-                <ArrowLeft className="h-4 w-4" /> Volver a Mis Eventos
+                <ArrowLeft className="h-4 w-4" /> {event.serialId ? 'Volver al Campeonato' : 'Volver a Mis Eventos'}
             </Link>
             <h1 className="text-3xl font-bold tracking-tight">{event.name}</h1>
             <div className="flex items-center gap-2 mt-2">

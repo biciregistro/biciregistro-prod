@@ -16,7 +16,6 @@ import {
     MessageCircle, 
     PlusCircle, 
     Bike as BikeIcon, 
-    Megaphone, 
     Phone, 
     HeartPulse, 
     ShieldAlert, 
@@ -29,21 +28,27 @@ import {
     Trophy
 } from 'lucide-react';
 import { EventCard } from '@/components/ong/event-card';
+import { SerialCard } from '@/components/ong/serial-card';
 import { BikeCard } from '@/components/bike-card';
 import { OngDashboardHero } from '@/components/ong/ong-dashboard-hero';
 import { OngCampaignManager } from '@/components/ong/ong-campaign-manager';
 import { BulkImportModal } from '@/components/ong/bulk-import-modal';
 import { BikeValidationModal } from '@/components/ong/bike-validation-modal';
-import type { Event, OngUser, Bike, Campaign } from '@/lib/types';
+import type { Event, OngUser, Bike, Campaign, Serial } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 interface OngDashboardTabsProps {
     ongProfile: OngUser;
-    events: Event[];
+    events: Event[]; // For backwards compatibility, but not used directly in this new version if partitionedData is provided
     communityMembers: any[];
     bikes?: Bike[];
-    campaigns: Campaign[]; // New prop
+    campaigns: Campaign[]; 
     statsContent?: React.ReactNode;
+    partitionedData?: {
+        serials: Serial[];
+        independentEvents: Event[];
+        serialStagesMap: Map<string, Event[]>;
+    };
 }
 
 function CommunityTable({ members }: { members: any[] }) {
@@ -242,7 +247,7 @@ function CommunityTable({ members }: { members: any[] }) {
     );
 }
 
-function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes = [], campaigns = [], statsContent }: OngDashboardTabsProps) {
+function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes = [], campaigns = [], statsContent, partitionedData }: OngDashboardTabsProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
@@ -274,6 +279,13 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
             bike.model?.toLowerCase().includes(lowerSearch)
         );
     }, [bikes, garageSearchTerm]);
+
+    // Fallback if partitionedData is missing (e.g. during incremental migration)
+    const displayEvents = partitionedData?.independentEvents || events;
+    const serials = partitionedData?.serials || [];
+    const serialStagesMap = partitionedData?.serialStagesMap || new Map();
+
+    const hasNoEventsAtAll = displayEvents.length === 0 && serials.length === 0;
 
     return (
         <div className="space-y-6">
@@ -310,13 +322,7 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
                         </Link>
                     </div>
                     
-                    {events.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {events.map((event) => (
-                                <EventCard key={event.id} event={event} />
-                            ))}
-                        </div>
-                    ) : (
+                    {hasNoEventsAtAll ? (
                         <div className="text-center py-12 border rounded-lg bg-muted/10">
                             <p className="text-muted-foreground mb-4">No has creado ningún evento aún.</p>
                             <Link href="/dashboard/ong/events/create">
@@ -324,6 +330,19 @@ function OngDashboardTabsContent({ ongProfile, events, communityMembers, bikes =
                                     Crear mi primer evento
                                 </Button>
                             </Link>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {/* Render Serials first */}
+                            {serials.map(serial => {
+                                const stages = serialStagesMap.get(serial.id) || [];
+                                return <SerialCard key={serial.id} serial={serial} stages={stages} />;
+                            })}
+                            
+                            {/* Render independent events */}
+                            {displayEvents.map((event) => (
+                                <EventCard key={event.id} event={event} />
+                            ))}
                         </div>
                     )}
                 </TabsContent>

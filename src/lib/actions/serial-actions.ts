@@ -42,6 +42,8 @@ const createSerialSchema = z.object({
   state: z.string().min(2, "Estado requerido"),
   guideUrl: z.string().url("Debe ser una URL válida (PDF)").optional().or(z.literal('')),
   
+  heroImageUrl: z.string().min(1, "La foto de portada es obligatoria"), // Añadido para heredar a las etapas
+  
   // Nuevos campos de herencia
   modality: z.string().min(2, "Selecciona una modalidad base"),
   level: z.enum(['Principiante', 'Intermedio', 'Avanzado']).default('Intermedio'),
@@ -130,6 +132,7 @@ export async function createSerialWithStagesAction(payload: CreateSerialPayload)
             country: serialData.country,
             state: serialData.state,
             description: serialData.description,
+            imageUrl: serialData.heroImageUrl, // Herencia explícita de la imagen de portada
             
             // --- HERENCIA ESTRICTA DESDE EL SERIAL WIZARD ---
             modality: modality,
@@ -182,4 +185,63 @@ export async function createSerialWithStagesAction(payload: CreateSerialPayload)
       console.error("Error creating serial:", error);
       return { success: false, error: "Ocurrió un error al persistir el campeonato." };
   }
+}
+
+const editSerialSchema = z.object({
+  name: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
+  description: z.string().min(10, "La descripción es muy corta"),
+  guideUrl: z.string().url("Debe ser una URL válida (ej. PDF en Drive)").optional().or(z.literal('')),
+  heroImageUrl: z.string().min(1, "La foto de portada es obligatoria"),
+  status: z.enum(['draft', 'published', 'completed']),
+});
+
+export type EditSerialPayload = z.infer<typeof editSerialSchema>;
+
+export async function updateSerialAction(serialId: string, payload: EditSerialPayload) {
+    const user = await getAuthenticatedUser();
+    
+    if (!user || user.role !== 'ong') {
+        return { success: false, error: "No tienes permisos para realizar esta acción." };
+    }
+
+    const validatedFields = editSerialSchema.safeParse(payload);
+    
+    if (!validatedFields.success) {
+        return { success: false, error: "Datos inválidos" };
+    }
+
+    try {
+        const serialRef = db.collection('serials').doc(serialId);
+        const serialDoc = await serialRef.get();
+
+        if (!serialDoc.exists) {
+            return { success: false, error: "Serial no encontrado." };
+        }
+
+        if (serialDoc.data()?.ongId !== user.id) {
+            return { success: false, error: "No tienes permisos sobre este campeonato." };
+        }
+
+        const updateData = {
+            ...validatedFields.data,
+            updatedAt: new Date().toISOString()
+        };
+
+        // Remove undefined/empty string guideUrl to prevent Firestore issues
+        if (updateData.guideUrl === '') {
+            updateData.guideUrl = undefined as any;
+        }
+
+        const cleanData = Object.fromEntries(Object.entries(updateData).filter(([_, v]) => v !== undefined));
+
+        await serialRef.update(cleanData);
+
+        revalidatePath(`/dashboard/ong/serials/${serialId}`);
+        revalidatePath('/dashboard/ong');
+        
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating serial:", error);
+        return { success: false, error: "Ocurrió un error al actualizar el campeonato." };
+    }
 }

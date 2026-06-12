@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { cities } from '@/lib/cities';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ImageUpload } from '@/components/shared/image-upload';
 import { cn } from '@/lib/utils';
 
 const MEXICAN_STATES = Object.keys(cities['México'] || {}).sort();
@@ -62,8 +63,30 @@ export function StepSerialGeneralInfo() {
       {/* SECCIÓN 1: DATOS BASE */}
       <div>
         <h2 className="text-xl font-semibold mb-1">Información Base del Serial</h2>
-        <p className="text-sm text-muted-foreground mb-6">Esta información será pública en la Landing Page del campeonato.</p>
+        <p className="text-sm text-muted-foreground mb-6">Esta información será pública en la Landing Page del campeonato y la portada se heredará a las etapas.</p>
         
+        {/* FIX HU5: Herencia de Portada (Hero Image) */}
+        <div className="mb-8">
+            <FormField
+                control={control}
+                name="heroImageUrl"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel><RequiredLabel>Foto de Portada del Campeonato</RequiredLabel></FormLabel>
+                        <FormControl>
+                            <ImageUpload
+                                initialImageUrl={field.value || undefined}
+                                onUploadSuccess={(url) => field.onChange(url)}
+                                storagePath="serials"
+                            />
+                        </FormControl>
+                        <FormDescription>Esta imagen será la portada del campeonato y de todas sus etapas por defecto (ratio recomendado 16:9).</FormDescription>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <FormField
             control={control}

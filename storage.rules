@@ -73,6 +73,14 @@ service firebase.storage {
       allow write: if request.auth != null;
     }
     
+    // --- Serial / Championship Rules ---
+    // Allow public read for serial covers/hero images.
+    // Allow authenticated users (ONGs) to upload serial covers.
+    match /serials/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
     // NEW: Payout Proofs
     // Structure: /payout-proofs/{eventId}/{fileName}
     match /payout-proofs/{eventId}/{fileName} {

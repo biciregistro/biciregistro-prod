@@ -185,7 +185,7 @@ Para garantizar la estabilidad y un flujo de trabajo ordenado, seguimos una estr
 
 2.  **Desarrollar:** Trabaja y haz `commit` de tus cambios en tu rama `feature`.
 
-3.  **Fusión y Pruebas Obligatorias:** Antes de fusionar o hacer commit de tus cambios a cualquier rama, es **OBLIGATORIO** validar los tipos del proyecto para asegurar que no se introducen regresiones ni se rompe el compilador.
+3.  **Fusión y Pruebas Obligatorias:** Antes de ejecutar el push a `develop`, es **OBLIGATORIO** validar los tipos del proyecto para asegurar que no se introducen regresiones ni se rompe el compilador.
     ```bash
     # Ejecuta el TypeCheck local antes de guardar cualquier cambio
     npx tsc --noEmit

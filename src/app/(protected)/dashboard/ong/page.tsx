@@ -3,6 +3,7 @@ import { getAuthenticatedUser, getOngProfile, getEventsByOngId, getOngCommunityM
 import { getAdvertiserCampaigns } from '@/lib/actions/campaign-actions';
 import { OngDashboardTabs } from '@/components/ong/ong-dashboard-tabs';
 import OngAnalyticsView from '@/components/ong/ong-analytics-view';
+import { getPartitionedDashboardData } from '@/lib/data/dashboard-utils';
 
 export default async function OngDashboardPage() {
     const user = await getAuthenticatedUser();
@@ -25,6 +26,9 @@ export default async function OngDashboardPage() {
         redirect('/dashboard/ong/profile'); 
     }
 
+    // Process partitioned data for Serials vs Independent Events
+    const partitionedData = await getPartitionedDashboardData(user.id, events);
+
     // Merge data to satisfy OngUser type expected by the component
     const fullOngProfile = {
         ...ongProfileData,
@@ -37,11 +41,12 @@ export default async function OngDashboardPage() {
         <div className="container max-w-6xl mx-auto py-8 px-4">
             <OngDashboardTabs 
                 ongProfile={fullOngProfile}
-                events={events}
+                events={events} // Keep for backwards compatibility within component internally if needed
                 communityMembers={communityMembers}
                 bikes={bikes}
                 campaigns={campaigns}
                 statsContent={<OngAnalyticsView />}
+                partitionedData={partitionedData}
             />
         </div>
     );

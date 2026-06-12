@@ -293,6 +293,10 @@ export type Serial = {
     coOrganizerEmails?: string[]; // Incremental: emails vinculados
     pointMatrix: PointMatrix[];
     
+    // --- NUEVAS PROPIEDADES AÑADIDAS ---
+    modality?: string; // Modalidad base heredada a los hijos
+    level?: 'Principiante' | 'Intermedio' | 'Avanzado'; // Nivel base heredado a los hijos
+    
     // Cupo Global
     maxParticipantsGlobal?: number; 
 
@@ -780,4 +784,35 @@ export type UserReward = {
         advertiserName: string;
         type: CampaignType; // Track if it was a reward or giveaway
     };
+};export type SerialCompetitor = {
+    id: string; // `${serialId}_${userId}`
+    serialId: string;
+    userId: string;
+    userName: string;
+    userEmail: string;
+    userAvatar?: string;
+    bibNumber: number | null; // Su número de placa permanente del serial
+    categoryId: string; // Categoría del serial en la que compite
+    categoryName: string;
+    affiliationId?: string; // ID de afiliación si lo requiere el serial
+    
+    // Desnormalización de Inscripciones por Etapa
+    stages: {
+        [eventId: string]: {
+            stageOrder: number;
+            eventName: string;
+            isRegistered: boolean;
+            paymentStatus: 'paid' | 'pending' | 'not_applicable' | 'cancelled';
+            waiverSigned: boolean;
+            checkedIn: boolean;
+        }
+    };
+    
+    // Estadísticas e Indicadores Acumulados (Sincronizados del Leaderboard)
+    totalPoints: number;
+    overallPosition: number;
+    stagesCompleted: number;
+    totalChipTimeMs?: number;
+    
+    updatedAt: string;
 };

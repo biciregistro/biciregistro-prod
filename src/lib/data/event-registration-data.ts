@@ -1,9 +1,9 @@
 import 'server-only';
 import { adminDb } from '../firebase/server';
 import { getUser, getEvent, getBike } from './core'; 
-import { EventRegistration, EventAttendee, MarketingConsent, CostTier } from '../types';
-import { Event } from '../types';
+import { EventRegistration, EventAttendee, MarketingConsent, CostTier, Event, SerialCompetitor, User } from '../types';
 import { unstable_noStore as noStore } from 'next/cache';
+import { SerialBibService } from '../actions/serial-bib-service';
 
 export async function getRegistrationById(registrationId: string): Promise<EventRegistration | null> {
     noStore();
@@ -26,10 +26,9 @@ export async function getRegistrationById(registrationId: string): Promise<Event
 
 type RegistrationInput = Omit<EventRegistration, 'id' | 'registrationDate' | 'status'> & {
     marketingConsent?: MarketingConsent | null;
-    customAnswers?: Record<string, string | string[]>; // Added support for custom answers
+    customAnswers?: Record<string, string | string[]>; 
 };
 
-// Return type updated to include registrationId on success
 export async function registerUserToEvent(
     registrationData: RegistrationInput
 ): Promise<{ success: true; registrationId: string; message: string } | { success: false; error: string }> {
@@ -72,7 +71,7 @@ export async function registerUserToEvent(
                 }
             }
 
-            // --- TIER VALIDATION (New Logic) ---
+            // --- TIER VALIDATION ---
             let selectedTier: CostTier | undefined;
             let updatedCostTiers: CostTier[] | undefined;
             
@@ -82,7 +81,6 @@ export async function registerUserToEvent(
                 if (tierIndex !== -1) {
                     selectedTier = eventData.costTiers[tierIndex];
                     
-                    // Check individual tier limit
                     const limit = selectedTier.limit || 0;
                     const sold = selectedTier.soldCount || 0;
                     
@@ -90,7 +88,6 @@ export async function registerUserToEvent(
                         return { success: false, error: `El nivel "${selectedTier.name}" se ha agotado.` };
                     }
 
-                    // Prepare update for soldCount
                     updatedCostTiers = [...eventData.costTiers];
                     updatedCostTiers[tierIndex] = {
                         ...selectedTier,
@@ -98,19 +95,14 @@ export async function registerUserToEvent(
                     };
                 }
             }
-            // -----------------------------------
 
-            let paymentStatus = 'pending';
-            // Determine price and financial snapshot from the event configuration at this moment
+            let paymentStatus: 'pending' | 'paid' | 'not_applicable' | 'cancelled' = 'pending';
             const price = selectedTier?.price ?? 0;
 
             if (eventData.costType === 'Gratuito' || price === 0) {
-                // Si es gratuito o el precio es 0, se marca como pagado o no aplicable
-                // Usamos 'paid' si había un costo pero fue 0 (ej. promo) o 'not_applicable' si el evento es 100% gratuito
                 paymentStatus = eventData.costType === 'Gratuito' ? 'not_applicable' : 'paid';
             }
 
-            // --- FINANCIAL SNAPSHOTTING (MVP Phase 1) ---
             const financialSnapshot = selectedTier ? {
                 amountPaid: selectedTier.price,
                 platformFee: selectedTier.fee || 0,
@@ -120,19 +112,61 @@ export async function registerUserToEvent(
             } : undefined;
 
             let assignedBibNumber = null;
-            if (
+            
+            // --- SERIAL INTEGRATION: BIB NUMBER ASSIGNMENT ---
+            if (eventData.serialId && eventData.isSerialStage) {
+                 // For serials, we always want to reserve or retrieve their permanent bib number
+                 // even if payment is pending, to ensure they keep it across stages.
+                 // We MUST execute this OUTSIDE the main transaction lock or as a separate isolated step
+                 // to avoid complex lock contentions on the counter document.
+                 // We will do a read here, but the actual increment happens inside the SerialBibService.
+                 // Note: Firebase transactions cannot have overlapping writes if called inside another transaction easily,
+                 // but since we only read/write to serial_registrations and serial_bib_counters it's safe if isolated.
+                 
+                 // WARNING: To keep it 100% atomic and safe within THIS transaction without deadlocks,
+                 // we will fetch the User's permanent Bib Number. If it doesn't exist, we will
+                 // leave it as null here, and assign it in a post-process step or let the fallback handle it,
+                 // OR we can manually implement the counter logic inside THIS transaction.
+                 
+                 // Implementing inline atomic counter for Serial to avoid nested transaction issues:
+                 const serialRegRef = db.collection('serial_registrations').doc(`${eventData.serialId}_${userId}`);
+                 const serialCounterRef = db.collection('serial_bib_counters').doc(eventData.serialId);
+                 
+                 const serialRegDoc = await transaction.get(serialRegRef);
+                 if (serialRegDoc.exists && typeof serialRegDoc.data()?.bibNumber === 'number') {
+                     assignedBibNumber = serialRegDoc.data()?.bibNumber;
+                 } else {
+                     const counterDoc = await transaction.get(serialCounterRef);
+                     let nextBib = 1;
+                     if (counterDoc.exists) {
+                         nextBib = (counterDoc.data()?.currentNumber || 0) + 1;
+                         transaction.update(serialCounterRef, { currentNumber: nextBib });
+                     } else {
+                         transaction.set(serialCounterRef, { currentNumber: nextBib });
+                     }
+                     
+                     transaction.set(serialRegRef, {
+                         userId,
+                         serialId: eventData.serialId,
+                         bibNumber: nextBib,
+                         assignedAt: new Date().toISOString()
+                     });
+                     assignedBibNumber = nextBib;
+                 }
+            } else if (
                 (paymentStatus === 'not_applicable' || paymentStatus === 'paid') && 
                 eventData.bibNumberConfig?.enabled && 
                 eventData.bibNumberConfig.mode === 'automatic'
             ) {
+                // Normal Event Bib Assignment
                 assignedBibNumber = eventData.bibNumberConfig.nextNumber || 1;
                 transaction.update(eventRef, { 'bibNumberConfig.nextNumber': assignedBibNumber + 1 });
             }
 
             const registrationPayload = {
                 ...registrationData,
-                price: price, // Re-write with current price from DB config for safety
-                financialSnapshot, // Persist the truth of this transaction
+                price: price, 
+                financialSnapshot,
                 bloodType: registrationData.bloodType || null,
                 insuranceInfo: registrationData.insuranceInfo || null,
                 allergies: registrationData.allergies || null,
@@ -146,7 +180,7 @@ export async function registerUserToEvent(
                 bibNumber: assignedBibNumber,
                 jerseyModel: registrationData.jerseyModel || null,
                 jerseySize: registrationData.jerseySize || null,
-                customAnswers: registrationData.customAnswers || {} // Persist custom answers
+                customAnswers: registrationData.customAnswers || {} 
             };
             
             let registrationId: string;
@@ -158,6 +192,63 @@ export async function registerUserToEvent(
                 transaction.set(newRegRef, registrationPayload);
                 registrationId = newRegRef.id;
             }
+
+            // --- SERIAL INTEGRATION: DENORMALIZATION (syncSerialCompetitor) ---
+            if (eventData.serialId) {
+                const userDoc = await transaction.get(db.collection('users').doc(userId));
+                const userData = userDoc.exists ? userDoc.data() as User : null;
+                
+                const competitorRef = db.collection('serial_competitors').doc(`${eventData.serialId}_${userId}`);
+                const competitorDoc = await transaction.get(competitorRef);
+                
+                // Get Category Name safely
+                let categoryName = 'General';
+                if (registrationData.categoryId && eventData.categories) {
+                    const cat = eventData.categories.find(c => c.id === registrationData.categoryId);
+                    if (cat) categoryName = cat.name;
+                }
+
+                const stageUpdateData = {
+                    stageOrder: eventData.stageOrder || 1,
+                    eventName: eventData.name,
+                    isRegistered: true,
+                    paymentStatus: paymentStatus,
+                    waiverSigned: !!registrationData.waiverSignature,
+                    checkedIn: false
+                };
+
+                if (competitorDoc.exists) {
+                    // Update existing competitor doc using dot notation for the specific stage
+                    // to prevent overwriting other stages
+                    transaction.update(competitorRef, {
+                        [`stages.${eventId}`]: stageUpdateData,
+                        updatedAt: new Date().toISOString()
+                    });
+                } else {
+                    // Initialize new competitor tracking document
+                    const newCompetitorPayload: SerialCompetitor = {
+                        id: `${eventData.serialId}_${userId}`,
+                        serialId: eventData.serialId,
+                        userId: userId,
+                        userName: userData ? `${userData.name} ${userData.lastName || ''}`.trim() : 'Usuario',
+                        userEmail: userData?.email || '',
+                        userAvatar: userData?.avatarUrl || '',
+                        bibNumber: assignedBibNumber,
+                        categoryId: registrationData.categoryId || 'default',
+                        categoryName: categoryName,
+                        affiliationId: registrationData.affiliationId || '',
+                        stages: {
+                            [eventId]: stageUpdateData
+                        },
+                        totalPoints: 0,
+                        overallPosition: 0,
+                        stagesCompleted: 0,
+                        updatedAt: new Date().toISOString()
+                    };
+                    transaction.set(competitorRef, newCompetitorPayload);
+                }
+            }
+            // ------------------------------------------------------------------
 
             // --- UPDATE USER PROFILE WITH EMERGENCY DATA ---
             if (
@@ -183,7 +274,6 @@ export async function registerUserToEvent(
                 currentParticipants: currentParticipants + 1
             };
 
-            // If we modified a tier count, include it in the update
             if (updatedCostTiers) {
                 eventUpdate.costTiers = updatedCostTiers;
             }
@@ -279,9 +369,8 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 insuranceInfo: areEmergencyDetailsHidden ? '***' : (regData.insuranceInfo || null),
                 allergies: areEmergencyDetailsHidden ? '***' : (regData.allergies || null),
                 waiverSigned: !!regData.waiverSignature,
-                customAnswers: regData.customAnswers || {}, // Include custom answers
+                customAnswers: regData.customAnswers || {}, 
                 
-                // --- NEW FIELDS FROM USER PROFILE ---
                 gender: user?.gender || null,
                 birthDate: user?.birthDate || null,
                 country: user?.country || null,

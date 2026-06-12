@@ -1,6 +1,20 @@
 {
   "indexes": [
     {
+      "collectionGroup": "serials",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ongId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "events",
       "queryScope": "COLLECTION",
       "fields": [
@@ -14,6 +28,20 @@
         },
         {
           "fieldPath": "date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "serialId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "stageOrder",
           "order": "ASCENDING"
         }
       ]
