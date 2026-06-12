@@ -132,8 +132,12 @@ export function ExpressRegisterForm() {
         if (result.success) {
             toast({ title: "¡Bicicleta Blindada!", description: "Se ha agregado a tu Garaje Digital.", className: "bg-primary text-primary-foreground" });
             
-            // Redirigir al perfil para completar datos y añadir puntos
-            router.push(`/dashboard/profile?points=${result.pointsAwarded || 50}&action_type=express_register`);
+            // Si el servidor otorgó puntos, mandarlos por URL. Si no (ej. PENDING), no mandar nada.
+            if (result.pointsAwarded && result.pointsAwarded > 0) {
+                router.push(`/dashboard/profile?points=${result.pointsAwarded}&action_type=express_register`);
+            } else {
+                router.push(`/dashboard/profile`);
+            }
         } else {
             toast({ variant: "destructive", title: "Error", description: result.message || "Ocurrió un problema." });
         }

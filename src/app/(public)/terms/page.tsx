@@ -14,7 +14,7 @@ export default function TermsPage() {
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-primary uppercase">
                 TÉRMINOS Y CONDICIONES INTEGRALES DE USO Y CONTRATO DE COMISIÓN MERCANTIL Y PRESTACIÓN DE SERVICIOS DIGITALES – BICIREGISTRO
             </h1>
-            <p className="text-muted-foreground mt-2">Última actualización: 31 de Enero de 2026</p>
+            <p className="text-muted-foreground mt-2">Última actualización: 01 de Junio de 2026</p>
         </CardHeader>
         <CardContent className="space-y-8 p-6 md:p-10 text-justify">
             
@@ -70,6 +70,15 @@ export default function TermsPage() {
                 <div className="space-y-4">
                     <h3 className="font-bold text-lg">6. SISTEMA DE RECOMPENSAS Y CONECTIVIDAD CON STRAVA</h3>
                     <p>LA PLATAFORMA ofrece un sistema opcional de gamificación. Los usuarios pueden elegir vincular su cuenta de Strava para sincronizar su actividad física y obtener beneficios digitales ("Kilómetros"). Esta integración es 100% voluntaria y puede ser revocada en cualquier momento. El uso de estos datos está sujeto estrictamente a nuestro Aviso de Privacidad Integral.</p>
+                    <p className="font-bold text-sm mt-2">6.1. Política de Uso Justo y Prevención de Fraude en la "Economía de Kilómetros"</p>
+                    <p>Las recompensas, puntos, kilómetros o "monedas virtuales" otorgadas a través de LA PLATAFORMA no constituyen dinero de curso legal, no son transferibles por dinero en efectivo y representan únicamente un beneficio promocional sujeto a la disponibilidad y reglas de BICIREGISTRO.</p>
+                    <p>Queda estrictamente prohibido el uso de bots, scripts, granjas de clics, la explotación de vulnerabilidades del sistema (bugs/exploits), o cualquier comportamiento que genere recompensas de manera automatizada, artificial o que vaya en contra de la buena fe y el uso natural de la plataforma.</p>
+                    <p>En caso de detectar que EL USUARIO ha obtenido beneficios mediante cualquiera de las prácticas descritas, BICIREGISTRO se reserva el derecho unilateral, automático e inapelable de:</p>
+                    <ul className="list-disc pl-5">
+                        <li>a) Descontar, revocar, anular o ajustar en cero el saldo virtual de la cuenta.</li>
+                        <li>b) Suspender o cancelar definitivamente la cuenta del infractor.</li>
+                    </ul>
+                    <p>Lo anterior, sin generar ningún tipo de responsabilidad civil, mercantil o administrativa para LA PLATAFORMA, ni derecho a indemnización para EL USUARIO.</p>
                 </div>
             </section>
 

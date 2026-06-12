@@ -291,8 +291,15 @@ export async function createExpressBikeAction(payload: any) {
                 ownedBrands: FieldValue.arrayUnion(payload.brand),
                 ...(payload.type ? { ownedModalities: FieldValue.arrayUnion(payload.type) } : {})
             });
-            const pointsResult = await awardPoints(userId, 'bike_registration', { bikeId: newBikeId, method: 'express' });
-            return { success: true, message: '¡Bicicleta registrada!', pointsAwarded: pointsResult?.points || 0 };
+            
+            // GAMIFICACIÓN DINÁMICA: Solo otorga puntos si el serial es válido (No aplicable a PENDING)
+            let pointsAwarded = 0;
+            if (!temporarySerial.startsWith('PENDING_')) {
+                const pointsResult = await awardPoints(userId, 'bike_registration', { bikeId: newBikeId, method: 'express' });
+                pointsAwarded = pointsResult?.points || 0;
+            }
+            
+            return { success: true, message: '¡Bicicleta registrada!', pointsAwarded };
         }
         return { success: false, message: "Error al registrar." };
 

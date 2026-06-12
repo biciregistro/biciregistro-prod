@@ -256,9 +256,9 @@ export async function registerBike(prevState: any, formData: FormData): Promise<
             });
         }
 
-        // GAMIFICACIÓN DINÁMICA
+        // GAMIFICACIÓN DINÁMICA: Solo paga si el número de serie es válido y no empieza con PENDING
         let pointsAwarded = 0;
-        if (newBikeId) {
+        if (newBikeId && !serialNumber.startsWith('PENDING_')) {
             const pointsResult = await awardPoints(session.uid, 'bike_registration', { bikeId: newBikeId });
             pointsAwarded = pointsResult?.points || 0;
         }
@@ -354,7 +354,7 @@ export async function updateBike(prevState: BikeFormState, formData: FormData): 
             ...(bikeData.modality ? { ownedModalities: FieldValue.arrayUnion(bikeData.modality) } : {})
         });
 
-        // RECOMPENSA EXTRA: Si el usuario está cambiando un PENDING_ a un real, le damos puntos adicionales
+        // RECOMPENSA EXTRA: Si el usuario está cambiando un PENDING_ a un real, le damos los puntos completos
         if (currentBike.serialNumber.startsWith('PENDING_') && !serialNumber.startsWith('PENDING_')) {
             await awardPoints(session.uid, 'bike_registration', { bikeId: id, method: 'express_completion' });
         }
@@ -739,9 +739,9 @@ export async function registerBikeWizardAction(formData: any) {
             });
         }
 
-        // GAMIFICACIÓN DINÁMICA
+        // GAMIFICACIÓN DINÁMICA: Solo paga si el número de serie es válido y no empieza con PENDING
         let pointsAwarded = 0;
-        if (newBikeId) {
+        if (newBikeId && !formData.serialNumber.startsWith('PENDING_')) {
             const pointsResult = await awardPoints(userId, 'bike_registration', { bikeId: newBikeId, method: 'wizard' });
             pointsAwarded = pointsResult?.points || 0;
         }

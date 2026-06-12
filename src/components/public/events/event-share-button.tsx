@@ -98,6 +98,16 @@ export function EventShareButton({ event, organizerName, isLoggedIn }: EventShar
                             description: `Has ganado ${result.points} KM por compartir este evento con la comunidad.`,
                             variant: "default",
                         });
+                    } else if (result && !result.success) {
+                        // AVISO DE QUE YA SE COBRÓ ESTE EVENTO
+                        // Narrowing safely by checking if message exists on the result
+                        const errMessage = 'message' in result ? result.message : "Recuerda que los B-coins por compartir evento solo se otorgan la primera vez.";
+                        
+                        toast({
+                            title: "Gracias por difundir",
+                            description: errMessage,
+                            variant: "default",
+                        });
                     }
                 }, 1500);
             }

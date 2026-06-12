@@ -30,9 +30,20 @@ export async function getActionPoints(actionId: GamificationRuleId): Promise<num
 /**
  * Awards points (KM) to a user for a specific action.
  * Handles tier upgrades automatically.
+ * VULNERABILITY FIX: This should not be called blindly from client interfaces without server-side validation.
  */
 export async function awardPoints(userId: string, actionId: GamificationRuleId, metadata?: any) {
     try {
+        const session = await getDecodedSession();
+        if (!session) throw new Error("Unauthorized");
+        
+        // SECURITY FIX: Prevent IDOR. Unless the user is an admin, they can only award points to themselves.
+        // We bypass this check for referral_signup where the new user awards points to the referrer.
+        if (session.uid !== userId && session.role !== 'admin' && actionId !== 'referral_signup') {
+            console.error(`[SECURITY] IDOR attempt blocked. User ${session.uid} tried to award points to ${userId}`);
+            return { success: false, error: 'Unauthorized action' };
+        }
+
         const pointsToAward = await getActionPoints(actionId);
         const userRef = db.collection('users').doc(userId);
         
@@ -124,6 +135,15 @@ export async function awardPoints(userId: string, actionId: GamificationRuleId, 
  */
 export async function recordUniqueAction(userId: string, actionId: GamificationRuleId, metadata?: any) {
     try {
+        const session = await getDecodedSession();
+        if (!session) throw new Error("Unauthorized");
+
+        // SECURITY FIX: Prevent IDOR
+        if (session.uid !== userId && session.role !== 'admin') {
+            console.error(`[SECURITY] IDOR attempt blocked in recordUniqueAction.`);
+            return { success: false, error: 'Unauthorized action' };
+        }
+
         const historyRef = db.collection('gamification_history')
             .where('userId', '==', userId)
             .where('actionId', '==', actionId)
@@ -153,6 +173,47 @@ export async function recordEventShareAction(eventId: string) {
              return { success: false, error: 'Not authenticated' };
         }
 
+        // 1. BLINDAJE ANTI-BOTS: Verificar que el evento es real
+        // Esto evita que un script envíe IDs inventados al azar para generar puntos de la nada.
+        const eventDoc = await db.collection('events').doc(eventId).get();
+        if (!eventDoc.exists) {
+            console.warn(`[SECURITY] User ${userId} attempted to share a fake event ID: ${eventId}`);
+            return { success: false, error: 'El evento no existe' };
+        }
+
+        // 2. VULNERABILITY FIX: Prevent infinite farming for the same event
+        // We check if the user has already shared THIS specific event
+        const historyRef = db.collection('gamification_history')
+            .where('userId', '==', userId)
+            .where('actionId', '==', 'event_share')
+            .where('metadata.eventId', '==', eventId)
+            .limit(1);
+            
+        const snapshot = await historyRef.get();
+        if (!snapshot.empty) {
+            return { success: false, message: 'Ya has recibido puntos por compartir este evento' };
+        }
+
+        // 3. RATE LIMITING: Límite diario de 10 eventos compartidos pagados.
+        // Esto previene que un bot extraiga los IDs de todos los eventos reales 
+        // y los comparta al mismo tiempo.
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Ajustar a medianoche (inicio del día UTC)
+
+        const todaySharesSnapshot = await db.collection('gamification_history')
+            .where('userId', '==', userId)
+            .where('actionId', '==', 'event_share')
+            .where('createdAt', '>=', today.toISOString())
+            .get();
+
+        if (todaySharesSnapshot.size >= 10) {
+            console.warn(`[RATE LIMIT] User ${userId} reached daily limit for sharing events.`);
+            return { 
+                success: false, 
+                message: 'Has alcanzado el límite diario de recompensas por compartir. ¡Gracias por tu apoyo continuo a la comunidad!' 
+            };
+        }
+
         return await awardPoints(userId, 'event_share', { eventId });
     } catch (error) {
         console.error('Error recording event share:', error);
@@ -166,7 +227,10 @@ export async function recordEventShareAction(eventId: string) {
 export async function updateGamificationRules(rules: Record<string, number>) {
     try {
         const session = await getDecodedSession();
-        // Add admin check here if needed
+        // SECURITY FIX: Enforce admin role
+        if (!session || session.role !== 'admin') {
+            return { success: false, error: 'Unauthorized' };
+        }
         
         await db.collection('gamification_rules').doc('active_rules').set(rules, { merge: true });
         return { success: true };
@@ -219,7 +283,10 @@ export async function getStravaSettings(): Promise<GamificationSettings> {
 export async function updateStravaSettings(settings: GamificationSettings) {
     try {
         const session = await getDecodedSession();
-        // TODO: Validate admin role here
+        // SECURITY FIX: Enforce admin role
+        if (!session || session.role !== 'admin') {
+            return { success: false, error: 'Unauthorized' };
+        }
         
         await db.collection('config').doc('gamification').set(settings, { merge: true });
         return { success: true };
