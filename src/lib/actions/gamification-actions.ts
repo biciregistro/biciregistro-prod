@@ -229,14 +229,12 @@ export async function updateGamificationRules(rules: Record<string, number>) {
         const session = await getDecodedSession();
         
         if (!session || !session.uid) {
-            console.error('[DEBUG-AUTH] updateGamificationRules: Session is null or missing uid in remote environment.');
             return { success: false, error: 'Unauthorized' };
         }
 
         // Estandarización: Validación de rol basada directamente en el documento del usuario (Firestore)
         const userDoc = await db.collection('users').doc(session.uid).get();
         if (userDoc.data()?.role !== 'admin') {
-            console.error(`[DEBUG-AUTH] updateGamificationRules: UID ${session.uid} is not an admin according to Firestore.`);
             return { success: false, error: 'Unauthorized' };
         }
         
@@ -293,14 +291,12 @@ export async function updateStravaSettings(settings: GamificationSettings) {
         const session = await getDecodedSession();
         
         if (!session || !session.uid) {
-            console.error('[DEBUG-AUTH] updateStravaSettings: Session is null or missing uid in remote environment.');
             return { success: false, error: 'Unauthorized' };
         }
 
         // Estandarización: Validación de rol basada directamente en el documento del usuario (Firestore)
         const userDoc = await db.collection('users').doc(session.uid).get();
         if (userDoc.data()?.role !== 'admin') {
-            console.error(`[DEBUG-AUTH] updateStravaSettings: UID ${session.uid} is not an admin according to Firestore.`);
             return { success: false, error: 'Unauthorized' };
         }
         
