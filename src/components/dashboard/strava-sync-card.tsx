@@ -5,11 +5,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getStravaAuthUrl, disconnectStrava, joinStravaWaitlist, checkStravaAvailability } from '@/lib/actions/strava-actions';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, CheckCircle2, Link2Off, AlertCircle, Clock, MoreVertical, ExternalLink, HelpCircle, PartyPopper, Ticket } from 'lucide-react';
+import { RefreshCw, CheckCircle2, Link2Off, AlertCircle, Clock, MoreVertical, ExternalLink, HelpCircle, PartyPopper, Ticket, ShieldAlert } from 'lucide-react';
 import { StravaConnectionData } from '@/lib/gamification/gamification-types';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import confetti from 'canvas-confetti';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,7 +33,7 @@ import {
 interface StravaSyncCardProps {
     onDisconnect?: () => void;
     stravaData?: StravaConnectionData;
-    onSync?: () => Promise<{ success: boolean; message: string; kmsAdded?: number }>;
+    onSync?: () => Promise<{ success: boolean; message: string; kmsAdded?: number; pointsAdded?: number; hasFilteredActivities?: boolean }>;
 }
 
 export function StravaSyncCard(props: StravaSyncCardProps) {
@@ -134,14 +135,28 @@ export function StravaSyncCard(props: StravaSyncCardProps) {
             const result = await onSync();
             if (result.success) {
                 toast({
-                    title: "¡Sincronización Exitosa!",
+                    title: result.hasFilteredActivities ? "Sincronización Parcial" : "¡Sincronización Exitosa!",
                     description: result.message,
+                    variant: result.hasFilteredActivities ? "default" : "default",
+                    // Custom action icon for friction diplomatic feedback
+                    action: result.hasFilteredActivities ? <ShieldAlert className="w-5 h-5 text-amber-500 opacity-80" /> : undefined
                 });
+                
+                // Solo disparamos confeti si hubo puntos reales ganados
+                if (result.pointsAdded && result.pointsAdded > 0) {
+                    confetti({
+                        particleCount: 100,
+                        spread: 70,
+                        origin: { y: 0.6 },
+                        colors: ["#FC4C02", "#10B981", "#FBBF24"]
+                    });
+                }
             } else {
                 toast({
                     title: "Aviso",
                     description: result.message,
-                    variant: "default"
+                    // Si el rechazo fue por actividades fraudulentas filtradas, mostramos UI sutil
+                    variant: result.message.includes("motorizado") ? "default" : "default" 
                 });
             }
         } catch (error) {

@@ -39,8 +39,9 @@ interface StravaActivity {
     type: string;
     sport_type: string;
     start_date: string;
-    average_speed: number;
-    max_speed: number;
+    average_speed: number; // en metros por segundo
+    max_speed: number; // en metros por segundo
+    flagged: boolean; // Indica si Strava marcó la actividad por reglas de comunidad/algoritmo
     gear_id?: string;
     map?: {
         summary_polyline?: string;
@@ -275,40 +276,73 @@ export async function syncStravaActivities() {
             return { success: false, message: "Tu cuenta ya está al día. No encontramos rodadas nuevas." };
         }
 
-        // 4. Filtrar y Calcular Distancia Válida + Idempotencia
+        // 4. Filtrar y Calcular Distancia Válida (Anti-Fraude Vehicular) + Idempotencia
         let newValidMeters = 0;
         const currentModalities = userData?.stravaTopModalities || [];
         const newModalitiesSet = new Set<string>(currentModalities);
         const processedIdsSet = new Set<string>(stravaData.processedActivityIds || []);
-        let hasNewActivities = false;
+        let hasNewValidActivities = false;
+        let hasFilteredActivities = false;
+
+        // Umbrales Anti-Fraude (Telemetría Strava está en m/s)
+        const MAX_AVERAGE_SPEED_MS = 12.5; // ~45 km/h (Mundo real: Peloton profesional promedia 40-42km/h)
+        const MAX_PEAK_SPEED_MS = 25.0; // ~90 km/h (Mundo real: Bajadas extremadamente raras o descensos pros)
 
         for (const activity of activities) {
             const actIdStr = activity.id.toString();
             
-            // Evitar procesamiento doble (Idempotencia)
+            // Evitar procesamiento doble (Idempotencia general)
             if (processedIdsSet.has(actIdStr)) {
                 continue;
             }
 
-            // Evaluamos si el tipo de actividad es permitido según la configuración del admin
             const actType = activity.sport_type || activity.type;
+            
+            // A. Evaluación de Tipo de Deporte
             if (settings.stravaAllowedActivityTypes.includes(actType)) {
+                // Siempre marcamos el ID como procesado para no volver a evaluarlo nunca, sea fraude o no.
+                processedIdsSet.add(actIdStr);
+                
+                // B. Evaluación de Defensa en Profundidad Anti-Fraude (Strava Flag + Coche/Moto local)
+                const isFraudulent = 
+                    (activity.flagged === true) || // Detección algorítmica/reporte interno oficial de Strava
+                    (activity.average_speed && activity.average_speed > MAX_AVERAGE_SPEED_MS) ||
+                    (activity.max_speed && activity.max_speed > MAX_PEAK_SPEED_MS);
+
+                if (isFraudulent) {
+                    hasFilteredActivities = true;
+                    // Se omite silenciosamente del conteo de "newValidMeters"
+                    continue; 
+                }
+
+                // C. Actividad Válida
                 newValidMeters += activity.distance;
                 newModalitiesSet.add(actType);
-                processedIdsSet.add(actIdStr);
-                hasNewActivities = true;
+                hasNewValidActivities = true;
                 
                 // NOTA COMPLIANCE 2026: Aquí YA NO se guarda la data rica en strava_activities.
                 // Se desecha inmediatamente la polyline y métricas tras sumar la distancia.
             }
         }
 
-        if (!hasNewActivities) {
-            await userRef.update({ 'gamification.strava.lastSyncDate': currentSyncDateStr });
-            return { success: false, message: "Las rodadas encontradas ya habían sido procesadas o no son en bicicleta." };
+        // Si procesamos IDs pero ninguno fue válido (todos autos u otro deporte)
+        if (!hasNewValidActivities) {
+            // Guardamos los IDs evaluados de todas formas para no volver a iterarlos en el futuro
+            const processedIdsArray = Array.from(processedIdsSet).slice(-200);
+            await userRef.update({ 
+                'gamification.strava.lastSyncDate': currentSyncDateStr,
+                'gamification.strava.processedActivityIds': processedIdsArray
+            });
+            
+            const noValidMsg = hasFilteredActivities 
+                ? "Las rodadas detectadas tienen métricas de vehículo motorizado o fueron bloqueadas por Strava, por lo que fueron excluidas. No se sumaron B-coins."
+                : "Las rodadas encontradas ya habían sido procesadas o no son en bicicleta.";
+                
+            return { success: false, message: noValidMsg };
         }
 
         const newKm = newValidMeters / 1000;
+        let finalPointsEarned = 0;
 
         // 5. Aplicar reglas de Gamificación y Actualizar Balance (Transacción Segura)
         await adminDb.runTransaction(async (transaction) => {
@@ -327,7 +361,7 @@ export async function syncStravaActivities() {
                 kmapplied = settings.stravaMaxDailyKmLimit;
             }
 
-            const pointsEarned = Math.floor(kmapplied * settings.stravaConversionRate);
+            finalPointsEarned = Math.floor(kmapplied * settings.stravaConversionRate);
             
             let newBadges = [...currentBadges];
             if (!currentBadges.some((b: any) => b.id === 'first_ride_synced')) {
@@ -335,13 +369,12 @@ export async function syncStravaActivities() {
             }
 
             // Mantener array de procesados a un tamaño razonable para no superar límites de Firestore (1MB por doc)
-            // Guardamos solo los últimos 200 IDs (suficiente para un after=lastSyncDate)
             const processedIdsArray = Array.from(processedIdsSet).slice(-200);
 
             transaction.update(userRef, {
                 // Nested updates
-                'gamification.pointsBalance': currentBalance + pointsEarned,
-                'gamification.lifetimePoints': currentLifetime + pointsEarned,
+                'gamification.pointsBalance': currentBalance + finalPointsEarned,
+                'gamification.lifetimePoints': currentLifetime + finalPointsEarned,
                 'gamification.badges': newBadges,
                 'gamification.strava.lastSyncDate': currentSyncDateStr,
                 'gamification.strava.totalKmSynced': totalKmSynced + newKm,
@@ -356,13 +389,24 @@ export async function syncStravaActivities() {
             });
         });
 
-        // 6. Mensaje de Respuesta Enmarcado Positivamente (UX)
-        let message = `¡Sincronización exitosa! Sumaste ${newKm.toFixed(1)} KM a tu wallet.`;
+        // 6. Mensaje de Respuesta Enmarcado Positivamente y Diplomático (UX)
+        let message = `¡Sincronización exitosa! Sumaste ${finalPointsEarned} B-coins a tu wallet.`;
+        
         if (settings.stravaMaxDailyKmLimit > 0 && newKm > settings.stravaMaxDailyKmLimit) {
-            message = `¡Rendimiento brutal! Sumaste el tope de juego limpio diario (${settings.stravaMaxDailyKmLimit} KM). ¡Guarda piernas para mañana!`;
+            message = `¡Rendimiento brutal! Sumaste el tope de juego limpio diario (${finalPointsEarned} B-coins). ¡Guarda piernas para mañana!`;
+        }
+        
+        if (hasFilteredActivities) {
+            message += ` (Nota: Algunos trayectos fueron omitidos automáticamente por exceder límites físicos o ser marcados por Strava).`;
         }
 
-        return { success: true, message, kmsAdded: newKm };
+        return { 
+            success: true, 
+            message, 
+            kmsAdded: newKm, 
+            pointsAdded: finalPointsEarned,
+            hasFilteredActivities 
+        };
 
     } catch (error) {
         console.error("Error en syncStravaActivities:", error);

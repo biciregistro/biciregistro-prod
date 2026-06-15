@@ -227,8 +227,13 @@ export async function recordEventShareAction(eventId: string) {
 export async function updateGamificationRules(rules: Record<string, number>) {
     try {
         const session = await getDecodedSession();
-        // SECURITY FIX: Enforce admin role
-        if (!session || session.role !== 'admin') {
+        if (!session || !session.uid) {
+            return { success: false, error: 'Unauthorized' };
+        }
+
+        // SECURITY FIX: Fallback a Firestore verification
+        const userDoc = await db.collection('users').doc(session.uid).get();
+        if (userDoc.data()?.role !== 'admin') {
             return { success: false, error: 'Unauthorized' };
         }
         
@@ -283,8 +288,13 @@ export async function getStravaSettings(): Promise<GamificationSettings> {
 export async function updateStravaSettings(settings: GamificationSettings) {
     try {
         const session = await getDecodedSession();
-        // SECURITY FIX: Enforce admin role
-        if (!session || session.role !== 'admin') {
+        if (!session || !session.uid) {
+            return { success: false, error: 'Unauthorized' };
+        }
+
+        // SECURITY FIX: Fallback a Firestore verification
+        const userDoc = await db.collection('users').doc(session.uid).get();
+        if (userDoc.data()?.role !== 'admin') {
             return { success: false, error: 'Unauthorized' };
         }
         
