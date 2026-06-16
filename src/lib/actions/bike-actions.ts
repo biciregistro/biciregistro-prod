@@ -21,6 +21,7 @@ import { sendTheftAlert } from '@/lib/notifications/service';
 import { FieldValue } from 'firebase-admin/firestore';
 import { headers } from 'next/headers';
 import { awardPoints } from './gamification-actions';
+import { validateInvoiceWithAIAction } from './ai-actions';
 
 // --- Schemas y Helpers ---
 
@@ -179,6 +180,7 @@ export async function registerBike(prevState: any, formData: FormData): Promise<
         };
     }
 
+    // MODIFICADO: Ignoramos ownershipProofUrl que pueda venir vacio del form
     const { photoUrl, serialNumberPhotoUrl, additionalPhoto1Url, additionalPhoto2Url, ownershipProofUrl, serialNumber, ...bikeData } = validatedFields.data;
     
     const ip = await getClientIp();
@@ -230,7 +232,7 @@ export async function registerBike(prevState: any, formData: FormData): Promise<
             ...bikeData,
             userId: session.uid,
             serialNumber,
-            ownershipProof: ownershipProofUrl || '',
+            ownershipProof: '', // Forzamos vacio al crear desde el form base
             registrationIp: ip,
             photos: [
                 photoUrl,
@@ -296,6 +298,7 @@ export async function updateBike(prevState: BikeFormState, formData: FormData): 
         };
     }
 
+    // MODIFICADO: Ignoramos ownershipProofUrl que viene del form para no sobreescribir la BD con "" o valores no validados por IA
     const { id, photoUrl, serialNumberPhotoUrl, additionalPhoto1Url, additionalPhoto2Url, ownershipProofUrl, serialNumber, ...bikeData } = validatedFields.data;
     if (!id) {
         return { success: false, message: "Error: No se encontró el ID de la bicicleta para actualizar." };
@@ -338,7 +341,6 @@ export async function updateBike(prevState: BikeFormState, formData: FormData): 
         await updateBikeData(id, {
             ...bikeData,
             serialNumber,
-            ownershipProof: ownershipProofUrl || '',
             photos: [
                 photoUrl,
                 serialNumberPhotoUrl,
@@ -481,9 +483,19 @@ export async function markBikeAsSharedAction(bikeId: string) {
 export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
     const session = await getDecodedSession();
     if (!session?.uid) {
-        throw new Error("User not authenticated.");
+        return { success: false, error: "Usuario no autenticado." };
     }
     try {
+        const bike = await getBike(session.uid, bikeId);
+        if (!bike) {
+            return { success: false, error: "Bicicleta no encontrada." };
+        }
+
+        const validationResult = await validateInvoiceWithAIAction(proofUrl, bike);
+        if (!validationResult.success) {
+            return { success: false, error: validationResult.error };
+        }
+
         await updateBikeData(bikeId, {
             ownershipProof: proofUrl,
         });
@@ -495,7 +507,7 @@ export async function updateOwnershipProof(bikeId: string, proofUrl: string) {
         return { success: true, pointsAwarded: pointsResult?.points || 0 };
     } catch (error) {
         console.error("Failed to update ownership proof:", error);
-        throw new Error("Could not update ownership proof.");
+        return { success: false, error: "No se pudo actualizar la prueba de propiedad." };
     }
 }
 

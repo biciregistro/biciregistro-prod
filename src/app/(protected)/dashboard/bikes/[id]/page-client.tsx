@@ -13,7 +13,7 @@ import { TransferOwnershipForm } from '@/components/bike-components/transfer-own
 import { cn } from '@/lib/utils';
 import type { Bike, User, BikeStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Pencil, FileDown, Loader2, MessageCircle, ShoppingCart, Zap, AlertCircle, ShieldAlert, Book, AlertTriangle, ShieldCheck, Lock, Settings2, Target } from 'lucide-react';
+import { ArrowLeft, Pencil, FileDown, Loader2, MessageCircle, ShoppingCart, Zap, AlertCircle, ShieldAlert, Book, AlertTriangle, ShieldCheck, Lock, Settings2, Target, RefreshCw } from 'lucide-react';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { updateOwnershipProof } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -169,6 +169,7 @@ function OwnershipProofSection({ bike }: { bike: Bike }) {
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
     const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
+    const [isReplacing, setIsReplacing] = useState(false);
     const { showRewardToast } = useGamificationToast();
     const router = useRouter();
 
@@ -195,12 +196,19 @@ function OwnershipProofSection({ bike }: { bike: Bike }) {
                             description: "El documento de propiedad se ha cargado y guardado.",
                         });
                     }
+                    setIsReplacing(false);
                     router.refresh();
+                } else {
+                    toast({
+                        title: "Documento Rechazado",
+                        description: result.error || "El documento no cumple con los requisitos para ser válido.",
+                        variant: "destructive",
+                    });
                 }
             } catch (error) {
                 toast({
                     title: "Error",
-                    description: "No se pudo guardar el documento. Por favor, inténtalo de nuevo.",
+                    description: "No se pudo procesar el documento. Por favor, inténtalo de nuevo.",
                     variant: "destructive",
                 });
             }
@@ -214,24 +222,42 @@ function OwnershipProofSection({ bike }: { bike: Bike }) {
                 <CardDescription>Respalda legalmente la propiedad de tu unidad. Este documento es privado.</CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
-                {bike.ownershipProof ? (
+                {bike.ownershipProof && !isReplacing ? (
                     <div className="flex flex-col gap-3">
-                         <Badge variant="outline" className="w-fit bg-green-50 text-green-700 border-green-200 gap-1.5 py-1 px-3">
-                            <ShieldCheck className="w-4 h-4" /> Documento Cargado
-                        </Badge>
+                         <div className="flex items-center justify-between">
+                            <Badge variant="outline" className="w-fit bg-green-50 text-green-700 border-green-200 gap-1.5 py-1 px-3">
+                                <ShieldCheck className="w-4 h-4" /> Documento Cargado
+                            </Badge>
+                         </div>
                         <Button asChild variant="secondary" className="w-full justify-center font-bold">
                             <a href={bike.ownershipProof} target="_blank" rel="noopener noreferrer">
                                 <FileDown className="mr-2 h-4 w-4" />
                                 Ver Documento Actual
                             </a>
                         </Button>
+                        <div className="mt-2 text-center">
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => setIsReplacing(true)}
+                                className="text-xs text-muted-foreground hover:text-primary gap-1"
+                            >
+                                <RefreshCw className="w-3 h-3" /> ¿Subiste el archivo incorrecto? Actualizar
+                            </Button>
+                        </div>
                     </div>
                 ) : (
-                    <div className="text-center">
+                    <div className="text-center space-y-4">
+                        {bike.ownershipProof && isReplacing && (
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-sm font-medium text-amber-600">Reemplazando documento</span>
+                                <Button variant="ghost" size="sm" onClick={() => setIsReplacing(false)} className="h-6 text-xs">Cancelar</Button>
+                            </div>
+                        )}
                         {isPending ? (
-                             <Button disabled className="w-full">
+                             <Button disabled className="w-full bg-blue-600 text-white hover:bg-blue-700">
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Guardando...
+                                Sprock está analizando tu documento...
                             </Button>
                         ) : (
                              <ImageUpload 

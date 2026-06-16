@@ -450,10 +450,10 @@ export function BikeRegistrationForm({ userId, bike, onSuccess }: { userId: stri
                             </div>
                         </div>
                         
-                        <div className="space-y-2 pt-4">
+                        {/* <div className="space-y-2 pt-4">
                             <Label>Prueba de Propiedad</Label>
                             <ImageUpload onUploadSuccess={setOwnershipProofUrl} storagePath={`ownership-proofs/${userId}`} disabled={!authUser} />
-                        </div>
+                        </div> */}
                         <input type="hidden" name="photoUrl" value={photoUrl} />
                         <input type="hidden" name="serialNumberPhotoUrl" value={serialNumberPhotoUrl} />
                         <input type="hidden" name="additionalPhoto1Url" value={additionalPhoto1Url} />
