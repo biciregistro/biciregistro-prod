@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useState, useCallback } from 'react';
+import { useActionState, useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useFormStatus } from 'react-dom';
@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, ArrowLeft, ShieldAlert, Zap, Box } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ShieldAlert, Zap, Box, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { ImageUpload } from '@/components/shared/image-upload';
@@ -41,6 +41,11 @@ import { modalityOptions } from '@/lib/bike-types';
 import { RecoverBikeButton } from '@/components/bike-components/recover-bike-button';
 import { TheftReportForm } from '@/components/bike-components/theft-report-form';
 import { BikeTheftShareMenu } from '@/components/dashboard/bike-theft-share-menu';
+import { CompletenessTracker, getBikeCompleteness } from '@/components/bike-components/completeness-tracker';
+
+// Exportado por compatibilidad temporal si otros archivos lo usaban, 
+// aunque la fuente real de verdad ahora es CompletenessTracker.
+export { getBikeCompleteness };
 
 // AÑADIDO: 'inventory' type safely ignoring strict BikeStatus if it's not defined there yet
 const bikeStatusStyles: Record<string, string> = {
@@ -77,6 +82,7 @@ function BikeDetailItem({ label, value }: { label: string; value: string | undef
     );
 }
 
+
 export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const bikeImage = bike.photos[0] || PlaceHolderImages.find(p => p.id === 'bike-1')?.imageUrl || '';
@@ -92,14 +98,18 @@ export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
     }, [bike.status]);
 
     const isPendingSerial = bike.serialNumber.startsWith('PENDING_');
+    const metrics = useMemo(() => getBikeCompleteness(bike), [bike]);
 
     return (
         <Card className={cn(
-            "overflow-hidden transition-all hover:shadow-lg w-full", 
+            "overflow-hidden transition-all w-full flex flex-col", 
+            !metrics.isVerified && "hover:shadow-lg bg-card border-border",
             bike.status === 'stolen' && "border-destructive/50 shadow-md shadow-destructive/10",
-            isPendingSerial && "border-amber-300/50"
+            isPendingSerial && "border-amber-300/50",
+            // HU 3: Estilos sutiles metalizados si está verificada
+            metrics.isVerified && bike.status !== 'stolen' && "bg-gradient-to-br from-emerald-50 via-white to-teal-50 border-emerald-200 shadow-emerald-900/5 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/20 dark:border-emerald-800/50"
         )}>
-            <div className="flex flex-col md:flex-row">
+            <div className="flex flex-col md:flex-row flex-1">
                 {/* Image Section */}
                 <div className="md:w-1/3 relative aspect-video md:aspect-square">
                     <Image
@@ -113,6 +123,11 @@ export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
                             <Zap className="w-3 h-3 fill-current" /> Express
                         </div>
                     )}
+                    {metrics.isVerified && bike.status !== 'stolen' && (
+                        <div className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-md flex items-center gap-1 backdrop-blur-sm">
+                            <ShieldCheck className="w-3 h-3 fill-current" /> Verificada
+                        </div>
+                    )}
                 </div>
 
                 {/* Content and Actions Section */}
@@ -120,8 +135,9 @@ export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
                     {/* Header */}
                     <div className="flex justify-between items-start mb-2">
                         <div>
-                            <CardTitle className="text-2xl text-ellipsis overflow-hidden whitespace-nowrap max-w-[200px] md:max-w-none">{bike.make} {bike.model}</CardTitle>
-                            
+                            <div className="flex items-center gap-2">
+                                <CardTitle className="text-2xl text-ellipsis overflow-hidden whitespace-nowrap max-w-[200px] md:max-w-none">{bike.make} {bike.model}</CardTitle>
+                            </div>
                             {isPendingSerial ? (
                                 <CardDescription className="font-medium text-amber-600 flex items-center gap-1.5 mt-1">
                                     <AlertCircle className="w-4 h-4" /> Pendiente de registrar serie
@@ -130,10 +146,12 @@ export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
                                 <CardDescription className="font-mono mt-1">{bike.serialNumber}</CardDescription>
                             )}
                         </div>
-                        <Badge className={cn("text-base whitespace-nowrap", bikeStatusStyles[bike.status as string] || bikeStatusStyles.safe)}>
-                            {bike.status === 'inventory' && <Box className="w-4 h-4 mr-1.5" />}
-                            {bikeStatusTexts[bike.status as string] || 'En Regla'}
-                        </Badge>
+                        <div className="flex flex-col gap-1 items-end">
+                            <Badge className={cn("text-base whitespace-nowrap", bikeStatusStyles[bike.status as string] || bikeStatusStyles.safe)}>
+                                {bike.status === 'inventory' && <Box className="w-4 h-4 mr-1.5" />}
+                                {bikeStatusTexts[bike.status as string] || 'En Regla'}
+                            </Badge>
+                        </div>
                     </div>
 
                     {/* Details */}
@@ -142,6 +160,11 @@ export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
                         <BikeDetailItem label="Modalidad" value={bike.modality} />
                         <BikeDetailItem label="Año Modelo" value={bike.modelYear} />
                     </div>
+
+                    {/* Zeigarnik Effect: Completeness Tracker inside Card (HU 2) */}
+                    {!isPendingSerial && (
+                        <CompletenessTracker metrics={metrics} className="mb-4" />
+                    )}
 
                     {/* Pending Serial Call to Action */}
                     {isPendingSerial && bike.status !== 'inventory' && (
@@ -158,9 +181,10 @@ export function BikeCard({ bike, user }: { bike: Bike, user?: User }) {
                     )}
 
                     {/* Footer with Actions */}
-                    <div className="flex flex-col sm:flex-row gap-2 mt-auto pt-4 border-t">
+                    <div className="flex flex-col sm:flex-row gap-2 mt-auto pt-4 border-t border-border/50">
                         <Button asChild variant="outline" className="flex-1">
-                            <Link href={`/dashboard/bikes/${bike.id}`}>Detalles</Link>
+                            {/* BUG FIX: Only direct to components tab if components are actually incomplete */}
+                            <Link href={`/dashboard/bikes/${bike.id}${!metrics.milestones.components && !isPendingSerial ? '?tab=components' : ''}`}>Detalles</Link>
                         </Button>
                         
                         {bike.status === 'stolen' && user && (

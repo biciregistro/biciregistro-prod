@@ -1,4 +1,4 @@
-import { Bike, UserCheck, FileCheck, Share2, MapPin, Award, Smartphone, ShieldCheck, Download, Users, FileText } from 'lucide-react';
+import { Bike, UserCheck, FileCheck, Share2, MapPin, Award, Smartphone, ShieldCheck, Download, Users, FileText, Settings2, Target } from 'lucide-react';
 import { GamificationRuleId } from './constants';
 
 export const RULE_ICONS: Record<GamificationRuleId, any> = {
@@ -16,5 +16,7 @@ export const RULE_ICONS: Record<GamificationRuleId, any> = {
     download_emergency_qr: Download,
     profile_completion: FileText,
     campaign_participation: Award,
-    event_share: Share2
+    event_share: Share2,
+    action_component_completion: Settings2, // Icono representativo para componentes
+    action_full_profile_100: Target // Icono representativo para alcanzar el 100%
 };

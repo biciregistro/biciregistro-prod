@@ -47,6 +47,28 @@ export type CustodyEvent = {
 
 export type Modality = string;
 
+// --- TIPOS NUEVOS PARA COMPONENTES (B2B) ---
+export interface ComponentDetail {
+  brand?: string;
+  model?: string;
+  isNotApplicable?: boolean; // Flag true para Fixies, Rígidas (Backend B2B descarta este nodo)
+  isGeneric?: boolean;       // Flag true para marcas desconocidas/genéricas
+  updatedAt?: string;        // Fecha ISO de la última actualización de esta pieza
+}
+
+export interface BikeComponents {
+  brakes?: ComponentDetail;
+  fork?: ComponentDetail;
+  shock?: ComponentDetail;
+  drivetrain?: ComponentDetail;
+  tires?: ComponentDetail;
+  motor?: ComponentDetail;
+  saddle?: ComponentDetail;
+  grips?: ComponentDetail;
+  pedals?: ComponentDetail;
+}
+// -------------------------------------------
+
 export type Bike = {
   id: string;
   userId: string;
@@ -66,6 +88,11 @@ export type Bike = {
   adminSharedAt?: string; // ISO string de cuándo el admin compartió el robo
   bikonId?: string | null; // ID of the linked Bikon device
   
+  // --- NUEVOS CAMPOS (B2B) ---
+  frameMaterial?: 'Aluminio' | 'Carbono' | 'Acero' | 'Titanio' | 'Bambú' | 'Otro';
+  components?: BikeComponents;
+  // ---------------------------
+
   // --- CAMPOS DESNORMALIZADOS PROPIOS DE LA BICI ---
   priceRange?: string; // ID de la gama de precio (ej. 'entry', 'mid')
   modelYearBucket?: string; // Cubo de antigüedad (ej. '2016 - 2020')

@@ -16,7 +16,9 @@ export type GamificationRuleId =
     | 'download_emergency_qr'
     | 'profile_completion'
     | 'campaign_participation'
-    | 'event_share';
+    | 'event_share'
+    | 'action_component_completion'
+    | 'action_full_profile_100';
 
 export type GamificationRule = {
     id: GamificationRuleId;
@@ -116,6 +118,18 @@ export const GAMIFICATION_RULES: Record<GamificationRuleId, GamificationRule> = 
         label: 'Compartir eventos',
         description: 'Gana Km cada vez que compartas eventos con tus amigos',
         defaultPoints: 10
+    },
+    action_component_completion: {
+        id: 'action_component_completion',
+        label: 'Completar Componentes (ADN)',
+        description: 'Puntos por registrar por primera vez los componentes B2B de una bicicleta',
+        defaultPoints: 30
+    },
+    action_full_profile_100: {
+        id: 'action_full_profile_100',
+        label: 'Bicicleta al 100%',
+        description: 'Puntos otorgados al alcanzar el 100% matemático en el registro de una bicicleta',
+        defaultPoints: 50
     }
 };
 

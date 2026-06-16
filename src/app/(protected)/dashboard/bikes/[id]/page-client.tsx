@@ -13,7 +13,7 @@ import { TransferOwnershipForm } from '@/components/bike-components/transfer-own
 import { cn } from '@/lib/utils';
 import type { Bike, User, BikeStatus } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Pencil, FileDown, Loader2, MessageCircle, ShoppingCart, Zap, AlertCircle, ShieldAlert, Book, AlertTriangle, ShieldCheck, Lock } from 'lucide-react';
+import { ArrowLeft, Pencil, FileDown, Loader2, MessageCircle, ShoppingCart, Zap, AlertCircle, ShieldAlert, Book, AlertTriangle, ShieldCheck, Lock, Settings2, Target } from 'lucide-react';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { updateOwnershipProof } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +28,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useGamificationToast } from '@/hooks/use-gamification-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PromotionalBanner } from '@/components/dashboard/promotional-banner';
+
+// NUEVO: Importación del Wizard de Componentes y Completeness Tracker
+import { BikeComponentsWizard } from '@/components/bike-components/bike-components-wizard';
+import { CompletenessTracker, getBikeCompleteness } from '@/components/bike-components/completeness-tracker';
+import { COMPONENT_CATALOG, ComponentCategoryKey } from '@/lib/constants/bike-components';
 
 // Dynamic import for PDF downloaders
 const BikePDFDownloader = dynamic(
@@ -70,6 +75,68 @@ function DetailItem({ label, value }: { label: string; value: React.ReactNode })
         <div>
             <p className="text-sm font-medium text-muted-foreground">{label}</p>
             <p className="text-base font-semibold">{value}</p>
+        </div>
+    );
+}
+
+/**
+ * Renderiza la Cuadrícula de Componentes en la Ficha Técnica (Pasaporte)
+ */
+function BikeTechSpecs({ bike, onUpdateClick }: { bike: Bike, onUpdateClick: () => void }) {
+    const hasComponents = bike.frameMaterial || (bike.components && Object.keys(bike.components).length > 0);
+    
+    if (!hasComponents) {
+        return (
+            <div className="bg-muted/30 border border-dashed border-border p-6 rounded-xl text-center space-y-3 mt-6">
+                <Settings2 className="w-8 h-8 text-muted-foreground mx-auto opacity-50" />
+                <div className="space-y-1">
+                    <p className="font-bold text-foreground">Añade los Componentes</p>
+                    <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                        Registra la transmisión, suspensión y más detalles para completar el ADN de tu máquina.
+                    </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={onUpdateClick} className="mt-2 text-xs">
+                    Completar ADN Ahora
+                </Button>
+            </div>
+        );
+    }
+
+    const renderSpec = (label: string, category: ComponentCategoryKey) => {
+        const comp = bike.components?.[category];
+        if (!comp) return null;
+        let displayValue = '';
+        if (comp.isNotApplicable) displayValue = 'No Aplica';
+        else if (comp.isGeneric) displayValue = 'Genérico';
+        else if (comp.brand) displayValue = `${comp.brand} ${comp.model && comp.model !== 'Standard' ? comp.model : ''}`.trim();
+        
+        if (!displayValue) return null;
+        return <DetailItem label={label} value={displayValue} />;
+    };
+
+    return (
+        <div className="mt-6 pt-6 border-t border-border/50">
+            <div className="flex justify-between items-center mb-4">
+                <h4 className="text-sm font-black uppercase tracking-tight text-foreground/80 flex items-center gap-2">
+                    <Settings2 className="w-4 h-4" /> Ficha Técnica
+                </h4>
+                <Button variant="ghost" size="sm" onClick={onUpdateClick} className="text-xs h-7 text-muted-foreground hover:text-primary">
+                    <Pencil className="w-3 h-3 mr-1" /> Editar
+                </Button>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-x-4 gap-y-5">
+                {bike.frameMaterial && <DetailItem label="Cuadro" value={bike.frameMaterial} />}
+                {renderSpec('Transmisión', 'drivetrain')}
+                {renderSpec('Suspensión Del.', 'fork')}
+                {renderSpec('Suspensión Tras.', 'shock')}
+                {renderSpec('Frenos', 'brakes')}
+                {renderSpec('Llantas', 'tires')}
+                {renderSpec('Motor E-Bike', 'motor')}
+                {renderSpec('Sillín (Asiento)', 'saddle')}
+                {renderSpec('Puños (Grips)', 'grips')}
+                {renderSpec('Pedales', 'pedals')}
+            </div>
         </div>
     );
 }
@@ -184,7 +251,18 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
   const [bike, setBike] = useState<Bike>(initialBike);
   const searchParams = useSearchParams();
   const editParam = searchParams.get('edit');
+  const tabParam = searchParams.get('tab');
+  
   const [isEditing, setIsEditing] = useState(editParam === 'true');
+  const [activeTab, setActiveTab] = useState<string>(tabParam || 'passport');
+
+  // Hidratar estado reactivo cuando cambian las props del servidor (Evita pérdida de estado) - HU DEBUGIN
+  useEffect(() => {
+    setBike(initialBike);
+  }, [initialBike]);
+
+  // Evalua la completitud de forma reactiva (HU Algoritmo 100%)
+  const metrics = getBikeCompleteness(bike);
 
   const handleUpdateSuccess = async () => {
     setIsEditing(false);
@@ -258,19 +336,26 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                 </div>
             )}
 
-            <Tabs defaultValue="passport" className="w-full">
-                <div className="mb-6">
-                    {/* TabsList style matching Profile */}
-                    <TabsList className="grid grid-cols-3 h-14 bg-muted/30 p-1 mb-8 rounded-xl border border-border/50">
-                        <TabsTrigger value="passport" className="flex flex-col gap-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md rounded-lg py-2 transition-all">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <div className="mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+                    {/* TabsList ampliado a 4 columnas con scroll en móvil */}
+                    <TabsList className="flex w-max min-w-full sm:grid sm:grid-cols-4 h-14 bg-muted/30 p-1 rounded-xl border border-border/50">
+                        <TabsTrigger value="passport" className="flex-1 flex-col gap-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md rounded-lg py-2 transition-all min-w-[90px]">
                             <Book className="w-4 h-4" /> 
                             <span className="text-[10px] sm:text-xs font-bold">Pasaporte</span>
                         </TabsTrigger>
-                        <TabsTrigger value="emergency" className="flex flex-col gap-1 data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg py-2 transition-all">
+                        <TabsTrigger value="components" className="flex-1 flex-col gap-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md rounded-lg py-2 transition-all min-w-[100px]">
+                            <Settings2 className="w-4 h-4" /> 
+                            <span className="text-[10px] sm:text-xs font-bold flex items-center gap-1">
+                                Componentes
+                                {!metrics.isVerified && <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />}
+                            </span>
+                        </TabsTrigger>
+                        <TabsTrigger value="emergency" className="flex-1 flex-col gap-1 data-[state=active]:bg-red-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg py-2 transition-all min-w-[90px]">
                             <AlertTriangle className="w-4 h-4" /> 
                             <span className="text-[10px] sm:text-xs font-bold">Emergencia</span>
                         </TabsTrigger>
-                        <TabsTrigger value="shield" className="flex flex-col gap-1 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg py-2 transition-all">
+                        <TabsTrigger value="shield" className="flex-1 flex-col gap-1 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md rounded-lg py-2 transition-all min-w-[90px]">
                             <ShieldCheck className="w-4 h-4" /> 
                             <span className="text-[10px] sm:text-xs font-bold">Blindaje</span>
                         </TabsTrigger>
@@ -280,7 +365,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                 {/* TAB 1: PASAPORTE (IDENTIDAD Y PROPIEDAD) */}
                 <TabsContent value="passport" className="space-y-6 focus-visible:outline-none animate-in fade-in duration-300">
                     <div className="grid md:grid-cols-2 gap-8">
-                        {/* LEFT COLUMN: PHOTOS & INFO & INVOICE */}
+                        {/* LEFT COLUMN: PHOTOS & INFO */}
                         <div className="space-y-6">
                             {/* PHOTOS SECTION */}
                             <div className="space-y-4">
@@ -312,40 +397,65 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                                 </div>
                             </div>
 
-                            {/* INFO & DOCS SECTION (Moved from Right to Left) */}
+                            {/* ZIENGARNIK: TRACKER INYECTADO (HU 4) */}
+                            {!isPendingSerial && (
+                                <CompletenessTracker metrics={metrics} />
+                            )}
+
+                            {/* INFO & DOCS SECTION */}
                             <Card className="border-primary/10 shadow-sm overflow-hidden">
                                 <CardHeader className="pb-4 border-b border-muted/50 mb-4">
-                                    <div className="flex justify-between items-start">
+                                    <div className="flex flex-col gap-3">
+                                        {/* Row 1: Badges de Estado, Completitud y Verificación alineados en la misma línea */}
+                                        <div className="flex justify-end gap-2 items-center flex-wrap">
+                                            {/* Badge "Bicicleta Verificada" inyectado en el detalle de la bicicleta */}
+                                            {metrics.isVerified && bike.status !== 'stolen' && (
+                                                <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider text-[10px] gap-1 shadow-sm border-0">
+                                                    <ShieldCheck className="w-3.5 h-3.5" /> Bicicleta Verificada
+                                                </Badge>
+                                            )}
+                                            <Badge className={cn("font-bold uppercase tracking-wider text-[10px]", 
+                                                metrics.isVerified ? "bg-green-100 text-green-800 border-green-300" : "bg-orange-100 text-orange-800 border-orange-300"
+                                            )} variant="outline">
+                                                {metrics.percentage}% Perfil
+                                            </Badge>
+                                            <Badge className={cn(bikeStatusStyles[bike.status], "font-bold uppercase tracking-wider text-[10px]")}>
+                                                {bikeStatusTexts[bike.status]}
+                                            </Badge>
+                                        </div>
+                                        {/* Row 2: Título a ancho completo */}
                                         <div>
-                                            <CardTitle className="text-2xl font-black uppercase tracking-tight">{bike.make} {bike.model}</CardTitle>
+                                            <CardTitle className="text-2xl md:text-3xl font-black uppercase tracking-tight w-full break-words">
+                                                {bike.make} {bike.model}
+                                            </CardTitle>
                                             <CardDescription className="font-mono text-sm mt-1">
                                                 {isPendingSerial ? 'S/N: PENDIENTE DE REGISTRO' : `S/N: ${bike.serialNumber}`}
                                             </CardDescription>
                                         </div>
-                                        <Badge className={cn(bikeStatusStyles[bike.status], "font-bold uppercase tracking-wider text-[10px]")}>
-                                            {bikeStatusTexts[bike.status]}
-                                        </Badge>
                                     </div>
                                 </CardHeader>
-                                <CardContent className="space-y-6 pt-0">
-                                    <div className="grid grid-cols-2 gap-x-4 gap-y-6">
-                                        <DetailItem label="Marca" value={bike.make} />
-                                        <DetailItem label="Modelo" value={bike.model} />
-                                        <DetailItem label="Año" value={bike.modelYear} />
-                                        <DetailItem label="Color" value={bike.color} />
-                                        <DetailItem label="Modalidad" value={bike.modality} />
-                                        <DetailItem label="Valor Estimado" value={formattedValue} />
+                                <CardContent className="pt-0">
+                                    {/* SECCIÓN INFORMACIÓN BASE CON TITULO Y LAPIZ DE EDICIÓN ESTANDARIZADO (HCI UX) */}
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <h4 className="text-sm font-black uppercase tracking-tight text-foreground/80 flex items-center gap-2">
+                                                <Book className="w-4 h-4 text-primary" /> Información Base
+                                            </h4>
+                                            <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)} className="text-xs h-7 text-muted-foreground hover:text-primary">
+                                                <Pencil className="w-3 h-3 mr-1" /> Editar
+                                            </Button>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-x-4 gap-y-6 bg-muted/10 p-4 rounded-xl border border-border/30">
+                                            <DetailItem label="Año Modelo" value={bike.modelYear} />
+                                            <DetailItem label="Color Principal" value={bike.color} />
+                                            <DetailItem label="Modalidad" value={bike.modality} />
+                                            <DetailItem label="Valor Estimado" value={formattedValue} />
+                                        </div>
                                     </div>
                                     
-                                    <div className="pt-4 border-t border-muted/50">
-                                        <Button 
-                                            variant="outline" 
-                                            onClick={() => setIsEditing(true)} 
-                                            className="w-full border-primary/20 hover:bg-primary/5 gap-2 font-bold"
-                                        >
-                                            <Pencil className="h-4 w-4" /> Editar Información
-                                        </Button>
-                                    </div>
+                                    {/* Ficha Técnica Resumida */}
+                                    <BikeTechSpecs bike={bike} onUpdateClick={() => setActiveTab('components')} />
                                 </CardContent>
                             </Card>
 
@@ -354,11 +464,9 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                                 <PromotionalBanner placement="bike_passport" userCountry={user.country} userState={user.state} />
                             </div>
 
-                            {/* INVOICE SECTION */}
-                            <OwnershipProofSection bike={bike} />
                         </div>
 
-                        {/* RIGHT COLUMN: CERTIFICATE & TRANSFER */}
+                        {/* RIGHT COLUMN: CERTIFICATE, TRANSFER & INVOICE */}
                         <div className="space-y-6">
                             {/* CERTIFICATE SECTION */}
                             {!isPendingSerial ? (
@@ -384,6 +492,9 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                                     onAction={() => setIsEditing(true)}
                                 />
                             )}
+
+                             {/* INVOICE SECTION (Moved to right column to balance) */}
+                             <OwnershipProofSection bike={bike} />
 
                             {/* TRANSFER SECTION */}
                             {isTransferable && (
@@ -415,7 +526,14 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                     </div>
                 </TabsContent>
 
-                {/* TAB 2: EMERGENCIA (ROBO Y QR) */}
+                {/* TAB NUEVA: COMPONENTES (B2B) */}
+                <TabsContent value="components" className="space-y-6 focus-visible:outline-none animate-in fade-in duration-300 px-0 sm:px-0">
+                    <div className="max-w-2xl mx-auto">
+                        <BikeComponentsWizard bike={bike} />
+                    </div>
+                </TabsContent>
+
+                {/* TAB 3: EMERGENCIA (ROBO Y QR) */}
                 <TabsContent value="emergency" className="space-y-6 focus-visible:outline-none animate-in fade-in duration-300 px-4 sm:px-0">
                     <div className="max-w-3xl mx-auto space-y-6">
                         {/* THEFT REPORT STATUS OR FORM */}
@@ -497,7 +615,7 @@ export default function BikeDetailsPageClient({ user, bike: initialBike, insuran
                     </div>
                 </TabsContent>
 
-                {/* TAB 3: BLINDAJE (SEGURO Y BIKON) */}
+                {/* TAB 4: BLINDAJE (SEGURO Y BIKON) */}
                 <TabsContent value="shield" className="space-y-6 focus-visible:outline-none animate-in fade-in duration-300 px-4 sm:px-0">
                     <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-6">
                         {/* INSURANCE COMPONENT */}
