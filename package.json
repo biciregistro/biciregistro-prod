@@ -52,7 +52,7 @@
     "driver.js": "^1.4.0",
     "embla-carousel-react": "^8.6.0",
     "file-saver": "^2.0.5",
-    "firebase": "^10.14.1",
+    "firebase": "^12.15.0",
     "firebase-admin": "^12.1.1",
     "genkit": "^1.25.0",
     "leaflet": "^1.9.4",
