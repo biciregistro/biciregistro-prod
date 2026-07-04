@@ -1,7 +1,7 @@
 'use server';
 
 import { adminDb } from '@/lib/firebase/server';
-import type { DashboardFilters, User, Bike } from '@/lib/types';
+import type { DashboardFilters, User, Bike, ComponentAnalyticsData, BikeComponents, ComponentDetail } from '@/lib/types';
 import { MODALITY_MAPPING, BIKE_MODALITIES_OPTIONS } from '@/lib/bike-types';
 import { unstable_cache } from 'next/cache';
 import { BIKE_RANGES } from '@/lib/constants/bike-ranges';
@@ -18,17 +18,17 @@ type GeoContext = 'owner' | 'incident' | 'none';
  * @param geoContext Define qué campos geográficos se usan ('owner' = residencia del dueño, 'incident' = lugar del robo, 'none' = ignora geografía).
  */
 function applyBikeFilters(
-    query: FirebaseFirestore.Query, 
-    filters: DashboardFilters, 
+    query: FirebaseFirestore.Query,
+    filters: DashboardFilters,
     geoContext: GeoContext
 ): FirebaseFirestore.Query {
     let q = query;
-    
+
     // 1. Filtros Demográficos del Dueño (Siempre aplican al perfil del usuario)
     if (filters.gender) {
         q = q.where('ownerGender', '==', filters.gender);
     }
-    
+
     // 2. Filtros Geográficos Contextuales
     if (geoContext === 'owner') {
         // Buscamos bicicletas basadas en DONDE VIVE el dueño
@@ -41,7 +41,7 @@ function applyBikeFilters(
         if (filters.state) q = q.where('theftReport.state', '==', filters.state);
         if (filters.city) q = q.where('theftReport.city', '==', filters.city);
     }
-    
+
     // 3. Filtros de Mercado (Características de la Bicicleta)
     if (filters.brand) {
         q = q.where('make', '==', filters.brand);
@@ -66,7 +66,7 @@ function applyBikeFilters(
  */
 function applyUserFilters(query: FirebaseFirestore.Query, filters: DashboardFilters): FirebaseFirestore.Query {
     let q = query;
-    
+
     // 1. Filtros Demográficos y Geográficos (Residencia del usuario)
     if (filters.country) q = q.where('country', '==', filters.country);
     if (filters.state) q = q.where('state', '==', filters.state);
@@ -76,29 +76,29 @@ function applyUserFilters(query: FirebaseFirestore.Query, filters: DashboardFilt
     // 2. Filtros de Mercado (Arrays)
     // Firestore LIMITACIÓN CATASTRÓFICA: Solo permite UN (1) 'array-contains' o 'array-contains-any' por consulta.
     // SOLUCIÓN: Aplicaremos el filtro de array que sea "más restrictivo" a nivel DB, el resto en memoria.
-    
+
     let arrayFilterApplied = false;
 
     if (filters.brand && !arrayFilterApplied) {
         q = q.where('ownedBrands', 'array-contains', filters.brand);
         arrayFilterApplied = true;
     }
-    
+
     if (filters.modality && !arrayFilterApplied) {
         const modalitiesToSearch = MODALITY_MAPPING[filters.modality] || [filters.modality];
         if (modalitiesToSearch.length === 1) {
             q = q.where('ownedModalities', 'array-contains', modalitiesToSearch[0]);
         } else {
-             q = q.where('ownedModalities', 'array-contains-any', modalitiesToSearch);
+            q = q.where('ownedModalities', 'array-contains-any', modalitiesToSearch);
         }
         arrayFilterApplied = true;
     }
-    
+
     if (filters.range && !arrayFilterApplied) {
         q = q.where('ownedPriceRanges', 'array-contains', filters.range);
         arrayFilterApplied = true;
     }
-    
+
     if (filters.modelYearBucket && !arrayFilterApplied) {
         q = q.where('ownedModelYears', 'array-contains', filters.modelYearBucket);
         arrayFilterApplied = true;
@@ -115,14 +115,14 @@ function applyUserFilters(query: FirebaseFirestore.Query, filters: DashboardFilt
  */
 function passesMemoryUserFilters(userData: any, filters: DashboardFilters): boolean {
     if (filters.brand && (!userData.ownedBrands || !userData.ownedBrands.includes(filters.brand))) return false;
-    
+
     if (filters.modality) {
         const modalitiesToSearch = MODALITY_MAPPING[filters.modality] || [filters.modality];
         if (!userData.ownedModalities || !modalitiesToSearch.some((m: string) => userData.ownedModalities.includes(m))) return false;
     }
-    
+
     if (filters.range && (!userData.ownedPriceRanges || !userData.ownedPriceRanges.includes(filters.range))) return false;
-    
+
     if (filters.modelYearBucket && (!userData.ownedModelYears || !userData.ownedModelYears.includes(filters.modelYearBucket))) return false;
 
     return true;
@@ -137,7 +137,7 @@ function parseFlexibleDate(dateString: string): Date | null {
     const ddmmyyyy = /^\d{8}$/;
     if (ddmmyyyy.test(dateString)) {
         const day = parseInt(dateString.substring(0, 2), 10);
-        const month = parseInt(dateString.substring(2, 4), 10) - 1; 
+        const month = parseInt(dateString.substring(2, 4), 10) - 1;
         const year = parseInt(dateString.substring(4, 8), 10);
         date = new Date(year, month, day);
         if (!isNaN(date.getTime())) return date;
@@ -149,8 +149,8 @@ function parseFlexibleDate(dateString: string): Date | null {
         const month = parseInt(parts[1], 10) - 1;
         const year = parseInt(parts[2], 10);
         if (year > 1900 && month >= 0 && month < 12 && day > 0 && day <= 31) {
-             date = new Date(year, month, day);
-             if (!isNaN(date.getTime())) return date;
+            date = new Date(year, month, day);
+            if (!isNaN(date.getTime())) return date;
         }
     }
 
@@ -189,8 +189,8 @@ export const getBikeStatusCounts = unstable_cache(
         const incidentRecoveredQuery = applyBikeFilters(bikesRef.where('status', '==', 'recovered'), filters, 'incident');
 
         const [
-            totalSnapshot, 
-            residentStolenSnapshot, 
+            totalSnapshot,
+            residentStolenSnapshot,
             residentRecoveredSnapshot,
             residentInventorySnapshot,
             incidentStolenSnapshot,
@@ -208,7 +208,7 @@ export const getBikeStatusCounts = unstable_cache(
         const residentStolenCount = residentStolenSnapshot.data().count;
         const residentRecoveredCount = residentRecoveredSnapshot.data().count;
         const residentInventoryCount = residentInventorySnapshot.data().count;
-        
+
         // Bicicletas Seguras: Total - (Robadas + Recuperadas + En Inventario)
         // De esta forma, el ecosistema no se ve mágicamente "súper seguro" por culpa del inventario de tiendas
         const safeCount = Math.max(0, totalCount - (residentStolenCount + residentRecoveredCount + residentInventoryCount));
@@ -216,19 +216,19 @@ export const getBikeStatusCounts = unstable_cache(
         return {
             stolen: incidentStolenSnapshot.data().count,
             recovered: incidentRecoveredSnapshot.data().count,
-            safe: safeCount, 
+            safe: safeCount,
             totalThefts: incidentStolenSnapshot.data().count + incidentRecoveredSnapshot.data().count,
         };
     },
-    ['bike-status-counts-context'], 
-    { revalidate: 1, tags: ['analytics'] } 
+    ['bike-status-counts-context'],
+    { revalidate: 1, tags: ['analytics'] }
 );
 
 export const getTopStolenBrands = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
         let query = db.collection('bikes').where('status', '==', 'stolen');
-        
+
         // CONTEXTO: Incidente (Marcas más robadas EN esta zona)
         query = applyBikeFilters(query, filters, 'incident');
 
@@ -246,17 +246,17 @@ export const getTopStolenBrands = unstable_cache(
         return Object.entries(brandCounts)
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count)
-            .slice(0, 5); 
+            .slice(0, 5);
     },
     ['top-stolen-brands-context'],
-    { revalidate: 1, tags: ['analytics'] } 
+    { revalidate: 1, tags: ['analytics'] }
 );
 
 export const getTheftsByModality = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
-        
-        const targetModalities = filters.modality 
+
+        const targetModalities = filters.modality
             ? BIKE_MODALITIES_OPTIONS.filter(m => m.value === filters.modality)
             : BIKE_MODALITIES_OPTIONS;
 
@@ -264,26 +264,26 @@ export const getTheftsByModality = unstable_cache(
 
         const promises = targetModalities.map(async (option) => {
             let q = db.collection('bikes').where('status', '==', 'stolen');
-            
+
             // CONTEXTO: Incidente (Modalidades más robadas EN esta zona)
             q = applyBikeFilters(q, { ...baseFilters, modality: option.value }, 'incident');
-            
+
             const snapshot = await q.count().get();
-            
+
             return {
-                name: option.label, 
+                name: option.label,
                 value: snapshot.data().count
             };
         });
 
         const results = await Promise.all(promises);
-        
+
         return results
             .filter(r => r.value > 0)
             .sort((a, b) => b.value - a.value);
     },
     ['thefts-by-modality-context'],
-    { revalidate: 1, tags: ['analytics'] } 
+    { revalidate: 1, tags: ['analytics'] }
 );
 
 export const getGeneralStats = unstable_cache(
@@ -294,21 +294,21 @@ export const getGeneralStats = unstable_cache(
 
         // Total Usuarios: TODOS los registrados en la zona (a menos que se filtre por marca/modalidad)
         let totalUsersQuery = applyUserFilters(usersRef, filters);
-        
+
         // Total Bicicletas: Las bicis que "viven" en la zona (Contexto: Dueño)
         let totalBikesQuery = applyBikeFilters(bikesRef, filters, 'owner');
 
         // Crecimiento Histórico: GLOBAL (Sin filtros, para evitar saturación de índices en Firestore)
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        
+
         // FIX: Cambiamos totalBikesQuery.count() a get() para poder filtrar en memoria las `inventory`
         // y descargamos solo el campo status para optimizar.
         const [usersDataSnapshot, bikesSnapshot, allUsersSnapshot, allBikesSnapshot] = await Promise.all([
             totalUsersQuery.select('ownedBrands', 'ownedModalities', 'ownedPriceRanges', 'ownedModelYears').get(),
-            totalBikesQuery.select('status').get(), 
-            usersRef.select('createdAt', 'lastLoginAt').get(), 
-            bikesRef.select('createdAt', 'status').get(), 
+            totalBikesQuery.select('status').get(),
+            usersRef.select('createdAt', 'lastLoginAt').get(),
+            bikesRef.select('createdAt', 'status').get(),
         ]);
 
         let filteredUsersCount = 0;
@@ -328,12 +328,12 @@ export const getGeneralStats = unstable_cache(
 
         const dailyCounts: { [key: string]: { usersCount: number, bikesCount: number, activeUsersCount: number } } = {};
         let totalActiveUsersLast30Days = 0;
-        
+
         allUsersSnapshot.forEach(doc => {
             const data = doc.data();
             const createdAtObj = parseFirestoreDate(data.createdAt);
             const lastLoginAtObj = parseFirestoreDate(data.lastLoginAt);
-            
+
             if (createdAtObj && createdAtObj >= thirtyDaysAgo) {
                 const date = createdAtObj.toISOString().split('T')[0];
                 if (!dailyCounts[date]) dailyCounts[date] = { usersCount: 0, bikesCount: 0, activeUsersCount: 0 };
@@ -368,7 +368,7 @@ export const getGeneralStats = unstable_cache(
         return {
             totalUsers: filteredUsersCount,
             totalBikes: activeBikesCount, // Usamos el conteo en memoria
-            activeUsers: totalActiveUsersLast30Days, 
+            activeUsers: totalActiveUsersLast30Days,
             dailyGrowth: dailyGrowth
         };
     },
@@ -380,26 +380,26 @@ export const getTopTheftLocations = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
         let query = db.collection('bikes').where('status', '==', 'stolen');
-        
+
         // CONTEXTO: Incidente (Queremos saber dónde pasan los robos de las bicis filtradas)
         query = applyBikeFilters(query, filters, 'incident');
 
         const snapshot = await query.select('theftReport.state', 'theftReport.city').get();
-        
+
         if (snapshot.empty) return [];
 
         const locationCounts: { [key: string]: number } = {};
-        
+
         // Aquí aplicamos jerarquía inteligente igual que en demografía
         // Si hay un filtro de Estado aplicado, agrupamos por Municipio
         // Si no hay filtro, agrupamos por Estado
         const isStateFiltered = !!filters.state;
-        
+
         snapshot.forEach(doc => {
             const data = doc.data();
-            const state = data.theftReport?.state?.trim(); 
-            const city = data.theftReport?.city?.trim();   
-            
+            const state = data.theftReport?.state?.trim();
+            const city = data.theftReport?.city?.trim();
+
             let key = "No Registrada";
 
             if (isStateFiltered) {
@@ -424,21 +424,21 @@ export const getTopTheftLocations = unstable_cache(
         return Object.entries(locationCounts)
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count)
-            .slice(0, 10); 
+            .slice(0, 10);
     },
     ['top-theft-locations-context'],
-    { revalidate: 1, tags: ['analytics'] } 
+    { revalidate: 1, tags: ['analytics'] }
 );
 
 export const getUserDemographics = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
-        
+
         // CONTEXTO: Residencia del usuario (Aplica filtros si hay marca/modalidad, si no, agarra a todos los de la zona)
         let query = applyUserFilters(db.collection('users'), filters);
 
         const snapshot = await query.select('birthDate', 'gender', 'state', 'country', 'city', 'ownedBrands', 'ownedModalities', 'ownedPriceRanges', 'ownedModelYears').get();
-        
+
         if (snapshot.empty) {
             return {
                 averageAge: 0,
@@ -462,10 +462,10 @@ export const getUserDemographics = unstable_cache(
 
         snapshot.forEach(doc => {
             const data = doc.data();
-            
+
             // Filtro en memoria
             if (!passesMemoryUserFilters(data, filters)) return;
-            
+
             let gender = data.gender || 'No especificado';
             gender = gender.charAt(0).toUpperCase() + gender.slice(1);
             genderCounts[gender] = (genderCounts[gender] || 0) + 1;
@@ -478,10 +478,10 @@ export const getUserDemographics = unstable_cache(
                     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
                         age--;
                     }
-                    if (age > 0 && age < 120) { 
+                    if (age > 0 && age < 120) {
                         totalAge += age;
                         validAgeCount++;
-                        
+
                         ageSumByGender[gender] = (ageSumByGender[gender] || 0) + age;
                         ageCountByGender[gender] = (ageCountByGender[gender] || 0) + 1;
 
@@ -490,7 +490,7 @@ export const getUserDemographics = unstable_cache(
                             ([_, range]) => birthYear >= range.min && birthYear <= range.max
                         );
                         if (generation) {
-                            const genKey = generation[0]; 
+                            const genKey = generation[0];
                             generationsDistribution[genKey] = (generationsDistribution[genKey] || 0) + 1;
                         }
                     }
@@ -499,17 +499,17 @@ export const getUserDemographics = unstable_cache(
 
             const state = data.state?.trim();
             const country = data.country?.trim();
-            const city = data.city?.trim(); 
-            
+            const city = data.city?.trim();
+
             // JERARQUÍA INTELIGENTE DE UBICACIONES
             // Si el admin filtró por Estado (ej. Querétaro), la tarjeta mostrará los Municipios (ej. El Marqués)
             // Si el admin NO filtró por Estado (Panorama Global), la tarjeta agrupará a todos por Estado (ej. Querétaro consolidado)
             let locKey = "";
-            
+
             if (isStateFiltered) {
                 // Modo "Zoom": Ya sabemos en qué estado estamos, mostramos la distribución interna
                 if (city) {
-                    locKey = city; 
+                    locKey = city;
                 } else if (state) {
                     locKey = `(Municipio no especificado)`;
                 }
@@ -552,20 +552,20 @@ export const getUserDemographics = unstable_cache(
         };
     },
     ['user-demographics-context'],
-    { revalidate: 1, tags: ['analytics'] } 
+    { revalidate: 1, tags: ['analytics'] }
 );
 
 export const getMarketMetrics = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
-        let query: FirebaseFirestore.Query = db.collection('bikes'); 
-        
+        let query: FirebaseFirestore.Query = db.collection('bikes');
+
         // CONTEXTO: Dueño (El mercado se mide por la residencia de los propietarios y sus activos)
-        query = applyBikeFilters(query, filters, 'owner'); 
+        query = applyBikeFilters(query, filters, 'owner');
 
         // FIX: Seleccionamos el 'status' para poder ignorar las bicis de inventario
         const snapshot = await query.select('make', 'modality', 'appraisedValue', 'modelYear', 'priceRange', 'status').get();
-        
+
         if (snapshot.empty) {
             return {
                 topBrands: [],
@@ -573,7 +573,7 @@ export const getMarketMetrics = unstable_cache(
                 totalValue: 0,
                 averageValue: 0,
                 rangesDistribution: {},
-                modelYearsDistribution: [], 
+                modelYearsDistribution: [],
                 averageModelYear: 0
             };
         }
@@ -581,8 +581,8 @@ export const getMarketMetrics = unstable_cache(
         const brandCounts: Record<string, number> = {};
         const modalityCounts: Record<string, number> = {};
         const rangesDistribution: Record<string, number> = {};
-        const modelYearCounts: Record<string, number> = {}; 
-        
+        const modelYearCounts: Record<string, number> = {};
+
         let totalValue = 0;
         let validValueCount = 0;
         let totalValidYears = 0;
@@ -593,10 +593,10 @@ export const getMarketMetrics = unstable_cache(
 
         snapshot.forEach(doc => {
             const data = doc.data();
-            
+
             // FIX PRINCIPAL: Ignorar el estatus 'inventory' para no sesgar el mercado
             if (data.status === 'inventory') return;
-            
+
             activeBikesCount++;
 
             const brand = data.make;
@@ -609,7 +609,7 @@ export const getMarketMetrics = unstable_cache(
             // usamos directamente el valor pre-calculado que se usó para el filtro en DB.
             const rangeKey = data.priceRange;
             if (rangeKey && rangeKey !== 'unknown') {
-                 rangesDistribution[rangeKey] = (rangesDistribution[rangeKey] || 0) + 1;
+                rangesDistribution[rangeKey] = (rangesDistribution[rangeKey] || 0) + 1;
             }
 
             const value = data.appraisedValue;
@@ -621,10 +621,10 @@ export const getMarketMetrics = unstable_cache(
             // --- MODEL YEAR BUCKETING LOGIC ---
             if (data.modelYear) {
                 const year = parseInt(data.modelYear, 10);
-                
+
                 // Excluimos años absurdos pero mantenemos desde los 1900s y hasta 1 año en el futuro
                 if (!isNaN(year) && year >= 1900 && year <= currentYear + 1) {
-                    
+
                     // Cálculo matemático exacto para el promedio real del parque
                     totalValidYears++;
                     sumOfValidYears += year;
@@ -638,7 +638,7 @@ export const getMarketMetrics = unstable_cache(
                         const bucketUpperLimit = Math.ceil(year / 5) * 5;
                         const bucketLowerLimit = bucketUpperLimit - 4;
                         const yearKey = `${bucketLowerLimit} - ${bucketUpperLimit}`;
-                        
+
                         modelYearCounts[yearKey] = (modelYearCounts[yearKey] || 0) + 1;
                     }
                 }
@@ -651,11 +651,11 @@ export const getMarketMetrics = unstable_cache(
             .slice(0, 10);
 
         const modalities = Object.entries(modalityCounts)
-            .map(([name, count]) => ({ 
-                name, 
-                count, 
+            .map(([name, count]) => ({
+                name,
+                count,
                 // Usamos el conteo real en lugar de snapshot.size
-                percentage: activeBikesCount > 0 ? (count / activeBikesCount) * 100 : 0 
+                percentage: activeBikesCount > 0 ? (count / activeBikesCount) * 100 : 0
             }))
             .sort((a, b) => b.count - a.count);
 
@@ -669,11 +669,11 @@ export const getMarketMetrics = unstable_cache(
                 // "≤ 1990" siempre al inicio
                 if (a.year.startsWith('≤')) return -1;
                 if (b.year.startsWith('≤')) return 1;
-                
+
                 // Extraemos el primer año del string (ej "2016 - 2020" -> 2016) para ordenar numéricamente
                 const yearA = parseInt(a.year.split(' ')[0], 10);
                 const yearB = parseInt(b.year.split(' ')[0], 10);
-                
+
                 return yearA - yearB;
             });
 
@@ -683,8 +683,8 @@ export const getMarketMetrics = unstable_cache(
             totalValue,
             averageValue,
             rangesDistribution,
-            modelYearsDistribution, 
-            averageModelYear 
+            modelYearsDistribution,
+            averageModelYear
         };
     },
     ['market-metrics-context'],
@@ -706,18 +706,18 @@ export const getMarketingPotential = unstable_cache(
     async () => {
         const db = adminDb;
         const usersRef = db.collection('users');
-        
+
         // Métrica global, no afectada por filtros geográficos.
         const totalSnapshot = await usersRef.count().get();
         const totalUsers = totalSnapshot.data().count;
 
         const usersSnapshot = await usersRef.select('fcmTokens', 'notificationPreferences').get();
-        
+
         let contactableUsers = 0;
         usersSnapshot.forEach(doc => {
             const data = doc.data();
             const hasTokens = Array.isArray(data.fcmTokens) && data.fcmTokens.length > 0;
-            const marketingConsent = data.notificationPreferences?.marketing !== false; 
+            const marketingConsent = data.notificationPreferences?.marketing !== false;
 
             if (hasTokens && marketingConsent) {
                 contactableUsers++;
@@ -730,7 +730,7 @@ export const getMarketingPotential = unstable_cache(
             percentage: totalUsers > 0 ? (contactableUsers / totalUsers) * 100 : 0
         };
     },
-    ['marketing-potential-global'], 
+    ['marketing-potential-global'],
     { revalidate: 1, tags: ['analytics'] }
 );
 
@@ -738,39 +738,39 @@ export const getSecurityMapData = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
         const bikesRef = db.collection('bikes');
-        
+
         // Base query: only stolen bikes, applying context of the incident
         let query = applyBikeFilters(bikesRef.where('status', '==', 'stolen'), filters, 'incident');
         const snapshot = await query.get();
-        
+
         if (snapshot.empty) return [];
 
         const mapDataPromises = snapshot.docs.map(async (doc) => {
             const data = doc.data();
             const report = data.theftReport || {};
-            
+
             let victimOrigin = "No especificado";
             let victimState = data.ownerState || "";
             let victimCity = data.ownerCity || "";
-            
+
             if (victimCity || victimState) {
                 victimOrigin = [victimCity, victimState].filter(Boolean).join(", ");
             } else if (data.userId) {
-                 try {
-                     const userDoc = await db.collection('users').doc(data.userId).get();
-                     if (userDoc.exists) {
-                         const userData = userDoc.data();
-                         if (userData) {
-                             victimCity = userData.city || "";
-                             victimState = userData.state || "";
-                             if (victimCity || victimState) {
-                                 victimOrigin = [victimCity, victimState].filter(Boolean).join(", ");
-                             }
-                         }
-                     }
-                 } catch (e) {
-                     console.error("Error fetching user origin for map", e);
-                 }
+                try {
+                    const userDoc = await db.collection('users').doc(data.userId).get();
+                    if (userDoc.exists) {
+                        const userData = userDoc.data();
+                        if (userData) {
+                            victimCity = userData.city || "";
+                            victimState = userData.state || "";
+                            if (victimCity || victimState) {
+                                victimOrigin = [victimCity, victimState].filter(Boolean).join(", ");
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error fetching user origin for map", e);
+                }
             }
 
             return {
@@ -798,19 +798,19 @@ export const getQualitativeSecurityData = unstable_cache(
     async (filters: DashboardFilters) => {
         const db = adminDb;
         const bikesRef = db.collection('bikes');
-        
+
         // Traer solo las bicicletas robadas aplicando los filtros del contexto de incidentes
         let query = applyBikeFilters(bikesRef.where('status', '==', 'stolen'), filters, 'incident');
-        
+
         // Seleccionamos solo los campos necesarios para ahorrar lectura en Firestore
         const snapshot = await query.select('theftReport.date', 'theftReport.details', 'theftReport.thiefDetails').get();
-        
+
         if (snapshot.empty) return [];
 
         return snapshot.docs.map(doc => {
             const data = doc.data();
             const report = data.theftReport || {};
-            
+
             return {
                 id: doc.id,
                 date: report.date || null,
@@ -821,4 +821,224 @@ export const getQualitativeSecurityData = unstable_cache(
     },
     ['qualitative-security-data-context'],
     { revalidate: 1, tags: ['analytics'] }
+);
+
+const defaultIndicatorRow = {
+    indicator1: [],
+    indicator2: [],
+    indicator3: [],
+};
+
+const defaultComponentAnalyticsData: ComponentAnalyticsData = {
+    totalBikes: 0,
+    frameMaterial: { ...defaultIndicatorRow },
+    brakes: { ...defaultIndicatorRow },
+    drivetrain: { ...defaultIndicatorRow },
+    fork: { ...defaultIndicatorRow },
+    shock: { ...defaultIndicatorRow },
+    tires: { ...defaultIndicatorRow },
+    grips: { ...defaultIndicatorRow },
+    saddle: { ...defaultIndicatorRow },
+    pedals: { ...defaultIndicatorRow },
+};
+
+// Helper para transformar un Record<string, number> a ChartDataItem[]
+const toChartData = (data: Record<string, number>): { name: string; value: number }[] => {
+    const sorted = Object.entries(data)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+    if (sorted.length <= 5) return sorted;
+
+    const top5 = sorted.slice(0, 5);
+    const othersValue = sorted.slice(5).reduce((acc, item) => acc + item.value, 0);
+
+    if (othersValue > 0) {
+        // Regla de negocio: Si "Otros" supera al 5to, lo reemplaza.
+        if (top5.length === 5 && othersValue > top5[4].value) {
+            const others = top5.pop()!;
+            return [...top5.slice(0, 4), { name: 'Otros', value: othersValue + others.value }].sort((a, b) => b.value - a.value);
+        }
+        return [...top5, { name: 'Otros', value: othersValue }];
+    }
+    return top5;
+};
+
+
+export const getComponentAnalytics = unstable_cache(
+    async (filters: DashboardFilters): Promise<ComponentAnalyticsData> => {
+        const db = adminDb;
+        let query: FirebaseFirestore.Query = db.collection('bikes');
+
+        // Aplicar proyección de campos para optimizar
+        query = query.select(
+            'make',
+            'modality',
+            'frameMaterial',
+            'components',
+            'ownerCountry',
+            'ownerState',
+            'ownerCity',
+            'status'
+        );
+
+        // Aplicar filtros demográficos para el modo 'market'
+        if (filters.analysisMode === 'market' || !filters.analysisMode) {
+            query = applyBikeFilters(query, filters, 'owner');
+        }
+
+        // TODO: Implementar lógica para el modo 'audit'
+
+        const snapshot = await query.get();
+        if (snapshot.empty) {
+            return defaultComponentAnalyticsData;
+        }
+
+        const frameMaterialCounts: Record<string, number> = {};
+        const carbonBikeMakes: Record<string, number> = {};
+        const aluminumBikeMakes: Record<string, number> = {};
+
+        interface ComponentGroup {
+            brands: Record<string, number>;
+            models: Record<string, number>;
+            bikeMakes: Record<string, number>;
+        }
+
+        const componentAggregates: Record<string, ComponentGroup> = {
+            brakes: { brands: {}, models: {}, bikeMakes: {} },
+            drivetrain: { brands: {}, models: {}, bikeMakes: {} },
+            fork: { brands: {}, models: {}, bikeMakes: {} },
+            shock: { brands: {}, models: {}, bikeMakes: {} },
+            tires: { brands: {}, models: {}, bikeMakes: {} },
+            grips: { brands: {}, models: {}, bikeMakes: {} },
+            saddle: { brands: {}, models: {}, bikeMakes: {} },
+            pedals: { brands: {}, models: {}, bikeMakes: {} },
+        };
+
+        let totalBikes = 0;
+
+        snapshot.forEach((doc) => {
+            const bike = doc.data() as Bike;
+
+            if (bike.status === 'inventory') return; // Excluir inventario
+            totalBikes++;
+
+            // Fila 1: Material del Cuadro
+            if (bike.frameMaterial) {
+                frameMaterialCounts[bike.frameMaterial] = (frameMaterialCounts[bike.frameMaterial] || 0) + 1;
+                if (bike.frameMaterial === 'Carbono' && bike.make) {
+                    carbonBikeMakes[bike.make] = (carbonBikeMakes[bike.make] || 0) + 1;
+                }
+                if (bike.frameMaterial === 'Aluminio' && bike.make) {
+                    aluminumBikeMakes[bike.make] = (aluminumBikeMakes[bike.make] || 0) + 1;
+                }
+            }
+
+            // Filas 2-9: Componentes
+            if (bike.components) {
+                for (const [key, value] of Object.entries(componentAggregates)) {
+                    const category = key as keyof BikeComponents;
+                    const component: ComponentDetail | undefined = bike.components[category];
+
+                    if (component?.isNotApplicable) continue;
+
+                    const brand: string = component?.brand || 'Genérico';
+                    value.brands[brand] = (value.brands[brand] || 0) + 1;
+
+                    if (component?.model) {
+                        const compositeKey = `${brand}, ${component.model}`;
+                        value.models[compositeKey] = (value.models[compositeKey] || 0) + 1;
+                    }
+
+                    if (bike.make) {
+                        value.bikeMakes[bike.make] = (value.bikeMakes[bike.make] || 0) + 1;
+                    }
+                }
+            }
+        });
+
+        const drivetrainBikeCategories: Record<string, number> = {};
+        const gripsBikeCategories: Record<string, number> = {};
+        const suspensionComparison: Record<string, number> = { 'Rígida': 0, 'Suspensión': 0 };
+        const shockComparison: Record<string, number> = { 'Rígida': 0, 'Doble Suspensión': 0 };
+
+        snapshot.forEach(doc => {
+            const bike = doc.data() as Bike;
+            if (bike.status === 'inventory') return;
+
+            if (bike.components?.drivetrain && bike.modality) {
+                const modalityLabel = BIKE_MODALITIES_OPTIONS.find(m => m.value === bike.modality)?.label || bike.modality;
+                drivetrainBikeCategories[modalityLabel] = (drivetrainBikeCategories[modalityLabel] || 0) + 1;
+            }
+            if (bike.components?.grips && bike.modality) {
+                const modalityLabel = BIKE_MODALITIES_OPTIONS.find(m => m.value === bike.modality)?.label || bike.modality;
+                gripsBikeCategories[modalityLabel] = (gripsBikeCategories[modalityLabel] || 0) + 1;
+            }
+            if (bike.components?.fork) {
+                if (bike.components.fork.isNotApplicable) {
+                    suspensionComparison['Rígida']++;
+                } else {
+                    suspensionComparison['Suspensión']++;
+                }
+            }
+            if (bike.components?.shock) {
+                if (bike.components.shock.isNotApplicable) {
+                    shockComparison['Rígida']++;
+                } else {
+                    shockComparison['Doble Suspensión']++;
+                }
+            }
+        });
+
+        return {
+            totalBikes,
+            frameMaterial: {
+                indicator1: toChartData(frameMaterialCounts),
+                indicator2: toChartData(carbonBikeMakes),
+                indicator3: toChartData(aluminumBikeMakes),
+            },
+            brakes: {
+                indicator1: toChartData(componentAggregates.brakes.brands),
+                indicator2: toChartData(componentAggregates.brakes.models),
+                indicator3: toChartData(componentAggregates.brakes.bikeMakes),
+            },
+            drivetrain: {
+                indicator1: toChartData(componentAggregates.drivetrain.brands),
+                indicator2: toChartData(componentAggregates.drivetrain.models),
+                indicator3: toChartData(drivetrainBikeCategories),
+            },
+            fork: {
+                indicator1: toChartData(componentAggregates.fork.brands),
+                indicator2: toChartData(componentAggregates.fork.models),
+                indicator3: toChartData(suspensionComparison),
+            },
+            shock: {
+                indicator1: toChartData(componentAggregates.shock.brands),
+                indicator2: toChartData(componentAggregates.shock.models),
+                indicator3: toChartData(shockComparison),
+            },
+            tires: {
+                indicator1: toChartData(componentAggregates.tires.brands),
+                indicator2: toChartData(componentAggregates.tires.models),
+                indicator3: toChartData(componentAggregates.tires.bikeMakes),
+            },
+            grips: {
+                indicator1: toChartData(componentAggregates.grips.brands),
+                indicator2: toChartData(componentAggregates.grips.brands), // Spec: Top 5 marcas de puños
+                indicator3: toChartData(gripsBikeCategories),
+            },
+            saddle: {
+                indicator1: toChartData(componentAggregates.saddle.brands),
+                indicator2: toChartData(componentAggregates.saddle.brands), // Spec: Top 5 marcas de sillines
+                indicator3: toChartData(componentAggregates.saddle.bikeMakes),
+            },
+            pedals: {
+                indicator1: toChartData(componentAggregates.pedals.brands),
+                indicator2: toChartData(componentAggregates.pedals.models),
+                indicator3: toChartData(componentAggregates.pedals.bikeMakes),
+            },
+        };
+    },
+    ['component-analytics-cache'],
+    { revalidate: 30, tags: ['analytics'] } // Cache por 30 segundos
 );

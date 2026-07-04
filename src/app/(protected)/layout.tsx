@@ -7,6 +7,7 @@ import { GamificationListener } from '@/components/shared/gamification-listener'
 import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
 import { ClientActivityTracker } from '@/components/shared/client-activity-tracker';
 import { Suspense } from 'react';
+import { ScrollRestorer } from '@/components/admin/charts/ScrollRestorer';
 
 // This forces all pages within this layout to be dynamically rendered.
 // It's essential for routes that depend on user authentication.
@@ -63,6 +64,7 @@ export default async function ProtectedLayout({
       */}
       <Suspense fallback={null}>
          <MobileBottomNav user={user} />
+         <ScrollRestorer />
       </Suspense>
       <Footer />
     </div>

@@ -9,7 +9,8 @@ import {
     getMarketMetrics,
     getFraudPreventionStats,
     getMarketingPotential,
-    getSecurityMapData // Añadido
+    getSecurityMapData, // Añadido
+    getComponentAnalytics
 } from '@/lib/analytics-data';
 import { RecoveryRatePie } from './charts/recovery-rate-pie';
 import { TopStolenBrandsChart } from './charts/top-stolen-brands-chart';
@@ -34,6 +35,8 @@ import { MigrationButton } from './migration-button';
 import { ReportGeneratorWrapper } from './report-generator-wrapper';
 import { QualitativeAnalysisPanel } from './charts/qualitative-analysis-panel'; 
 import { ModelYearsChart } from './charts/model-years-chart'; // NUEVO COMPONENTE
+import { ComponentStatsSection } from './charts/component-stats-section';
+import { ComponentFilterBar } from './charts/component-filter-bar';
 
 // Usamos el wrapper montado en cliente para evitar problemas de SSR
 import { SecurityMapWrapper } from './charts/security-map-wrapper';
@@ -54,7 +57,8 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
       marketMetrics,
       fraudStats,
       marketingPotential,
-      securityMapData // Añadido
+      securityMapData, // Añadido
+      componentAnalytics
   ] = await Promise.all([
     getBikeStatusCounts(filters),
     getTopStolenBrands(filters),
@@ -66,6 +70,7 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
     getFraudPreventionStats(),
     getMarketingPotential(),
     getSecurityMapData(filters), // Añadido
+    getComponentAnalytics(filters), // <-- Inyección de la nueva función
   ]);
 
   const recoveryData = {
@@ -283,6 +288,14 @@ export async function StatsTabContent({ filters }: StatsTabContentProps) {
             </div>
         </div>
       </div>
+      
+      <Separator className="my-6" />
+
+      {/* El Client Component de la barra de filtros de componentes */}
+      <ComponentFilterBar />
+      
+      {/* Nueva sección de componentes que recibe los datos ya procesados del servidor */}
+      <ComponentStatsSection data={componentAnalytics} />
       
       <Separator className="my-6" />
       

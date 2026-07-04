@@ -585,6 +585,13 @@ export type DashboardFilters = {
     gender?: string;
     range?: string; // Filtro de Gama
     modelYearBucket?: string; // Filtro de Antigüedad
+
+    // --- INICIO DE ADICIONES QUIRÚRGICAS ---
+    analysisMode?: 'market' | 'audit';
+    componentCategory?: string;
+    componentBrand?: string;
+    componentModel?: string;
+    // --- FIN DE ADICIONES QUIRÚRGICAS ---
 };
 
 export type Payout = {
@@ -842,4 +849,33 @@ export type UserReward = {
     totalChipTimeMs?: number;
     
     updatedAt: string;
+};
+
+// --- Tipos para el Dashboard de Analítica de Componentes ---
+
+// Tipo genérico para datos de gráficos (Dona, Barras) o listas (Top 5)
+export type ChartDataItem = {
+    name: string;
+    value: number;
+};
+
+// Estructura para una fila de indicadores de componentes
+export type ComponentIndicatorRow = {
+    indicator1: ChartDataItem[]; // Ej: Distribución de marcas (Dona)
+    indicator2: ChartDataItem[]; // Ej: Top 5 modelos (Lista)
+    indicator3: ChartDataItem[]; // Ej: Distribución por categoría (Barras)
+};
+
+// Objeto principal que recibirá el Server Component de la UI
+export type ComponentAnalyticsData = {
+    totalBikes: number; // Universo total de bicicletas en el filtro
+    frameMaterial: ComponentIndicatorRow;
+    brakes: ComponentIndicatorRow;
+    drivetrain: ComponentIndicatorRow;
+    fork: ComponentIndicatorRow;
+    shock: ComponentIndicatorRow;
+    tires: ComponentIndicatorRow;
+    grips: ComponentIndicatorRow;
+    saddle: ComponentIndicatorRow;
+    pedals: ComponentIndicatorRow;
 };

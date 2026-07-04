@@ -75,6 +75,7 @@ export function DashboardFilterBar() {
         setCityInput('');
     }
 
+    sessionStorage.setItem('scrollPosition', window.scrollY.toString());
     router.push(`?${params.toString()}`, { scroll: false });
   };
 
@@ -111,6 +112,8 @@ export function DashboardFilterBar() {
   const currentCity = searchParams.get('city') || '';
   const currentRange = searchParams.get('range') || '';
   const currentModelYearBucket = searchParams.get('modelYearBucket') || '';
+  const analysisMode = searchParams.get('analysisMode');
+  const isAuditMode = analysisMode === 'audit';
 
   const hasActiveFilters = currentCountry || currentState || currentBrand || currentModality || currentGender || currentCity || currentRange || currentModelYearBucket;
 
@@ -134,12 +137,13 @@ export function DashboardFilterBar() {
         )}
       </div>
       
-      {/* 4 columnas en pantallas grandes para acomodar 8 filtros mejor */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+      {/* Wrapper to disable all filters in audit mode */}
+      <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4 ${isAuditMode ? 'opacity-50 pointer-events-none' : ''}`}>
         {/* Country Filter */}
         <Select
           value={currentCountry}
           onValueChange={(val) => handleFilterChange('country', val === 'all' ? null : val)}
+          disabled={isAuditMode}
         >
           <SelectTrigger className="bg-background">
             <SelectValue placeholder="País" />
@@ -158,7 +162,7 @@ export function DashboardFilterBar() {
         <Select
           value={currentState}
           onValueChange={(val) => handleFilterChange('state', val === 'all' ? null : val)}
-          disabled={!!currentCountry && currentCountry !== 'México'}
+          disabled={isAuditMode || (!!currentCountry && currentCountry !== 'México')}
         >
           <SelectTrigger className="bg-background">
             <SelectValue placeholder="Estado" />
@@ -178,6 +182,7 @@ export function DashboardFilterBar() {
             <Select
               value={currentCity}
               onValueChange={(val) => handleFilterChange('city', val === 'all' ? null : val)}
+              disabled={isAuditMode}
             >
               <SelectTrigger className="bg-background">
                 <SelectValue placeholder="Municipio / Ciudad" />
@@ -202,7 +207,7 @@ export function DashboardFilterBar() {
                     value={cityInput}
                     onChange={(e) => setCityInput(e.target.value)}
                     className="pl-9 bg-background"
-                    disabled={!currentState} 
+                    disabled={isAuditMode || !currentState} 
                 />
             </div>
         )}
@@ -211,6 +216,7 @@ export function DashboardFilterBar() {
         <Select
           value={currentBrand}
           onValueChange={(val) => handleFilterChange('brand', val === 'all' ? null : val)}
+          disabled={isAuditMode}
         >
           <SelectTrigger className="bg-background">
             <SelectValue placeholder="Marca" />
@@ -229,6 +235,7 @@ export function DashboardFilterBar() {
         <Select
           value={currentModality}
           onValueChange={(val) => handleFilterChange('modality', val === 'all' ? null : val)}
+          disabled={isAuditMode}
         >
           <SelectTrigger className="bg-background">
             <SelectValue placeholder="Modalidad" />
@@ -247,6 +254,7 @@ export function DashboardFilterBar() {
         <Select
           value={currentRange}
           onValueChange={(val) => handleFilterChange('range', val === 'all' ? null : val)}
+          disabled={isAuditMode}
         >
           <SelectTrigger className="bg-background">
             <SelectValue placeholder="Gama" />
@@ -265,6 +273,7 @@ export function DashboardFilterBar() {
         <Select
           value={currentModelYearBucket}
           onValueChange={(val) => handleFilterChange('modelYearBucket', val === 'all' ? null : val)}
+          disabled={isAuditMode}
         >
           <SelectTrigger className="bg-background">
             <SelectValue placeholder="Antigüedad" />
@@ -283,6 +292,7 @@ export function DashboardFilterBar() {
         <Select
           value={currentGender}
           onValueChange={(val) => handleFilterChange('gender', val === 'all' ? null : val)}
+          disabled={isAuditMode}
         >
           <SelectTrigger className="bg-background">
             <SelectValue placeholder="Género" />
