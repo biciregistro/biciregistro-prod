@@ -31,7 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { MessageCircle, MoreHorizontal, Check, AlertCircle, CreditCard, UserCheck, Bike, XCircle, Wallet, HeartPulse, ShieldAlert, Phone, FileText, Shirt, Download, Table as TableIcon, Ban, HelpCircle } from 'lucide-react';
+import { MessageCircle, MoreHorizontal, Check, AlertCircle, CreditCard, UserCheck, Bike, XCircle, Wallet, HeartPulse, ShieldAlert, Phone, FileText, Shirt, Download, Table as TableIcon, Ban, HelpCircle, Shield } from 'lucide-react';
 import { EventAttendee, PaymentStatus, CustomQuestion } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { toggleCheckInStatus, cancelRegistrationManuallyAction } from '@/lib/actions';
@@ -405,9 +405,17 @@ export function AttendeeManagement({ attendees, eventId, eventName, showEmergenc
                                     )}
                                     <TableCell>
                                         <div className="flex flex-col">
-                                            <span className={cn("font-medium", attendee.status === 'cancelled' && "line-through text-muted-foreground")}>
-                                                {attendee.name} {attendee.lastName}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className={cn("font-medium", attendee.status === 'cancelled' && "line-through text-muted-foreground")}>
+                                                    {attendee.name} {attendee.lastName}
+                                                </span>
+                                                {attendee.isMinorRegistration && (
+                                                    <Badge variant="outline" className="border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-[10px] font-medium h-5 px-1.5">
+                                                        <Shield className="h-3 w-3 mr-1" />
+                                                        Menor
+                                                    </Badge>
+                                                )}
+                                            </div>
                                             <span className="text-xs text-muted-foreground">{attendee.email}</span>
                                             {attendee.status === 'cancelled' && (
                                                 <Badge variant="destructive" className="w-fit text-[10px] mt-1 px-1 h-5">CANCELADO</Badge>

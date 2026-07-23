@@ -137,6 +137,34 @@ Next.js tiene reglas estrictas sobre cómo se debe estructurar el código para q
     }
     ```
 
+4.  **Prevención de Hydration Mismatches con `<ClientOnly />`.**
+    La hidratación ocurre cuando React en el cliente adopta el HTML estático de Next.js (SSR). Si hay discrepancias (por ejemplo, con componentes UI de Radix/shadcn que generan IDs dinámicos como `aria-controls`, o componentes que usan APIs del navegador tipo `window` o `localStorage`), Next.js fallará con un error de hidratación.
+
+    Para resolver esto de forma limpia y reutilizable, usa el componente `<ClientOnly />` ubicado en `@/components/shared/client-only`.
+
+    ##### Reglas de Uso de `<ClientOnly />`:
+    *   **Uso Autorizado:** Solo para elementos interactivos no críticos para el SEO ni para el contenido principal (ej. menús desplegables móviles, modales, alertas, diálogos).
+    *   **Prohibición de Abuso:** **NUNCA** envuelvas páginas completas o secciones de contenido principal con `ClientOnly`. Esto anula el rendimiento de carga y el indexado de búsqueda (SEO) del SSR, convirtiendo el sitio de facto en una SPA lenta.
+    *   **Layout Shift (CLS):** Si el componente envuelto ocupa un espacio considerable, considera proveer un skeleton o placeholder para evitar un salto brusco de interfaz al montarse en el cliente.
+
+    ```tsx
+    // src/components/shared/header.tsx
+    import ClientOnly from '@/components/shared/client-only';
+    import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+
+    export function Header() {
+      return (
+        <ClientOnly>
+          {/* El Sheet de Radix genera IDs en el cliente que romperían SSR sin ClientOnly */}
+          <Sheet>
+            <SheetTrigger>Menú Móvil</SheetTrigger>
+            <SheetContent>Opciones</SheetContent>
+          </Sheet>
+        </ClientOnly>
+      );
+    }
+    ```
+
 ---
 
 ## 4. Configuración del Proyecto

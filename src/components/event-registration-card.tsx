@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { DependentRegistrationModal as DependentModal } from '@/components/dependents/dependent-modal';
 import { useToast } from '@/hooks/use-toast';
 import { registerForEventAction, updateBaseProfileInRegistrationAction } from '@/lib/actions/event-registration-actions';
 import { Button } from '@/components/ui/button';
@@ -13,8 +14,9 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tag, Loader2, ShieldCheck, ArrowRight, Shirt, HelpCircle, User as UserIcon } from 'lucide-react';
-import type { Event, User, EventRegistration } from '@/lib/types';
+import type { Event, User, EventRegistration, Dependent } from '@/lib/types';
 import dynamic from 'next/dynamic';
 
 // Import helpers for location selects
@@ -43,6 +45,10 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
     const [isPending, startTransition] = useTransition();
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
     const [isWaiverModalOpen, setIsWaiverModalOpen] = useState(false);
+    
+    // --- NUEVO: Estados Quirúrgicos para Flujo de Menor (Modal 2) ---
+    const [isMinorModalOpen, setIsMinorModalOpen] = useState(false);
+    const [selectedDependent, setSelectedDependent] = useState<Dependent | null>(null);
     
     const [selectedTierId, setSelectedTierId] = useState<string | undefined>(undefined);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined);
@@ -222,6 +228,7 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
             }
         }
 
+        // Always open the main confirmation modal
         setIsConfirmModalOpen(true);
     };
 
@@ -305,14 +312,27 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                 }
             }
 
-            // Si todo salió bien, continuar flujo normal
-            if (event.requiresWaiver) {
+            // Si todo salió bien, continuar al siguiente paso del flujo
+            if (participantType === 'minor') {
+                setIsConfirmModalOpen(false);
+                setIsMinorModalOpen(true);
+            } else if (event.requiresWaiver) {
                 setIsConfirmModalOpen(false);
                 setIsWaiverModalOpen(true);
             } else {
                 handleFinalRegistration();
             }
         });
+    };
+
+    const handleDependentSelected = (dependent: Dependent) => {
+        setSelectedDependent(dependent);
+        setIsMinorModalOpen(false);
+        if (event.requiresWaiver) {
+            setIsWaiverModalOpen(true);
+        } else {
+            handleFinalRegistration();
+        }
     };
 
     const handleFinalRegistration = async (waiverData?: { signature: string, signedText: string }) => {
@@ -332,7 +352,8 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                 selectedJerseyConfig?.name,
                 selectedJerseySize,
                 allergies,
-                customAnswers
+                customAnswers,
+                participantType === 'minor' ? selectedDependent?.id : undefined
             );
             
             if (result.success) {
@@ -346,7 +367,12 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                 setIsWaiverModalOpen(false);
                 
                 let url = `/dashboard/events/${event.id}`;
-                if (result.pointsAwarded) {
+                
+                // If a minor was registered, the server action returns the new registrationId.
+                // We append it to the URL to show the correct ticket.
+                if (result.registrationId) {
+                    url += `?ticketId=${result.registrationId}`;
+                } else if (result.pointsAwarded) {
                     url += `?points=30&action_type=event_join`;
                 }
                 
@@ -375,6 +401,16 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
         };
     };
 
+    const [participantType, setParticipantType] = useState<'self' | 'minor' | null>(null);
+
+    useEffect(() => {
+        // Reset flow if user or event changes
+        setParticipantType(null);
+    }, [user?.id, event.id]);
+
+    const showParticipantSelector = !!(event.allowsMinors && user);
+
+
     return (
         <>
         <Card className="shadow-lg sticky top-24 z-10 border-t-4 border-t-secondary overflow-hidden">
@@ -393,83 +429,121 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                         <span>Costo</span>
                     </div>
                     <span className="font-bold text-xl">
-                        {event.costType === 'Gratuito' ? 'Gratuito' : (selectedTier ? (selectedTier.price === 0 ? 'Gratis' : `$${selectedTier.price} MXN`) : 'Selecciona...')}
+                        {event.costType === 'Gratuito' ? 'Gratuito' : (selectedTier ? (selectedTier.price === 0 ? 'Gratis' : `$${selectedTier.price} MXN`) : 'Selecciona...')}'
                     </span>
                 </div>
                 
-                {user && !isRegistered && !isSoldOut && !isFinished && !isRegistrationClosed && (
+                {user && (!isRegistered || showParticipantSelector) && !isSoldOut && !isFinished && !isRegistrationClosed && (
                     <div className="space-y-4 animate-in fade-in">
-                        {event.costType !== 'Gratuito' && tiers.length > 0 && (
-                            <div className="space-y-2">
-                                <Label>Nivel de Acceso</Label>
-                                <Select onValueChange={setSelectedTierId} value={selectedTierId}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecciona un nivel" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {tiers.map(tier => {
-                                            const { available, remaining } = checkTierAvailability(tier);
-                                            return (
-                                                <SelectItem 
-                                                    key={tier.id} 
-                                                    value={tier.id} 
-                                                    disabled={!available}
-                                                    className={!available ? "opacity-50" : ""}
-                                                >
-                                                    <span className="flex items-center justify-between w-full gap-2">
-                                                        <span>{tier.name} - {tier.price === 0 ? 'Gratis' : `$${tier.price}`}</span>
-                                                        {!available && <span className="text-xs font-bold text-destructive ml-2">(Agotado)</span>}
-                                                        {available && remaining !== undefined && remaining <= 5 && (
-                                                            <span className="text-xs font-bold text-orange-500 ml-2">({remaining} libres)</span>
-                                                        )}
-                                                    </span>
-                                                </SelectItem>
-                                            );
-                                        })}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
-                        {event.hasCategories && categories.length > 0 && (
-                             <div className="space-y-2">
-                                <Label>Categoría</Label>
-                                <Select onValueChange={setSelectedCategoryId} value={selectedCategoryId}>
-                                    <SelectTrigger><SelectValue placeholder="Selecciona tu categoría" /></SelectTrigger>
-                                    <SelectContent>
-                                        {categories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
+                        {/* --- NEW: Participant Type Selector --- */}
+                        {showParticipantSelector && !participantType && (
+                            <div className="space-y-4 animate-in fade-in p-2">
+                                <Label className="text-center block font-semibold">¿Para quién es la inscripción?</Label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Button 
+                                        variant="outline" 
+                                        className="h-auto py-3 flex flex-col gap-1"
+                                        onClick={() => setParticipantType('self')}
+                                        disabled={isRegistered}
+                                    >
+                                        <UserIcon className="h-5 w-5" />
+                                        <span>Inscribirme a mí</span>
+                                        {isRegistered && <span className="text-xs text-muted-foreground">(Ya estás inscrito)</span>}
+                                    </Button>
+                                    <Button 
+                                        variant="outline" 
+                                        className="h-auto py-3 flex flex-col gap-1"
+                                        onClick={() => setParticipantType('minor')}
+                                    >
+                                        <div className="relative">
+                                            <UserIcon className="h-5 w-5" />
+                                            <span className="absolute -top-1 -right-2 text-xs font-bold">+</span>
+                                        </div>
+                                        <span>Inscribir a un menor</span>
+                                    </Button>
+                                </div>
                             </div>
                         )}
 
-                        {hasJersey && (
-                             <div className="space-y-3 bg-muted/20 p-3 rounded-md border border-dashed border-primary/20">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <Shirt className="h-4 w-4 text-primary" />
-                                    <Label className="text-primary font-semibold">Selección de Jersey</Label>
-                                </div>
-                                
-                                <div className="space-y-2">
-                                    <Label className="text-xs">Modelo</Label>
-                                    <Select onValueChange={setSelectedJerseyId} value={selectedJerseyId}>
-                                        <SelectTrigger className="h-9"><SelectValue placeholder="Elige el modelo" /></SelectTrigger>
-                                        <SelectContent>
-                                            {jerseyConfigs.map(j => <SelectItem key={j.id} value={j.id}>{j.name} ({j.type})</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                        {/* --- Options shown AFTER participant type is selected, or if minor flow is not enabled --- */}
+                        {((showParticipantSelector && participantType) || !showParticipantSelector) && (
+                            <div className="space-y-4 animate-in fade-in">
+                                {participantType === 'minor' && (
+                                     <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800 text-blue-800 dark:text-blue-300">
+                                        <HelpCircle className="h-4 w-4" />
+                                        <AlertTitle className="font-semibold">Inscripción para Menores</AlertTitle>
+                                        <AlertDescription className="text-xs mt-1">
+                                            ¡Inscribir a tus hijos es muy fácil! 🚴‍♂️👶 solo sigue estos pasos:<br/>
+                                            1️⃣ Selecciona su categoría y complementos.<br/>
+                                            2️⃣ Confirma tus datos como tutor.<br/>
+                                            3️⃣ Registra o selecciona al menor.<br/>
+                                            4️⃣ Firma la responsiva digital.<br/>
+                                            Al terminar, el boleto quedará guardado.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
 
-                                {selectedJerseyId && selectedJerseyConfig && (
-                                    <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
-                                        <Label className="text-xs">Talla</Label>
-                                        <Select onValueChange={setSelectedJerseySize} value={selectedJerseySize}>
-                                            <SelectTrigger className="h-9"><SelectValue placeholder="Elige tu talla" /></SelectTrigger>
+                                {event.costType !== 'Gratuito' && tiers.length > 0 && (
+                                    <div className="space-y-2">
+                                        <Label>Nivel de Acceso</Label>
+                                        <Select onValueChange={setSelectedTierId} value={selectedTierId}>
+                                            <SelectTrigger><SelectValue placeholder="Selecciona un nivel" /></SelectTrigger>
                                             <SelectContent>
-                                                {selectedJerseyConfig.sizes.map(size => (
-                                                    <SelectItem key={size} value={size}>{size}</SelectItem>
-                                                ))}
+                                                {tiers.map(tier => {
+                                                    const { available, remaining } = checkTierAvailability(tier);
+                                                    return (
+                                                        <SelectItem key={tier.id} value={tier.id} disabled={!available}>
+                                                            <span className="flex items-center justify-between w-full gap-2">
+                                                                <span>{tier.name} - {tier.price === 0 ? 'Gratis' : `$${tier.price}`}</span>
+                                                                {!available && <span className="text-xs font-bold text-destructive ml-2">(Agotado)</span>}
+                                                                {available && remaining !== undefined && remaining <= 5 && (
+                                                                    <span className="text-xs font-bold text-orange-500 ml-2">({remaining} libres)</span>
+                                                                )}
+                                                            </span>
+                                                        </SelectItem>
+                                                    );
+                                                })}
                                             </SelectContent>
                                         </Select>
+                                    </div>
+                                )}
+                                {event.hasCategories && categories.length > 0 && (
+                                    <div className="space-y-2">
+                                        <Label>Categoría</Label>
+                                        <Select onValueChange={setSelectedCategoryId} value={selectedCategoryId}>
+                                            <SelectTrigger><SelectValue placeholder="Selecciona tu categoría" /></SelectTrigger>
+                                            <SelectContent>
+                                                {categories.map(cat => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+                                {hasJersey && (
+                                    <div className="space-y-3 bg-muted/20 p-3 rounded-md border border-dashed border-primary/20">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Shirt className="h-4 w-4 text-primary" />
+                                            <Label className="text-primary font-semibold">Selección de Jersey</Label>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-xs">Modelo</Label>
+                                            <Select onValueChange={setSelectedJerseyId} value={selectedJerseyId}>
+                                                <SelectTrigger className="h-9"><SelectValue placeholder="Elige el modelo" /></SelectTrigger>
+                                                <SelectContent>
+                                                    {jerseyConfigs.map(j => <SelectItem key={j.id} value={j.id}>{j.name} ({j.type})</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        {selectedJerseyId && selectedJerseyConfig && (
+                                            <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
+                                                <Label className="text-xs">Talla</Label>
+                                                <Select onValueChange={setSelectedJerseySize} value={selectedJerseySize}>
+                                                    <SelectTrigger className="h-9"><SelectValue placeholder="Elige tu talla" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {selectedJerseyConfig.sizes.map(size => <SelectItem key={size} value={size}>{size}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -483,7 +557,7 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                     ) : isClient && isRegistrationClosed ? (
                          <Button size="lg" variant="secondary" className="w-full text-lg font-bold h-12 bg-orange-100 text-orange-800" disabled>Inscripciones Cerradas</Button>
                     ) : user ? (
-                        isRegistered ? (
+                        isRegistered && !participantType && !showParticipantSelector ? ( // Show manage button only if not in the middle of a new registration
                             <div className="space-y-3">
                                 <Button size="lg" variant="secondary" className="w-full text-lg font-bold h-12 bg-green-100 text-green-800 hover:bg-green-200" disabled>¡Ya estás inscrito!</Button>
                                 <Button size="lg" className="w-full text-lg font-bold h-12" onClick={() => router.push(`/dashboard/events/${event.id}`)}>
@@ -493,9 +567,16 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                         ) : isSoldOut ? (
                              <Button size="lg" variant="destructive" className="w-full text-lg font-bold h-12" disabled>Cupo Lleno (Sold Out)</Button>
                         ) : (
-                            <Button size="lg" className="w-full text-lg font-bold shadow-lg shadow-primary/20 h-12" disabled={event.status === 'draft' || isPending} onClick={handleRegisterClick}>
+                            <Button 
+                                size="lg" 
+                                className="w-full text-lg font-bold shadow-lg shadow-primary/20 h-12" 
+                                disabled={event.status === 'draft' || isPending || (showParticipantSelector && !participantType)} 
+                                onClick={handleRegisterClick}
+                            >
                                 {isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
-                                {event.status === 'draft' ? 'No disponible' : (isFree ? 'Registrarme Gratis' : 'Pagar e Inscribirme')}
+                                {event.status === 'draft' ? 'No disponible' 
+                                  : showParticipantSelector ? 'Continuar Inscripción'
+                                  : (isFree ? 'Registrarme Gratis' : 'Pagar e Inscribirme')}
                             </Button>
                         )
                     ) : (
@@ -525,7 +606,9 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                         <span className="col-span-2 font-medium">{event.name}</span>
                     </div>
                     <div className="grid grid-cols-3 items-center gap-4">
-                        <span className="font-semibold text-sm text-muted-foreground">Participante:</span>
+                        <span className="font-semibold text-sm text-muted-foreground">
+                            {participantType === 'minor' ? 'Padre o Tutor:' : 'Participante:'}
+                        </span>
                         <span className="col-span-2 font-medium">{user?.name} {user?.lastName}</span>
                     </div>
                     {selectedTier && (
@@ -556,7 +639,7 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                     {needsProfileUpdate && (
                         <div className="space-y-4 pt-4 border-t border-dashed border-primary/30">
                             <h4 className="font-bold text-sm text-primary flex items-center gap-2">
-                                <UserIcon className="h-4 w-4" /> Datos de Corredor (Obligatorio)
+                                <UserIcon className="h-4 w-4" /> {participantType === 'minor' ? 'Datos del Tutor (Obligatorio)' : 'Datos de Corredor (Obligatorio)'}
                             </h4>
                             <p className="text-xs text-muted-foreground mb-2">Para proteger tu identidad y validar tu asistencia, el organizador requiere estos datos básicos.</p>
                             
@@ -762,11 +845,24 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                     <Button variant="outline" onClick={() => setIsConfirmModalOpen(false)} disabled={isPending}>Cancelar</Button>
                     <Button onClick={handleProceedToWaiverOrRegister} disabled={isPending}>
                         {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        {event.requiresWaiver ? "Continuar a Firma" : (isFree ? "Confirmar Registro" : "Ir a Pagar")}
+                        {participantType === 'minor' 
+                            ? "Continuar para Inscribir al Menor"
+                            : event.requiresWaiver 
+                                ? "Continuar a Firma" 
+                                : (isFree ? "Confirmar Registro" : "Ir a Pagar")}
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        {user && (
+            <DependentModal
+                isOpen={isMinorModalOpen}
+                onOpenChange={setIsMinorModalOpen}
+                onSuccess={handleDependentSelected}
+                existingDependents={user.dependents || []}
+            />
+        )}
 
         {user && event.requiresWaiver && event.waiverText && isWaiverModalOpen && (
             <WaiverModal 
@@ -774,7 +870,9 @@ export function EventRegistrationCard({ event, user, isRegistered = false, regis
                 onClose={() => setIsWaiverModalOpen(false)}
                 onConfirm={(signature, signedText) => handleFinalRegistration({ signature, signedText })}
                 waiverText={event.waiverText}
-                participantName={`${user.name} ${user.lastName}`}
+                participantName={participantType === 'minor' && selectedDependent ? `${selectedDependent.firstName} ${selectedDependent.lastName}` : `${user.name} ${user.lastName}`}
+                isTutor={participantType === 'minor'}
+                tutorName={user ? `${user.name} ${user.lastName}` : ''}
                 eventName={event.name}
                 organizerName={organizerNameForWaiver || "El Organizador"}
                 isPending={isPending}

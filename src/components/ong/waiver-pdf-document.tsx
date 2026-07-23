@@ -1,7 +1,5 @@
-import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
-
-// Registrar fuentes si es necesario, por ahora usaremos las estándar
-// Font.register({ family: 'Roboto', src: '...' });
+import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+import { WaiverDetails } from '@/lib/actions/waiver-actions';
 
 const styles = StyleSheet.create({
   page: {
@@ -28,14 +26,14 @@ const styles = StyleSheet.create({
   content: {
     textAlign: 'justify',
     marginBottom: 30,
-    whiteSpace: 'pre-wrap', // Respetar saltos de línea del texto original
+    whiteSpace: 'pre-wrap',
   },
   signatureSection: {
     marginTop: 30,
     borderTopWidth: 1,
     borderTopColor: '#000',
     paddingTop: 10,
-    width: '60%',
+    width: '70%',
     alignSelf: 'center',
     alignItems: 'center',
   },
@@ -48,9 +46,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
+  signatureLabel: {
+      fontSize: 8,
+  },
   footer: {
     position: 'absolute',
-    bottom: 20, // Reduced bottom margin slightly to fit more content
+    bottom: 20,
     left: 40,
     right: 40,
     borderTopWidth: 1,
@@ -64,52 +65,57 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   metadata: {
-    fontSize: 7, // Slightly smaller for technical details
+    fontSize: 7,
     color: 'grey',
     marginTop: 1,
     textAlign: 'center',
   },
   hashText: {
-    fontSize: 6, // Even smaller for the long hash
+    fontSize: 6,
     color: '#999',
     marginTop: 1,
     textAlign: 'center',
-    fontFamily: 'Courier', // Monospace if available, fallback to standard
+    fontFamily: 'Courier',
   }
 });
 
-interface WaiverPDFProps {
-  waiverText: string;
-  signatureImage: string;
-  participantName: string;
-  eventName: string;
-  acceptedAt: string;
-  registrationId: string;
-  ipAddress?: string;     // New Prop
-  securityHash?: string;  // New Prop
-}
+type WaiverPDFProps = {
+    details: WaiverDetails;
+};
 
-export const WaiverPDFDocument = ({
-  waiverText,
-  signatureImage,
-  participantName,
-  eventName,
-  acceptedAt,
-  registrationId,
-  ipAddress,
-  securityHash,
-}: WaiverPDFProps) => {
+export const WaiverPDFDocument = ({ details }: WaiverPDFProps) => {
+  const {
+    waiverText,
+    signatureImage,
+    participant,
+    tutor,
+    event,
+    acceptedAt,
+    registrationId,
+    waiverIp,
+    waiverHash,
+    isTutorFlow,
+  } = details;
+
   const formattedDate = new Date(acceptedAt).toLocaleString('es-MX', {
     dateStyle: 'long',
     timeStyle: 'medium',
   });
+
+  const participantFullName = `${participant.name} ${participant.lastName}`.trim();
+  const tutorFullName = tutor ? `${tutor.name} ${tutor.lastName}`.trim() : '';
+
+  const signatureName = isTutorFlow ? tutorFullName : participantFullName;
+  const signatureLabel = isTutorFlow ? `TUTOR DE: ${participantFullName}` : 'PARTICIPANTE';
+  const footerSignee = isTutorFlow ? `${tutorFullName} (en representación de ${participantFullName})` : participantFullName;
+
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <Text style={styles.title}>CARTA RESPONSIVA Y EXONERACIÓN</Text>
-          <Text style={styles.subtitle}>Evento: {eventName}</Text>
+          <Text style={styles.subtitle}>Evento: {event.name}</Text>
         </View>
 
         <View style={styles.content}>
@@ -117,12 +123,11 @@ export const WaiverPDFDocument = ({
         </View>
 
         <View style={styles.signatureSection}>
-          {/* La imagen debe ser base64 válida */}
           {signatureImage && (
              <Image src={signatureImage} style={styles.signatureImage} />
           )}
-          <Text style={styles.signatureText}>{participantName}</Text>
-          <Text style={{ fontSize: 8 }}>PARTICIPANTE</Text>
+          <Text style={styles.signatureText}>{signatureName}</Text>
+          <Text style={styles.signatureLabel}>{signatureLabel}</Text>
         </View>
 
         <View style={styles.footer}>
@@ -130,18 +135,17 @@ export const WaiverPDFDocument = ({
             Certificado Digital de Aceptación
           </Text>
           <Text style={styles.metadata}>
-            Firmado digitalmente por {participantName} el {formattedDate}.
+            Firmado digitalmente por {footerSignee} el {formattedDate}.
           </Text>
           <Text style={styles.metadata}>
             ID de Registro: {registrationId} | Plataforma: BiciRegistro.mx
           </Text>
           
-          {/* New Security Fields */}
           <Text style={styles.metadata}>
-            IP de Origen: {ipAddress || 'No registrada (Firma anterior)'}
+            IP de Origen: {waiverIp || 'No registrada (Firma anterior)'}
           </Text>
           <Text style={styles.hashText}>
-             Huella Digital (Hash SHA-256): {securityHash || 'No generado (Firma anterior)'}
+             Huella Digital (Hash SHA-256): {waiverHash || 'No generado (Firma anterior)'}
           </Text>
         </View>
       </Page>

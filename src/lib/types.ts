@@ -1,4 +1,5 @@
 import { GamificationProfile } from './gamification/gamification-types';
+import { Timestamp } from 'firebase/firestore';
 
 export type BikeStatus = 'safe' | 'stolen' | 'in_transfer' | 'recovered' | 'inventory';
 
@@ -87,7 +88,7 @@ export type Bike = {
   // Seguimiento de difusión administrativa
   adminSharedAt?: string; // ISO string de cuándo el admin compartió el robo
   bikonId?: string | null; // ID of the linked Bikon device
-  
+
   // --- NUEVOS CAMPOS (B2B) ---
   frameMaterial?: 'Aluminio' | 'Carbono' | 'Acero' | 'Titanio' | 'Bambú' | 'Otro';
   components?: BikeComponents;
@@ -193,6 +194,9 @@ export type User = {
   stravaTotalKm?: number; // Snapshot of synced KMs
   stravaTopModalities?: string[]; // ej: ['Ride', 'MountainBikeRide']
   stravaLastActiveDate?: string; // ISO string de la actividad más reciente
+
+  // --- Inscripción de Menores ---
+  dependents?: Dependent[];
 };
 
 // --- DATA B2B (Mantenimiento Predictivo y Rutas) ---
@@ -319,11 +323,11 @@ export type Serial = {
     sponsors?: string[]; // Array de URLs de logos
     coOrganizerEmails?: string[]; // Incremental: emails vinculados
     pointMatrix: PointMatrix[];
-    
+
     // --- NUEVAS PROPIEDADES AÑADIDAS ---
     modality?: string; // Modalidad base heredada a los hijos
     level?: 'Principiante' | 'Intermedio' | 'Avanzado'; // Nivel base heredado a los hijos
-    
+
     // Cupo Global
     maxParticipantsGlobal?: number; 
 
@@ -377,6 +381,9 @@ export type Event = {
   serialId?: string; // Llave foránea lógica al Serial
   isSerialStage?: boolean;
   stageOrder?: number; // Para ordenar las fechas cronológicamente (1, 2, 3...)
+
+  // --- Inscripción de Menores ---
+  allowsMinors?: boolean;
 };
 
 export type PaymentStatus = 'pending' | 'paid' | 'not_applicable';
@@ -431,10 +438,18 @@ export type EventRegistration = {
     waiverHash?: string; 
     marketingConsent?: MarketingConsent | null;
     customAnswers?: Record<string, string | string[]>; // Respuestas a preguntas personalizadas
-
+    waiverAcceptance?: {
+      isTutorSignature: boolean; // True if signed by a tutor for a minor
+      tutorDeclaration: boolean; // True if the "Declaro bajo protesta..." checkbox was checked
+    };
     // --- Campos para el Motor de Seriales ---
     serialBibNumber?: number; // El "Número Único Permanente"
     affiliationId?: string; // Captura si requiresAffiliationId es true
+
+    // --- Inscripción de Menores ---
+    isMinorRegistration?: boolean; // Flag to identify this ticket type
+    dependentId?: string; // FK a la colección de Dependents. Si existe, es un boleto de menor.
+    tutorId?: string; // FK al User del tutor.
 };
 
 export type EventAttendee = {
@@ -475,14 +490,23 @@ export type EventAttendee = {
     state?: string | null;
     city?: string | null;
     marketingConsent?: MarketingConsent | null; // Extraído de la inscripción original
-    
+
     // --- Campos para el Motor de Seriales ---
     serialBibNumber?: number; // El "Número Único Permanente"
     affiliationId?: string; // Captura si requiresAffiliationId es true
+
+    // --- Inscripción de Menores ---
+    isMinorRegistration?: boolean;
+    dependentId?: string; // FK a la colección de Dependents. Si existe, es un boleto de menor.
+    tutorId?: string;
+    tutorName?: string; // Nombre del tutor para la tabla de asistentes
+    tutorEmail?: string; // Email del tutor para la tabla de asistentes
 };
 
 export type UserEventRegistration = EventRegistration & {
     event: Event;
+    isDependent?: boolean;
+    dependentName?: string;
 };
 
 // --- Entidad Leaderboard (Tabla Global del Serial) ---
@@ -693,14 +717,14 @@ export type CampaignTargetScope = 'global' | 'state';
 export type Campaign = {
     id: string;
     advertiserId: string; // Link to an OngUser (Advertiser)
-    
+
     // Configuration
     title: string; // Public title seen by users
     internalName: string; // For admin management
     type: CampaignType;
     status: CampaignStatus;
     placement: CampaignPlacement;
-    
+
     // Segmentation
     targetScope?: CampaignTargetScope;
     targetCountry?: string;
@@ -709,17 +733,17 @@ export type Campaign = {
     // Scheduling
     startDate: string; // ISO Date
     endDate: string; // ISO Date
-    
+
     // Assets & Creative
     bannerImageUrl: string; // Main banner (Dashboard 1200x300, etc)
     rewardImageUrl?: string; // Optional: Image specifically for the reward/coupon card
     mobileBannerImageUrl?: string; // Optional mobile optimized
-    
+
     // Action Logic
     assetUrl?: string; // For 'download' type (PDF URL)
     targetUrl?: string; // For 'link' type
     couponCode?: string; // For 'coupon' type
-    
+
     // Analytics (Denormalized for performance)
     clickCount: number;
     uniqueConversionCount: number;
@@ -730,7 +754,7 @@ export type Campaign = {
     totalCoupons?: number; // Inventory (0 = unlimited)
     maxPerUser?: number; // Limit per user (0 = unlimited)
     conditions?: string; // Rich text / HTML for terms and conditions
-    
+
     createdAt: string;
     updatedAt: string;
 };
@@ -739,16 +763,16 @@ export type CampaignConversion = {
     id: string;
     campaignId: string;
     userId: string;
-    
+
     // Snapshot of user data at time of conversion
     userEmail: string;
     userName: string;
     userCity?: string;
     userState?: string; // New: Add State snapshot
     userCountry?: string; // New: Add Country snapshot
-    
+
     convertedAt: string; // ISO Date
-    
+
     ipAddress?: string; // New: Legal
     privacyPolicyVersion?: string; // New: Legal
 
@@ -806,7 +830,7 @@ export type UserReward = {
     purchasedAt: string; // ISO string
     redeemedAt?: string; // ISO string
     pricePaidKm: number; // Snapshot of the price at time of purchase
-    
+
     // Denormalized snapshot data for display without extra joins
     campaignSnapshot: {
         title: string;
@@ -829,7 +853,7 @@ export type UserReward = {
     categoryId: string; // Categoría del serial en la que compite
     categoryName: string;
     affiliationId?: string; // ID de afiliación si lo requiere el serial
-    
+
     // Desnormalización de Inscripciones por Etapa
     stages: {
         [eventId: string]: {
@@ -841,13 +865,13 @@ export type UserReward = {
             checkedIn: boolean;
         }
     };
-    
+
     // Estadísticas e Indicadores Acumulados (Sincronizados del Leaderboard)
     totalPoints: number;
     overallPosition: number;
     stagesCompleted: number;
     totalChipTimeMs?: number;
-    
+
     updatedAt: string;
 };
 
@@ -879,3 +903,16 @@ export type ComponentAnalyticsData = {
     saddle: ComponentIndicatorRow;
     pedals: ComponentIndicatorRow;
 };
+
+// --- Inscripción de Menores ---
+
+export interface Dependent {
+  id: string;
+  tutorId: string; // FK a la colección de Users
+  firstName: string;
+  lastName: string;
+  dateOfBirth: Date;
+  gender: 'Masculino' | 'Femenino' | 'Otro';
+  bloodType: string;
+  allergies?: string;
+}

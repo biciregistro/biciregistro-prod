@@ -16,6 +16,7 @@ interface EventUnlockChecklistProps {
     needsBike: boolean;
     hasBike: boolean;
     userBikes: Bike[];
+    allEventRegistrations: EventRegistration[];
     registration: EventRegistration;
     eventId: string;
 }
@@ -26,6 +27,7 @@ export function EventUnlockChecklist({
     needsBike,
     hasBike,
     userBikes,
+    allEventRegistrations,
     registration,
     eventId
 }: EventUnlockChecklistProps) {
@@ -133,7 +135,7 @@ export function EventUnlockChecklist({
                                         </div>
                                     ) : (
                                         <div className="space-y-4 pt-2">
-                                            <EventBikeSelector userBikes={userBikes} registration={registration} eventId={eventId} />
+                                            <EventBikeSelector userBikes={userBikes} allEventRegistrations={allEventRegistrations} registration={registration} eventId={eventId} />
                                         </div>
                                     )}
                                 </div>

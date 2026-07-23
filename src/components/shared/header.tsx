@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/sheet"
 import { logout } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
+import ClientOnly from '@/components/shared/client-only';
 
 const navLinks = [
   { href: '/', label: 'Inicio', auth: false },
@@ -265,83 +266,85 @@ export function Header({ user }: { user: UserType | null }) {
                   )}
 
                   {/* Mobile Navigation & Report Button */}
-                  <div className="md:hidden flex items-center gap-2">
-                       {/* Botón Reportar Robo Mobile (Visible siempre, incluso logueado) */}
-                      <Button asChild variant="destructive" size="sm" className="h-8 bg-red-600 hover:bg-red-700 text-white text-xs px-2 shadow-sm">
-                          <Link href="/reportar-robo" className="flex items-center gap-1">
-                              <AlertTriangle className="w-3 h-3" />
-                              Reportar
-                          </Link>
-                      </Button>
+                  <ClientOnly>
+                    <div className="md:hidden flex items-center gap-2">
+                         {/* Botón Reportar Robo Mobile (Visible siempre, incluso logueado) */}
+                        <Button asChild variant="destructive" size="sm" className="h-8 bg-red-600 hover:bg-red-700 text-white text-xs px-2 shadow-sm">
+                            <Link href="/reportar-robo" className="flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" />
+                                Reportar
+                            </Link>
+                        </Button>
 
-                      <Sheet>
-                          <SheetTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                  <Menu className="h-6 w-6" />
-                                  <span className="sr-only">Menú</span>
-                              </Button>
-                          </SheetTrigger>
-                          <SheetContent side="right">
-                              <SheetHeader>
-                                  <SheetTitle className="text-left">Menú</SheetTitle>
-                              </SheetHeader>
-                              <div className="flex flex-col gap-4 mt-6">
-                                  {navLinks.map(link => (
-                                      <SheetClose asChild key={link.href}>
-                                          <Link
-                                              href={link.href}
-                                              className={cn(
-                                                  'text-lg font-medium transition-colors hover:text-primary',
-                                                  pathname === link.href ? 'text-primary' : 'text-foreground/60'
-                                              )}
-                                          >
-                                              {link.label}
-                                          </Link>
-                                      </SheetClose>
-                                  ))}
-                                  <div className="border-t my-2" />
-                                  
-                                  <SheetClose asChild>
-                                      <Button asChild variant="destructive" className="w-full justify-start text-lg bg-red-600 hover:bg-red-700 text-white">
-                                          <Link href="/reportar-robo">
-                                              <AlertTriangle className="w-5 h-5 mr-2" />
-                                              Reportar Robo
-                                          </Link>
-                                      </Button>
-                                  </SheetClose>
+                        <Sheet>
+                            <SheetTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                    <Menu className="h-6 w-6" />
+                                    <span className="sr-only">Menú</span>
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent side="right">
+                                <SheetHeader>
+                                    <SheetTitle className="text-left">Menú</SheetTitle>
+                                </SheetHeader>
+                                <div className="flex flex-col gap-4 mt-6">
+                                    {navLinks.map(link => (
+                                        <SheetClose asChild key={link.href}>
+                                            <Link
+                                                href={link.href}
+                                                className={cn(
+                                                    'text-lg font-medium transition-colors hover:text-primary',
+                                                    pathname === link.href ? 'text-primary' : 'text-foreground/60'
+                                                )}
+                                            >
+                                                {link.label}
+                                            </Link>
+                                        </SheetClose>
+                                    ))}
+                                    <div className="border-t my-2" />
+                                    
+                                    <SheetClose asChild>
+                                        <Button asChild variant="destructive" className="w-full justify-start text-lg bg-red-600 hover:bg-red-700 text-white">
+                                            <Link href="/reportar-robo">
+                                                <AlertTriangle className="w-5 h-5 mr-2" />
+                                                Reportar Robo
+                                            </Link>
+                                        </Button>
+                                    </SheetClose>
 
-                                  {!user && (
-                                      <>
-                                          <SheetClose asChild>
-                                              <Button asChild variant="outline" className="w-full justify-start text-lg border-primary text-primary">
-                                                  <Link href="/events-manager">Soy Organizador</Link>
-                                              </Button>
-                                          </SheetClose>
+                                    {!user && (
+                                        <>
+                                            <SheetClose asChild>
+                                                <Button asChild variant="outline" className="w-full justify-start text-lg border-primary text-primary">
+                                                    <Link href="/events-manager">Soy Organizador</Link>
+                                                </Button>
+                                            </SheetClose>
 
-                                          <SheetClose asChild>
-                                              <Button asChild variant="ghost" className="justify-start px-0 text-lg">
-                                                  <Link href="/login">Iniciar Sesión</Link>
-                                              </Button>
-                                          </SheetClose>
-                                          <SheetClose asChild>
-                                              <Button asChild className="w-full">
-                                                  <Link href="/signup">Registra Tu Bici</Link>
-                                              </Button>
-                                          </SheetClose>
-                                      </>
-                                  )}
-                                  
-                                  {user && (
-                                       <SheetClose asChild>
-                                          <Button asChild className="w-full">
-                                              <Link href={dashboardHome}>Ir a mi Panel</Link>
-                                          </Button>
-                                      </SheetClose>
-                                  )}
-                              </div>
-                          </SheetContent>
-                      </Sheet>
-                  </div>
+                                            <SheetClose asChild>
+                                                <Button asChild variant="ghost" className="justify-start px-0 text-lg">
+                                                    <Link href="/login">Iniciar Sesión</Link>
+                                                </Button>
+                                            </SheetClose>
+                                            <SheetClose asChild>
+                                                <Button asChild className="w-full">
+                                                    <Link href="/signup">Registra Tu Bici</Link>
+                                                </Button>
+                                            </SheetClose>
+                                        </>
+                                    )}
+                                    
+                                    {user && (
+                                         <SheetClose asChild>
+                                            <Button asChild className="w-full">
+                                                <Link href={dashboardHome}>Ir a mi Panel</Link>
+                                            </Button>
+                                        </SheetClose>
+                                    )}
+                                </div>
+                            </SheetContent>
+                        </Sheet>
+                    </div>
+                  </ClientOnly>
               </div>
               </div>
         </div>

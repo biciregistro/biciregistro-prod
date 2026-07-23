@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
+import { Timestamp } from 'firebase-admin/firestore';
 
 import {
     updateHomepageSectionData,
@@ -18,12 +19,18 @@ import {
     updateRegistrationStatusInternal,
     cancelEventRegistrationById,
     getAuthenticatedUser,
+    createEventRegistration, // Se asume que esta función se creará en data.ts
 } from './data';
 import { updateFinancialSettings } from './financial-data';
 import { deleteSession, getDecodedSession } from './auth';
-import { ActionFormState, HomepageSection, Event, PaymentStatus, BikeFormState } from './types';
-import { userFormSchema, ongUserFormSchema, financialSettingsSchema } from './schemas';
-import { adminAuth } from './firebase/server';
+import { ActionFormState, HomepageSection, Event, PaymentStatus, BikeFormState, Dependent, EventRegistration } from './types';
+import { 
+    userFormSchema, 
+    ongUserFormSchema, 
+    financialSettingsSchema,
+    dependentFormSchema,
+} from './schemas';
+import { adminAuth, adminDb } from './firebase/server';
 import { sendWelcomeEmail } from './email/resend-service';
 import { processReferral } from './actions/referral-actions';
 import { REFERRAL_COOKIE_NAME } from './gamification/constants';
@@ -326,12 +333,15 @@ export async function cancelRegistrationAction(eventId: string) {
     return result;
 }
 
-export async function selectEventBikeAction(eventId: string, bikeId: string) {
+export async function selectEventBikeAction(registrationId: string, bikeId: string) {
     const session = await getDecodedSession();
     if (!session?.uid) return { success: false, error: "Inicia sesión." };
-    const result = await updateEventRegistrationBike(eventId, session.uid, bikeId);
-    if (result.success) revalidatePath(`/dashboard/events/${eventId}`);
-    return result;
+    const result = await updateEventRegistrationBike(registrationId, session.uid, bikeId);
+    if (result.success && result.eventId) {
+        revalidatePath(`/dashboard/events/${result.eventId}`);
+        revalidatePath('/dashboard');
+    }
+    return { success: result.success, error: result.error };
 }
 
 export async function updateRegistrationPaymentStatus(registrationId: string, eventId: string, newStatus: PaymentStatus) {
@@ -425,5 +435,201 @@ export async function getModelsByBrandAction(brand: string): Promise<string[]> {
     } catch (error) {
         console.error("Error fetching models for autocomplete:", error);
         return [];
+    }
+}
+
+export async function swapBikeAssignmentsAction(
+    registrationId1: string, 
+    registrationId2: string,
+    eventId: string
+): Promise<{ success: boolean; error?: string; }> {
+    const session = await getDecodedSession();
+    if (!session?.uid) {
+        return { success: false, error: "No autenticado." };
+    }
+
+    // NOTE: The collection name 'event-registrations' is inferred from other actions.
+    const reg1Ref = adminDb.collection('event-registrations').doc(registrationId1);
+    const reg2Ref = adminDb.collection('event-registrations').doc(registrationId2);
+
+    try {
+        await adminDb.runTransaction(async (transaction) => {
+            const reg1Doc = await transaction.get(reg1Ref);
+            const reg2Doc = await transaction.get(reg2Ref);
+
+            if (!reg1Doc.exists || !reg2Doc.exists) {
+                throw new Error("Una o ambas inscripciones no existen.");
+            }
+            
+            const reg1Data = reg1Doc.data()!;
+            const reg2Data = reg2Doc.data()!;
+
+            // Security check: Ensure the authenticated user is the tutor/owner for both registrations.
+            if (reg1Data.userId !== session.uid || reg2Data.userId !== session.uid) {
+                throw new Error("No tienes permiso para modificar estas inscripciones.");
+            }
+            
+            const bikeId1 = reg1Data.bikeId;
+            const bikeId2 = reg2Data.bikeId;
+
+            // Atomically swap the bike IDs
+            transaction.update(reg1Ref, { bikeId: bikeId2 });
+            transaction.update(reg2Ref, { bikeId: bikeId1 });
+        });
+
+        // Revalidate the path to reflect changes on the frontend
+        revalidatePath(`/dashboard/events/${eventId}`);
+        revalidatePath('/dashboard');
+
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Error swapping bike assignments:", error);
+        return { success: false, error: error.message || "Ocurrió un error inesperado durante el intercambio." };
+    }
+}
+
+
+// --- ACCIONES PARA INSCRIPCIÓN DE MENORES ---
+
+export async function createOrUpdateDependentAction(prevState: any, formData: FormData): Promise<ActionFormState & { dependent?: Dependent }> {
+    const session = await getDecodedSession();
+    if (!session?.uid) return { error: 'No autenticado.' };
+
+    const validatedFields = dependentFormSchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) {
+        return { error: 'Datos de menor inválidos.', errors: validatedFields.error.flatten().fieldErrors };
+    }
+    
+    // The form sends dateOfBirth as 'DD/MM/YYYY', convert to a valid Date object for Firestore
+    const { dateOfBirth, ...restOfData } = validatedFields.data;
+    const [day, month, year] = dateOfBirth.split('/');
+    const dobDate = new Date(`${year}-${month}-${day}`);
+    
+    if (isNaN(dobDate.getTime())) {
+        return { error: 'La fecha de nacimiento no es válida.' };
+    }
+
+    const dependentData = { ...restOfData, dateOfBirth: dobDate };
+    const existingDependentId = formData.get('dependentId') as string | undefined;
+
+    try {
+        const dependentPayload: Omit<Dependent, 'id' | 'dateOfBirth'> & { dateOfBirth: Timestamp } = {
+            tutorId: session.uid,
+            ...dependentData,
+            dateOfBirth: Timestamp.fromDate(dependentData.dateOfBirth),
+        };
+
+        if (existingDependentId) {
+            // Update
+            await adminDb.collection('dependents').doc(existingDependentId).set(dependentPayload, { merge: true });
+            const updatedDependent: Dependent = { id: existingDependentId, ...dependentPayload, dateOfBirth: dependentPayload.dateOfBirth.toDate() };
+            return { success: true, message: 'Dependiente actualizado.', dependent: updatedDependent };
+        } else {
+            // Create
+            const newDocRef = await adminDb.collection('dependents').add(dependentPayload);
+            const newDependent: Dependent = { id: newDocRef.id, ...dependentPayload, dateOfBirth: dependentPayload.dateOfBirth.toDate() };
+            return { success: true, message: 'Dependiente registrado.', dependent: newDependent };
+        }
+    } catch (error) {
+        console.error("Error creating/updating dependent:", error);
+        return { error: 'Error en el servidor al guardar los datos del menor.' };
+    }
+}
+
+const registrationPayloadSchema = z.object({
+    eventId: z.string(),
+    tierId: z.string(),
+    categoryId: z.string().optional(),
+    jerseyModel: z.string().optional(),
+    jerseySize: z.string().optional(),
+    waiverSignature: z.string().min(1, "La firma es obligatoria."),
+    waiverIp: z.string().optional(),
+    customAnswers: z.string().optional(),
+    dependentId: z.string().optional(),
+    // Campos de emergencia del tutor (pueden ser nuevos si el tutor es nuevo)
+    emergencyContactName: z.string().optional(),
+    emergencyContactPhone: z.string().optional(),
+    bloodType: z.string().optional(),
+    insuranceInfo: z.string().optional(),
+    allergies: z.string().optional(),
+});
+
+
+export async function createEventRegistrationAction(prevState: any, formData: FormData): Promise<ActionFormState & { registrationId?: string }> {
+    const session = await getDecodedSession();
+    if (!session?.uid) return { error: 'No autenticado.' };
+    
+    const tutor = await getAuthenticatedUser();
+    if (!tutor) return { error: 'No se encontró el perfil del usuario.' };
+
+    const validatedFields = registrationPayloadSchema.safeParse(Object.fromEntries(formData.entries()));
+    if (!validatedFields.success) {
+        return { error: 'Datos de inscripción inválidos.', errors: validatedFields.error.flatten().fieldErrors };
+    }
+
+    const { eventId, dependentId, waiverSignature, waiverIp, ...payload } = validatedFields.data;
+
+    try {
+        const event = await getEvent(eventId);
+        if (!event) return { error: 'El evento no existe.' };
+
+        // Lógica de herencia de datos
+        const registrationData: Partial<EventRegistration> = {
+            eventId,
+            userId: tutor.id,
+            dependentId: dependentId,
+            registrationDate: new Date().toISOString(),
+            status: 'confirmed',
+            paymentStatus: event.costType === 'Gratuito' ? 'not_applicable' : 'pending',
+            tierId: payload.tierId,
+            categoryId: payload.categoryId,
+            jerseyModel: payload.jerseyModel,
+            jerseySize: payload.jerseySize,
+            waiverSignature,
+            waiverIp: waiverIp || 'N/A',
+            waiverAcceptedAt: new Date().toISOString(),
+            waiverTextSnapshot: event.waiverText || '',
+            customAnswers: payload.customAnswers ? JSON.parse(payload.customAnswers) : {},
+        };
+
+        if (dependentId) {
+            // Es un menor, heredar datos de emergencia del tutor
+            registrationData.emergencyContactName = tutor.emergencyContactName;
+            registrationData.emergencyContactPhone = tutor.emergencyContactPhone;
+            registrationData.bloodType = tutor.bloodType;
+            registrationData.insuranceInfo = tutor.insuranceInfo;
+            registrationData.allergies = tutor.allergies;
+        } else {
+            // Es el adulto, usar datos del formulario (que pueden ser para actualizar su perfil)
+            registrationData.emergencyContactName = payload.emergencyContactName;
+            registrationData.emergencyContactPhone = payload.emergencyContactPhone;
+            registrationData.bloodType = payload.bloodType;
+            registrationData.insuranceInfo = payload.insuranceInfo;
+            registrationData.allergies = payload.allergies;
+            
+            // Si el adulto es nuevo o está completando su perfil, actualizamos sus datos
+            const profileUpdate: any = {};
+            if(payload.emergencyContactName && !tutor.emergencyContactName) profileUpdate.emergencyContactName = payload.emergencyContactName;
+            if(payload.emergencyContactPhone && !tutor.emergencyContactPhone) profileUpdate.emergencyContactPhone = payload.emergencyContactPhone;
+            if(payload.bloodType && !tutor.bloodType) profileUpdate.bloodType = payload.bloodType;
+            if(Object.keys(profileUpdate).length > 0) {
+                await updateUserData(tutor.id, profileUpdate);
+            }
+        }
+        
+        // Aquí se llamaría a la función que crea el documento en Firestore
+        const registrationId = await createEventRegistration(registrationData as EventRegistration);
+
+        // Revalidar rutas para que los cambios se reflejen
+        revalidatePath(`/dashboard/ong/events/${eventId}`);
+        revalidatePath('/dashboard');
+        
+        // Redireccionar al boleto
+        redirect(`/dashboard/events/${registrationId}`);
+
+    } catch (error) {
+        console.error("Error creating event registration:", error);
+        return { error: 'Error en el servidor al crear la inscripción.' };
     }
 }

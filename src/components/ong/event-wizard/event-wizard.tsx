@@ -98,6 +98,7 @@ export function EventWizard({ initialData, financialSettings, hasFinancialData: 
             jerseyConfigs: initialData?.jerseyConfigs || [],
             hasCustomQuestions: initialData?.hasCustomQuestions || (initialData?.customQuestions && initialData.customQuestions.length > 0) || false,
             customQuestions: initialData?.customQuestions || [],
+            allowsMinors: initialData?.allowsMinors || false,
             sponsors: initialData?.sponsors || [],
         },
         mode: "onChange", 
@@ -123,6 +124,7 @@ export function EventWizard({ initialData, financialSettings, hasFinancialData: 
             if (!data.hasRegistrationDeadline) submitData.registrationDeadline = undefined;
             if (!data.requiresWaiver) submitData.waiverText = undefined;
             if (!data.hasCustomQuestions) submitData.customQuestions = [];
+            if (!data.allowsMinors) submitData.allowsMinors = false;
             
             const result = await saveEvent(submitData, isDraft);
             return result;

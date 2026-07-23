@@ -153,6 +153,8 @@ export function ConfigurationSection({ form, isPublished, isWizardMode = false }
                             </Alert>
                         )}
                     </div>
+
+                    
                 </div>
             )}
 

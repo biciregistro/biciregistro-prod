@@ -1,9 +1,8 @@
 import 'server-only';
 import { adminDb } from '../firebase/server';
-import { getUser, getEvent, getBike } from './core'; 
+import { getUser, getEvent, getBike, getDependent } from './core'; 
 import { EventRegistration, EventAttendee, MarketingConsent, CostTier, Event, SerialCompetitor, User } from '../types';
 import { unstable_noStore as noStore } from 'next/cache';
-import { SerialBibService } from '../actions/serial-bib-service';
 
 export async function getRegistrationById(registrationId: string): Promise<EventRegistration | null> {
     noStore();
@@ -33,7 +32,7 @@ export async function registerUserToEvent(
     registrationData: RegistrationInput
 ): Promise<{ success: true; registrationId: string; message: string } | { success: false; error: string }> {
     const db = adminDb;
-    const { eventId, userId } = registrationData;
+    const { eventId, userId, dependentId } = registrationData;
 
     try {
         return await db.runTransaction(async (transaction) => {
@@ -53,10 +52,22 @@ export async function registerUserToEvent(
                 return { success: false, error: "Lo sentimos, el cupo para este evento está lleno." };
             }
 
-            const regQuery = db.collection('event-registrations')
-                .where('userId', '==', userId)
-                .where('eventId', '==', eventId)
-                .limit(1);
+            // MODIFIED: Uniqueness check for dependents
+            let regQuery;
+            if (dependentId) {
+                // For a minor, the registration is unique for that dependent in that event.
+                regQuery = db.collection('event-registrations')
+                    .where('eventId', '==', eventId)
+                    .where('dependentId', '==', dependentId)
+                    .limit(1);
+            } else {
+                // For an adult, it's unique for their own user ID in that event.
+                regQuery = db.collection('event-registrations')
+                    .where('userId', '==', userId)
+                    .where('eventId', '==', eventId)
+                    .where('dependentId', '==', null) // Explicitly check that it's not a dependent registration
+                    .limit(1);
+            }
             
             const regSnapshot = await transaction.get(regQuery);
             let existingRegDoc = null;
@@ -65,9 +76,9 @@ export async function registerUserToEvent(
                 const doc = regSnapshot.docs[0];
                 const data = doc.data() as EventRegistration;
                 if (data.status === 'cancelled') {
-                    existingRegDoc = doc;
+                    existingRegDoc = doc; // Allow re-registration if cancelled
                 } else {
-                     return { success: false, error: "Ya te encuentras registrado en este evento." };
+                     return { success: false, error: "El participante ya se encuentra registrado en este evento." };
                 }
             }
 
@@ -115,21 +126,8 @@ export async function registerUserToEvent(
             
             // --- SERIAL INTEGRATION: BIB NUMBER ASSIGNMENT ---
             if (eventData.serialId && eventData.isSerialStage) {
-                 // For serials, we always want to reserve or retrieve their permanent bib number
-                 // even if payment is pending, to ensure they keep it across stages.
-                 // We MUST execute this OUTSIDE the main transaction lock or as a separate isolated step
-                 // to avoid complex lock contentions on the counter document.
-                 // We will do a read here, but the actual increment happens inside the SerialBibService.
-                 // Note: Firebase transactions cannot have overlapping writes if called inside another transaction easily,
-                 // but since we only read/write to serial_registrations and serial_bib_counters it's safe if isolated.
-                 
-                 // WARNING: To keep it 100% atomic and safe within THIS transaction without deadlocks,
-                 // we will fetch the User's permanent Bib Number. If it doesn't exist, we will
-                 // leave it as null here, and assign it in a post-process step or let the fallback handle it,
-                 // OR we can manually implement the counter logic inside THIS transaction.
-                 
-                 // Implementing inline atomic counter for Serial to avoid nested transaction issues:
-                 const serialRegRef = db.collection('serial_registrations').doc(`${eventData.serialId}_${userId}`);
+                 const serialParticipantId = dependentId || userId;
+                 const serialRegRef = db.collection('serial_registrations').doc(`${eventData.serialId}_${serialParticipantId}`);
                  const serialCounterRef = db.collection('serial_bib_counters').doc(eventData.serialId);
                  
                  const serialRegDoc = await transaction.get(serialRegRef);
@@ -146,7 +144,7 @@ export async function registerUserToEvent(
                      }
                      
                      transaction.set(serialRegRef, {
-                         userId,
+                         userId: serialParticipantId,
                          serialId: eventData.serialId,
                          bibNumber: nextBib,
                          assignedAt: new Date().toISOString()
@@ -180,7 +178,11 @@ export async function registerUserToEvent(
                 bibNumber: assignedBibNumber,
                 jerseyModel: registrationData.jerseyModel || null,
                 jerseySize: registrationData.jerseySize || null,
-                customAnswers: registrationData.customAnswers || {} 
+                customAnswers: registrationData.customAnswers || {},
+                // Minor registration specific fields
+                isMinorRegistration: !!dependentId,
+                dependentId: dependentId || null, // Ensure it's null, not undefined
+                tutorId: dependentId ? userId : null,
             };
             
             let registrationId: string;
@@ -195,10 +197,11 @@ export async function registerUserToEvent(
 
             // --- SERIAL INTEGRATION: DENORMALIZATION (syncSerialCompetitor) ---
             if (eventData.serialId) {
-                const userDoc = await transaction.get(db.collection('users').doc(userId));
+                const participantId = dependentId || userId;
+                const userDoc = await transaction.get(db.collection('users').doc(participantId));
                 const userData = userDoc.exists ? userDoc.data() as User : null;
                 
-                const competitorRef = db.collection('serial_competitors').doc(`${eventData.serialId}_${userId}`);
+                const competitorRef = db.collection('serial_competitors').doc(`${eventData.serialId}_${participantId}`);
                 const competitorDoc = await transaction.get(competitorRef);
                 
                 // Get Category Name safely
@@ -218,18 +221,15 @@ export async function registerUserToEvent(
                 };
 
                 if (competitorDoc.exists) {
-                    // Update existing competitor doc using dot notation for the specific stage
-                    // to prevent overwriting other stages
                     transaction.update(competitorRef, {
                         [`stages.${eventId}`]: stageUpdateData,
                         updatedAt: new Date().toISOString()
                     });
                 } else {
-                    // Initialize new competitor tracking document
                     const newCompetitorPayload: SerialCompetitor = {
-                        id: `${eventData.serialId}_${userId}`,
+                        id: `${eventData.serialId}_${participantId}`,
                         serialId: eventData.serialId,
-                        userId: userId,
+                        userId: participantId,
                         userName: userData ? `${userData.name} ${userData.lastName || ''}`.trim() : 'Usuario',
                         userEmail: userData?.email || '',
                         userAvatar: userData?.avatarUrl || '',
@@ -251,6 +251,7 @@ export async function registerUserToEvent(
             // ------------------------------------------------------------------
 
             // --- UPDATE USER PROFILE WITH EMERGENCY DATA ---
+            // This data belongs to the tutor, so it's always updated on the userId
             if (
                 registrationData.bloodType || 
                 registrationData.insuranceInfo || 
@@ -317,7 +318,30 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
 
         const attendeesPromises = registrationsSnapshot.docs.map(async (doc) => {
             const regData = doc.data() as EventRegistration;
-            const user = await getUser(regData.userId);
+
+            let participantName: string | undefined;
+            let participantLastName: string | undefined;
+            let participantGender: string | null | undefined;
+            let participantBirthDate: Date | string | null | undefined;
+            let contactUser: User | null;
+            const isMinor = !!(regData.dependentId && regData.tutorId);
+
+            if (isMinor) {
+                const dependent = await getDependent(regData.tutorId!, regData.dependentId!);
+                contactUser = await getUser(regData.tutorId!);
+                
+                participantName = dependent?.firstName;
+                participantLastName = dependent?.lastName;
+                participantGender = dependent?.gender;
+                participantBirthDate = dependent?.dateOfBirth;
+            } else {
+                contactUser = await getUser(regData.userId);
+                
+                participantName = contactUser?.name;
+                participantLastName = contactUser?.lastName;
+                participantGender = contactUser?.gender;
+                participantBirthDate = contactUser?.birthDate;
+            }
             
             let bikeData = undefined;
             if (regData.bikeId) {
@@ -332,7 +356,6 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 }
             }
             
-            // PRIORITY: Use persisted snapshot if available, otherwise fallback to current tier config
             let price = regData.financialSnapshot?.amountPaid ?? regData.price;
             if (price === undefined && regData.tierId) {
                 price = tiersPriceMap.get(regData.tierId);
@@ -346,10 +369,10 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
             return {
                 id: doc.id,
                 userId: regData.userId,
-                name: user?.name || 'Usuario',
-                lastName: user?.lastName || 'Eliminado',
-                email: user?.email || '',
-                whatsapp: user?.whatsapp,
+                name: participantName || 'Participante',
+                lastName: participantLastName || 'Anónimo',
+                email: contactUser?.email || '',
+                whatsapp: contactUser?.whatsapp,
                 registrationDate: regData.registrationDate,
                 tierName: regData.tierId ? tiersMap.get(regData.tierId) || 'N/A' : (event.costType === 'Gratuito' ? 'Gratuito' : 'N/A'),
                 categoryName: regData.categoryId ? categoriesMap.get(regData.categoryId) || 'N/A' : 'N/A',
@@ -363,27 +386,67 @@ export async function getEventAttendees(eventId: string): Promise<EventAttendee[
                 jerseyModel: regData.jerseyModel || null,
                 jerseySize: regData.jerseySize || null,
                 
-                emergencyContactName: areEmergencyDetailsHidden ? '***' : (regData.emergencyContactName || null),
-                emergencyContactPhone: areEmergencyDetailsHidden ? '***' : (regData.emergencyContactPhone || null),
-                bloodType: areEmergencyDetailsHidden ? '***' : (regData.bloodType || null),
-                insuranceInfo: areEmergencyDetailsHidden ? '***' : (regData.insuranceInfo || null),
-                allergies: areEmergencyDetailsHidden ? '***' : (regData.allergies || null),
+                emergencyContactName: areEmergencyDetailsHidden ? '***' : (contactUser?.emergencyContactName || regData.emergencyContactName || null),
+                emergencyContactPhone: areEmergencyDetailsHidden ? '***' : (contactUser?.emergencyContactPhone || regData.emergencyContactPhone || null),
+                bloodType: areEmergencyDetailsHidden ? '***' : (contactUser?.bloodType || regData.bloodType || null),
+                insuranceInfo: areEmergencyDetailsHidden ? '***' : (contactUser?.insuranceInfo || regData.insuranceInfo || null),
+                allergies: areEmergencyDetailsHidden ? '***' : (contactUser?.allergies || regData.allergies || null),
+                
                 waiverSigned: !!regData.waiverSignature,
                 customAnswers: regData.customAnswers || {}, 
                 
-                gender: user?.gender || null,
-                birthDate: user?.birthDate || null,
-                country: user?.country || null,
-                state: user?.state || null,
-                city: user?.city || null,
+                gender: participantGender || null,
+                birthDate: participantBirthDate || null,
+
+                isMinorRegistration: isMinor,
+                dependentId: regData.dependentId,
+                tutorId: regData.tutorId,
+                
+                country: contactUser?.country || null,
+                state: contactUser?.state || null,
+                city: contactUser?.city || null,
             } as EventAttendee;
         });
 
         const attendees = await Promise.all(attendeesPromises);
         return attendees.sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime());
 
-    } catch (error) {
+        } catch (error) {
         console.error("Error fetching event attendees:", error);
         return [];
-    }
+        }
 }
+
+        /**
+        * Recupera TODAS las inscripciones que un usuario ha realizado para un evento específico,
+        * incluyendo las propias y las de sus dependientes.
+        */
+        export async function getRegistrationsForUserInEvent(userId: string, eventId: string): Promise<EventRegistration[]> {
+        noStore();
+        if (!userId || !eventId) return [];
+
+        try {
+        const db = adminDb;
+        // El campo `userId` siempre se refiere al usuario que realizó la acción (el tutor).
+        // Esta única consulta es suficiente para obtener todas las inscripciones relevantes.
+        const registrationsSnapshot = await db.collection('event-registrations')
+            .where('eventId', '==', eventId)
+            .where('userId', '==', userId) // Clave: Trae todas las inscripciones del usuario para el evento
+            .orderBy('registrationDate', 'asc') // Ordenar para una visualización consistente
+            .get();
+
+        if (registrationsSnapshot.empty) {
+            return [];
+        }
+
+        const registrations: EventRegistration[] = [];
+        registrationsSnapshot.forEach(doc => {
+            registrations.push({ id: doc.id, ...doc.data() } as EventRegistration);
+        });
+
+        return registrations;
+        } catch (error) {
+        console.error("Error fetching registrations for user in event:", error);
+        return [];
+        }
+        }

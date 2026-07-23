@@ -1,9 +1,11 @@
 'use client';
 
 import { UseFormReturn } from "react-hook-form";
-import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form";
+import { FormField, FormItem, FormControl, FormMessage, FormLabel } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
-import { Bike, Trophy, GraduationCap, Mic2, Banknote } from 'lucide-react';
+import { Bike, Trophy, GraduationCap, Mic2, Banknote, AlertCircle } from 'lucide-react';
+import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { z } from "zod";
 import { eventFormSchema } from '@/lib/schemas';
 
@@ -111,6 +113,43 @@ export function StepOneDefinition({ form }: StepProps) {
                         </FormItem>
                     )}
                 />
+            </div>
+
+            <div className="space-y-4 pt-4 border-t">
+                <h2 className="text-xl font-semibold">3. ¿Tu evento es apto para menores?</h2>
+                <div className="space-y-4 rounded-lg p-4 bg-muted/5 border">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-medium">Inscripción de Menores</h3>
+                            <p className="text-sm text-muted-foreground">¿Permitir que un tutor inscriba a menores de edad?</p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <FormLabel className="font-normal cursor-pointer" htmlFor="minors-toggle">
+                                {form.watch('allowsMinors') ? "Sí" : "No"}
+                            </FormLabel>
+                            <FormField
+                                control={form.control}
+                                name="allowsMinors"
+                                render={({ field }) => (
+                                    <Switch
+                                        id="minors-toggle"
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                )}
+                            />
+                        </div>
+                    </div>
+                    {form.watch('allowsMinors') && (
+                        <Alert className="animate-in fade-in bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900 text-xs">
+                            <AlertCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            <AlertTitle className="text-green-800 dark:text-green-300">¡Excelente!</AlertTitle>
+                            <AlertDescription className="text-green-700 dark:text-green-400/80 mt-1">
+                                Has habilitado la inscripción para menores. Un padre o tutor podrá registrarlos desde la página del evento, firmando la responsiva en su nombre.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                </div>
             </div>
         </div>
     );

@@ -1,18 +1,32 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Eraser, PenTool } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import dynamic from 'next/dynamic';
+import { Checkbox } from "@/components/ui/checkbox";
+import SignatureCanvas from 'react-signature-canvas';
+
+import { DEFAULT_WAIVER_TEXT, TUTOR_WAIVER_TEXT } from "@/lib/legal-constants";
 
 // Importación dinámica para evitar problemas de SSR con el canvas
-const SignatureCanvas = dynamic(() => import('react-signature-canvas'), {
-    ssr: false,
-    loading: () => <div className="w-full h-40 bg-muted/20 animate-pulse rounded-lg flex items-center justify-center text-muted-foreground text-xs">Cargando lienzo de firma...</div>
-});
+const SignatureCanvasNoSSR = dynamic(
+    () => import('react-signature-canvas').then(mod => {
+        const SigCanvas = mod.default;
+        // Se crea un componente wrapper que puede recibir una ref y pasarla al SignatureCanvas.
+        const component = (props: React.ComponentProps<typeof SignatureCanvas>, ref: React.Ref<SignatureCanvas>) => (
+            <SigCanvas {...props} ref={ref} />
+        );
+        component.displayName = "SignatureCanvasWrapper";
+        return React.forwardRef(component);
+    }),
+    {
+        ssr: false,
+        loading: () => <div className="w-full h-40 bg-muted/20 animate-pulse rounded-lg flex items-center justify-center text-muted-foreground text-xs">Cargando lienzo de firma...</div>
+    }
+);
 
 interface WaiverModalProps {
     isOpen: boolean;
@@ -23,6 +37,8 @@ interface WaiverModalProps {
     eventName: string;
     organizerName: string;
     isPending?: boolean;
+    isTutor?: boolean;
+    tutorName?: string;
 }
 
 export function WaiverModal({
@@ -33,34 +49,44 @@ export function WaiverModal({
     participantName,
     eventName,
     organizerName,
-    isPending = false
+    isPending = false,
+    isTutor = false,
+    tutorName = ""
 }: WaiverModalProps) {
     const [processedText, setProcessedText] = useState("");
     const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
     const [isSignatureEmpty, setIsSignatureEmpty] = useState(true);
-    // Usamos any para la ref porque el tipo de SignatureCanvas importado dinámicamente puede ser complejo
-    const sigCanvas = useRef<any>(null);
+    const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
+    const sigCanvas = useRef<SignatureCanvas>(null);
     const scrollViewportRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
 
+    // Determina el texto base a utilizar
+    const baseText = isTutor ? TUTOR_WAIVER_TEXT : waiverText || DEFAULT_WAIVER_TEXT;
+
     // Procesar texto: Reemplazar variables
     useEffect(() => {
-        let text = waiverText || "";
-        // Usar replace con expresión regular global para reemplazar todas las ocurrencias
+        let text = baseText;
+        // Reemplazos comunes
         text = text.replace(/\[NOMBRE DEL PARTICIPANTE\]/g, participantName);
         text = text.replace(/\[NOMBRE DEL EVENTO\]/g, eventName);
         text = text.replace(/\[NOMBRE DEL ORGANIZADOR \/ RAZÓN SOCIAL\]/g, organizerName);
-        // Fallback por si el organizador usó nombres cortos
-        text = text.replace(/\[NOMBRE DEL ORGANIZADOR\]/g, organizerName);
+        text = text.replace(/\[NOMBRE DEL ORGANIZADOR\]/g, organizerName); // Fallback
+
+        // Reemplazo específico para tutor
+        if (isTutor && tutorName) {
+            text = text.replace(/\[NOMBRE DEL TUTOR\]/g, tutorName);
+        }
         
         setProcessedText(text);
-    }, [waiverText, participantName, eventName, organizerName]);
+    }, [baseText, participantName, eventName, organizerName, isTutor, tutorName]);
 
-    // Resetear el scroll cuando se abre el modal
+    // Resetear el scroll y estados cuando se abre el modal
     useEffect(() => {
         if (isOpen) {
             setHasScrolledToBottom(false);
             setIsSignatureEmpty(true);
+            setHasAcceptedTerms(false);
             if (scrollViewportRef.current) {
                 scrollViewportRef.current.scrollTop = 0;
             }
@@ -117,6 +143,15 @@ export function WaiverModal({
             return;
         }
 
+        if (isTutor && !hasAcceptedTerms) {
+            toast({
+                variant: "destructive",
+                title: "Confirmación Requerida",
+                description: "Debes aceptar los términos en nombre del menor para continuar.",
+            });
+            return;
+        }
+
         // Obtener la imagen en base64
         if (sigCanvas.current && sigCanvas.current.getTrimmedCanvas) {
             const signatureData = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
@@ -126,13 +161,18 @@ export function WaiverModal({
         }
     };
 
+    const isConfirmButtonDisabled = !hasScrolledToBottom || isSignatureEmpty || isPending || (isTutor && !hasAcceptedTerms);
+
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0">
                 <DialogHeader className="p-6 pb-2">
                     <DialogTitle>Carta Responsiva</DialogTitle>
                     <DialogDescription>
-                        Por favor lee cuidadosamente el siguiente documento y fírmalo para completar tu registro.
+                        {isTutor 
+                            ? `Estás inscribiendo a ${participantName}. Como tutor, lee cuidadosamente el documento y fírmalo para completar el registro.`
+                            : "Por favor lee cuidadosamente el siguiente documento y fírmalo para completar tu registro."
+                        }
                     </DialogDescription>
                 </DialogHeader>
 
@@ -168,9 +208,8 @@ export function WaiverModal({
                         
                         <div className="border-2 border-dashed border-gray-300 rounded-lg bg-white relative overflow-hidden touch-none h-40">
                             {/* Pass a function to capture the internal component instance */}
-                            <SignatureCanvas 
-                                // @ts-ignore - The dynamic import typing isn't exposing ref properly, we're sure it exists in the underlying component
-                                ref={(ref: any) => { sigCanvas.current = ref; }}
+                            <SignatureCanvasNoSSR 
+                                ref={sigCanvas}
                                 penColor="black"
                                 canvasProps={{
                                     className: "w-full h-full cursor-crosshair"
@@ -184,9 +223,34 @@ export function WaiverModal({
                             )}
                         </div>
                         
-                        <div className="text-xs text-muted-foreground text-center">
-                            Firmado por: <span className="font-semibold text-foreground">{participantName}</span>
-                        </div>
+                        {isTutor && tutorName ? (
+                            <div className="text-xs text-muted-foreground text-center space-y-2 pt-2">
+                                <div className="items-top flex space-x-2.5 text-left p-3 bg-blue-50 border border-blue-200 rounded-md dark:bg-blue-900/20 dark:border-blue-800">
+                                    <Checkbox 
+                                        id="terms-minor" 
+                                        className="mt-0.5 border-blue-400"
+                                        checked={hasAcceptedTerms}
+                                        onCheckedChange={(checked) => setHasAcceptedTerms(Boolean(checked))}
+                                        disabled={!hasScrolledToBottom}
+                                    />
+                                    <div className="grid gap-1.5 leading-none">
+                                        <label
+                                            htmlFor="terms-minor"
+                                            className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-blue-800 dark:text-blue-300"
+                                        >
+                                            Declaro bajo protesta de decir verdad ser el padre, madre o tutor legal del menor inscrito y acepto la carta responsiva en su nombre y representación.
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    Firmado por: <span className="font-semibold text-foreground">{tutorName}</span> (Tutor de <span className="font-semibold text-foreground">{participantName}</span>)
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-xs text-muted-foreground text-center">
+                                Firmado por: <span className="font-semibold text-foreground">{participantName}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -196,8 +260,8 @@ export function WaiverModal({
                     </Button>
                     <Button 
                         onClick={handleConfirm} 
-                        disabled={!hasScrolledToBottom || isSignatureEmpty || isPending}
-                        className={hasScrolledToBottom && !isSignatureEmpty ? "bg-green-600 hover:bg-green-700" : ""}
+                        disabled={isConfirmButtonDisabled}
+                        className={!isConfirmButtonDisabled ? "bg-green-600 hover:bg-green-700" : ""}
                     >
                         {isPending ? "Procesando..." : "Aceptar y Firmar"}
                     </Button>

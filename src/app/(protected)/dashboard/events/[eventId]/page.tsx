@@ -1,11 +1,11 @@
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getAuthenticatedUser, getEvent, getUserRegistrationForEvent, getOngProfile, getBikes } from '@/lib/data';
+import { getAuthenticatedUser, getEvent, getRegistrationsForUserInEvent, getOngProfile, getBikes, getDependent, getRegistrationById } from '@/lib/data';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy, Hash, AlertCircle, CheckCircle2, Package, User, Phone, Globe, HeartPulse, FileText, Download, Shirt, TriangleAlert, ShieldCheck, QrCode, Lock, Gift, Map } from 'lucide-react';
+import { Calendar, MapPin, Clock, ArrowLeft, Tag, Trophy, Hash, AlertCircle, CheckCircle2, Package, User, Phone, Globe, HeartPulse, FileText, Download, Shirt, TriangleAlert, ShieldCheck, QrCode, Lock, Gift, Map, UserPlus } from 'lucide-react';
 import { EventActionCard } from '@/components/dashboard/event-action-card';
 import { EventBikeSelector } from '@/components/dashboard/event-bike-selector';
 import { PaymentStatusHandler } from '@/components/payment-status-handler';
@@ -24,22 +24,139 @@ import { WaiverDownloadButton } from './waiver-download-button-client';
 
 // Import the new Checklist component
 import { EventUnlockChecklist } from '@/components/dashboard/event-unlock-checklist';
+import { type EventRegistration } from '@/lib/types';
 
-export default async function EventRegistrationDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+// --- Participant Disambiguation Component ---
+// This new component will be shown when a user has multiple tickets for the same event.
+async function ParticipantSelection({ eventId, registrations, user }: { eventId: string, registrations: EventRegistration[], user: any }) {
+    const participants = await Promise.all(registrations.map(async (reg) => {
+        if (reg.dependentId) {
+            const dependent = await getDependent(user.id, reg.dependentId);
+            return {
+                id: reg.id,
+                name: `${dependent?.firstName || 'Menor'} ${dependent?.lastName || ''}`.trim(),
+                isDependent: true,
+            };
+        }
+        return {
+            id: reg.id,
+            name: `${user.name} ${user.lastName || ''}`.trim(),
+            isDependent: false,
+        };
+    }));
+
+    return (
+        <div className="container max-w-2xl mx-auto py-10 md:py-16 px-4">
+            <Card className="shadow-lg">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                        <UserPlus className="h-6 w-6 text-primary" />
+                        <span>Elige un participante</span>
+                    </CardTitle>
+                    <CardDescription>
+                        Hemos encontrado varias inscripciones para este evento asociadas a tu cuenta. Por favor, selecciona el ticket que deseas ver.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ul className="space-y-3">
+                        {participants.map(p => (
+                            <li key={p.id}>
+                                <Link href={`/dashboard/events/${eventId}?ticketId=${p.id}`} passHref>
+                                    <Button variant="outline" className="w-full justify-between h-14 text-base">
+                                        <span>{p.name}</span>
+                                        <Badge variant={p.isDependent ? 'secondary' : 'default'}>
+                                            {p.isDependent ? 'Menor a cargo' : 'Mi Ticket'}
+                                        </Badge>
+                                    </Button>
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                     <div className="mt-6 text-center">
+                        <Button variant="ghost" asChild>
+                            <Link href="/dashboard/my-events">
+                                <ArrowLeft className="mr-2 h-4 w-4" /> Volver a Mis Eventos
+                            </Link>
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+
+export default async function EventRegistrationDetailsPage({
+  params,
+  searchParams
+}: { 
+  params: Promise<{ eventId: string }>,
+  searchParams: Promise<{ ticketId?: string }>
+}) {
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
   const user = await getAuthenticatedUser();
 
   if (!user) redirect('/login');
 
-  const { id: eventId } = await params;
+  const { eventId } = resolvedParams;
+  const { ticketId } = resolvedSearchParams;
   const event = await getEvent(eventId);
 
   if (!event) notFound();
 
-  const registration = await getUserRegistrationForEvent(user.id, eventId);
+  let registration: EventRegistration | null = null;
+
+  if (!ticketId) {
+      // If no specific ticket is requested, redirect to the main events dashboard.
+      // This prevents the confusing disambiguation page.
+      redirect('/dashboard?tab=events');
+  }
+
+  registration = await getRegistrationById(ticketId);
+
+  // Security check: Make sure this registration belongs to the current user (as participant or tutor)
+  if (registration && registration.userId !== user.id && registration.tutorId !== user.id) {
+      // If the user is neither the direct participant nor the tutor, they have no access.
+      redirect('/dashboard');
+  }
 
   if (!registration) {
+      // This case should ideally not be reached if the logic above is correct.
+      // It acts as a fallback.
       redirect(`/events/${eventId}`);
   }
+
+  // --- START: Participant Logic ---
+  // Determine who the actual participant is and prepare their display data.
+  let participant: {
+      name: string;
+      lastName?: string;
+      bloodType?: string;
+      allergies?: string;
+  };
+
+  const isDependentRegistration = !!(registration.dependentId && registration.userId === user.id);
+
+  if (isDependentRegistration) {
+      const dependent = await getDependent(user.id, registration.dependentId!);
+      participant = {
+          name: dependent?.firstName || 'Menor',
+          lastName: dependent?.lastName || 'Registrado',
+          bloodType: dependent?.bloodType ?? undefined,
+          allergies: (dependent?.allergies || registration.allergies) ?? undefined,
+      };
+  } else {
+      // The participant is the user themselves.
+      participant = {
+          name: user.name,
+          lastName: user.lastName,
+          bloodType: registration.bloodType ?? undefined,
+          allergies: registration.allergies ?? undefined,
+      };
+  }
+  const participantFullName = `${participant.name} ${participant.lastName || ''}`.trim();
+  // --- END: Participant Logic ---
 
   const ongProfile = await getOngProfile(event.ongId);
   const eventDate = new Date(event.date);
@@ -47,11 +164,26 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
   const isFinished = eventDate < now;
   const userBikes = await getBikes(user.id);
 
-  const tier = event.costTiers?.find(t => t.id === registration.tierId);
+  // --- START: Unified Garage Logic ---
+  // 1. Get all registrations for this user (including dependents) in this event
+  const allEventRegistrations = await getRegistrationsForUserInEvent(user.id, eventId);
   
+  // 2. Create a set of bike IDs that are already being used by other tickets in this event
+  const usedBikeIds = new Set(
+    allEventRegistrations
+      .filter(reg => reg.bikeId && reg.id !== registration.id) // Exclude the current ticket
+      .map(reg => reg.bikeId)
+  );
+
+  // 3. Filter the user's bikes to get only the ones available for THIS ticket
+  const availableBikes = userBikes.filter(bike => !usedBikeIds.has(bike.id));
+  // --- END: Unified Garage Logic ---
+
+  const tier = event.costTiers?.find(t => t.id === registration.tierId);
+
   // Find selected Jersey if any
   let jerseyConfig = undefined;
-  if (event.hasJersey && registration.jerseyModel && event.jerseyConfigs) {
+  if (event.hasJersey && registration.jerseyModel && Array.isArray(event.jerseyConfigs)) {
       jerseyConfig = event.jerseyConfigs.find(jc => jc.name === registration.jerseyModel || jc.id === registration.jerseyModel);
   }
 
@@ -89,14 +221,14 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
 
   const showBibNumber = event.bibNumberConfig?.enabled;
   const userPhone = user.phone || user.whatsapp;
-  
+
   // PERFIL COMPLETO: Gender, BirthDate, Country, State, City (and Phone)
   const isProfileComplete = !!(userPhone && user.gender && user.birthDate && user.city && user.state && user.country);
-  
+
   const requiresBike = event.requiresBike !== false; 
   const hasBike = userBikes.length > 0;
   const hasBikeSelected = !!registration.bikeId;
-  
+
   // Condición maestra para desbloquear el ticket
   // NOTA: isPaid se mantiene como advertencia dentro del ticket, el Checklist se enfoca en Bici y Perfil
   const isCheckinComplete = isProfileComplete && (!requiresBike || hasBikeSelected);
@@ -107,9 +239,9 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
       <ActionPanel user={user} isComplete={isProfileComplete} />
 
       <div className="container max-w-4xl mx-auto py-6 md:py-10 px-4 relative">
-        
+
         <PaymentStatusHandler />
-        
+
         {/* Mobile Floating Payment CTA */}
         {isPendingPayment && !isFinished && (
             <FloatingPaymentButton 
@@ -128,6 +260,7 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                 needsBike={requiresBike}
                 hasBike={hasBike}
                 userBikes={userBikes}
+                allEventRegistrations={allEventRegistrations}
                 registration={registration}
                 eventId={eventId}
             />
@@ -148,7 +281,7 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                           {badgeText}
                       </Badge>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs md:text-sm font-medium opacity-90">
                       <div className="flex items-center gap-1.5">
                           <Calendar className="h-4 w-4" />
@@ -158,7 +291,7 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                           <Clock className="h-4 w-4" />
                           <span>{eventDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                       </div>
-                      
+
                       {/* MODIFICACIÓN QUIRÚRGICA: Acceso rápido a ubicación (Google Maps) */}
                       {event.googleMapsUrl ? (
                           <a 
@@ -209,7 +342,7 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                           <div className="[&>div]:mb-0 [&>div]:shadow-sm">
                               <PaymentTimerBanner registrationDate={registration.registrationDate} />
                           </div>
-                          
+
                           <div className="flex gap-4 pt-2">
                               <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
                                   <ShieldCheck className="h-7 w-7 opacity-50" />
@@ -266,8 +399,10 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                           <div className="space-y-4">
                               <div>
                                   <p className="text-[10px] text-muted-foreground font-bold uppercase mb-0.5">Nombre del Ciclista</p>
-                                  <p className="text-xl font-black uppercase">{user.name} {user.lastName}</p>
-                                  
+                                  {/* FIX: Display the correct participant's name */}
+                                  <p className="text-xl font-black uppercase">{participantFullName}</p>
+
+                                  {/* This logic remains correct as it checks the tutor's profile completeness */}
                                   {!isProfileComplete && (
                                       <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex gap-2">
                                           <TriangleAlert className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
@@ -277,7 +412,7 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                                       </div>
                                   )}
                               </div>
-                              
+
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div>
                                       <p className="text-[10px] text-muted-foreground font-bold uppercase mb-0.5">Nivel</p>
@@ -305,7 +440,7 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                           <Package className="h-5 w-5 text-primary" /> Bicicleta Blindada
                       </h3>
                       {!isFinished ? (
-                          <EventBikeSelector userBikes={userBikes} registration={registration} eventId={event.id} />
+                          <EventBikeSelector userBikes={userBikes} allEventRegistrations={allEventRegistrations} registration={registration} eventId={event.id} />
                       ) : (
                            <div className="p-4 border rounded-lg bg-background">
                               <p className="text-lg font-bold">
@@ -341,11 +476,13 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                                               </div>
                                               <div className="flex justify-between border-b pb-1 border-dashed border-muted-foreground/20">
                                                   <span className="text-muted-foreground">Sangre:</span>
-                                                  <span className="font-bold text-red-600">{registration.bloodType}</span>
+                                                  {/* FIX: Display participant's blood type */}
+                                                  <span className="font-bold text-red-600">{participant.bloodType}</span>
                                               </div>
                                               <div className="flex justify-between border-b pb-1 border-dashed border-muted-foreground/20">
                                                   <span className="text-muted-foreground">Alergias:</span>
-                                                  <span className="font-medium">{registration.allergies || "Ninguna"}</span>
+                                                  {/* FIX: Display participant's allergies */}
+                                                  <span className="font-medium">{participant.allergies || "Ninguna"}</span>
                                               </div>
                                           </div>
                                       </div>
@@ -364,7 +501,7 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                                               <WaiverDownloadButton 
                                                   registrationId={registration.id}
                                                   eventName={event.name}
-                                                  participantName={`${user.name} ${user.lastName}`}
+                                                  participantName={participantFullName}
                                               />
                                           </div>
                                       </div>
@@ -413,13 +550,13 @@ export default async function EventRegistrationDetailsPage({ params }: { params:
                                 </p>
                           )}
                       </div>
-                      
+
                       <div className="shrink-0 shadow-xl p-2 bg-white rounded-xl border-4 border-primary/20">
                           <RegistrationQRCode registrationId={registration.id} />
                       </div>
                   </div>
               </CardContent>
-              
+
               {/* Pie del Ticket decorativo */}
               <div className="h-4 bg-primary flex items-center justify-center gap-2 overflow-hidden">
                   {[...Array(20)].map((_, i) => (

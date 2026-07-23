@@ -1,7 +1,7 @@
 import 'server-only';
 import { adminDb, adminAuth } from '../firebase/server';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
-import type { User, Event, Bike, UserRole } from '../types';
+import type { User, Event, Bike, UserRole, Dependent } from '../types';
 import { UserRecord } from 'firebase-admin/auth';
 import { getDecodedSession } from '@/lib/auth';
 
@@ -97,6 +97,42 @@ export async function getBike(userId: string, bikeId: string): Promise<Bike | nu
         return { id: docSnap.id, ...convertBikeTimestamps(bikeData) } as Bike;
     } catch (error) {
         console.error("Error fetching bike:", error);
+        return null;
+    }
+}
+
+export async function getDependent(tutorId: string, dependentId: string): Promise<Dependent | null> {
+    if (!tutorId || !dependentId) return null;
+    try {
+        const db = adminDb;
+        const docSnap = await db.collection('users').doc(tutorId).collection('dependents').doc(dependentId).get();
+        
+        if (!docSnap.exists) {
+            console.warn(`Dependent document with id ${dependentId} not found for tutor ${tutorId}`);
+            return null;
+        }
+
+        const data = docSnap.data();
+
+        // Type validation to ensure the data from Firestore matches the Dependent interface
+        if (!data || typeof data.firstName !== 'string' || typeof data.lastName !== 'string' || !(data.dateOfBirth instanceof Timestamp) || typeof data.gender !== 'string' ) {
+            console.error(`Firestore data for dependent ${dependentId} is malformed or missing required fields.`);
+            return null;
+        }
+
+        const dependent: Dependent = {
+            id: docSnap.id,
+            tutorId: tutorId, // The tutorId is passed as an argument, ensuring it exists
+            firstName: data.firstName,
+            lastName: data.lastName,
+            dateOfBirth: data.dateOfBirth.toDate(), // Convert Timestamp to Date object
+            gender: data.gender as 'Masculino' | 'Femenino' | 'Otro',
+            bloodType: typeof data.bloodType === 'string' ? data.bloodType : '', // Safely handle optional bloodType
+        };
+
+        return dependent;
+    } catch (error) {
+        console.error(`Error fetching dependent "${dependentId}":`, error);
         return null;
     }
 }

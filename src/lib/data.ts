@@ -11,13 +11,19 @@ import {
     getUser, 
     getEvent, 
     getBike, 
+    getDependent,
     convertBikeTimestamps, 
     convertEventTimestamps 
 } from './data/core';
 
-export { getUser, getEvent, getBike };
+export { getUser, getEvent, getBike, getDependent };
 
-export { registerUserToEvent, getEventAttendees } from './data/event-registration-data';
+export { 
+    registerUserToEvent, 
+    getEventAttendees, 
+    getRegistrationById,
+    getRegistrationsForUserInEvent 
+} from './data/event-registration-data';
 
 const normalizeSerialNumber = (serial: string): string => {
     return serial.replace(/[\s-]+/g, '').toUpperCase();
@@ -66,7 +72,9 @@ export async function getAuthenticatedUser(): Promise<User | null> {
         const userDoc = await db.collection('users').doc(session.uid).get();
 
         if (userDoc.exists) {
-            return { id: userDoc.id, ...userDoc.data() } as User;
+            const userData = userDoc.data() as User;
+            const dependents = await getDependentsByTutorId(userDoc.id);
+            return { ...userData, id: userDoc.id, dependents };
         }
 
         const firebaseUser = await adminAuth.getUser(session.uid);
@@ -411,6 +419,33 @@ export async function updateHomepageSectionData(data: HomepageSection) {
     await db.collection('homepage').doc(id).set(sectionData, { merge: true });
 }
 
+export async function createEventRegistration(registrationData: EventRegistration): Promise<string> {
+    const db = adminDb;
+    const registrationRef = db.collection('event-registrations').doc();
+    const eventRef = db.collection('events').doc(registrationData.eventId);
+
+    try {
+        await db.runTransaction(async (transaction) => {
+            const eventDoc = await transaction.get(eventRef);
+            if (!eventDoc.exists) {
+                throw new Error("El evento no existe.");
+            }
+
+            // Increment participant count
+            const currentParticipants = eventDoc.data()?.currentParticipants || 0;
+            transaction.update(eventRef, { currentParticipants: currentParticipants + 1 });
+
+            // Create the registration document
+            transaction.set(registrationRef, registrationData);
+        });
+
+        return registrationRef.id;
+    } catch (error) {
+        console.error("Error creating event registration in transaction:", error);
+        throw new Error("No se pudo completar la inscripción.");
+    }
+}
+
 export async function getUserRegistrationForEvent(userId: string, eventId: string): Promise<any | null> {
     if (!userId || !eventId) return null;
     try {
@@ -418,6 +453,7 @@ export async function getUserRegistrationForEvent(userId: string, eventId: strin
         const query = db.collection('event-registrations')
             .where('userId', '==', userId)
             .where('eventId', '==', eventId)
+            .where('dependentId', '==', null)
             .limit(1);
         
         const snapshot = await query.get();
@@ -431,23 +467,23 @@ export async function getUserRegistrationForEvent(userId: string, eventId: strin
     }
 }
 
-export async function updateEventRegistrationBike(eventId: string, userId: string, bikeId: string): Promise<{ success: boolean; error?: string }> {
+export async function updateEventRegistrationBike(registrationId: string, userId: string, bikeId: string): Promise<{ success: boolean; eventId?: string; error?: string }> {
     const db = adminDb;
     try {
-        const query = db.collection('event-registrations')
-            .where('userId', '==', userId)
-            .where('eventId', '==', eventId)
-            .limit(1);
-        
-        const snapshot = await query.get();
-        if (snapshot.empty) {
+        const regRef = db.collection('event-registrations').doc(registrationId);
+        const doc = await regRef.get();
+        if (!doc.exists) {
             return { success: false, error: "No se encontró el registro." };
         }
         
-        const regDoc = snapshot.docs[0];
-        await regDoc.ref.update({ bikeId });
+        const data = doc.data();
+        if (data?.userId !== userId && data?.tutorId !== userId) {
+            return { success: false, error: "No tienes permiso para actualizar este registro." };
+        }
         
-        return { success: true };
+        await regRef.update({ bikeId });
+        
+        return { success: true, eventId: data?.eventId };
     } catch (error) {
         console.error("Error updating registration bike:", error);
         return { success: false, error: "No se pudo vincular la bicicleta." };
@@ -555,22 +591,54 @@ export async function getUserEventRegistrations(userId: string): Promise<UserEve
     if (!userId) return [];
     try {
         const db = adminDb;
+
+        // Unified query for all registrations linked to the user, either as main participant or tutor
         const registrationsSnapshot = await db.collection('event-registrations')
-            .where('userId', '==', userId)
+            .where(new FieldPath('userId'), '==', userId)
             .get();
 
-        if (registrationsSnapshot.empty) return [];
+        const allRegistrations: EventRegistration[] = [];
+        registrationsSnapshot.forEach(doc => {
+            allRegistrations.push({ id: doc.id, ...doc.data() } as EventRegistration);
+        });
 
-        const registrations = registrationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EventRegistration));
+        if (allRegistrations.length === 0) return [];
 
-        const registrationsWithEvents = await Promise.all(registrations.map(async (reg) => {
+        const registrationsWithDetails = await Promise.all(allRegistrations.map(async (reg) => {
             const event = await getEvent(reg.eventId);
-            if (!event) return null;
-            return { ...reg, event };
-        }));
+            if (!event) {
+                console.warn(`Event with id ${reg.eventId} not found for registration ${reg.id}. Filtering it out.`);
+                return null;
+            }
 
-        const validRegistrations = registrationsWithEvents.filter((r): r is UserEventRegistration => r !== null);
+            // A registration is for a dependent if the dependentId field exists and tutorId matches the user.
+            const isDependentRegistration = !!reg.dependentId;
+            let dependentName: string | undefined = undefined;
+
+            if (isDependentRegistration) {
+                // We have the tutor's ID (userId) and the dependent's ID, so we can fetch the dependent's data.
+                if (reg.dependentId) { // Explicit check to satisfy TypeScript
+                    const dependent = await getDependent(userId, reg.dependentId);
+                    if (dependent) {
+                        dependentName = `${dependent.firstName} ${dependent.lastName}`.trim();
+                    } else {
+                        console.warn(`Could not fetch dependent data for dependentId ${reg.dependentId} and tutorId ${userId}.`);
+                    }
+                }
+            }
+            
+            return { 
+                ...reg, 
+                event,
+                isDependent: isDependentRegistration,
+                dependentName: dependentName,
+             } as UserEventRegistration;
+        }));
         
+        // Filter out any entries where the event could not be fetched
+        const validRegistrations = registrationsWithDetails.filter((r): r is UserEventRegistration => r !== null);
+        
+        // Sort by event date in ascending order (closest events first)
         return validRegistrations.sort((a, b) => 
             new Date(a.event.date).getTime() - new Date(b.event.date).getTime()
         );
@@ -705,3 +773,76 @@ export const getOngCommunityCount = unstable_cache(
     ['ong-community-count'],
     { revalidate: 3600, tags: ['community-count'] }
 );
+
+// --- Funciones para Inscripción de Menores ---
+
+export async function getDependentsByTutorId(tutorId: string): Promise<any[]> {
+    if (!tutorId) return [];
+    try {
+        const db = adminDb;
+        const dependentsSnapshot = await db.collection('users').doc(tutorId).collection('dependents').get();
+
+        if (dependentsSnapshot.empty) return [];
+
+        return dependentsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                // Convert Firestore Timestamp to a serializable format (ISO string)
+                dateOfBirth: (data.dateOfBirth as Timestamp).toDate().toISOString(),
+            };
+        });
+    } catch (error) {
+        console.error("Error fetching dependents by tutor ID:", error);
+        return [];
+    }
+}
+
+/**
+ * Finds the correct event registration for a user, checking if they are the direct participant or the tutor.
+ * This is the correct function to use on ticket pages.
+ * @param userId - The ID of the currently authenticated user.
+ * @param eventId - The ID of the event.
+ * @returns The registration document or null if no valid registration is found for the user.
+ */
+export async function getRegistrationForTicket(userId: string, eventId: string): Promise<any | null> {
+    if (!userId || !eventId) return null;
+    
+    try {
+        const db = adminDb;
+        
+        // First, check if the user is the direct participant. This is the most common case.
+        const directRegQuery = db.collection('event-registrations')
+            .where('userId', '==', userId)
+            .where('eventId', '==', eventId)
+            .limit(1);
+        
+        const directRegSnapshot = await directRegQuery.get();
+        
+        if (!directRegSnapshot.empty) {
+            const doc = directRegSnapshot.docs[0];
+            return { id: doc.id, ...doc.data() };
+        }
+        
+        // If not found, check if the user is the tutor for a dependent's registration.
+        const tutorRegQuery = db.collection('event-registrations')
+            .where('tutorId', '==', userId)
+            .where('eventId', '==', eventId)
+            .limit(1); // Assuming one user can't register multiple dependents for the same event in this context
+
+        const tutorRegSnapshot = await tutorRegQuery.get();
+
+        if (!tutorRegSnapshot.empty) {
+            const doc = tutorRegSnapshot.docs[0];
+            return { id: doc.id, ...doc.data() };
+        }
+
+        // If no registration is found in either case, return null.
+        return null;
+
+    } catch (error) {
+        console.error("Error fetching registration for ticket:", error);
+        return null;
+    }
+}

@@ -58,16 +58,7 @@ export function WaiverDownloadModal({ isOpen, onClose, registrationId, eventName
         try {
             // 1. Generar el PDF base con React-PDF
             const blob = await pdf(
-                <WaiverPDFDocument 
-                    waiverText={waiverData.waiverText}
-                    signatureImage={waiverData.signatureImage}
-                    participantName={`${waiverData.participant.name} ${waiverData.participant.lastName}`}
-                    eventName={waiverData.event.name}
-                    acceptedAt={waiverData.acceptedAt}
-                    registrationId={waiverData.registrationId}
-                    ipAddress={waiverData.waiverIp}
-                    securityHash={waiverData.waiverHash}
-                />
+                <WaiverPDFDocument details={waiverData} />
             ).toBlob();
 
             // 2. Cargar en pdf-lib

@@ -235,6 +235,9 @@ export const eventFormSchema = z.object({
     requiresWaiver: z.boolean().optional(),
     waiverText: z.string().optional(),
 
+    // --- Inscripción de Menores ---
+    allowsMinors: z.boolean().optional(),
+
     // Sponsors
     sponsors: z.array(z.string().url()).optional(),
 }).superRefine((data, ctx) => {
@@ -324,4 +327,16 @@ export const landingEventsContentSchema = z.object({
         allies: z.array(landingEventsAllySchema).optional().default([]),
     }),
     ctaSection: landingEventsCtaSchema,
+});
+
+// --- Inscripción de Menores ---
+export const dependentFormSchema = z.object({
+  firstName: z.string().min(2, "El nombre debe tener al menos 2 caracteres."),
+  lastName: z.string().min(2, "El apellido debe tener al menos 2 caracteres."),
+  dateOfBirth: z.string().refine(val => /^\d{2}\/\d{2}\/\d{4}$/.test(val), {
+    message: "Usa el formato DD/MM/AAAA.",
+  }),
+  gender: z.enum(['Masculino', 'Femenino', 'Otro']),
+  bloodType: z.string().min(1, "El tipo de sangre es obligatorio."),
+  allergies: z.string().optional(),
 });

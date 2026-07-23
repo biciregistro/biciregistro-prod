@@ -8,7 +8,7 @@ import { getEvent, getUser } from '@/lib/data';
 import { getRegistrationById, registerUserToEvent } from '@/lib/data/event-registration-data';
 import { CURRENT_PRIVACY_POLICY_VERSION, MARKETING_CONSENT_TEXT } from '@/lib/legal-constants';
 import { sendRegistrationEmail, sendOrganizerNewParticipantEmail } from '@/lib/email/resend-service';
-import type { MarketingConsent, EventCategory } from '@/lib/types';
+import type { MarketingConsent, EventCategory, Dependent } from '@/lib/types';
 import crypto from 'crypto';
 import { awardPoints, recordUniqueAction } from './gamification-actions';
 import { updateUserData } from '@/lib/data';
@@ -31,8 +31,9 @@ export async function registerForEventAction(
     jerseyModel?: string,
     jerseySize?: string,
     allergies?: string,
-    customAnswers?: Record<string, string | string[]>
-): Promise<{ success: boolean; error?: string; message?: string; pointsAwarded?: boolean }> {
+    customAnswers?: Record<string, string | string[]>,
+    dependentId?: string // New parameter for minor registration
+): Promise<{ success: boolean; error?: string; message?: string; pointsAwarded?: boolean, registrationId?: string }> {
     const session = await getDecodedSession();
     
     if (!session?.uid) {
@@ -96,6 +97,7 @@ export async function registerForEventAction(
     const registrationInput = {
         eventId,
         userId: session.uid,
+        dependentId, // Pass dependentId to the core registration function
         tierId,
         categoryId,
         emergencyContactName,
@@ -154,8 +156,25 @@ export async function registerForEventAction(
             ]);
 
             if (user && registration) {
-                // Notificación al Ciclista
-                await sendRegistrationEmail({ event, user, registration });
+                let dependent: Dependent | null = null;
+                let finalAttendeeName = `${user.name} ${user.lastName || ''}`.trim();
+
+                // If it is a minor registration, fetch dependent's data
+                if (dependentId) {
+                    const dependentDoc = await adminDb.collection('users').doc(session.uid).collection('dependents').doc(dependentId).get();
+                    if (dependentDoc.exists) {
+                        dependent = dependentDoc.data() as Dependent;
+                        finalAttendeeName = `${dependent.firstName} ${dependent.lastName}`.trim();
+                    }
+                }
+
+                // Notificación al Ciclista (Tutor)
+                await sendRegistrationEmail({ 
+                    event, 
+                    user, 
+                    registration,
+                    dependent: dependent ?? undefined // Pass dependent data to email template
+                });
 
                 // NUEVA: Notificación al Organizador
                 try {
@@ -166,7 +185,7 @@ export async function registerForEventAction(
                             organizerName: organizer.name,
                             eventName: event.name,
                             eventImageUrl: event.imageUrl || '',
-                            attendeeName: `${user.name} ${user.lastName || ''}`.trim(),
+                            attendeeName: finalAttendeeName, // Use the correct name
                             eventId: event.id
                         });
                     }
@@ -178,7 +197,7 @@ export async function registerForEventAction(
             console.error(`[CRITICAL] Failed to send registration emails for regId: ${result.registrationId}`, emailError);
         }
 
-        return { success: true, message: result.message, pointsAwarded: !!pointsAwarded?.success };
+        return { success: true, message: result.message, pointsAwarded: !!pointsAwarded?.success, registrationId: result.registrationId };
     } else {
         return { success: false, error: result.error };
     }

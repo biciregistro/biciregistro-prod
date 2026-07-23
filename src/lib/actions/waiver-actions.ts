@@ -2,19 +2,22 @@
 
 import { getDecodedSession } from '@/lib/auth';
 import { getRegistrationById } from '@/lib/data/event-registration-data';
-import { getEvent } from '@/lib/data/core';
+import { getDependentById } from '@/lib/data/dependents-data'; // Import the new function
+import { getEvent, getUser } from '@/lib/data/core';
 import type { EventRegistration, User } from '@/lib/types';
 
 // Define the shape of the data returned by the action
 export type WaiverDetails = {
     waiverText: string;
     signatureImage: string;
-    participant: Pick<User, 'name' | 'lastName'>;
+    participant: { name: string; lastName: string; };
     event: { name: string };
     acceptedAt: string;
     registrationId: string;
-    waiverIp?: string;   // New field
-    waiverHash?: string; // New field
+    waiverIp?: string;
+    waiverHash?: string;
+    isTutorFlow: boolean;
+    tutor?: { name: string; lastName: string; };
 };
 
 // Server Action to get the details of a signed waiver for PDF generation
@@ -40,40 +43,65 @@ export async function getWaiverDetailsAction(registrationId: string): Promise<{ 
         return { success: false, error: "No se encontró el evento asociado." };
     }
 
-    // 3. Authorization Check: User must be the ONG that organized the event or an Admin OR the participant themselves
+    // 3. Authorization Check: User must be the ONG that organized the event, an Admin, OR the participant/tutor.
     const isOrganizer = event.ongId === session.uid;
     const isAdmin = session.role === 'admin';
-    const isParticipant = registration.userId === session.uid;
+    const isOwner = registration.userId === session.uid;
 
-    if (!isOrganizer && !isAdmin && !isParticipant) {
+    if (!isOrganizer && !isAdmin && !isOwner) {
         return { success: false, error: "No tienes permiso para ver esta responsiva." };
     }
+    
+    // 4. Conditional data fetching for participant and tutor
+    if (registration.isMinorRegistration && registration.tutorId && registration.dependentId) {
+        // --- TUTOR/DEPENDENT FLOW ---
+        const tutor = await getUser(registration.tutorId);
+        const dependent = await getDependentById(registration.tutorId, registration.dependentId);
 
-    // 4. Fetch participant details (we need the name)
-    // We already have user info in the session, but it's better to fetch the registered user's info
-    const { getUser } = await import('@/lib/data/core');
-    const participant = await getUser(registration.userId);
+        if (!tutor) return { success: false, error: "No se encontró al tutor asociado a la inscripción." };
+        if (!dependent) return { success: false, error: "No se encontró al menor asociado a la inscripción." };
 
-    if (!participant) {
-        return { success: false, error: "No se encontró al participante." };
+        const waiverDetails: WaiverDetails = {
+            waiverText: registration.waiverTextSnapshot,
+            signatureImage: registration.waiverSignature,
+            participant: {
+                name: dependent.firstName,
+                lastName: dependent.lastName,
+            },
+            tutor: {
+                name: tutor.name,
+                lastName: tutor.lastName || '',
+            },
+            event: { name: event.name },
+            acceptedAt: registration.waiverAcceptedAt,
+            registrationId: registration.id,
+            waiverIp: registration.waiverIp,
+            waiverHash: registration.waiverHash,
+            isTutorFlow: true,
+        };
+        return { success: true, data: waiverDetails };
+
+    } else {
+        // --- ADULT PARTICIPANT FLOW ---
+        const participant = await getUser(registration.userId);
+        if (!participant) {
+            return { success: false, error: "No se encontró al participante." };
+        }
+
+        const waiverDetails: WaiverDetails = {
+            waiverText: registration.waiverTextSnapshot,
+            signatureImage: registration.waiverSignature,
+            participant: {
+                name: participant.name,
+                lastName: participant.lastName || '',
+            },
+            event: { name: event.name },
+            acceptedAt: registration.waiverAcceptedAt,
+            registrationId: registration.id,
+            waiverIp: registration.waiverIp,
+            waiverHash: registration.waiverHash,
+            isTutorFlow: false,
+        };
+        return { success: true, data: waiverDetails };
     }
-
-    // 5. Assemble and return the data for the PDF
-    const waiverDetails: WaiverDetails = {
-        waiverText: registration.waiverTextSnapshot,
-        signatureImage: registration.waiverSignature,
-        participant: {
-            name: participant.name,
-            lastName: participant.lastName || '',
-        },
-        event: {
-            name: event.name,
-        },
-        acceptedAt: registration.waiverAcceptedAt,
-        registrationId: registration.id,
-        waiverIp: registration.waiverIp,     // New field mapping
-        waiverHash: registration.waiverHash, // New field mapping
-    };
-
-    return { success: true, data: waiverDetails };
 }

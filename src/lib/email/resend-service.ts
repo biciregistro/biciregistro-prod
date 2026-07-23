@@ -5,7 +5,7 @@ import { getOrganizerNotificationEmailTemplate } from './templates/organizer-not
 import { getCyclistRewardTemplate, CyclistRewardTemplateProps } from './templates/reward-cyclist';
 import { getOngRewardTemplate, OngRewardTemplateProps } from './templates/reward-ong';
 import { generateShopSightingAlertEmail } from './templates/shop-sighting-alert';
-import { Event, User, EventRegistration } from '@/lib/types';
+import { Event, User, EventRegistration, Dependent } from '@/lib/types';
 
 // Initialize Resend only if API key is present
 const resendApiKey = process.env.RESEND_API_KEY;
@@ -18,6 +18,7 @@ interface RegistrationEmailData {
     event: Event;
     user: User;
     registration: EventRegistration;
+    dependent?: Dependent;
 }
 
 // Nueva función genérica para envíos simples (texto o HTML)
@@ -52,7 +53,7 @@ export async function sendEmail({ to, subject, html, text }: { to: string; subje
 }
 
 
-export async function sendRegistrationEmail({ event, user, registration }: RegistrationEmailData) {
+export async function sendRegistrationEmail({ event, user, registration, dependent }: RegistrationEmailData) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://biciregistro.mx';
     const dashboardUrl = `${baseUrl}/dashboard/events/${event.id}`;
     
@@ -60,6 +61,7 @@ export async function sendRegistrationEmail({ event, user, registration }: Regis
         event,
         user,
         registration,
+        dependent,
         publicUrl: `${baseUrl}/events/${event.id}`,
         dashboardUrl,
         ticketUrl: dashboardUrl

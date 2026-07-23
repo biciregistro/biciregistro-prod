@@ -429,7 +429,15 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                                                             <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
                                                                 <div>
                                                                     <div className="flex justify-between items-start gap-2 mb-1">
-                                                                        <h3 className="font-bold text-sm sm:text-lg line-clamp-2 leading-tight">{reg.event.name}</h3>
+                                                                        <h3 className="font-bold text-sm sm:text-lg line-clamp-2 leading-tight">
+    {reg.event.name}
+    {reg.isDependent && (
+        <Badge variant="secondary" className="ml-2 bg-purple-100 text-purple-800 text-xs">
+            <UserCircle className="w-3 h-3 mr-1" />
+            {reg.dependentName}
+        </Badge>
+    )}
+</h3>
                                                                         <Badge variant={badgeVariant} className={cn(badgeClassName, "hidden sm:inline-flex")}>{badgeText}</Badge>
                                                                     </div>
                                                                     <Badge variant={badgeVariant} className={cn(badgeClassName, "sm:hidden mb-2 self-start")}>{badgeText}</Badge>
@@ -440,7 +448,11 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                                                                 </div>
                                                                 <div className="mt-3 flex justify-between items-center">
                                                                     <div className="flex items-center text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full"><FileText className="w-3 h-3 mr-1" /><span className="hidden sm:inline">Liberación Firmada</span><span className="sm:hidden">Firmado</span></div>
-                                                                    <Button variant="ghost" size="sm" asChild className="text-primary p-0 h-auto"><Link href={`/dashboard/events/${reg.eventId}`} className="flex items-center gap-1">Detalles <ArrowRight className="h-3 w-3" /></Link></Button>
+                                                                    <Button variant="ghost" size="sm" asChild className="text-primary p-0 h-auto">
+                                                                        <Link href={`/dashboard/events/${reg.eventId}?ticketId=${reg.id}`} className="flex items-center gap-1">
+                                                                            Detalles <ArrowRight className="h-3 w-3" />
+                                                                        </Link>
+                                                                    </Button>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -522,9 +534,15 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                                                         {/* Gradient Overlay for blending */}
                                                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-900/40 to-slate-950" />
                                                         
-                                                        {/* Status Badge - Top Left */}
-                                                        <div className="absolute top-2 left-2 z-10 scale-[0.85] origin-top-left">
+                                                        {/* Status Badge & Dependent Name - Top Left */}
+                                                        <div className="absolute top-2 left-2 z-10 scale-[0.85] origin-top-left flex flex-col items-start gap-1.5">
                                                             <span className={badgeClassName}>{badgeText}</span>
+                                                            {reg.isDependent && (
+                                                                <Badge variant="secondary" className="bg-purple-200/80 text-purple-900 text-[10px] font-bold backdrop-blur-sm">
+                                                                    <UserCircle className="w-3 h-3 mr-1" />
+                                                                    {reg.dependentName}
+                                                                </Badge>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     
@@ -548,7 +566,7 @@ function DashboardTabsContent({ bikes, registrations, isProfileComplete, user, a
                                                         </div>
 
                                                         <Button asChild className="w-full bg-blue-600 hover:bg-blue-700 text-white border-0 font-bold tracking-widest text-[10px] uppercase h-8 mt-auto px-0 flex-shrink-0">
-                                                            <Link href={`/dashboard/events/${reg.eventId}`} className="flex items-center justify-center gap-1">
+                                                            <Link href={`/dashboard/events/${reg.eventId}?ticketId=${reg.id}`} className="flex items-center justify-center gap-1">
                                                                 Ver Boleto <ArrowRight className="h-3 w-3" />
                                                             </Link>
                                                         </Button>
