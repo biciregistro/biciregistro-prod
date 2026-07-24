@@ -36,15 +36,50 @@ export async function registerUserToEvent(
 
     try {
         return await db.runTransaction(async (transaction) => {
+            // --- ALL READ OPERATIONS MUST BE GROUPED AT THE TOP ---
+
             const eventRef = db.collection('events').doc(eventId);
+            const participantId = dependentId || userId;
+
+            // 1. Read the main event document
             const eventDoc = await transaction.get(eventRef);
 
             if (!eventDoc.exists) {
                 return { success: false, error: "El evento no existe." };
             }
-
             const eventData = eventDoc.data() as Event;
+
+            // 2. Read documents related to serials (if applicable)
+            let serialRegDoc: FirebaseFirestore.DocumentSnapshot | null = null;
+            let counterDoc: FirebaseFirestore.DocumentSnapshot | null = null;
+            let userDoc: FirebaseFirestore.DocumentSnapshot | null = null;
+            let competitorDoc: FirebaseFirestore.DocumentSnapshot | null = null;
+
+            if (eventData.serialId) {
+                const serialRegRef = db.collection('serial_registrations').doc(`${eventData.serialId}_${participantId}`);
+                const serialCounterRef = db.collection('serial_bib_counters').doc(eventData.serialId);
+                const userRef = db.collection('users').doc(participantId);
+                const competitorRef = db.collection('serial_competitors').doc(`${eventData.serialId}_${participantId}`);
+
+                // Group all serial-related reads together
+                [serialRegDoc, counterDoc, userDoc, competitorDoc] = await Promise.all([
+                    transaction.get(serialRegRef),
+                    transaction.get(serialCounterRef),
+                    transaction.get(userRef),
+                    transaction.get(competitorRef)
+                ]);
+            }
             
+            // 3. Check for existing registration for this participant
+            const regQuery = dependentId
+                ? db.collection('event-registrations').where('eventId', '==', eventId).where('dependentId', '==', dependentId).limit(1)
+                : db.collection('event-registrations').where('userId', '==', userId).where('eventId', '==', eventId).where('dependentId', '==', null).limit(1);
+            
+            const regSnapshot = await transaction.get(regQuery);
+            
+            // --- END OF READ OPERATIONS ---
+            // --- LOGIC AND VALIDATIONS ---
+
             const maxParticipants = eventData.maxParticipants || 0;
             const currentParticipants = eventData.currentParticipants || 0;
 
@@ -52,26 +87,7 @@ export async function registerUserToEvent(
                 return { success: false, error: "Lo sentimos, el cupo para este evento está lleno." };
             }
 
-            // MODIFIED: Uniqueness check for dependents
-            let regQuery;
-            if (dependentId) {
-                // For a minor, the registration is unique for that dependent in that event.
-                regQuery = db.collection('event-registrations')
-                    .where('eventId', '==', eventId)
-                    .where('dependentId', '==', dependentId)
-                    .limit(1);
-            } else {
-                // For an adult, it's unique for their own user ID in that event.
-                regQuery = db.collection('event-registrations')
-                    .where('userId', '==', userId)
-                    .where('eventId', '==', eventId)
-                    .where('dependentId', '==', null) // Explicitly check that it's not a dependent registration
-                    .limit(1);
-            }
-            
-            const regSnapshot = await transaction.get(regQuery);
             let existingRegDoc = null;
-            
             if (!regSnapshot.empty) {
                 const doc = regSnapshot.docs[0];
                 const data = doc.data() as EventRegistration;
@@ -81,35 +97,26 @@ export async function registerUserToEvent(
                      return { success: false, error: "El participante ya se encuentra registrado en este evento." };
                 }
             }
-
-            // --- TIER VALIDATION ---
+            
+            // Tier validation
             let selectedTier: CostTier | undefined;
             let updatedCostTiers: CostTier[] | undefined;
-            
             if (registrationData.tierId && eventData.costTiers) {
                 const tierIndex = eventData.costTiers.findIndex(t => t.id === registrationData.tierId);
-                
                 if (tierIndex !== -1) {
                     selectedTier = eventData.costTiers[tierIndex];
-                    
                     const limit = selectedTier.limit || 0;
                     const sold = selectedTier.soldCount || 0;
-                    
                     if (limit > 0 && sold >= limit) {
                         return { success: false, error: `El nivel "${selectedTier.name}" se ha agotado.` };
                     }
-
                     updatedCostTiers = [...eventData.costTiers];
-                    updatedCostTiers[tierIndex] = {
-                        ...selectedTier,
-                        soldCount: sold + 1
-                    };
+                    updatedCostTiers[tierIndex] = { ...selectedTier, soldCount: sold + 1 };
                 }
             }
 
             let paymentStatus: 'pending' | 'paid' | 'not_applicable' | 'cancelled' = 'pending';
             const price = selectedTier?.price ?? 0;
-
             if (eventData.costType === 'Gratuito' || price === 0) {
                 paymentStatus = eventData.costType === 'Gratuito' ? 'not_applicable' : 'paid';
             }
@@ -123,18 +130,16 @@ export async function registerUserToEvent(
             } : undefined;
 
             let assignedBibNumber = null;
+
+            // --- ALL WRITE OPERATIONS MUST BE GROUPED AT THE END ---
             
-            // --- SERIAL INTEGRATION: BIB NUMBER ASSIGNMENT ---
-            if (eventData.serialId && eventData.isSerialStage) {
-                 const serialParticipantId = dependentId || userId;
-                 const serialRegRef = db.collection('serial_registrations').doc(`${eventData.serialId}_${serialParticipantId}`);
-                 const serialCounterRef = db.collection('serial_bib_counters').doc(eventData.serialId);
-                 
-                 const serialRegDoc = await transaction.get(serialRegRef);
+            // Bib number assignment logic (may involve writes)
+            if (eventData.serialId && eventData.isSerialStage && serialRegDoc && counterDoc) {
                  if (serialRegDoc.exists && typeof serialRegDoc.data()?.bibNumber === 'number') {
                      assignedBibNumber = serialRegDoc.data()?.bibNumber;
                  } else {
-                     const counterDoc = await transaction.get(serialCounterRef);
+                     const serialCounterRef = db.collection('serial_bib_counters').doc(eventData.serialId);
+                     const serialRegRef = db.collection('serial_registrations').doc(`${eventData.serialId}_${participantId}`);
                      let nextBib = 1;
                      if (counterDoc.exists) {
                          nextBib = (counterDoc.data()?.currentNumber || 0) + 1;
@@ -144,7 +149,7 @@ export async function registerUserToEvent(
                      }
                      
                      transaction.set(serialRegRef, {
-                         userId: serialParticipantId,
+                         userId: participantId,
                          serialId: eventData.serialId,
                          bibNumber: nextBib,
                          assignedAt: new Date().toISOString()
@@ -156,7 +161,6 @@ export async function registerUserToEvent(
                 eventData.bibNumberConfig?.enabled && 
                 eventData.bibNumberConfig.mode === 'automatic'
             ) {
-                // Normal Event Bib Assignment
                 assignedBibNumber = eventData.bibNumberConfig.nextNumber || 1;
                 transaction.update(eventRef, { 'bibNumberConfig.nextNumber': assignedBibNumber + 1 });
             }
@@ -179,9 +183,8 @@ export async function registerUserToEvent(
                 jerseyModel: registrationData.jerseyModel || null,
                 jerseySize: registrationData.jerseySize || null,
                 customAnswers: registrationData.customAnswers || {},
-                // Minor registration specific fields
                 isMinorRegistration: !!dependentId,
-                dependentId: dependentId || null, // Ensure it's null, not undefined
+                dependentId: dependentId || null,
                 tutorId: dependentId ? userId : null,
             };
             
@@ -194,17 +197,12 @@ export async function registerUserToEvent(
                 transaction.set(newRegRef, registrationPayload);
                 registrationId = newRegRef.id;
             }
-
-            // --- SERIAL INTEGRATION: DENORMALIZATION (syncSerialCompetitor) ---
-            if (eventData.serialId) {
-                const participantId = dependentId || userId;
-                const userDoc = await transaction.get(db.collection('users').doc(participantId));
+            
+            // Serial denormalization write
+            if (eventData.serialId && userDoc && competitorDoc) {
                 const userData = userDoc.exists ? userDoc.data() as User : null;
-                
                 const competitorRef = db.collection('serial_competitors').doc(`${eventData.serialId}_${participantId}`);
-                const competitorDoc = await transaction.get(competitorRef);
                 
-                // Get Category Name safely
                 let categoryName = 'General';
                 if (registrationData.categoryId && eventData.categories) {
                     const cat = eventData.categories.find(c => c.id === registrationData.categoryId);
@@ -237,9 +235,7 @@ export async function registerUserToEvent(
                         categoryId: registrationData.categoryId || 'default',
                         categoryName: categoryName,
                         affiliationId: registrationData.affiliationId || '',
-                        stages: {
-                            [eventId]: stageUpdateData
-                        },
+                        stages: { [eventId]: stageUpdateData },
                         totalPoints: 0,
                         overallPosition: 0,
                         stagesCompleted: 0,
@@ -248,17 +244,9 @@ export async function registerUserToEvent(
                     transaction.set(competitorRef, newCompetitorPayload);
                 }
             }
-            // ------------------------------------------------------------------
 
-            // --- UPDATE USER PROFILE WITH EMERGENCY DATA ---
-            // This data belongs to the tutor, so it's always updated on the userId
-            if (
-                registrationData.bloodType || 
-                registrationData.insuranceInfo || 
-                registrationData.allergies || 
-                registrationData.emergencyContactName || 
-                registrationData.emergencyContactPhone
-            ) {
+            // User profile update
+            if (registrationData.bloodType || registrationData.insuranceInfo || registrationData.allergies || registrationData.emergencyContactName || registrationData.emergencyContactPhone) {
                 const userRef = db.collection('users').doc(userId);
                 const updateData: any = {};
                 if (registrationData.bloodType) updateData.bloodType = registrationData.bloodType;
@@ -266,19 +254,14 @@ export async function registerUserToEvent(
                 if (registrationData.allergies) updateData.allergies = registrationData.allergies;
                 if (registrationData.emergencyContactName) updateData.emergencyContactName = registrationData.emergencyContactName;
                 if (registrationData.emergencyContactPhone) updateData.emergencyContactPhone = registrationData.emergencyContactPhone;
-                
                 transaction.update(userRef, updateData);
             }
-            // ------------------------------------------------
 
-            const eventUpdate: any = {
-                currentParticipants: currentParticipants + 1
-            };
-
+            // Final event update
+            const eventUpdate: any = { currentParticipants: currentParticipants + 1 };
             if (updatedCostTiers) {
                 eventUpdate.costTiers = updatedCostTiers;
             }
-
             transaction.update(eventRef, eventUpdate);
 
             return { success: true, message: "¡Registro exitoso!", registrationId: registrationId };
