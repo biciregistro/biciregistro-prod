@@ -34,6 +34,11 @@ const serialStagesSchema = z.object({
   price: z.coerce.number().min(0, "El precio debe ser válido"),
 });
 
+const pointMatrixSchema = z.array(z.object({
+  position: z.coerce.number().int().positive("La posición debe ser un número entero y positivo."),
+  points: z.coerce.number().nonnegative("Los puntos no pueden ser negativos.")
+})).min(1, "Debes definir al menos una posición en la matriz de puntos.");
+
 const createSerialSchema = z.object({
   name: z.string().min(3, "El nombre debe tener al menos 3 caracteres"),
   slug: z.string().min(3, "El slug es obligatorio"),
@@ -49,11 +54,14 @@ const createSerialSchema = z.object({
   level: z.enum(['Principiante', 'Intermedio', 'Avanzado']).default('Intermedio'),
   categories: z.array(categorySchema).min(1, "Debes configurar al menos 1 categoría global"),
   
+  pointMatrix: pointMatrixSchema,
+
   maxParticipantsGlobal: z.preprocess(
       (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)),
       z.number().optional()
   ),
   requiresAffiliationId: z.boolean().default(false),
+  allowsMinors: z.boolean().default(false), // HU-02: Habilitación Global de Menores
   stages: z.array(serialStagesSchema).min(1, "Debe tener al menos 1 etapa"),
 });
 
@@ -77,7 +85,7 @@ export async function createSerialWithStagesAction(payload: CreateSerialPayload)
       };
   }
 
-  const { stages, categories, modality, level, ...serialData } = validatedFields.data;
+  const { stages, categories, modality, level, pointMatrix, ...serialData } = validatedFields.data;
 
   try {
     const serialId = db.collection('serials').doc().id;
@@ -85,27 +93,13 @@ export async function createSerialWithStagesAction(payload: CreateSerialPayload)
 
     // 2. Crear la entidad Wrapper (Serial)
     const serialRef = db.collection('serials').doc(serialId);
-    
-    // Matriz de puntos predeterminada para el MVP (hasta 10mo lugar)
-    const defaultPointMatrix = [
-        { position: 1, points: 100 },
-        { position: 2, points: 80 },
-        { position: 3, points: 60 },
-        { position: 4, points: 50 },
-        { position: 5, points: 40 },
-        { position: 6, points: 30 },
-        { position: 7, points: 25 },
-        { position: 8, points: 20 },
-        { position: 9, points: 15 },
-        { position: 10, points: 10 },
-    ];
 
     const serialDoc: Serial = {
         ...serialData,
         id: serialId,
         ongId: user.id,
         status: 'published',
-        pointMatrix: defaultPointMatrix,
+        pointMatrix: pointMatrix,
         categories: categories as EventCategory[], // Guardamos las categorías en el objeto padre para referencia
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -165,6 +159,9 @@ export async function createSerialWithStagesAction(payload: CreateSerialPayload)
             serialId: serialId,
             isSerialStage: true,
             stageOrder: stageOrder,
+            
+            // HU-02: Herencia de permiso de menores
+            allowsMinors: validatedFields.data.allowsMinors,
         };
 
         batch.set(stageRef, eventDoc);

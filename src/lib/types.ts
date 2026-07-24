@@ -335,6 +335,7 @@ export type Serial = {
     requiresAffiliationId: boolean; // Flag B2C
     createdAt: string;
     updatedAt: string;
+    allowsMinors?: boolean; // HU-02: Habilitación Global de Menores
 };
 
 
@@ -842,7 +843,17 @@ export type UserReward = {
         advertiserName: string;
         type: CampaignType; // Track if it was a reward or giveaway
     };
-};export type SerialCompetitor = {
+};
+
+export interface PointMatrixItem {
+  position: number;
+  points: number;
+}
+
+export interface SerialExtended extends Serial {
+  pointMatrix: PointMatrixItem[];
+  allowsMinors: boolean;
+}export type SerialCompetitor = {
     id: string; // `${serialId}_${userId}`
     serialId: string;
     userId: string;
@@ -915,4 +926,14 @@ export interface Dependent {
   gender: 'Masculino' | 'Femenino' | 'Otro';
   bloodType: string;
   allergies?: string;
+}
+
+export interface PointMatrixItem {
+  position: number;
+  points: number;
+}
+
+export interface SerialExtended extends Serial {
+  pointMatrix: PointMatrixItem[];
+  allowsMinors: boolean;
 }

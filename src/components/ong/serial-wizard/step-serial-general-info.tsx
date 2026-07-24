@@ -14,6 +14,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ImageUpload } from '@/components/shared/image-upload';
 import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const MEXICAN_STATES = Object.keys(cities['México'] || {}).sort();
 const modalityOptions = ["Urbana", "Gravel", "Pista", "XC", "Enduro", "Downhill", "Trail", "E-Bike", "Dirt Jump", "MTB", "Ruta"];
@@ -24,6 +25,81 @@ const RequiredLabel = ({ children }: { children: React.ReactNode }) => (
     {children} <span className="text-red-500">*</span>
   </span>
 );
+
+function PointMatrixEditor() {
+  const { control, formState: { errors } } = useFormContext();
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "pointMatrix",
+  });
+
+  const addNewPosition = () => {
+    const lastPosition = fields.length > 0 ? (fields[fields.length - 1] as any).position : 0;
+    append({ position: lastPosition + 1, points: 5 });
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[100px]">Posición</TableHead>
+              <TableHead>Puntos</TableHead>
+              <TableHead className="w-[50px] text-right"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {fields.map((field, index) => (
+              <TableRow key={field.id}>
+                <TableCell>
+                  <FormField
+                    control={control}
+                    name={`pointMatrix.${index}.position`}
+                    render={({ field }) => (
+                      <Input type="number" {...field} className="h-8" />
+                    )}
+                  />
+                </TableCell>
+                <TableCell>
+                  <FormField
+                    control={control}
+                    name={`pointMatrix.${index}.points`}
+                    render={({ field }) => (
+                      <Input type="number" {...field} className="h-8" />
+                    )}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                    onClick={() => remove(index)}
+                    disabled={fields.length <= 1}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+       <div className="flex items-center justify-between pt-2">
+            <Button type="button" variant="outline" size="sm" onClick={addNewPosition}>
+                <PlusCircle className="mr-2 h-3 w-3" /> Agregar Posición
+            </Button>
+            {errors.pointMatrix && !Array.isArray(errors.pointMatrix) && (
+                <p className="text-xs font-medium text-destructive">
+                    {(errors.pointMatrix as any).message}
+                </p>
+            )}
+       </div>
+    </div>
+  );
+}
 
 export function StepSerialGeneralInfo() {
   const { control, watch, setValue, formState } = useFormContext();
@@ -232,6 +308,14 @@ export function StepSerialGeneralInfo() {
                 )}
             />
         </div>
+
+        {/* HU-01: Point Matrix Configuration */}
+        <div className="space-y-4 border rounded-lg p-4 bg-muted/5">
+            <h3 className="text-lg font-medium">Matriz de Puntuación</h3>
+            <p className="text-sm text-muted-foreground">Define los puntos otorgados por cada posición al final de una carrera. Puedes añadir o quitar posiciones.</p>
+            <PointMatrixEditor />
+        </div>
+
 
         {/* Categories Manager (Cloned from Event Configuration Section) */}
         <div className="space-y-4 border rounded-lg p-4 bg-muted/5 mt-6">
@@ -466,6 +550,27 @@ export function StepSerialGeneralInfo() {
                 </FormControl>
               </FormItem>
             )}
+        />
+
+        <FormField
+          control={control}
+          name="allowsMinors"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm bg-white">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">Menores de Edad</FormLabel>
+                <FormDescription>
+                  Permitir inscripción de menores de edad en este campeonato.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
         />
       </div>
     </div>

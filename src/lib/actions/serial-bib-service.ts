@@ -15,11 +15,17 @@ export class SerialBibService {
    * @returns A promise that resolves to the generated or retrieved bib number.
    * @throws Error if any database operation fails.
    */
-  static async getOrGenerateSerialBibNumber(serialId: string, userId: string, startNumber: number = 1): Promise<number> {
-    const registrationRef = adminDb.collection('serial_registrations').doc(`${serialId}_${userId}`);
+  static async getOrGenerateSerialBibNumber(
+    serialId: string,
+    userId: string,
+    dependentId?: string,
+    startNumber: number = 1
+  ): Promise<number> {
+    const athleteId = dependentId || userId;
+    const registrationRef = adminDb.collection('serial_registrations').doc(`${serialId}_${athleteId}`);
     const counterRef = adminDb.collection('serial_bib_counters').doc(serialId);
 
-    // 1. Check if the user already has a bib number for this serial
+    // 1. Check if the user/dependent already has a bib number for this serial
     const registrationDoc = await registrationRef.get();
     
     if (registrationDoc.exists) {
@@ -30,10 +36,6 @@ export class SerialBibService {
     }
 
     // 2. If not, generate a new one atomically using a transaction to ensure uniqueness
-    // We use a transaction because we need to read the counter, increment it, and save the registration
-    // to prevent race conditions if the same user tries to register twice simultaneously,
-    // though FieldValue.increment() is also atomic on its own.
-    
     return await adminDb.runTransaction(async (transaction) => {
        // Check registration again inside transaction to prevent race conditions
        const txRegistrationDoc = await transaction.get(registrationRef);
@@ -56,9 +58,11 @@ export class SerialBibService {
            transaction.set(counterRef, { currentNumber: nextBib });
        }
 
-       // Save the relation so we don't generate another one for this user
+       // Save the relation so we don't generate another one for this user/dependent
        transaction.set(registrationRef, {
-           userId,
+           userId: athleteId, // The effective competitor ID
+           tutorId: dependentId ? userId : null, // Store tutor if it's a dependent
+           dependentId: dependentId || null,
            serialId,
            bibNumber: nextBib,
            assignedAt: new Date().toISOString()

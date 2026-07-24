@@ -14,11 +14,12 @@ export type PublishResultsPayload = {
     eventId: string;
     serialId: string;
     results: {
-        userId: string;
+        userId: string; // This is the TUTOR's ID if dependentId is present
+        dependentId?: string; // This is the MINOR's ID
         categoryId: string;
         position: number;
         totalChipTimeMs?: number;
-        userName: string;
+        userName: string; // This is the MINOR's name if dependentId is present
         categoryName: string;
     }[];
 };
@@ -80,10 +81,11 @@ export async function publishStageResultsAction(payload: PublishResultsPayload) 
             // Apply new results
             stageResults.forEach(res => {
                 const pointsEarned = pointsMap.get(res.position) || 0; // Default to 0 if outside matrix
-                
-                if (userRowMap.has(res.userId)) {
+                const athleteId = res.dependentId || res.userId; // HU-04: Use dependentId if it exists
+
+                if (userRowMap.has(athleteId)) {
                     // Update existing
-                    const row = userRowMap.get(res.userId)!;
+                    const row = userRowMap.get(athleteId)!;
                     row.totalPoints += pointsEarned;
                     row.stagesCompleted += 1;
                     row.lastStagePosition = res.position;
@@ -94,8 +96,8 @@ export async function publishStageResultsAction(payload: PublishResultsPayload) 
                     row.userName = res.userName; // Keep updated
                 } else {
                     // Create new row
-                    userRowMap.set(res.userId, {
-                        userId: res.userId,
+                    userRowMap.set(athleteId, {
+                        userId: athleteId, // HU-04: The key is the actual competitor
                         categoryId: res.categoryId,
                         totalPoints: pointsEarned,
                         overallPosition: 0, // Will be calculated next

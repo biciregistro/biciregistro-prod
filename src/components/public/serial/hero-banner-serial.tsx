@@ -26,10 +26,10 @@ export function HeroBannerSerial({ serial, ongName, ongLogo, startDate, endDate 
             {serial.heroImageUrl && (
                 <>
                     <div 
-                        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-40" 
+                        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat" 
                         style={{ backgroundImage: `url(${serial.heroImageUrl})` }} 
                     />
-                    <div className="absolute inset-0 z-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
+                    <div className="absolute inset-0 bg-black/70" />
                 </>
             )}
 
@@ -47,7 +47,7 @@ export function HeroBannerSerial({ serial, ongName, ongLogo, startDate, endDate 
                             </span>
                         </div>
                         
-                        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
+                        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white drop-shadow-md tracking-tight">
                             {serial.name}
                         </h1>
                         

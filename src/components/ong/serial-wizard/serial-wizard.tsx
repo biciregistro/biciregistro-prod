@@ -11,6 +11,17 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowRight, ArrowLeft, Trophy, CheckCircle2, CalendarPlus, ExternalLink } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import Link from 'next/link';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 import { StepSerialGeneralInfo } from './step-serial-general-info';
 import { StepSerialStagesStructure } from './step-serial-stages-structure';
@@ -41,6 +52,11 @@ const serialStagesSchema = z.object({
   price: z.coerce.number().min(0, "El precio debe ser válido"),
 });
 
+const pointMatrixSchema = z.array(z.object({
+  position: z.coerce.number().int().positive("La posición debe ser un número entero y positivo."),
+  points: z.coerce.number().nonnegative("Los puntos no pueden ser negativos.")
+})).min(1, "Debes definir al menos una posición en la matriz de puntos.");
+
 const formSchema = z.object({
   name: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
   slug: z.string().min(3, 'El slug es obligatorio').regex(/^[a-z0-9-]+$/, "Solo minúsculas, números y guiones"),
@@ -54,8 +70,11 @@ const formSchema = z.object({
   level: z.enum(['Principiante', 'Intermedio', 'Avanzado']).default('Intermedio'),
   categories: z.array(categorySchema).min(1, "Debes configurar al menos 1 categoría global"),
   
+  pointMatrix: pointMatrixSchema, // HU-01: Añadir matriz de puntos al schema
+  
   maxParticipantsGlobal: z.coerce.number().min(0).optional(),
   requiresAffiliationId: z.boolean().default(false),
+  allowsMinors: z.boolean().default(false), // HU-02
   stages: z.array(serialStagesSchema).min(1, 'Debe configurar al menos 1 etapa'),
 });
 
@@ -91,8 +110,22 @@ export function SerialWizard() {
       level: 'Intermedio',
       categories: [{ id: uuidv4(), name: 'General', ageConfig: { isRestricted: false } }], // Cat por defecto
       requiresAffiliationId: false,
+      allowsMinors: false, // HU-02
       maxParticipantsGlobal: 0,
       stages: [{ date: '', price: 0 }],
+      // HU-01: Añadir valores por defecto para la matriz de puntos
+      pointMatrix: [
+        { position: 1, points: 100 },
+        { position: 2, points: 80 },
+        { position: 3, points: 60 },
+        { position: 4, points: 50 },
+        { position: 5, points: 40 },
+        { position: 6, points: 30 },
+        { position: 7, points: 25 },
+        { position: 8, points: 20 },
+        { position: 9, points: 15 },
+        { position: 10, points: 10 },
+      ],
     },
     mode: 'onChange',
   });
@@ -103,7 +136,7 @@ export function SerialWizard() {
     let fieldsToValidate: any[] = [];
     
     if (currentStep === 1) {
-      fieldsToValidate = ['name', 'slug', 'description', 'country', 'state', 'guideUrl', 'heroImageUrl', 'requiresAffiliationId', 'maxParticipantsGlobal', 'modality', 'level', 'categories'];
+      fieldsToValidate = ['name', 'slug', 'description', 'country', 'state', 'guideUrl', 'heroImageUrl', 'requiresAffiliationId', 'maxParticipantsGlobal', 'modality', 'level', 'categories', 'pointMatrix', 'allowsMinors'];
     } else if (currentStep === 2) {
       fieldsToValidate = ['stages'];
     }
@@ -227,6 +260,31 @@ export function SerialWizard() {
           </div>
 
           <div className="flex justify-between pt-6 border-t mt-8">
+            <div className="flex items-center gap-2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button type="button" variant="outline" className="text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50">
+                      Cancelar
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Cancelar creación del campeonato?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Todos los datos capturados en el formulario se perderán. ¿Estás seguro de que deseas salir?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Continuar configurando</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-red-600 hover:bg-red-700"
+                        onClick={() => router.push('/dashboard/ong?tab=events')}
+                      >
+                        Sí, cancelar y salir
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
                 <Button
                     type="button"
                     variant="outline"
@@ -236,6 +294,7 @@ export function SerialWizard() {
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Regresar
                 </Button>
+            </div>
                 
                 {currentStep < steps.length ? (
                     <Button type="button" onClick={handleNext}>
