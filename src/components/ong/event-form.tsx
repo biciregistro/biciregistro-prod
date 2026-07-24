@@ -29,6 +29,13 @@ interface EventFormProps {
     ongProfile?: Partial<OngUser>;
 }
 
+// Helper to convert a Date object to a string in 'YYYY-MM-DDTHH:MM' format in the local timezone
+const toLocalISOString = (date: Date) => {
+    const offset = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+    return localDate.toISOString().slice(0, 16);
+};
+
 export function EventForm({ initialData, financialSettings, hasFinancialData, ongProfile }: EventFormProps) {
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
@@ -55,7 +62,7 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
         defaultValues: {
             name: initialData?.name || "",
             eventType: initialData?.eventType as any || undefined,
-            date: initialData?.date ? new Date(initialData.date).toISOString().slice(0, 16) : "",
+            date: initialData?.date ? toLocalISOString(new Date(initialData.date)) : "",
             country: initialData?.country || "México",
             state: initialData?.state || "",
             modality: initialData?.modality || "",
@@ -71,7 +78,7 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
             hasCategories: initialData?.hasCategories || false,
             categories: initialData?.categories || [],
             hasRegistrationDeadline: initialData?.hasRegistrationDeadline || false,
-            registrationDeadline: initialData?.registrationDeadline ? new Date(initialData.registrationDeadline).toISOString().slice(0, 16) : "",
+            registrationDeadline: initialData?.registrationDeadline ? toLocalISOString(new Date(initialData.registrationDeadline)) : "",
             requiresEmergencyContact: initialData?.requiresEmergencyContact || false,
             requiresBike: initialData?.requiresBike !== false,
             requiresWaiver: initialData?.requiresWaiver || false,
@@ -107,6 +114,12 @@ export function EventForm({ initialData, financialSettings, hasFinancialData, on
                 ...data, 
                 id: initialData?.id,
                 costTiers: isCostEnabled ? data.costTiers : [],
+                // --- TIMEZONE FIX ---
+                // Convert the local datetime-local string back to a full ISO string.
+                // For new events, this will be in the user's local timezone.
+                // For existing events, this preserves the original timezone.
+                date: new Date(data.date).toISOString(),
+                registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline).toISOString() : undefined,
             };
             
             if (!isCostEnabled) {
