@@ -892,6 +892,8 @@ export interface SerialExtended extends Serial {
 export type ChartDataItem = {
     name: string;
     value: number;
+    // Propiedad para el desglose, poblada por el backend si hay datos detallados.
+    detailedData?: { name: string; model?: string; value: number }[];
 };
 
 // Estructura para una fila de indicadores de componentes
