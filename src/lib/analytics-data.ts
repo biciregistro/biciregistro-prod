@@ -865,98 +865,204 @@ const toChartData = (data: Record<string, number>): { name: string; value: numbe
 };
 
 
+// --- INICIO DE REFACTORIZACIÓN COMPLETA ---
+
+// Helper Genérico y Avanzado para transformar datos agregados en formato de gráfico con desglose
+const buildChartData = (
+    data: Record<string, number>,
+    detailedDataMap?: Map<string, { name: string, value: number, model?: string }[]>,
+    limit = 5
+): { name: string; value: number; detailedData?: { name: string; model?: string; value: number }[] }[] => {
+    const sorted = Object.entries(data)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+    if (sorted.length <= limit) {
+        return sorted.map(item => ({
+            ...item,
+            detailedData: detailedDataMap?.get(item.name)?.sort((a, b) => b.value - a.value),
+        }));
+    }
+
+    const top = sorted.slice(0, limit - 1);
+    const others = sorted.slice(limit - 1);
+    const othersValue = others.reduce((acc, item) => acc + item.value, 0);
+
+    // El desglose de "Otros" es la lista de items que lo componen, aplanados si tienen sub-desglose
+    const othersDetailedData: { name: string; model?: string; value: number }[] = [];
+    others.forEach(item => {
+        const details = detailedDataMap?.get(item.name);
+        if (details && details.length > 0) {
+            details.forEach(detail => {
+                othersDetailedData.push({
+                    name: detail.model ? detail.name : item.name,
+                    model: detail.model || detail.name,
+                    value: detail.value,
+                });
+            });
+        } else {
+            othersDetailedData.push({
+                name: item.name,
+                value: item.value,
+            });
+        }
+    });
+    othersDetailedData.sort((a, b) => b.value - a.value);
+
+    const final = top.map(item => ({
+        ...item,
+        detailedData: detailedDataMap?.get(item.name)?.sort((a, b) => b.value - a.value),
+    }));
+
+    if (othersValue > 0) {
+        final.push({
+            name: 'Otros',
+            value: othersValue,
+            detailedData: othersDetailedData,
+        });
+    }
+
+    return final.sort((a,b) => b.value - a.value);
+};
+
+// Helpers para convertir estructuras agregadas Map-of-Map a mapas planos requeridos por buildChartData
+const convertToBrandToModelsDetailedMap = (brandToModelsMap: Map<string, Map<string, number>>): Map<string, { name: string; value: number }[]> => {
+    const result = new Map<string, { name: string; value: number }[]>();
+    for (const [brand, modelsMap] of brandToModelsMap.entries()) {
+        const modelsArray = Array.from(modelsMap.entries()).map(([model, count]) => ({
+            name: model,
+            value: count
+        }));
+        result.set(brand, modelsArray);
+    }
+    return result;
+};
+
+const convertToModelToBrandsDetailedMap = (modelToBrandsMap: Map<string, Map<string, { model: string; count: number }>>): Map<string, { name: string; model: string; value: number }[]> => {
+    const result = new Map<string, { name: string; model: string; value: number }[]>();
+    for (const [modelKey, brandsMap] of modelToBrandsMap.entries()) {
+        const brandsArray = Array.from(brandsMap.entries()).map(([brand, info]) => ({
+            name: brand,
+            model: info.model,
+            value: info.count
+        }));
+        result.set(modelKey, brandsArray);
+    }
+    return result;
+};
+
+
 export const getComponentAnalytics = unstable_cache(
     async (filters: DashboardFilters): Promise<ComponentAnalyticsData> => {
         const db = adminDb;
         let query: FirebaseFirestore.Query = db.collection('bikes');
 
-        // Aplicar proyección de campos para optimizar
-        query = query.select(
-            'make',
-            'modality',
-            'frameMaterial',
-            'components',
-            'ownerCountry',
-            'ownerState',
-            'ownerCity',
-            'status'
-        );
+        // Proyección de campos optimizada
+        query = query.select('make', 'modality', 'frameMaterial', 'components', 'status');
 
-        // Aplicar filtros demográficos para el modo 'market'
+        // Filtros de base (demográficos, etc.)
         if (filters.analysisMode === 'market' || !filters.analysisMode) {
             query = applyBikeFilters(query, filters, 'owner');
         }
-
-        // TODO: Implementar lógica para el modo 'audit'
 
         const snapshot = await query.get();
         if (snapshot.empty) {
             return defaultComponentAnalyticsData;
         }
 
+        // --- Estructuras de Agregación Jerárquica ---
+        let totalBikes = 0;
+
+        // Para: Fila 'frameMaterial'
         const frameMaterialCounts: Record<string, number> = {};
         const carbonBikeMakes: Record<string, number> = {};
         const aluminumBikeMakes: Record<string, number> = {};
+        
+        // Para: Filas de componentes
+        const componentBrandCounts: Record<string, Record<string, number>> = {};
+        const componentModelCounts: Record<string, Record<string, number>> = {};
+        const componentBikeMakes: Record<string, Record<string, number>> = {};
 
-        interface ComponentGroup {
-            brands: Record<string, number>;
-            models: Record<string, number>;
-            bikeMakes: Record<string, number>;
-        }
+        // Para desgloses de marcas de componentes (Marca -> Modelos) por categoría
+        const brandToModelsByCategory: Record<string, Map<string, Map<string, number>>> = {};
 
-        const componentAggregates: Record<string, ComponentGroup> = {
-            brakes: { brands: {}, models: {}, bikeMakes: {} },
-            drivetrain: { brands: {}, models: {}, bikeMakes: {} },
-            fork: { brands: {}, models: {}, bikeMakes: {} },
-            shock: { brands: {}, models: {}, bikeMakes: {} },
-            tires: { brands: {}, models: {}, bikeMakes: {} },
-            grips: { brands: {}, models: {}, bikeMakes: {} },
-            saddle: { brands: {}, models: {}, bikeMakes: {} },
-            pedals: { brands: {}, models: {}, bikeMakes: {} },
-        };
+        // Para desgloses de modelos (Modelo -> Marcas que lo usan) por categoría
+        const modelToBrandsByCategory: Record<string, Map<string, Map<string, { model: string; count: number }>>> = {};
 
-        let totalBikes = 0;
-
-        snapshot.forEach((doc) => {
-            const bike = doc.data() as Bike;
-
-            if (bike.status === 'inventory') return; // Excluir inventario
-            totalBikes++;
-
-            // Fila 1: Material del Cuadro
-            if (bike.frameMaterial) {
-                frameMaterialCounts[bike.frameMaterial] = (frameMaterialCounts[bike.frameMaterial] || 0) + 1;
-                if (bike.frameMaterial === 'Carbono' && bike.make) {
-                    carbonBikeMakes[bike.make] = (carbonBikeMakes[bike.make] || 0) + 1;
-                }
-                if (bike.frameMaterial === 'Aluminio' && bike.make) {
-                    aluminumBikeMakes[bike.make] = (aluminumBikeMakes[bike.make] || 0) + 1;
-                }
-            }
-
-            // Filas 2-9: Componentes
-            if (bike.components) {
-                for (const [key, value] of Object.entries(componentAggregates)) {
-                    const category = key as keyof BikeComponents;
-                    const component: ComponentDetail | undefined = bike.components[category];
-
-                    if (component?.isNotApplicable) continue;
-
-                    const brand: string = component?.brand || 'Genérico';
-                    value.brands[brand] = (value.brands[brand] || 0) + 1;
-
-                    if (component?.model) {
-                        const compositeKey = `${brand}, ${component.model}`;
-                        value.models[compositeKey] = (value.models[compositeKey] || 0) + 1;
-                    }
-
-                    if (bike.make) {
-                        value.bikeMakes[bike.make] = (value.bikeMakes[bike.make] || 0) + 1;
-                    }
-                }
-            }
+        const componentCategories: (keyof BikeComponents)[] = ['brakes', 'drivetrain', 'fork', 'shock', 'tires', 'grips', 'saddle', 'pedals'];
+        componentCategories.forEach(cat => {
+            componentBrandCounts[cat] = {};
+            componentModelCounts[cat] = {};
+            componentBikeMakes[cat] = {};
+            brandToModelsByCategory[cat] = new Map();
+            modelToBrandsByCategory[cat] = new Map();
         });
 
+        // --- Bucle Único de Agregación ---
+        snapshot.forEach((doc) => {
+            const bike = doc.data() as Bike;
+            if (bike.status === 'inventory') return;
+            totalBikes++;
+
+            // 1. Material del Cuadro
+            if (bike.frameMaterial) {
+                frameMaterialCounts[bike.frameMaterial] = (frameMaterialCounts[bike.frameMaterial] || 0) + 1;
+                if (bike.make) {
+                    if (bike.frameMaterial === 'Carbono') {
+                        carbonBikeMakes[bike.make] = (carbonBikeMakes[bike.make] || 0) + 1;
+                    }
+                    if (bike.frameMaterial === 'Aluminio') {
+                        aluminumBikeMakes[bike.make] = (aluminumBikeMakes[bike.make] || 0) + 1;
+                    }
+                }
+            }
+
+            // 2. Componentes
+            if (bike.components) {
+                componentCategories.forEach(category => {
+                    const component: ComponentDetail | undefined = bike.components?.[category];
+                    if (!component || component.isNotApplicable) return;
+
+                    const brand = component.brand || 'Genérico';
+                    const model = component.model;
+
+                    // Conteo para `indicator1`: Distribución de Marcas
+                    componentBrandCounts[category][brand] = (componentBrandCounts[category][brand] || 0) + 1;
+
+                    // Conteo para `indicator2`: Top 5 Modelos
+                    if (model) {
+                        const modelKey = `${brand} ${model}`;
+                        componentModelCounts[category][modelKey] = (componentModelCounts[category][modelKey] || 0) + 1;
+                        
+                        // Poblar mapa para desglose de Modelos -> Marcas de forma agrupada e aislada
+                        const modelMap = modelToBrandsByCategory[category];
+                        if (!modelMap.has(modelKey)) {
+                            modelMap.set(modelKey, new Map());
+                        }
+                        const brandMap = modelMap.get(modelKey)!;
+                        const existing = brandMap.get(brand) || { model: model, count: 0 };
+                        brandMap.set(brand, { model: model, count: existing.count + 1 });
+                    }
+                    
+                    // Conteo para `indicator3`: Marcas de Bicis que usan el componente
+                    if (bike.make) {
+                         componentBikeMakes[category][bike.make] = (componentBikeMakes[category][bike.make] || 0) + 1;
+                    }
+
+                    // Poblar mapa para desglose de Marcas -> Modelos de forma agrupada e aislada
+                    if (model) {
+                        const brandMap = brandToModelsByCategory[category];
+                        if (!brandMap.has(brand)) {
+                            brandMap.set(brand, new Map());
+                        }
+                        const modelMap = brandMap.get(brand)!;
+                        modelMap.set(model, (modelMap.get(model) || 0) + 1);
+                    }
+                });
+            }
+        });
+        
+        // --- Agregaciones Post-Bucle para Indicadores Complejos ---
         const drivetrainBikeCategories: Record<string, number> = {};
         const gripsBikeCategories: Record<string, number> = {};
         const suspensionComparison: Record<string, number> = { 'Rígida': 0, 'Suspensión': 0 };
@@ -965,80 +1071,66 @@ export const getComponentAnalytics = unstable_cache(
         snapshot.forEach(doc => {
             const bike = doc.data() as Bike;
             if (bike.status === 'inventory') return;
+            const modalityLabel = BIKE_MODALITIES_OPTIONS.find(m => m.value === bike.modality)?.label || bike.modality || 'No especificada';
 
-            if (bike.components?.drivetrain && bike.modality) {
-                const modalityLabel = BIKE_MODALITIES_OPTIONS.find(m => m.value === bike.modality)?.label || bike.modality;
-                drivetrainBikeCategories[modalityLabel] = (drivetrainBikeCategories[modalityLabel] || 0) + 1;
-            }
-            if (bike.components?.grips && bike.modality) {
-                const modalityLabel = BIKE_MODALITIES_OPTIONS.find(m => m.value === bike.modality)?.label || bike.modality;
-                gripsBikeCategories[modalityLabel] = (gripsBikeCategories[modalityLabel] || 0) + 1;
-            }
-            if (bike.components?.fork) {
-                if (bike.components.fork.isNotApplicable) {
-                    suspensionComparison['Rígida']++;
-                } else {
-                    suspensionComparison['Suspensión']++;
-                }
-            }
-            if (bike.components?.shock) {
-                if (bike.components.shock.isNotApplicable) {
-                    shockComparison['Rígida']++;
-                } else {
-                    shockComparison['Doble Suspensión']++;
-                }
-            }
+            if (bike.components?.drivetrain) drivetrainBikeCategories[modalityLabel] = (drivetrainBikeCategories[modalityLabel] || 0) + 1;
+            if (bike.components?.grips) gripsBikeCategories[modalityLabel] = (gripsBikeCategories[modalityLabel] || 0) + 1;
+            if (bike.components?.fork?.isNotApplicable) suspensionComparison['Rígida']++; else if (bike.components?.fork) suspensionComparison['Suspensión']++;
+            if (bike.components?.shock?.isNotApplicable) shockComparison['Rígida']++; else if (bike.components?.shock) shockComparison['Doble Suspensión']++;
         });
 
+        // --- Ensamblaje Final de Datos ---
         return {
             totalBikes,
             frameMaterial: {
-                indicator1: toChartData(frameMaterialCounts),
-                indicator2: toChartData(carbonBikeMakes),
-                indicator3: toChartData(aluminumBikeMakes),
+                indicator1: buildChartData(frameMaterialCounts),
+                indicator2: buildChartData(carbonBikeMakes),
+                indicator3: buildChartData(aluminumBikeMakes)
             },
             brakes: {
-                indicator1: toChartData(componentAggregates.brakes.brands),
-                indicator2: toChartData(componentAggregates.brakes.models),
-                indicator3: toChartData(componentAggregates.brakes.bikeMakes),
+                indicator1: buildChartData(componentBrandCounts.brakes, convertToBrandToModelsDetailedMap(brandToModelsByCategory.brakes)),
+                indicator2: buildChartData(componentModelCounts.brakes, convertToModelToBrandsDetailedMap(modelToBrandsByCategory.brakes)),
+                indicator3: buildChartData(componentBikeMakes.brakes),
             },
             drivetrain: {
-                indicator1: toChartData(componentAggregates.drivetrain.brands),
-                indicator2: toChartData(componentAggregates.drivetrain.models),
-                indicator3: toChartData(drivetrainBikeCategories),
+                indicator1: buildChartData(componentBrandCounts.drivetrain, convertToBrandToModelsDetailedMap(brandToModelsByCategory.drivetrain)),
+                indicator2: buildChartData(componentModelCounts.drivetrain, convertToModelToBrandsDetailedMap(modelToBrandsByCategory.drivetrain)),
+                indicator3: buildChartData(drivetrainBikeCategories),
             },
             fork: {
-                indicator1: toChartData(componentAggregates.fork.brands),
-                indicator2: toChartData(componentAggregates.fork.models),
-                indicator3: toChartData(suspensionComparison),
+                indicator1: buildChartData(componentBrandCounts.fork, convertToBrandToModelsDetailedMap(brandToModelsByCategory.fork)),
+                indicator2: buildChartData(componentModelCounts.fork, convertToModelToBrandsDetailedMap(modelToBrandsByCategory.fork)),
+                indicator3: buildChartData(suspensionComparison, undefined, 2),
             },
             shock: {
-                indicator1: toChartData(componentAggregates.shock.brands),
-                indicator2: toChartData(componentAggregates.shock.models),
-                indicator3: toChartData(shockComparison),
+                indicator1: buildChartData(componentBrandCounts.shock, convertToBrandToModelsDetailedMap(brandToModelsByCategory.shock)),
+                indicator2: buildChartData(componentModelCounts.shock, convertToModelToBrandsDetailedMap(modelToBrandsByCategory.shock)),
+                indicator3: buildChartData(shockComparison, undefined, 2),
             },
             tires: {
-                indicator1: toChartData(componentAggregates.tires.brands),
-                indicator2: toChartData(componentAggregates.tires.models),
-                indicator3: toChartData(componentAggregates.tires.bikeMakes),
+                indicator1: buildChartData(componentBrandCounts.tires, convertToBrandToModelsDetailedMap(brandToModelsByCategory.tires)),
+                indicator2: buildChartData(componentModelCounts.tires, convertToModelToBrandsDetailedMap(modelToBrandsByCategory.tires)),
+                indicator3: buildChartData(componentBikeMakes.tires),
             },
             grips: {
-                indicator1: toChartData(componentAggregates.grips.brands),
-                indicator2: toChartData(componentAggregates.grips.brands), // Spec: Top 5 marcas de puños
-                indicator3: toChartData(gripsBikeCategories),
+                indicator1: buildChartData(componentBrandCounts.grips, convertToBrandToModelsDetailedMap(brandToModelsByCategory.grips)),
+                indicator2: buildChartData(componentBrandCounts.grips), // Spec dice Top 5 marcas
+                indicator3: buildChartData(gripsBikeCategories),
             },
             saddle: {
-                indicator1: toChartData(componentAggregates.saddle.brands),
-                indicator2: toChartData(componentAggregates.saddle.brands), // Spec: Top 5 marcas de sillines
-                indicator3: toChartData(componentAggregates.saddle.bikeMakes),
+                indicator1: buildChartData(componentBrandCounts.saddle, convertToBrandToModelsDetailedMap(brandToModelsByCategory.saddle)),
+                indicator2: buildChartData(componentBrandCounts.saddle), // Spec dice Top 5 marcas
+                indicator3: buildChartData(componentBikeMakes.saddle),
             },
             pedals: {
-                indicator1: toChartData(componentAggregates.pedals.brands),
-                indicator2: toChartData(componentAggregates.pedals.models),
-                indicator3: toChartData(componentAggregates.pedals.bikeMakes),
+                indicator1: buildChartData(componentBrandCounts.pedals, convertToBrandToModelsDetailedMap(brandToModelsByCategory.pedals)),
+                indicator2: buildChartData(componentModelCounts.pedals, convertToModelToBrandsDetailedMap(modelToBrandsByCategory.pedals)),
+                indicator3: buildChartData(componentBikeMakes.pedals),
             },
         };
     },
     ['component-analytics-cache'],
-    { revalidate: 30, tags: ['analytics'] } // Cache por 30 segundos
+    { revalidate: 30, tags: ['analytics'] }
 );
+
+// --- FIN DE REFACTORIZACIÓN ---
